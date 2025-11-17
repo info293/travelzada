@@ -10,6 +10,9 @@ const travelData = travelDatabase as any
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  itinerary?: string
+  tripInfo?: TripInfo
+  destination?: any
 }
 
 interface ConversationAgentProps {
@@ -262,46 +265,21 @@ export default function ConversationAgent({ formData, setFormData }: Conversatio
       return
     }
 
-    // Determine package type based on budget and preferences
-    let packageType = 'Mid-Range'
-    let packagePrice = destination.budgetRange.midRange
-    
-    const budgetNum = parseInt(currentInfo.budget.replace(/,/g, '')) || 50000
-    
-    if (budgetNum < 30000) {
-      packageType = 'Budget'
-      packagePrice = destination.budgetRange.budget
-    } else if (budgetNum > 80000) {
-      packageType = 'Luxury'
-      packagePrice = destination.budgetRange.luxury
-    }
-
     // Create personalized itinerary
     const days = parseInt(currentInfo.days) || 5
     const itinerary = generateItinerary(destination, days, currentInfo.travelType)
 
-    const recommendation = `🎉 Perfect! Based on your preferences, here's your personalized ${currentInfo.destination} package:
+    const recommendation = `🎉 Perfect! I've created your personalized ${currentInfo.days}-day itinerary for ${currentInfo.destination}!
 
-📦 **Package Type:** ${packageType}
-💰 **Price:** Starting from ${packagePrice}
-📅 **Duration:** ${currentInfo.days} days
-🏨 **Accommodation:** ${currentInfo.hotelType}
-👥 **Travel Style:** ${currentInfo.travelType.charAt(0).toUpperCase() + currentInfo.travelType.slice(1)}
+Here's your complete travel plan:`
 
-📋 **Your ${currentInfo.days}-Day Itinerary:**
-
-${itinerary}
-
-✨ **What's Included:**
-• ${currentInfo.hotelType} accommodation
-• Breakfast included
-• Airport transfers
-• Local guide assistance
-• ${currentInfo.travelType === 'family' ? 'Kid-friendly activities' : currentInfo.travelType === 'couple' ? 'Romantic experiences' : 'Adventure activities'}
-
-Would you like me to customize this further or generate your complete itinerary?`
-
-    const assistantMessage: Message = { role: 'assistant', content: recommendation }
+    const assistantMessage: Message = { 
+      role: 'assistant', 
+      content: recommendation,
+      itinerary: itinerary,
+      tripInfo: currentInfo,
+      destination: destination
+    }
     setMessages((prev) => [...prev, assistantMessage])
     setShowRecommendation(true)
     setIsTyping(false)
@@ -477,15 +455,94 @@ Would you like me to customize this further or generate your complete itinerary?
             key={index}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === 'user'
-                  ? 'bg-primary text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              <p className="whitespace-pre-line">{message.content}</p>
-            </div>
+            {message.role === 'assistant' && message.itinerary ? (
+              <div className="max-w-[90%] w-full">
+                <div className="bg-gray-100 text-gray-800 rounded-2xl px-4 py-3 mb-3">
+                  <p className="whitespace-pre-line">{message.content}</p>
+                </div>
+                {/* Itinerary Card */}
+                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-6 py-4 border-b border-gray-200">
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">
+                      {message.tripInfo?.destination} Itinerary
+                    </h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span>📅 {message.tripInfo?.days} Days</span>
+                      <span>🏨 {message.tripInfo?.hotelType}</span>
+                      <span>👥 {message.tripInfo?.travelType?.charAt(0).toUpperCase()}{message.tripInfo?.travelType?.slice(1)}</span>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="space-y-4">
+                      {message.itinerary.split('\n\n').map((day, idx) => {
+                        if (!day.trim()) return null
+                        const lines = day.split('\n')
+                        const dayTitle = lines[0]
+                        const details = lines.slice(1)
+                        return (
+                          <div key={idx} className="border-l-4 border-primary pl-4">
+                            <h4 className="font-bold text-gray-900 mb-2">{dayTitle}</h4>
+                            <ul className="space-y-1">
+                              {details.map((detail, detailIdx) => (
+                                <li key={detailIdx} className="text-sm text-gray-600 flex items-start gap-2">
+                                  <span className="text-primary mt-1.5">•</span>
+                                  <span>{detail.replace('   • ', '')}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200">
+                      <h4 className="font-bold text-gray-900 mb-3">✨ What's Included:</h4>
+                      <ul className="space-y-2 text-sm text-gray-600">
+                        <li className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          {message.tripInfo?.hotelType} accommodation
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Breakfast included
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Airport transfers
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Local guide assistance
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          {message.tripInfo?.travelType === 'family' ? 'Kid-friendly activities' : message.tripInfo?.travelType === 'couple' ? 'Romantic experiences' : 'Adventure activities'}
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  message.role === 'user'
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                <p className="whitespace-pre-line">{message.content}</p>
+              </div>
+            )}
           </div>
         ))}
         {isTyping && (
@@ -525,8 +582,13 @@ Would you like me to customize this further or generate your complete itinerary?
 
       {/* Recommended Packages */}
       {showPackageSuggestions && (
-        <div className="border-t border-gray-100 bg-gray-50 px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
+        <div className="border-t border-gray-100 bg-gray-50 px-4 py-6">
+          <div className="relative mb-4">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-3 py-0.5 rounded-b-full shadow">
+              2 More Options Available
+            </div>
+          </div>
+          <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-semibold text-gray-800">Recommended Packages</p>
               <p className="text-xs text-gray-500">
@@ -540,22 +602,83 @@ Would you like me to customize this further or generate your complete itinerary?
               View all
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {matchingPackages.slice(0, 2).map((pkg) => (
               <Link
                 key={pkg.id}
                 href={`/destinations/${encodeURIComponent(pkg.destination)}/${pkg.id}`}
-                className="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl p-3 hover:border-primary/40 hover:shadow-md transition-all"
+                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all"
               >
-                <img
-                  src={pkg.image}
-                  alt={pkg.title}
-                  className="w-20 h-16 object-cover rounded-xl"
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900 line-clamp-1">{pkg.title}</p>
-                  <p className="text-xs text-gray-500 mb-1">{pkg.duration}</p>
-                  <p className="text-sm font-bold text-primary">{pkg.pricePerPerson} /person</p>
+                {/* Image Section */}
+                <div className="relative h-48 overflow-hidden">
+                  <img
+                    src={pkg.image}
+                    alt={pkg.title}
+                    className="w-full h-full object-cover"
+                  />
+                  {pkg.badge && (
+                    <span className="absolute top-3 left-3 bg-black/70 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                      {pkg.badge}
+                    </span>
+                  )}
+                  {pkg.type && (
+                    <span className="absolute top-3 right-3 bg-white text-gray-900 text-xs font-semibold px-2.5 py-1 rounded-full shadow">
+                      {pkg.type}
+                    </span>
+                  )}
+                </div>
+
+                {/* Content Section */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 flex-1">{pkg.title}</h3>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{pkg.nightsSummary}</p>
+                  
+                  {/* Inclusions */}
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
+                      <span>{pkg.hotelLevel}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
+                      <span>Visa</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
+                      <span>{pkg.activitiesCount} Activities</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
+                      <span>{pkg.meals}</span>
+                    </div>
+                    {pkg.perks && pkg.perks.length > 0 && (
+                      <>
+                        {pkg.perks.slice(0, 3).map((perk, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm text-green-600">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>{perk}</span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Pricing Section */}
+                  <div className="border-t border-gray-200 pt-3 mt-3">
+                    {pkg.paymentNote && (
+                      <p className="text-xs text-gray-600 mb-2">{pkg.paymentNote}</p>
+                    )}
+                    <div className="flex items-baseline justify-between">
+                      <div>
+                        <p className="text-2xl font-bold text-gray-900">{pkg.pricePerPerson} /Person</p>
+                        <p className="text-sm text-gray-600 mt-1">Total Price {pkg.totalPrice}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </Link>
             ))}

@@ -3,7 +3,7 @@ import Hero from '@/components/Hero'
 import HowItWorks from '@/components/HowItWorks'
 import Testimonials from '@/components/Testimonials'
 import WhyTravelzada from '@/components/WhyTravelzada'
-import TrendingDestinations from '@/components/TrendingDestinations'
+import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
 
 export default function Home() {
@@ -14,7 +14,7 @@ export default function Home() {
       <HowItWorks />
       <Testimonials />
       <WhyTravelzada />
-      <TrendingDestinations />
+      <Packages />
       <Footer />
     </main>
   )

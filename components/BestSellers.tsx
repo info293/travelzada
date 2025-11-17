@@ -1,48 +1,48 @@
 import Link from 'next/link'
-
-const bestSellers = [
-  {
-    name: 'Kerala Backwaters',
-    price: '₹20,500',
-    image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=400&q=80',
-  },
-  {
-    name: 'Royal Jaipur',
-    price: '₹15,000',
-    image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=400&q=80',
-  },
-  {
-    name: 'Mystical Manali',
-    price: '₹18,900',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80',
-  },
-  {
-    name: 'Goa Beach Bliss',
-    price: '₹12,500',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80',
-  },
-]
+import { travelPackages } from '@/data/package-data'
 
 export default function BestSellers() {
+  // Get first 4 packages as trending packages
+  const trendingPackages = travelPackages.slice(0, 4)
+
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {bestSellers.map((item, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+        {trendingPackages.map((pkg) => (
+          <Link
+            key={pkg.id}
+            href={`/destinations/${encodeURIComponent(pkg.destination)}/${pkg.id}`}
+            className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 transform hover:-translate-y-1"
           >
-            <div
-              className="h-48 bg-cover bg-center"
-              style={{ backgroundImage: `url(${item.image})` }}
-            ></div>
+            <div className="relative h-48 overflow-hidden">
+              <img
+                src={pkg.image}
+                alt={pkg.title}
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+              />
+              {pkg.badge && (
+                <span className="absolute top-3 left-3 bg-black/70 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {pkg.badge}
+                </span>
+              )}
+              {pkg.rating && (
+                <span className="absolute top-3 right-3 bg-white text-gray-900 text-xs font-semibold px-2.5 py-1 rounded-full shadow">
+                  ⭐ {pkg.rating}
+                </span>
+              )}
+            </div>
             <div className="p-4">
-              <h3 className="font-bold text-lg mb-2">{item.name}</h3>
-              <p className="text-primary font-semibold mb-3">
-                Starting From {item.price}
+              <h3 className="font-bold text-lg mb-1 line-clamp-1">{pkg.title}</h3>
+              <p className="text-sm text-gray-600 mb-2">{pkg.destination}</p>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-500">{pkg.duration}</span>
+                <span className="text-lg font-bold text-primary">{pkg.pricePerPerson}</span>
+              </div>
+              <p className="text-primary font-semibold text-sm hover:underline">
+                View Details →
               </p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
       
