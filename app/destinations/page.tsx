@@ -13,7 +13,8 @@ export default function DestinationsPage() {
   const [filterCountry, setFilterCountry] = useState('all')
   
   const allDestinations = travelData.destinations
-  const countries = ['all', ...new Set(allDestinations.map((d: any) => d.country))]
+  const countrySet = new Set<string>(allDestinations.map((d: any) => d.country as string))
+  const countries: string[] = ['all', ...Array.from(countrySet)]
 
   // Filter destinations
   const filteredDestinations = allDestinations.filter((destination: any) => {
