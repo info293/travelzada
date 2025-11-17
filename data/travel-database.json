@@ -1,0 +1,181 @@
+{
+  "destinations": [
+    {
+      "name": "Bali",
+      "country": "Indonesia",
+      "description": "A tropical paradise known for its stunning beaches, ancient temples, lush rice terraces, and vibrant culture.",
+      "bestTimeToVisit": "April to October (dry season)",
+      "currency": "Indonesian Rupiah (IDR)",
+      "language": "Indonesian, Balinese",
+      "highlights": ["Ubud rice terraces", "Tanah Lot Temple", "Seminyak Beach", "Mount Batur sunrise"],
+      "activities": ["Beach relaxation", "Temple visits", "Water sports", "Yoga retreats", "Spa treatments"],
+      "budgetRange": {
+        "budget": "₹30,000 - ₹50,000",
+        "midRange": "₹50,000 - ₹80,000",
+        "luxury": "₹80,000+"
+      },
+      "hotelTypes": ["Beach resorts", "Villa rentals", "Boutique hotels", "Eco-lodges"],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Goa",
+      "country": "India",
+      "description": "India's party capital with pristine beaches, Portuguese heritage, and a laid-back vibe.",
+      "bestTimeToVisit": "November to February",
+      "currency": "Indian Rupee (INR)",
+      "language": "Konkani, English, Hindi",
+      "highlights": ["Baga Beach", "Old Goa churches", "Anjuna Flea Market", "Dudhsagar Falls"],
+      "activities": ["Beach parties", "Water sports", "Heritage tours", "Casino visits", "Spice plantation tours"],
+      "budgetRange": {
+        "budget": "₹15,000 - ₹25,000",
+        "midRange": "₹25,000 - ₹45,000",
+        "luxury": "₹45,000+"
+      },
+      "hotelTypes": ["Beach shacks", "Resorts", "Heritage hotels", "Luxury villas"],
+      "duration": "3-5 days recommended"
+    },
+    {
+      "name": "Kerala",
+      "country": "India",
+      "description": "God's Own Country - famous for backwaters, tea plantations, Ayurveda, and pristine nature.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Malayalam, English",
+      "highlights": ["Alleppey backwaters", "Munnar tea gardens", "Kochi Fort", "Wayanad wildlife"],
+      "activities": ["Houseboat cruises", "Ayurveda treatments", "Tea plantation tours", "Wildlife safaris", "Beach relaxation"],
+      "budgetRange": {
+        "budget": "₹20,000 - ₹35,000",
+        "midRange": "₹35,000 - ₹60,000",
+        "luxury": "₹60,000+"
+      },
+      "hotelTypes": ["Houseboats", "Resorts", "Heritage homestays", "Ayurveda retreats"],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Rajasthan",
+      "country": "India",
+      "description": "The Land of Kings - majestic forts, palaces, deserts, and rich cultural heritage.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Rajasthani, English",
+      "highlights": ["Jaipur City Palace", "Udaipur Lake Palace", "Jaisalmer Fort", "Pushkar Camel Fair"],
+      "activities": ["Palace tours", "Desert safaris", "Camel rides", "Cultural shows", "Shopping for handicrafts"],
+      "budgetRange": {
+        "budget": "₹25,000 - ₹40,000",
+        "midRange": "₹40,000 - ₹70,000",
+        "luxury": "₹70,000+"
+      },
+      "hotelTypes": ["Heritage palaces", "Desert camps", "Boutique hotels", "Luxury resorts"],
+      "duration": "7-10 days recommended"
+    },
+    {
+      "name": "Manali",
+      "country": "India",
+      "description": "A hill station in the Himalayas, perfect for adventure sports and mountain views.",
+      "bestTimeToVisit": "March to June, October to December",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, English",
+      "highlights": ["Rohtang Pass", "Solang Valley", "Hadimba Temple", "Old Manali"],
+      "activities": ["Skiing", "Paragliding", "Trekking", "River rafting", "Mountain biking"],
+      "budgetRange": {
+        "budget": "₹15,000 - ₹30,000",
+        "midRange": "₹30,000 - ₹50,000",
+        "luxury": "₹50,000+"
+      },
+      "hotelTypes": ["Mountain resorts", "Homestays", "Luxury hotels", "Adventure camps"],
+      "duration": "4-6 days recommended"
+    },
+    {
+      "name": "Singapore",
+      "country": "Singapore",
+      "description": "A modern city-state with world-class attractions, diverse cuisine, and efficient infrastructure.",
+      "bestTimeToVisit": "Year-round (February to April is driest)",
+      "currency": "Singapore Dollar (SGD)",
+      "language": "English, Mandarin, Malay, Tamil",
+      "highlights": ["Marina Bay Sands", "Gardens by the Bay", "Sentosa Island", "Universal Studios"],
+      "activities": ["City tours", "Shopping", "Theme parks", "Food tours", "Nightlife"],
+      "budgetRange": {
+        "budget": "₹50,000 - ₹80,000",
+        "midRange": "₹80,000 - ₹1,20,000",
+        "luxury": "₹1,20,000+"
+      },
+      "hotelTypes": ["City hotels", "Resorts", "Boutique hotels", "Luxury suites"],
+      "duration": "3-5 days recommended"
+    },
+    {
+      "name": "Thailand",
+      "country": "Thailand",
+      "description": "Land of smiles with beautiful beaches, ancient temples, and vibrant street food culture.",
+      "bestTimeToVisit": "November to March",
+      "currency": "Thai Baht (THB)",
+      "language": "Thai, English",
+      "highlights": ["Bangkok temples", "Phuket beaches", "Chiang Mai", "Phi Phi Islands"],
+      "activities": ["Temple visits", "Beach activities", "Thai massage", "Street food tours", "Island hopping"],
+      "budgetRange": {
+        "budget": "₹35,000 - ₹60,000",
+        "midRange": "₹60,000 - ₹1,00,000",
+        "luxury": "₹1,00,000+"
+      },
+      "hotelTypes": ["Beach resorts", "City hotels", "Boutique hotels", "Luxury villas"],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Maldives",
+      "country": "Maldives",
+      "description": "Tropical paradise with overwater bungalows, crystal-clear waters, and world-class diving.",
+      "bestTimeToVisit": "November to April",
+      "currency": "Maldivian Rufiyaa (MVR)",
+      "language": "Dhivehi, English",
+      "highlights": ["Overwater villas", "Snorkeling", "Diving", "Spa treatments", "Sunset cruises"],
+      "activities": ["Water sports", "Diving", "Snorkeling", "Spa", "Island hopping"],
+      "budgetRange": {
+        "budget": "₹80,000 - ₹1,50,000",
+        "midRange": "₹1,50,000 - ₹3,00,000",
+        "luxury": "₹3,00,000+"
+      },
+      "hotelTypes": ["Overwater villas", "Beach resorts", "Luxury resorts", "All-inclusive resorts"],
+      "duration": "4-7 days recommended"
+    }
+  ],
+  "hotelTypes": [
+    {
+      "type": "Budget",
+      "description": "Affordable accommodations, hostels, guesthouses",
+      "priceRange": "₹500 - ₹2,000 per night"
+    },
+    {
+      "type": "Mid-Range",
+      "description": "Comfortable hotels with good amenities",
+      "priceRange": "₹2,000 - ₹5,000 per night"
+    },
+    {
+      "type": "Luxury",
+      "description": "5-star hotels, resorts, and premium accommodations",
+      "priceRange": "₹5,000+ per night"
+    },
+    {
+      "type": "Boutique",
+      "description": "Unique, stylish hotels with character",
+      "priceRange": "₹3,000 - ₹8,000 per night"
+    }
+  ],
+  "travelTips": [
+    "Book flights 2-3 months in advance for better prices",
+    "Travel insurance is recommended for international trips",
+    "Check visa requirements before booking",
+    "Pack light and check weather forecasts",
+    "Keep digital copies of important documents",
+    "Learn basic phrases in the local language",
+    "Respect local customs and traditions",
+    "Stay hydrated and carry a reusable water bottle"
+  ],
+  "commonQuestions": {
+    "bestTimeToVisit": "The best time to visit depends on the destination. Generally, avoid monsoon seasons and peak summer months. Check our destination guides for specific recommendations.",
+    "budgetPlanning": "Plan your budget considering flights (30-40%), accommodation (25-35%), food (15-20%), activities (10-15%), and miscellaneous (10%).",
+    "soloTravel": "Many destinations are safe for solo travelers. Start with popular tourist spots, stay in well-reviewed accommodations, and join group tours for activities.",
+    "familyTravel": "Choose family-friendly destinations with good infrastructure, kid-friendly activities, and accommodations with family rooms or suites.",
+    "adventureTravel": "Destinations like Manali, Bali, and Thailand offer great adventure activities. Ensure you have proper insurance and use certified operators."
+  }
+}
+
+
