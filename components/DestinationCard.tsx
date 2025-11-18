@@ -38,12 +38,45 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
     return imageMap[name] || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=600&q=80'
   }
 
+  // Parse duration to get days/nights format
+  const parseDuration = (duration: string): string => {
+    const match = duration.match(/(\d+)/)
+    if (match) {
+      const days = parseInt(match[1])
+      return `${days}D/${days - 1}N`
+    }
+    return '5D/4N'
+  }
+
+  // Extract price from budget range (e.g., "₹30,000 - ₹50,000" -> "₹30,000")
+  const getStartingPrice = (budget: string): string => {
+    const match = budget.match(/₹[\d,]+/)
+    return match ? match[0] : budget.split('-')[0].trim()
+  }
+
+  // Generate a deterministic rating based on destination name
+  const getRating = (name: string): string => {
+    let hash = 0
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    const rating = 4.5 + (Math.abs(hash) % 40) / 100
+    return rating.toFixed(1)
+  }
+  
+  const rating = getRating(destination.name)
+
   const imageUrl = getDestinationImage(destination.name)
+  const durationFormatted = parseDuration(destination.duration)
+  const startingPrice = getStartingPrice(destination.budgetRange.budget)
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100">
-      {/* Image */}
-      <div className="relative h-64 overflow-hidden">
+    <Link
+      href={`/destinations/${encodeURIComponent(destination.name)}`}
+      className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 block"
+    >
+      {/* Image Section */}
+      <div className="relative h-48 overflow-hidden">
         {!imageError ? (
           <img
             src={imageUrl}
@@ -56,84 +89,44 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
             <span className="text-6xl">🌴</span>
           </div>
         )}
-        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
-          <span className="text-sm font-semibold text-primary">{destination.country}</span>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">{destination.name}</h3>
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{destination.description}</p>
         
-        {/* Highlights */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Top Highlights</p>
-          <div className="flex flex-wrap gap-2">
-            {destination.highlights.slice(0, 3).map((highlight, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full"
-              >
-                {highlight}
-              </span>
-            ))}
-          </div>
+        {/* FEATURED Tag */}
+        <div className="absolute top-3 left-3 bg-primary text-white px-2.5 py-1 rounded-lg">
+          <span className="text-xs font-semibold uppercase">Featured</span>
         </div>
 
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-          <div>
-            <p className="text-gray-500 text-xs">Best Time</p>
-            <p className="font-semibold text-gray-800">{destination.bestTimeToVisit.split('(')[0].trim()}</p>
-          </div>
-          <div>
-            <p className="text-gray-500 text-xs">Duration</p>
-            <p className="font-semibold text-gray-800">{destination.duration}</p>
-          </div>
-        </div>
-
-        {/* Budget Range */}
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs font-semibold text-gray-500 mb-2">Starting From</p>
-          <p className="text-lg font-bold text-primary">{destination.budgetRange.budget}</p>
-        </div>
-
-        {/* Activities Preview */}
-        <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-500 mb-2">Popular Activities</p>
-          <div className="flex flex-wrap gap-1">
-            {destination.activities.slice(0, 3).map((activity, index) => (
-              <span
-                key={index}
-                className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded"
-              >
-                {activity}
-              </span>
-            ))}
-            {destination.activities.length > 3 && (
-              <span className="text-xs text-gray-500">+{destination.activities.length - 3} more</span>
-            )}
-          </div>
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="flex gap-2">
-          <Link
-            href={`/ai-planner?destination=${encodeURIComponent(destination.name)}`}
-            className="flex-1 bg-primary text-white text-center px-4 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-          >
-            Plan with AI
-          </Link>
-          <Link
-            href={`/destinations/${encodeURIComponent(destination.name)}`}
-            className="px-4 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary/10 transition-colors text-center"
-          >
-            View Details
-          </Link>
+        {/* Rating Badge */}
+        <div className="absolute top-3 right-3 bg-[#1e1d2f]/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg">
+          <span className="text-xs font-medium">⭐ {rating}</span>
         </div>
       </div>
-    </div>
+
+      {/* Content Section */}
+      <div className="p-4 bg-white">
+        {/* Location */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+          <span>📍</span>
+          <span>{destination.name}, {destination.country}</span>
+        </div>
+
+        {/* Package Title */}
+        <h3 className="text-base font-medium text-[#1e1d2f] mb-3 line-clamp-2">
+          {destination.name} Adventure Package
+        </h3>
+
+        {/* Price and Duration Row */}
+        <div className="flex items-end justify-between">
+          <div>
+            <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
+            <p className="text-2xl font-semibold text-[#1e1d2f]">{startingPrice}</p>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span>🕐</span>
+            <span>{durationFormatted}</span>
+          </div>
+        </div>
+      </div>
+    </Link>
   )
 }
 
