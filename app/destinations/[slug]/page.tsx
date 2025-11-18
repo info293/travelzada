@@ -66,7 +66,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
       <Header />
       
       {/* Hero Image Section */}
-      <section className="relative h-[500px] md:h-[600px] overflow-hidden">
+      <section className="relative h-[350px] md:h-[400px] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${imageUrl})` }}
@@ -119,7 +119,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 <Link
                   key={pkg.id}
                   href={`/destinations/${encodeURIComponent(destination.name)}/${pkg.id}`}
-                  className="bg-white rounded-2xl border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
+                  className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
                 >
                   <div className="relative h-44 overflow-hidden">
                     <img
@@ -158,7 +158,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                         ))}
                       </div>
                     </div>
-                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-3 text-sm">
+                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[5px] p-3 text-sm">
                       <p className="text-xs text-gray-500 mb-1">
                         {pkg.paymentNote || 'Flexible payment options available'}
                       </p>
@@ -205,13 +205,12 @@ export default function DestinationDetailPage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Main Content - Commented Out */}
+      {/* 
       <section className="py-16 px-4 md:px-12">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Main Content */}
             <div className="lg:col-span-2 space-y-12">
-              {/* Highlights Section */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">Top Highlights</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -235,8 +234,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   ))}
                 </div>
               </div>
-
-              {/* Activities Section */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">Popular Activities</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -250,8 +247,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   ))}
                 </div>
               </div>
-
-              {/* Description Section */}
               <div>
                 <h2 className="text-3xl font-bold text-gray-900 mb-6">About {destination.name}</h2>
                 <div className="prose max-w-none">
@@ -267,10 +262,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 </div>
               </div>
             </div>
-
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Budget Card */}
               <div className="bg-gradient-to-br from-primary to-primary-dark rounded-2xl p-6 text-white">
                 <h3 className="text-2xl font-bold mb-4">Budget Ranges</h3>
                 <div className="space-y-4">
@@ -288,8 +280,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   </div>
                 </div>
               </div>
-
-              {/* Hotel Types */}
               <div className="bg-white rounded-2xl border border-gray-200 p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Hotel Types</h3>
                 <div className="space-y-2">
@@ -304,8 +294,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   ))}
                 </div>
               </div>
-
-              {/* CTA Buttons */}
               <div className="space-y-3">
                 <Link
                   href={`/ai-planner?destination=${encodeURIComponent(destination.name)}`}
@@ -320,8 +308,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   Back to Destinations
                 </Link>
               </div>
-
-              {/* Travel Tips */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
                   <span>💡</span> Travel Tip
@@ -336,7 +322,6 @@ export default function DestinationDetailPage({ params }: PageProps) {
         </div>
       </section>
 
-      {/* Suggested Itinerary Section */}
       <section className="py-16 px-4 md:px-12 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
@@ -372,6 +357,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
           </div>
         </div>
       </section>
+      */}
 
       <Footer />
     </main>

@@ -115,7 +115,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       <section className="relative -mt-36 md:-mt-40 px-4 md:px-8 pb-20">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 items-start">
           <div className="space-y-8">
-            <article className="bg-white rounded-3xl shadow-lg p-8 space-y-6">
+            <article className="bg-white rounded-[5px] shadow-lg p-8 space-y-6">
               <div className="flex flex-wrap items-center gap-3 text-sm text-primary font-semibold uppercase tracking-wide">
                 <span className="px-3 py-1 bg-primary/10 rounded-full">{packageData.destination}</span>
                 <span className="px-3 py-1 bg-gray-100 rounded-full">{packageData.duration}</span>
@@ -166,7 +166,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                 {packageData.itinerary.map((day, index) => (
                   <details
                     key={day.day}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 open:shadow-sm"
+                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm"
                     open={index === 0}
                   >
                     <summary className="flex items-center justify-between cursor-pointer">
@@ -203,7 +203,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             <SectionCard title="Guest Reviews">
               <div className="space-y-6">
                 {GUEST_REVIEWS.map((review) => (
-                  <div key={review.name} className="rounded-2xl border border-gray-200 p-5 bg-white">
+                  <div key={review.name} className="rounded-[5px] border border-gray-200 p-5 bg-white">
                     <div className="flex justify-between items-center mb-2">
                       <p className="font-semibold">{review.name}</p>
                       <p className="text-yellow-500">★★★★★</p>
@@ -228,7 +228,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                 {FAQ_ITEMS.map((faq) => (
                   <details
                     key={faq.question}
-                    className="rounded-2xl border border-gray-200 bg-white p-5 open:shadow-sm"
+                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm"
                   >
                     <summary className="cursor-pointer text-lg font-medium text-[#1e1d2f]">
                       {faq.question}
@@ -240,7 +240,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             </SectionCard>
 
             <SectionCard title="Location Map">
-              <div className="aspect-[16/9] rounded-3xl overflow-hidden border border-gray-200 shadow-sm">
+              <div className="aspect-[16/9] rounded-[5px] overflow-hidden border border-gray-200 shadow-sm">
                 <iframe
                   title={`Map of ${packageData.destination}`}
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d252111.25858393507!2d114.79136011672423!3d-8.4543220429647!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd239dc54737811%3A0x3030bfbca7cb180!2sBali%2C%20Indonesia!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
@@ -256,7 +256,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24">
-            <div className="bg-white rounded-3xl shadow-xl p-8 space-y-6">
+            <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
               <div>
                 <p className="text-sm text-gray-500">Starting from</p>
                 <p className="text-4xl font-serif text-[#c99846]">{packageData.pricePerPerson}</p>
@@ -265,13 +265,13 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div className="flex flex-col gap-3">
                 <Link
                   href={`/contact?package=${packageId}`}
-                  className="w-full text-center bg-primary text-white py-3 rounded-2xl font-semibold transition hover:bg-primary/90"
+                  className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
                 >
                   Enquire Now
                 </Link>
                 <Link
                   href="/packages/itinerary.pdf"
-                  className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-2xl font-semibold transition hover:bg-gray-900 hover:text-white"
+                  className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white"
                 >
                   Download Itinerary
                 </Link>
@@ -283,7 +283,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                     href={whatsappShare}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-xl font-semibold hover:bg-green-600 transition"
+                    className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
                   >
                     WhatsApp
                   </a>
@@ -291,7 +291,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                     href={`https://twitter.com/intent/tweet?text=${shareText}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-xl font-semibold hover:bg-black transition"
+                    className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
                   >
                     Share
                   </a>
@@ -306,7 +306,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                   <span aria-hidden="true">✉️</span> hello@travelzada.com
                 </p>
               </div>
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
+              <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
                 {WHY_BOOK_WITH_US.map((item) => (
                   <div key={item.label} className="flex gap-3 text-sm text-gray-600">
@@ -361,7 +361,7 @@ export default function PackageDetailPage({ params }: PageProps) {
 
 function SectionCard({ title, children, intro }: { title: string; children: ReactNode; intro?: string }) {
   return (
-    <section className="bg-white rounded-3xl shadow-sm p-6 md:p-8 space-y-4">
+    <section className="bg-white rounded-[5px] shadow-sm p-6 md:p-8 space-y-4">
       <div>
         <h2 className="text-2xl font-serif text-[#1e1d2f]">{title}</h2>
         {intro && <p className="text-gray-600 mt-2">{intro}</p>}
@@ -373,7 +373,7 @@ function SectionCard({ title, children, intro }: { title: string; children: Reac
 
 function StatBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+    <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4">
       <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
       <p className="text-base font-semibold text-[#1e1d2f]">{value}</p>
     </div>
@@ -395,7 +395,7 @@ function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: strin
 
 function PolicyCard({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5">
+    <div className="rounded-[5px] border border-gray-200 bg-white p-5">
       <h3 className="text-lg font-semibold text-[#1e1d2f] mb-3">{title}</h3>
       <ul className="space-y-2 text-sm text-gray-600">
         {items.map((item) => (

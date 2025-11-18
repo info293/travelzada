@@ -52,7 +52,7 @@ export default function DestinationsPage() {
                 placeholder="Search destinations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 border border-gray-300 rounded-[5px] focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             
@@ -61,7 +61,7 @@ export default function DestinationsPage() {
               <select
                 value={filterCountry}
                 onChange={(e) => setFilterCountry(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 border border-gray-300 rounded-[5px] focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 {countries.map((country) => (
                   <option key={country} value={country}>
