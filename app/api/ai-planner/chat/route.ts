@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -23,18 +24,16 @@ export async function POST(request: Request) {
       )
     }
 
-    const history = Array.isArray(conversation)
+    const history: ChatCompletionMessageParam[] = Array.isArray(conversation)
       ? conversation
           .filter(
             (msg: any) =>
-              msg?.role &&
-              typeof msg.role === 'string' &&
-              msg?.content &&
-              typeof msg.content === 'string'
+              typeof msg?.content === 'string' &&
+              (msg?.role === 'assistant' || msg?.role === 'user')
           )
           .map((msg: any) => ({
             role: msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content,
+            content: msg.content as string,
           }))
       : []
 
@@ -56,7 +55,7 @@ export async function POST(request: Request) {
         {
           role: 'user',
           content: prompt,
-        },
+        } satisfies ChatCompletionMessageParam,
       ],
     })
 
