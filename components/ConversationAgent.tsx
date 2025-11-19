@@ -1,18 +1,17 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
-import { travelPackages } from '@/data/package-data'
+import destinationPackages from '@/data/destination_package.json'
 
 const travelData = travelDatabase as any
+type DestinationPackage = (typeof destinationPackages)[0]
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
-  itinerary?: string
-  tripInfo?: TripInfo
-  destination?: any
+  packageMatch?: DestinationPackage
 }
 
 interface ConversationAgentProps {
@@ -32,12 +31,7 @@ interface TripInfo {
 }
 
 export default function ConversationAgent({ formData, setFormData, onTripDetailsRequest }: ConversationAgentProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your AI travel planner. Where would you like to plan your trip? You can tell me the destination name, or ask me for recommendations!",
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -52,9 +46,61 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     travelType: '',
   })
   const [currentQuestion, setCurrentQuestion] = useState<string>('destination')
-  const [showRecommendation, setShowRecommendation] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
+  const messagesRef = useRef<Message[]>([])
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const appendMessage = useCallback((message: Message) => {
+    setMessages((prev) => {
+      const updated = [...prev, message]
+      messagesRef.current = updated
+      return updated
+    })
+  }, [])
+
+  const sendAssistantPrompt = useCallback(
+    async (prompt: string, extra: Partial<Message> = {}) => {
+      setIsTyping(true)
+      try {
+        const response = await fetch('/api/ai-planner/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            conversation: messagesRef.current.slice(-6),
+          }),
+        })
+        const data = await response.json()
+        const content = data?.message || prompt
+        appendMessage({
+          role: 'assistant',
+          content,
+          ...extra,
+        })
+      } catch (error) {
+        appendMessage({
+          role: 'assistant',
+          content: prompt,
+          ...extra,
+        })
+      } finally {
+        setIsTyping(false)
+      }
+    },
+    [appendMessage]
+  )
+
+  useEffect(() => {
+    if (messagesRef.current.length === 0) {
+      sendAssistantPrompt(
+        "Greet the traveler warmly and ask them which destination they'd like to plan a trip to. Mention popular inspirations like Bali, Goa, Kerala, Rajasthan, Singapore or Maldives."
+      )
+    }
+  }, [sendAssistantPrompt])
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -77,7 +123,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (tripInfo.days) completed++
     if (tripInfo.budget) completed++
     if (tripInfo.hotelType) completed++
-    setProgress((completed / 5) * 100)
+    if (tripInfo.travelType) completed++
+    const totalSteps = 6
+    setProgress((completed / totalSteps) * 100)
     setCompletedSteps(completed)
     
     // Update form data
@@ -90,22 +138,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     })
   }, [tripInfo, setFormData])
 
-  const totalSteps = 5
-
-  const matchingPackages =
-    tripInfo.destination
-      ? travelPackages.filter(
-          (pkg) => pkg.destination.toLowerCase() === tripInfo.destination.toLowerCase()
-        )
-      : []
-  const showPackageSuggestions = completedSteps === totalSteps && matchingPackages.length > 0
-
-  useEffect(() => {
-    if (showPackageSuggestions && !tripDetailsAutoOpenedRef.current) {
-      tripDetailsAutoOpenedRef.current = true
-      onTripDetailsRequest?.()
-    }
-  }, [showPackageSuggestions, onTripDetailsRequest])
+  const totalSteps = 6
 
   // Extract destination from user input
   const extractDestination = (text: string): string | null => {
@@ -230,212 +263,284 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     tripInfoRef.current = tripInfo
   }, [tripInfo])
 
-  const askNextQuestion = async () => {
-    setIsTyping(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  const updateTripInfo = useCallback((updates: Partial<TripInfo>) => {
+    setTripInfo((prev) => {
+      const next = { ...prev, ...updates }
+      tripInfoRef.current = next
+      return next
+    })
+  }, [])
 
-    const currentInfo = tripInfoRef.current
-    let question = ''
-    
-    if (!currentInfo.destination) {
-      question = "Great! I'd love to help you plan your trip. Which destination are you interested in? You can choose from popular places like Bali, Goa, Kerala, Rajasthan, Manali, Singapore, Thailand, or Maldives."
-      setCurrentQuestion('destination')
-    } else if (!currentInfo.travelDate) {
-      question = `Perfect choice! ${currentInfo.destination} is amazing. When are you planning to travel? You can tell me a specific date or just the month.`
-      setCurrentQuestion('date')
-    } else if (!currentInfo.days) {
-      question = `Got it! How many days are you planning to stay in ${currentInfo.destination}?`
-      setCurrentQuestion('days')
-    } else if (!currentInfo.budget) {
-      question = `Nice! For your ${currentInfo.days}-day trip, what's your budget range? You can tell me a specific amount (like ₹50,000) or just say "budget", "mid-range", or "luxury".`
-      setCurrentQuestion('budget')
-    } else if (!currentInfo.hotelType) {
-      question = `Perfect! What type of accommodation are you looking for? Budget, Mid-Range, Luxury, or Boutique hotels?`
-      setCurrentQuestion('hotel')
-    } else if (!currentInfo.travelType) {
-      question = `Almost done! Are you traveling solo, with family, as a couple, or with friends?`
-      setCurrentQuestion('travelType')
-    } else {
-      // All info collected, generate recommendation
-      setIsTyping(false)
-      setTimeout(() => generateRecommendation(), 100)
-      return
-    }
+  const normalize = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, ' ')
+      .trim()
 
-    const assistantMessage: Message = { role: 'assistant', content: question }
-    setMessages((prev) => [...prev, assistantMessage])
-    setIsTyping(false)
+  const extractDaysFromDuration = (duration: string) => {
+    const match = duration.match(/(\d+)\s*Days?/i)
+    if (match) return parseInt(match[1], 10)
+    const nightsMatch = duration.match(/(\d+)\s*Nights?/i)
+    if (nightsMatch) return parseInt(nightsMatch[1], 10) + 1
+    return null
   }
 
-  // Generate personalized recommendation
-  const generateRecommendation = async () => {
-    setIsTyping(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const currentInfo = tripInfoRef.current
-    const destination = travelData.destinations.find((d: any) => d.name === currentInfo.destination)
-    if (!destination) {
-      setIsTyping(false)
-      return
+  const getBudgetCategory = (budget: string, hotelType: string) => {
+    const sanitized = budget.replace(/,/g, '')
+    const amount = parseInt(sanitized, 10)
+    if (!isNaN(amount)) {
+      if (amount < 60000) return 'Economy'
+      if (amount < 100000) return 'Mid'
+      if (amount < 140000) return 'Premium'
+      return 'Luxury'
     }
-
-    // Create personalized itinerary
-    const days = parseInt(currentInfo.days) || 5
-    const itinerary = generateItinerary(destination, days, currentInfo.travelType)
-
-    const recommendation = `🎉 Perfect! I've created your personalized ${currentInfo.days}-day itinerary for ${currentInfo.destination}!
-
-Here's your complete travel plan:`
-
-    const assistantMessage: Message = { 
-      role: 'assistant', 
-      content: recommendation,
-      itinerary: itinerary,
-      tripInfo: currentInfo,
-      destination: destination
+    switch (hotelType) {
+      case 'Budget':
+        return 'Economy'
+      case 'Mid-Range':
+        return 'Mid'
+      case 'Luxury':
+        return 'Luxury'
+      case 'Boutique':
+        return 'Premium'
+      default:
+        return 'Mid'
     }
-    setMessages((prev) => [...prev, assistantMessage])
-    setShowRecommendation(true)
-    setIsTyping(false)
   }
 
-  // Generate day-by-day itinerary
-  const generateItinerary = (destination: any, days: number, travelType: string): string => {
-    const highlights = destination.highlights.slice(0, days)
-    const activities = destination.activities
-    
-    let itinerary = ''
-    for (let i = 0; i < days; i++) {
-      const day = i + 1
-      const highlight = highlights[i] || destination.highlights[0]
-      
-      if (day === 1) {
-        itinerary += `Day ${day}: Arrival & ${highlight}\n   • Check-in and relax\n   • Explore local area\n   • ${travelType === 'couple' ? 'Romantic dinner' : 'Local cuisine experience'}\n\n`
-      } else if (day === days) {
-        itinerary += `Day ${day}: ${highlight} & Departure\n   • Last-minute shopping\n   • Check-out and airport transfer\n\n`
-      } else {
-        itinerary += `Day ${day}: ${highlight}\n   • ${activities[Math.floor(Math.random() * activities.length)]}\n   • ${travelType === 'family' ? 'Family-friendly activity' : 'Cultural experience'}\n\n`
+  const scorePackage = (pkg: DestinationPackage, info: TripInfo) => {
+    let score = 0
+    if (info.destination) {
+      const target = normalize(info.destination)
+      if (
+        normalize(pkg.Destination_Name).includes(target) ||
+        target.includes(normalize(pkg.Destination_Name))
+      ) {
+        score += 5
       }
     }
-    
-    return itinerary
+    if (info.travelType && pkg.Travel_Type?.toLowerCase() === info.travelType.toLowerCase()) {
+      score += 3
+    }
+    const desiredBudget = getBudgetCategory(info.budget, info.hotelType)
+    if (
+      desiredBudget &&
+      pkg.Budget_Category?.toLowerCase() === desiredBudget.toLowerCase()
+    ) {
+      score += 2
+    }
+    const requestedDays = parseInt(info.days, 10)
+    const pkgDays = extractDaysFromDuration(pkg.Duration)
+    if (!isNaN(requestedDays) && pkgDays) {
+      const diff = Math.abs(pkgDays - requestedDays)
+      if (diff === 0) score += 2
+      else if (diff <= 2) score += 1
+    }
+    if (info.hotelType && pkg.Star_Category) {
+      const starHint = info.hotelType.includes('Luxury')
+        ? '5'
+        : info.hotelType.includes('Budget')
+        ? '3'
+        : '4'
+      if (pkg.Star_Category.includes(starHint)) {
+        score += 1
+      }
+    }
+    return score
   }
 
-  const handleSend = async () => {
+  const rankedPackages = useMemo(() => {
+    if (!tripInfo.destination) return []
+    return destinationPackages
+      .map((pkg: DestinationPackage) => ({ pkg, score: scorePackage(pkg, tripInfo) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+  }, [tripInfo])
+
+  const suggestedPackages = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
+  const showPackageSuggestions = Boolean(tripInfo.travelType && suggestedPackages.length > 0)
+
+  useEffect(() => {
+    if (showPackageSuggestions && !tripDetailsAutoOpenedRef.current) {
+      tripDetailsAutoOpenedRef.current = true
+      onTripDetailsRequest?.()
+    }
+  }, [showPackageSuggestions, onTripDetailsRequest])
+
+  const generateRecommendation = useCallback(async () => {
+    const currentInfo = tripInfoRef.current
+    const bestMatch = destinationPackages.reduce(
+      (best, pkg) => {
+        const score = scorePackage(pkg, currentInfo)
+        if (score > best.score) {
+          return { pkg, score }
+        }
+        return best
+      },
+      { pkg: null as DestinationPackage | null, score: -1 }
+    ).pkg
+
+    if (!bestMatch) {
+      await sendAssistantPrompt(
+        'Let the traveler know you could not find an exact package match but will have a human expert follow up shortly.'
+      )
+      return
+    }
+
+    const prompt = `You have collected all answers. Summarize why the "${bestMatch.Destination_Name}" package (${bestMatch.Duration}, ${bestMatch.Price_Range_INR}) fits their ${currentInfo.travelType} trip to ${currentInfo.destination}. Mention 2-3 highlights from this overview: ${bestMatch.Overview} and inclusions: ${bestMatch.Inclusions}. Keep it under 120 words and invite them to review Trip Details.`
+
+    await sendAssistantPrompt(prompt, { packageMatch: bestMatch })
+    if (!tripDetailsAutoOpenedRef.current) {
+      tripDetailsAutoOpenedRef.current = true
+      onTripDetailsRequest?.()
+    }
+  }, [onTripDetailsRequest, sendAssistantPrompt])
+
+  const askNextQuestion = useCallback(async () => {
+    const currentInfo = tripInfoRef.current
+    let questionPrompt = ''
+
+    if (!currentInfo.destination) {
+      questionPrompt =
+        "Ask the traveler which destination they'd like to visit. Mention inspirations such as Bali, Goa, Kerala, Rajasthan, Singapore or Maldives."
+      setCurrentQuestion('destination')
+    } else if (!currentInfo.travelDate) {
+      questionPrompt = `The traveler chose ${currentInfo.destination}. Ask them when they plan to travel (exact date or month).`
+      setCurrentQuestion('date')
+    } else if (!currentInfo.days) {
+      questionPrompt = `Ask the traveler how many days they want to spend in ${currentInfo.destination}.`
+      setCurrentQuestion('days')
+    } else if (!currentInfo.budget) {
+      questionPrompt = `Ask for their overall budget in INR for ${currentInfo.days}-day trip. Offer cues like Budget, Mid-Range, Premium or Luxury.`
+      setCurrentQuestion('budget')
+    } else if (!currentInfo.hotelType) {
+      questionPrompt =
+        'Ask what type of stay they prefer: Budget, Mid-Range, Luxury, or Boutique hotels.'
+      setCurrentQuestion('hotel')
+    } else if (!currentInfo.travelType) {
+      questionPrompt = 'Ask who they are traveling with (solo, family, couple, friends).'
+      setCurrentQuestion('travelType')
+    } else {
+      await generateRecommendation()
+      return
+    }
+
+    await sendAssistantPrompt(questionPrompt)
+  }, [generateRecommendation, sendAssistantPrompt])
+
+  const handleSend = useCallback(async () => {
     if (!input.trim()) return
-
-    const userMessage: Message = { role: 'user', content: input }
-    setMessages((prev) => [...prev, userMessage])
-    const userInput = input
+    const userInput = input.trim()
     setInput('')
-    setIsTyping(true)
 
-    // Simulate AI thinking
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    appendMessage({ role: 'user', content: userInput })
 
-    // Process user input and extract information
-    const lowerInput = userInput.toLowerCase()
-    
-    // Extract destination
     if (!tripInfo.destination) {
       const dest = extractDestination(userInput)
       if (dest) {
-        setTripInfo((prev) => ({ ...prev, destination: dest }))
+        updateTripInfo({ destination: dest })
         const destInfo = travelData.destinations.find((d: any) => d.name === dest)
-        if (destInfo) {
-          const response = `Excellent choice! ${dest} is ${destInfo.description}\n\nBest time to visit: ${destInfo.bestTimeToVisit}\nRecommended duration: ${destInfo.duration}`
-          const assistantMessage: Message = { role: 'assistant', content: response }
-          setMessages((prev) => [...prev, assistantMessage])
-          setIsTyping(false)
-          setTimeout(() => askNextQuestion(), 1000)
-          return
-        }
+        const prompt = destInfo
+          ? `The traveler picked ${dest}. Compliment their choice using this context: ${destInfo.description}. Mention best time (${destInfo.bestTimeToVisit}) and typical duration (${destInfo.duration}).`
+          : `Acknowledge their interest in ${dest} and mention why it's a great idea.`
+        await sendAssistantPrompt(prompt)
+        await askNextQuestion()
+        return
       }
     }
 
-    // Extract date
     if (currentQuestion === 'date') {
       const date = extractDate(userInput)
       if (date) {
-        setTripInfo((prev) => ({ ...prev, travelDate: date }))
-        const response = `Perfect! I've noted your travel date.`
-        const assistantMessage: Message = { role: 'assistant', content: response }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-        setTimeout(() => askNextQuestion(), 1000)
+        updateTripInfo({ travelDate: date })
+        await sendAssistantPrompt('Confirm the travel date they shared and let them know it is noted.')
+        await askNextQuestion()
         return
       }
     }
 
-    // Extract days
     if (currentQuestion === 'days') {
       const days = extractNumber(userInput)
       if (days) {
-        setTripInfo((prev) => ({ ...prev, days }))
-        const response = `Great! ${days} days in ${tripInfo.destination || 'your destination'} sounds perfect.`
-        const assistantMessage: Message = { role: 'assistant', content: response }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-        setTimeout(() => askNextQuestion(), 1000)
+        updateTripInfo({ days })
+        await sendAssistantPrompt(
+          `Acknowledge that ${days} days will work well for their ${tripInfo.destination || 'trip'} and let them know you have noted it.`
+        )
+        await askNextQuestion()
         return
       }
     }
 
-    // Extract hotel type - check this BEFORE budget since "budget" can be both
     if (currentQuestion === 'hotel') {
       const hotelType = extractHotelType(userInput)
       if (hotelType) {
-        setTripInfo((prev) => ({ ...prev, hotelType }))
-        const response = `Great! I've noted ${hotelType} accommodation for you.`
-        const assistantMessage: Message = { role: 'assistant', content: response }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-        setTimeout(() => askNextQuestion(), 1000)
+        updateTripInfo({ hotelType })
+        await sendAssistantPrompt(
+          `Confirm that you've locked ${hotelType} stays for them and mention what that experience usually feels like.`
+        )
+        await askNextQuestion()
         return
       }
     }
 
-    // Extract budget
     if (currentQuestion === 'budget') {
       const budget = extractBudget(userInput)
       if (budget) {
-        setTripInfo((prev) => ({ ...prev, budget }))
-        const response = `Perfect! I've noted your budget preference.`
-        const assistantMessage: Message = { role: 'assistant', content: response }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-        setTimeout(() => askNextQuestion(), 1000)
+        updateTripInfo({ budget })
+        await sendAssistantPrompt(
+          `Let them know you've recorded a budget of roughly ₹${Number(budget).toLocaleString(
+            'en-IN'
+          )} and that you'll optimize the plan around it.`
+        )
+        await askNextQuestion()
         return
       }
     }
 
-    // Extract travel type
     if (currentQuestion === 'travelType') {
       const travelType = extractTravelType(userInput)
       if (travelType) {
-        setTripInfo((prev) => ({ ...prev, travelType }))
-        const response = `Excellent! Traveling ${travelType === 'solo' ? 'solo' : travelType === 'family' ? 'with family' : travelType === 'couple' ? 'as a couple' : 'with friends'} - I'll customize your itinerary accordingly!`
-        const assistantMessage: Message = { role: 'assistant', content: response }
-        setMessages((prev) => [...prev, assistantMessage])
-        setIsTyping(false)
-        setTimeout(() => askNextQuestion(), 1000)
+        updateTripInfo({ travelType })
+        await sendAssistantPrompt(
+          `Confirm they are traveling ${travelType} and mention you'll tailor experiences for that group.`
+        )
+        await askNextQuestion()
         return
       }
     }
 
-    // If no specific extraction, provide helpful response and continue
-    let response = ''
-    if (!tripInfo.destination) {
-      response = "I'd love to help! Could you tell me which destination you're interested in? For example: 'I want to visit Bali' or 'Tell me about Goa'."
-      const assistantMessage: Message = { role: 'assistant', content: response }
-      setMessages((prev) => [...prev, assistantMessage])
-      setIsTyping(false)
-    } else {
-      // Continue with current question flow
-      setIsTyping(false)
-      setTimeout(() => askNextQuestion(), 500)
+    const fallbackMap: Record<string, string> = {
+      destination:
+        'Let them know you still need to know where they want to go and offer a couple of popular examples.',
+      date: 'Kindly remind them you still need their travel dates and that a month is enough.',
+      days: 'Let them know the trip length helps shape the plan and ask again for number of days.',
+      budget:
+        'Explain that even a rough budget helps you recommend the right experiences and ask for an amount or band.',
+      hotel:
+        'Ask again about preferred stay style (Budget, Mid-Range, Luxury, Boutique) and explain why it matters.',
+      travelType:
+        'Remind them you can personalize better if you know whether they are traveling solo, as a couple, with family, or friends.',
     }
-  }
+
+    const fallbackPrompt =
+      fallbackMap[currentQuestion] ||
+      'Acknowledge their message and let them know you are ready for the required detail.'
+    await sendAssistantPrompt(fallbackPrompt)
+  }, [
+    appendMessage,
+    askNextQuestion,
+    currentQuestion,
+    extractBudget,
+    extractDate,
+    extractDestination,
+    extractHotelType,
+    extractNumber,
+    extractTravelType,
+    input,
+    sendAssistantPrompt,
+    tripInfo.destination,
+    updateTripInfo,
+  ])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -472,82 +577,9 @@ Here's your complete travel plan:`
             key={index}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {message.role === 'assistant' && message.itinerary ? (
-              <div className="max-w-[90%] w-full">
-                <div className="bg-gray-100 text-gray-800 rounded-2xl px-4 py-3 mb-3">
-                  <p className="whitespace-pre-line">{message.content}</p>
-                </div>
-                {/* Itinerary Card */}
-                <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">
-                      {message.tripInfo?.destination} Itinerary
-                    </h3>
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span>📅 {message.tripInfo?.days} Days</span>
-                      <span>🏨 {message.tripInfo?.hotelType}</span>
-                      <span>👥 {message.tripInfo?.travelType?.charAt(0).toUpperCase()}{message.tripInfo?.travelType?.slice(1)}</span>
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="space-y-4">
-                      {message.itinerary.split('\n\n').map((day, idx) => {
-                        if (!day.trim()) return null
-                        const lines = day.split('\n')
-                        const dayTitle = lines[0]
-                        const details = lines.slice(1)
-                        return (
-                          <div key={idx} className="border-l-4 border-primary pl-4">
-                            <h4 className="font-bold text-gray-900 mb-2">{dayTitle}</h4>
-                            <ul className="space-y-1">
-                              {details.map((detail, detailIdx) => (
-                                <li key={detailIdx} className="text-sm text-gray-600 flex items-start gap-2">
-                                  <span className="text-primary mt-1.5">•</span>
-                                  <span>{detail.replace('   • ', '')}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-gray-200">
-                      <h4 className="font-bold text-gray-900 mb-3">✨ What's Included:</h4>
-                      <ul className="space-y-2 text-sm text-gray-600">
-                        <li className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          {message.tripInfo?.hotelType} accommodation
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Breakfast included
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Airport transfers
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          Local guide assistance
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          {message.tripInfo?.travelType === 'family' ? 'Kid-friendly activities' : message.tripInfo?.travelType === 'couple' ? 'Romantic experiences' : 'Adventure activities'}
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+            {message.role === 'assistant' && message.packageMatch ? (
+              <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-gray-100 text-gray-800">
+                <p className="whitespace-pre-line">{message.content}</p>
               </div>
             ) : (
               <div
@@ -601,7 +633,7 @@ Here's your complete travel plan:`
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-6">
           <div className="relative mb-4">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-3 py-0.5 rounded-b-full shadow">
-              2 More Options Available
+              Tailored from your answers
             </div>
           </div>
           <div className="flex items-center justify-between mb-4">
@@ -619,84 +651,68 @@ Here's your complete travel plan:`
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {matchingPackages.slice(0, 2).map((pkg) => (
-              <Link
-                key={pkg.id}
-                href={`/destinations/${encodeURIComponent(pkg.destination)}/${pkg.id}`}
+            {suggestedPackages.map((pkg) => (
+              <div
+                key={pkg.Destination_ID}
                 className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all"
               >
-                {/* Image Section */}
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={pkg.image}
-                    alt={pkg.title}
-                    className="w-full h-full object-cover"
-                  />
-                  {pkg.badge && (
-                    <span className="absolute top-3 left-3 bg-black/70 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-                      {pkg.badge}
-                    </span>
-                  )}
-                  {pkg.type && (
-                    <span className="absolute top-3 right-3 bg-white text-gray-900 text-xs font-semibold px-2.5 py-1 rounded-full shadow">
-                      {pkg.type}
-                    </span>
-                  )}
+                <div className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">{pkg.Destination_Name}</h3>
+                      <p className="text-sm text-gray-500">{pkg.Duration}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-primary">{pkg.Price_Range_INR}</p>
+                      <p className="text-xs text-gray-500">
+                        {pkg.Budget_Category} • {pkg.Star_Category}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">{pkg.Overview}</p>
+                  <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[10px] uppercase text-gray-500">Mood</p>
+                      <p className="font-semibold text-gray-900">{pkg.Mood}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[10px] uppercase text-gray-500">Theme</p>
+                      <p className="font-semibold text-gray-900">{pkg.Theme}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[10px] uppercase text-gray-500">Travel Type</p>
+                      <p className="font-semibold text-gray-900">{pkg.Travel_Type}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-[10px] uppercase text-gray-500">Stay</p>
+                      <p className="font-semibold text-gray-900">{pkg.Stay_Type}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-gray-500 mb-2">Key Inclusions</p>
+                    <ul className="space-y-2 text-sm text-gray-600">
+                      {(pkg.Inclusions?.split(',') || []).slice(0, 4).map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                              fillRule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          <span>{item.trim()}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <button
+                    onClick={() => onTripDetailsRequest?.()}
+                    className="w-full rounded-xl border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                  >
+                    Customize This Plan
+                  </button>
                 </div>
-
-                {/* Content Section */}
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-bold text-gray-900 flex-1">{pkg.title}</h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-3">{pkg.nightsSummary}</p>
-                  
-                  {/* Inclusions */}
-                  <div className="space-y-2 mb-3">
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
-                      <span>{pkg.hotelLevel}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
-                      <span>Visa</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
-                      <span>{pkg.activitiesCount} Activities</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-700">
-                      <span className="w-1.5 h-1.5 bg-gray-700 rounded-full"></span>
-                      <span>{pkg.meals}</span>
-                    </div>
-                    {pkg.perks && pkg.perks.length > 0 && (
-                      <>
-                        {pkg.perks.slice(0, 3).map((perk, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm text-green-600">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            <span>{perk}</span>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Pricing Section */}
-                  <div className="border-t border-gray-200 pt-3 mt-3">
-                    {pkg.paymentNote && (
-                      <p className="text-xs text-gray-600 mb-2">{pkg.paymentNote}</p>
-                    )}
-                    <div className="flex items-baseline justify-between">
-                      <div>
-                        <p className="text-2xl font-bold text-gray-900">{pkg.pricePerPerson} /Person</p>
-                        <p className="text-sm text-gray-600 mt-1">Total Price {pkg.totalPrice}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
           <button
