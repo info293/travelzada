@@ -18,6 +18,7 @@ interface Message {
 interface ConversationAgentProps {
   formData: any
   setFormData: any
+  onTripDetailsRequest?: () => void
 }
 
 interface TripInfo {
@@ -30,7 +31,7 @@ interface TripInfo {
   travelType: string // solo, family, couple, friends
 }
 
-export default function ConversationAgent({ formData, setFormData }: ConversationAgentProps) {
+export default function ConversationAgent({ formData, setFormData, onTripDetailsRequest }: ConversationAgentProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -52,10 +53,16 @@ export default function ConversationAgent({ formData, setFormData }: Conversatio
   })
   const [currentQuestion, setCurrentQuestion] = useState<string>('destination')
   const [showRecommendation, setShowRecommendation] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const tripDetailsAutoOpenedRef = useRef(false)
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
+    }
   }
 
   useEffect(() => {
@@ -92,6 +99,13 @@ export default function ConversationAgent({ formData, setFormData }: Conversatio
         )
       : []
   const showPackageSuggestions = completedSteps === totalSteps && matchingPackages.length > 0
+
+  useEffect(() => {
+    if (showPackageSuggestions && !tripDetailsAutoOpenedRef.current) {
+      tripDetailsAutoOpenedRef.current = true
+      onTripDetailsRequest?.()
+    }
+  }, [showPackageSuggestions, onTripDetailsRequest])
 
   // Extract destination from user input
   const extractDestination = (text: string): string | null => {
@@ -449,7 +463,10 @@ Here's your complete travel plan:`
       </div>
 
       {/* Messages */}
-      <div className="h-[500px] overflow-y-auto p-6 space-y-4">
+      <div
+        ref={messagesContainerRef}
+        className="h-[500px] overflow-y-auto p-6 space-y-4"
+      >
         {messages.map((message, index) => (
           <div
             key={index}
@@ -556,7 +573,6 @@ Here's your complete travel plan:`
             </div>
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Quick Suggestions - Only show at start */}
@@ -683,6 +699,13 @@ Here's your complete travel plan:`
               </Link>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => onTripDetailsRequest?.()}
+            className="mt-6 w-full rounded-xl border border-dashed border-primary/40 bg-white px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
+          >
+            Edit Trip Details & Regenerate
+          </button>
         </div>
       )}
 

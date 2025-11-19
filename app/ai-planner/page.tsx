@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -17,6 +17,7 @@ function AIPlannerContent() {
     budget: '',
     hotelType: '',
   })
+  const [isTripDetailsVisible, setIsTripDetailsVisible] = useState(false)
 
   // Check for destination parameter from URL
   useEffect(() => {
@@ -25,6 +26,10 @@ function AIPlannerContent() {
       setFormData((prev) => ({ ...prev, destination: destinationParam }))
     }
   }, [searchParams])
+
+  const handleTripDetailsRequest = useCallback(() => {
+    setIsTripDetailsVisible(true)
+  }, [])
 
   return (
     <main className="min-h-screen bg-white">
@@ -48,19 +53,22 @@ function AIPlannerContent() {
           <ConversationAgent 
             formData={formData}
             setFormData={setFormData}
+            onTripDetailsRequest={handleTripDetailsRequest}
           />
         </div>
       </section>
 
       {/* Trip Form */}
-      <section className="py-8 px-4 md:px-12">
-        <div className="max-w-4xl mx-auto">
-          <TripForm 
-            formData={formData}
-            setFormData={setFormData}
-          />
-        </div>
-      </section>
+      {isTripDetailsVisible && (
+        <section id="trip-details" className="py-8 px-4 md:px-12">
+          <div className="max-w-4xl mx-auto">
+            <TripForm 
+              formData={formData}
+              setFormData={setFormData}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Best Sellers Section */}
       <section className="py-16 px-4 md:px-12 bg-gray-50">
