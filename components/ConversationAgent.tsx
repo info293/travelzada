@@ -8,6 +8,101 @@ import destinationPackages from '@/data/destination_package.json'
 const travelData = travelDatabase as any
 type DestinationPackage = (typeof destinationPackages)[0]
 
+const monthNames = [
+  'january',
+  'february',
+  'march',
+  'april',
+  'may',
+  'june',
+  'july',
+  'august',
+  'september',
+  'october',
+  'november',
+  'december',
+]
+
+const TOTAL_STEPS = 6
+
+const formatISODate = (date: Date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const monthMap = monthNames.reduce<Record<string, number>>((acc, name, idx) => {
+  acc[name] = idx + 1
+  return acc
+}, {})
+
+const parseFlexibleDate = (text: string) => {
+  const normalized = text.toLowerCase().trim()
+  const ordinalPattern =
+    /(\d{1,2})(?:st|nd|rd|th)?\s*(?:of)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+(\d{4}))?/
+  const monthFirstPattern =
+    /(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,\s*(\d{4}))?/
+
+  let match = normalized.match(ordinalPattern)
+  if (match) {
+    const day = parseInt(match[1], 10)
+    const month = monthMap[match[2]]
+    const year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear()
+    if (month && day <= 31) {
+      return formatISODate(new Date(year, month - 1, day))
+    }
+  }
+
+  match = normalized.match(monthFirstPattern)
+  if (match) {
+    const month = monthMap[match[1]]
+    const day = parseInt(match[2], 10)
+    const year = match[3] ? parseInt(match[3], 10) : new Date().getFullYear()
+    if (month && day <= 31) {
+      return formatISODate(new Date(year, month - 1, day))
+    }
+  }
+
+  const dashedPattern = /(\d{1,2})\s*[-/]\s*(\d{1,2})\s*[-/]\s*(\d{2,4})/
+  match = normalized.match(dashedPattern)
+  if (match) {
+    const first = parseInt(match[1], 10)
+    const second = parseInt(match[2], 10)
+    let year = parseInt(match[3], 10)
+    if (year < 100) year += 2000
+    const monthGuess = first > 12 ? second : first
+    const dayGuess = first > 12 ? first : second
+    if (monthGuess <= 12 && dayGuess <= 31) {
+      return formatISODate(new Date(year, monthGuess - 1, dayGuess))
+    }
+  }
+
+  const parsed = new Date(text)
+  if (!isNaN(parsed.getTime())) {
+    return formatISODate(parsed)
+  }
+
+  return null
+}
+
+const isSameAnswer = (text: string) => {
+  const normalized = text.trim().toLowerCase()
+  return ['same', 'same as before', 'as before', 'no change', 'unchanged'].includes(
+    normalized
+  )
+}
+
+const normalizeDestination = (text: string) =>
+  text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+
+const matchesDestination = (packageName: string, destination: string) => {
+  if (!destination) return false
+  const pkg = normalizeDestination(packageName)
+  const dest = normalizeDestination(destination)
+  return pkg.includes(dest) || dest.includes(pkg)
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -124,8 +219,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (tripInfo.budget) completed++
     if (tripInfo.hotelType) completed++
     if (tripInfo.travelType) completed++
-    const totalSteps = 6
-    setProgress((completed / totalSteps) * 100)
+    setProgress((completed / TOTAL_STEPS) * 100)
     setCompletedSteps(completed)
     
     // Update form data
@@ -137,8 +231,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       hotelType: tripInfo.hotelType,
     })
   }, [tripInfo, setFormData])
-
-  const totalSteps = 6
 
   // Extract destination from user input
   const extractDestination = (text: string): string | null => {
@@ -159,33 +251,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   // Extract date
   const extractDate = (text: string): string | null => {
-    // Try to find date patterns
-    const datePatterns = [
-      /\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
-      /\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
-      /\d{1,2}-\d{1,2}-\d{4}/, // MM-DD-YYYY
-    ]
-    
-    for (const pattern of datePatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        return match[0]
-      }
+    const directISO = text.match(/\d{4}-\d{2}-\d{2}/)
+    if (directISO) {
+      return directISO[0]
     }
-    
-    // Check for month names
-    const months = ['january', 'february', 'march', 'april', 'may', 'june', 
-                    'july', 'august', 'september', 'october', 'november', 'december']
-    const lowerText = text.toLowerCase()
-    for (let i = 0; i < months.length; i++) {
-      if (lowerText.includes(months[i])) {
-        const month = String(i + 1).padStart(2, '0')
-        const year = new Date().getFullYear()
-        return `${year}-${month}-01`
-      }
-    }
-    
-    return null
+
+    return parseFlexibleDate(text)
   }
 
   // Extract budget range
@@ -349,13 +420,20 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     return score
   }
 
-  const rankedPackages = useMemo(() => {
+  const destinationSpecificPackages = useMemo(() => {
     if (!tripInfo.destination) return []
-    return destinationPackages
+    return destinationPackages.filter((pkg: DestinationPackage) =>
+      matchesDestination(pkg.Destination_Name, tripInfo.destination)
+    )
+  }, [tripInfo.destination])
+
+  const rankedPackages = useMemo(() => {
+    if (!tripInfo.destination || destinationSpecificPackages.length === 0) return []
+    return destinationSpecificPackages
       .map((pkg: DestinationPackage) => ({ pkg, score: scorePackage(pkg, tripInfo) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
-  }, [tripInfo])
+  }, [destinationSpecificPackages, tripInfo])
 
   const suggestedPackages = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
   const showPackageSuggestions = Boolean(tripInfo.travelType && suggestedPackages.length > 0)
@@ -369,21 +447,18 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const generateRecommendation = useCallback(async () => {
     const currentInfo = tripInfoRef.current
-    const bestMatch = destinationPackages.reduce(
-      (best, pkg) => {
-        const score = scorePackage(pkg, currentInfo)
-        if (score > best.score) {
-          return { pkg, score }
-        }
-        return best
-      },
-      { pkg: null as DestinationPackage | null, score: -1 }
-    ).pkg
+    const bestMatch = rankedPackages[0]?.pkg
 
     if (!bestMatch) {
-      await sendAssistantPrompt(
-        'Let the traveler know you could not find an exact package match but will have a human expert follow up shortly.'
-      )
+      if (currentInfo.destination) {
+        await sendAssistantPrompt(
+          `Explain that you couldn't find a curated package in the database for ${currentInfo.destination} yet, but you'll pass their preferences to a human expert. Encourage them to review Trip Details or try another destination.`
+        )
+      } else {
+        await sendAssistantPrompt(
+          'Let the traveler know you could not find an exact package match but will have a human expert follow up shortly.'
+        )
+      }
       return
     }
 
@@ -394,7 +469,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       tripDetailsAutoOpenedRef.current = true
       onTripDetailsRequest?.()
     }
-  }, [onTripDetailsRequest, sendAssistantPrompt])
+  }, [onTripDetailsRequest, rankedPackages, sendAssistantPrompt])
 
   const askNextQuestion = useCallback(async () => {
     const currentInfo = tripInfoRef.current
@@ -435,7 +510,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     appendMessage({ role: 'user', content: userInput })
 
-    if (!tripInfo.destination) {
+    const latestInfo = tripInfoRef.current
+
+    if (!latestInfo.destination) {
       const dest = extractDestination(userInput)
       if (dest) {
         updateTripInfo({ destination: dest })
@@ -450,6 +527,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
 
     if (currentQuestion === 'date') {
+      if (isSameAnswer(userInput) && latestInfo.travelDate) {
+        await sendAssistantPrompt('Let them know you will keep the same travel date on file.')
+        await askNextQuestion()
+        return
+      }
       const date = extractDate(userInput)
       if (date) {
         updateTripInfo({ travelDate: date })
@@ -460,11 +542,18 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
 
     if (currentQuestion === 'days') {
+      if (isSameAnswer(userInput) && latestInfo.days) {
+        await sendAssistantPrompt(
+          `Let them know you'll keep the trip length at ${latestInfo.days} days.`
+        )
+        await askNextQuestion()
+        return
+      }
       const days = extractNumber(userInput)
       if (days) {
         updateTripInfo({ days })
         await sendAssistantPrompt(
-          `Acknowledge that ${days} days will work well for their ${tripInfo.destination || 'trip'} and let them know you have noted it.`
+          `Acknowledge that ${days} days will work well for their ${latestInfo.destination || 'trip'} and let them know you have noted it.`
         )
         await askNextQuestion()
         return
@@ -472,6 +561,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
 
     if (currentQuestion === 'hotel') {
+      if (isSameAnswer(userInput) && latestInfo.hotelType) {
+        await sendAssistantPrompt(
+          `Confirm you're keeping ${latestInfo.hotelType} stays as previously selected.`
+        )
+        await askNextQuestion()
+        return
+      }
       const hotelType = extractHotelType(userInput)
       if (hotelType) {
         updateTripInfo({ hotelType })
@@ -484,6 +580,17 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
 
     if (currentQuestion === 'budget') {
+      if (isSameAnswer(userInput) && latestInfo.budget) {
+        const existingBudgetValue = parseInt(latestInfo.budget.replace(/,/g, ''), 10)
+        const budgetDisplay = isNaN(existingBudgetValue)
+          ? latestInfo.budget
+          : existingBudgetValue.toLocaleString('en-IN')
+        await sendAssistantPrompt(
+          `Let them know you'll continue planning around roughly ₹${budgetDisplay} and optimize accordingly.`
+        )
+        await askNextQuestion()
+        return
+      }
       const budget = extractBudget(userInput)
       if (budget) {
         updateTripInfo({ budget })
@@ -498,6 +605,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
 
     if (currentQuestion === 'travelType') {
+      if (isSameAnswer(userInput) && latestInfo.travelType) {
+        await sendAssistantPrompt(
+          `Confirm again that they are traveling ${latestInfo.travelType} and you'll personalize accordingly.`
+        )
+        await askNextQuestion()
+        return
+      }
       const travelType = extractTravelType(userInput)
       if (travelType) {
         updateTripInfo({ travelType })
@@ -538,7 +652,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     extractTravelType,
     input,
     sendAssistantPrompt,
-    tripInfo.destination,
     updateTripInfo,
   ])
 
@@ -561,7 +674,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         </div>
         <div className="flex justify-between text-xs text-gray-500 mt-2">
           <span>
-            Step {Math.min(completedSteps + 1, totalSteps)} of {totalSteps}
+            Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS}
           </span>
           <span>{Math.round(progress)}% complete</span>
         </div>
@@ -722,6 +835,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           >
             Edit Trip Details & Regenerate
           </button>
+        </div>
+      )}
+
+      {!showPackageSuggestions && tripInfo.destination && tripInfo.travelType && (
+        <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+          We’re still curating ready-made packages for {tripInfo.destination}. A travel expert will
+          review your preferences and follow up with personalized options.
         </div>
       )}
 
