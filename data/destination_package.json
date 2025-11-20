@@ -33,7 +33,18 @@
     "Sustainability_Score": "7/10",
     "Ideal_Traveler_Persona": "Couples aged 25–35 seeking a private romantic escape",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "bali-romantic-island-escape",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_001_BALI",
+    "Price_Min_INR": 95000,
+    "Price_Max_INR": 110000,
+    "Duration_Nights": 5,
+    "Duration_Days": 6,
+    "SEO_Title": "Romantic Bali Island Escape | Luxury 5-Night Honeymoon Package",
+    "SEO_Description": "Celebrate love in Bali with a 5-night luxury getaway featuring 4-star beachfront resorts, private transfers, Ubud & Nusa Dua tours, and a sunset dinner cruise.",
+    "SEO_Keywords": "Bali honeymoon package, romantic Bali holiday, Ubud tour, luxury resort Bali",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_002_BALI",
@@ -69,7 +80,18 @@
     "Sustainability_Score": "7.5/10",
     "Ideal_Traveler_Persona": "Families with young kids seeking comfort & sightseeing",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "bali-family-adventure-escape",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1473625247510-8ceb1760943f?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_002_BALI",
+    "Price_Min_INR": 85000,
+    "Price_Max_INR": 100000,
+    "Duration_Nights": 6,
+    "Duration_Days": 7,
+    "SEO_Title": "Bali Family Adventure Holiday | 6-Night Nature & Culture Tour",
+    "SEO_Description": "Explore Bali with the kids on a 6-night itinerary packed with Ubud & Kintamani excursions, beach fun in Kuta, water sports, and family-friendly 4-star hotels.",
+    "SEO_Keywords": "Bali family package, Bali with kids, Ubud tour, family vacation Bali",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1473625247510-8ceb1760943f?reuse=1&auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_003_BALI",
@@ -105,7 +127,18 @@
     "Sustainability_Score": "8/10",
     "Ideal_Traveler_Persona": "Couples celebrating anniversary in luxury settings",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "bali-luxury-anniversary-retreat",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1501117716987-c8e1ecb21005?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_003_BALI",
+    "Price_Min_INR": 140000,
+    "Price_Max_INR": 180000,
+    "Duration_Nights": 4,
+    "Duration_Days": 5,
+    "SEO_Title": "Bali Anniversary Luxury Villa Retreat | 4-Night Spa Escape",
+    "SEO_Description": "Indulge in a 5-day Bali anniversary retreat with private villas, daily spa rituals, candlelight dinners, and iconic Tanah Lot sunsets plus seamless chauffeured transfers.",
+    "SEO_Keywords": "Bali anniversary trip, luxury villa Bali, romantic spa holiday, Ubud retreat",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1501117716987-c8e1ecb21005?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_004_BALI",
@@ -141,7 +174,18 @@
     "Sustainability_Score": "6/10",
     "Ideal_Traveler_Persona": "Budget couples seeking fun and adventure",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "bali-young-couples-adventure-break",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_004_BALI",
+    "Price_Min_INR": 60000,
+    "Price_Max_INR": 75000,
+    "Duration_Nights": 4,
+    "Duration_Days": 5,
+    "SEO_Title": "Budget Bali Adventure for Couples | 4-Night Thrill Getaway",
+    "SEO_Description": "Chase waterfalls, conquer Mt. Batur, and party in Seminyak on a 4-night budget Bali escape with guided rafting, boutique stays, and convenient shared transfers.",
+    "SEO_Keywords": "Bali adventure package, budget Bali trip, couple getaway, Mount Batur trek",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_005_BALI",
@@ -177,7 +221,18 @@
     "Sustainability_Score": "8/10",
     "Ideal_Traveler_Persona": "Luxury-seeking families looking for relaxation and leisure",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "bali-luxury-family-retreat",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_005_BALI",
+    "Price_Min_INR": 150000,
+    "Price_Max_INR": 180000,
+    "Duration_Nights": 7,
+    "Duration_Days": 8,
+    "SEO_Title": "Bali Luxury Family Resort Holiday | 8-Day Beach & Culture Escape",
+    "SEO_Description": "Relax in Bali’s top 5-star resorts with half-board dining, private drivers, Ubud day trips, water parks, and curated family-friendly experiences for eight unforgettable days.",
+    "SEO_Keywords": "luxury Bali family holiday, Nusa Dua resort package, Bali itinerary with kids, premium family trip",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_006_SG",
@@ -213,7 +268,18 @@
     "Sustainability_Score": "8.5/10",
     "Ideal_Traveler_Persona": "Families seeking fun-filled and organized trips",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "singapore-family-fun-holiday",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1504274066651-8d31a536b11a?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_006_SG",
+    "Price_Min_INR": 120000,
+    "Price_Max_INR": 140000,
+    "Duration_Nights": 5,
+    "Duration_Days": 6,
+    "SEO_Title": "Singapore Family Fun Vacation | 6-Day Theme Parks & City Highlights",
+    "SEO_Description": "Take the kids to Singapore for six days of Sentosa thrills, Universal Studios, Night Safari, and city tours with 4-star hotels and private transfers.",
+    "SEO_Keywords": "Singapore family holiday, Sentosa package, Universal Studios trip, Singapore with kids",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1504274066651-8d31a536b11a?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_007_SG",
@@ -249,7 +315,18 @@
     "Sustainability_Score": "9/10",
     "Ideal_Traveler_Persona": "Couples looking for an urban luxury honeymoon",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "singapore-luxury-honeymoon-escape",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1505764706515-aa95265c5abc?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_007_SG",
+    "Price_Min_INR": 110000,
+    "Price_Max_INR": 130000,
+    "Duration_Nights": 4,
+    "Duration_Days": 5,
+    "SEO_Title": "Singapore Luxury Honeymoon Escape | 5-Day City Romance",
+    "SEO_Description": "Toast to love in Singapore with a 5-day luxury itinerary featuring Marina Bay views, rooftop dining, Gardens by the Bay, and private transfers between iconic sights.",
+    "SEO_Keywords": "Singapore honeymoon package, luxury Singapore hotel, romantic city break, Marina Bay Sands",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1505764706515-aa95265c5abc?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_008_SG",
@@ -285,7 +362,18 @@
     "Sustainability_Score": "8/10",
     "Ideal_Traveler_Persona": "Young couples seeking budget-friendly city break",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "singapore-budget-couple-getaway",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1503443207922-dff7d543fd0e?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_008_SG",
+    "Price_Min_INR": 75000,
+    "Price_Max_INR": 90000,
+    "Duration_Nights": 3,
+    "Duration_Days": 4,
+    "SEO_Title": "Singapore Budget Couple Getaway | 4-Day City Break",
+    "SEO_Description": "Explore Singapore on a wallet-friendly 4-day couple’s trip with 3-star hotels in the city center, guided tours, Sentosa half-day visit, and Night Safari transfers.",
+    "SEO_Keywords": "budget Singapore package, couple city break, Sentosa tour, affordable Singapore hotel",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1503443207922-dff7d543fd0e?auto=format&fit=crop&w=1600&q=80"
   },
   {
     "Destination_ID": "DEST_009_SG",
@@ -321,7 +409,18 @@
     "Sustainability_Score": "9/10",
     "Ideal_Traveler_Persona": "Families seeking luxury comfort with kids' activities",
     "Created_By": "Travelzada AI Curator",
-    "Last_Updated": "2025-11-11"
+    "Last_Updated": "2025-11-11",
+    "Slug": "singapore-luxury-family-experience",
+    "Primary_Image_URL": "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1600&q=80",
+    "Booking_URL": "https://travelzada.com/packages/DEST_009_SG",
+    "Price_Min_INR": 160000,
+    "Price_Max_INR": 190000,
+    "Duration_Nights": 6,
+    "Duration_Days": 7,
+    "SEO_Title": "Singapore Premium Family Holiday | 7-Day City & Attractions Tour",
+    "SEO_Description": "Enjoy a week in Singapore with Orchard Road 5-star stays, private transfers, Sentosa, Universal Studios, River Safari, and curated downtime for the whole family.",
+    "SEO_Keywords": "luxury Singapore family trip, Universal Studios package, Orchard Road hotel, premium family vacation",
+    "Meta_Image_URL": "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=1600&q=80"
   }
 ]
 
