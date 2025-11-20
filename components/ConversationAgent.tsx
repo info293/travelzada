@@ -33,6 +33,9 @@ const monthNames = [
 
 const TOTAL_STEPS = 6
 
+const withStyle = (instruction: string, maxWords = 35) =>
+  `Keep the reply under ${maxWords} words. Be clear, upbeat, and avoid repetition. ${instruction}`
+
 const dayOptions = [
   ...Array.from({ length: 8 }, (_, idx) => {
     const value = (idx + 2).toString()
@@ -193,6 +196,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
   const todayISO = useMemo(() => formatISODate(new Date()), [])
+  const initialPromptSentRef = useRef(false)
 
   useEffect(() => {
     messagesRef.current = messages
@@ -239,11 +243,14 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   )
 
   useEffect(() => {
-    if (messagesRef.current.length === 0) {
-      sendAssistantPrompt(
-        "Greet the traveler warmly and ask them which destination they'd like to plan a trip to. Mention popular inspirations like Bali, Goa, Kerala, Rajasthan, Singapore or Maldives."
+    if (initialPromptSentRef.current) return
+    initialPromptSentRef.current = true
+    sendAssistantPrompt(
+      withStyle(
+        'Greet them briefly and ask which destination they want to plan. Offer two inspirations like Bali or Kerala.',
+        28
       )
-    }
+    )
   }, [sendAssistantPrompt])
 
   const scrollToBottom = () => {
@@ -384,11 +391,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   }, [tripInfo])
 
   const updateTripInfo = useCallback((updates: Partial<TripInfo>) => {
-    setTripInfo((prev) => {
-      const next = { ...prev, ...updates }
-      tripInfoRef.current = next
-      return next
-    })
+    const next = { ...tripInfoRef.current, ...updates }
+    tripInfoRef.current = next
+    setTripInfo(next)
+    return next
   }, [])
 
   const normalize = (text: string) =>
@@ -511,7 +517,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       return
     }
 
-    const prompt = `You have collected all answers. Summarize why the "${bestMatch.Destination_Name}" package (${bestMatch.Duration}, ${bestMatch.Price_Range_INR}) fits their ${currentInfo.travelType} trip to ${currentInfo.destination}. Mention 2-3 highlights from this overview: ${bestMatch.Overview} and inclusions: ${bestMatch.Inclusions}. Keep it under 120 words and invite them to review Trip Details.`
+    const prompt = withStyle(
+      `Summarize why the "${bestMatch.Destination_Name}" package (${bestMatch.Duration}, ${bestMatch.Price_Range_INR}) fits their ${currentInfo.travelType} trip to ${currentInfo.destination}. Include 2 short bullet highlights from this overview: ${bestMatch.Overview} and inclusions: ${bestMatch.Inclusions}. End by inviting them to review Trip Details.`,
+      80
+    )
 
     await sendAssistantPrompt(prompt, { packageMatch: bestMatch })
     if (!tripDetailsAutoOpenedRef.current) {
@@ -520,37 +529,56 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
   }, [onTripDetailsRequest, rankedPackages, sendAssistantPrompt])
 
-  const askNextQuestion = useCallback(async () => {
-    const currentInfo = tripInfoRef.current
+  const askNextQuestion = useCallback(
+    async (infoOverride?: TripInfo) => {
+      const currentInfo = infoOverride ?? tripInfoRef.current
     let questionPrompt = ''
 
     if (!currentInfo.destination) {
-      questionPrompt =
-        "Ask the traveler which destination they'd like to visit. Mention inspirations such as Bali, Goa, Kerala, Rajasthan, Singapore or Maldives."
+      questionPrompt = withStyle(
+        'Greet them briefly and ask which destination they want to plan. Offer two examples like Bali or Kerala.',
+        28
+      )
       setCurrentQuestion('destination')
     } else if (!currentInfo.travelDate) {
-      questionPrompt = `The traveler chose ${currentInfo.destination}. Ask them when they plan to travel (exact date or month).`
+      questionPrompt = withStyle(
+        `Thank them for choosing ${currentInfo.destination} and ask when they plan to travel. Mention they can share a month or exact date.`,
+        32
+      )
       setCurrentQuestion('date')
     } else if (!currentInfo.days) {
-      questionPrompt = `Ask the traveler how many days they want to spend in ${currentInfo.destination}.`
+      questionPrompt = withStyle(
+        `Acknowledge their travel date and ask how many days they want in ${currentInfo.destination}. Mention they can tap a quick option.`,
+        30
+      )
       setCurrentQuestion('days')
     } else if (!currentInfo.budget) {
-      questionPrompt = `Ask for their overall budget in INR for ${currentInfo.days}-day trip. Offer cues like Budget, Mid-Range, Premium or Luxury.`
+      questionPrompt = withStyle(
+        `Great, ${currentInfo.days}-day plan noted. Ask for their total budget in INR and hint at ranges like ₹30k-50k or ₹80k+.`,
+        32
+      )
       setCurrentQuestion('budget')
     } else if (!currentInfo.hotelType) {
-      questionPrompt =
-        'Ask what type of stay they prefer: Budget, Mid-Range, Luxury, or Boutique hotels.'
+      questionPrompt = withStyle(
+        'Thank them for sharing their budget and ask which stay style they prefer: 3-star, 4-star, or 5-star.',
+        28
+      )
       setCurrentQuestion('hotel')
     } else if (!currentInfo.travelType) {
-      questionPrompt = 'Ask who they are traveling with (solo, family, couple, friends).'
+      questionPrompt = withStyle(
+        'Acknowledge their stay preference and ask who they are travelling with: solo, family, couple, or friends.',
+        26
+      )
       setCurrentQuestion('travelType')
     } else {
       await generateRecommendation()
       return
     }
 
-    await sendAssistantPrompt(questionPrompt)
-  }, [generateRecommendation, sendAssistantPrompt])
+      await sendAssistantPrompt(questionPrompt)
+    },
+    [generateRecommendation, sendAssistantPrompt]
+  )
 
   const handleSend = useCallback(async () => {
     if (!input.trim()) return
@@ -567,107 +595,81 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         updateTripInfo({ destination: dest })
         const destInfo = travelData.destinations.find((d: any) => d.name === dest)
         const prompt = destInfo
-          ? `The traveler picked ${dest}. Compliment their choice using this context: ${destInfo.description}. Mention best time (${destInfo.bestTimeToVisit}) and typical duration (${destInfo.duration}).`
-          : `Acknowledge their interest in ${dest} and mention why it's a great idea.`
+          ? withStyle(
+              `They picked ${dest}. In one sentence mention ${destInfo.description}. Add best time ${destInfo.bestTimeToVisit} and typical duration ${destInfo.duration}. Then ask when they plan to travel (month or exact date).`,
+              55
+            )
+          : withStyle(
+              `Acknowledge their interest in ${dest} and ask when they plan to travel (month or exact date).`,
+              35
+            )
         await sendAssistantPrompt(prompt)
-        await askNextQuestion()
+        setCurrentQuestion('date')
         return
       }
     }
 
     if (currentQuestion === 'date') {
       if (isSameAnswer(userInput) && latestInfo.travelDate) {
-        await sendAssistantPrompt('Let them know you will keep the same travel date on file.')
         await askNextQuestion()
         return
       }
       const date = extractDate(userInput)
       if (date) {
-        updateTripInfo({ travelDate: date })
-        await sendAssistantPrompt('Confirm the travel date they shared and let them know it is noted.')
-        await askNextQuestion()
+        const nextInfo = updateTripInfo({ travelDate: date })
+        await askNextQuestion(nextInfo)
         return
       }
     }
 
     if (currentQuestion === 'days') {
       if (isSameAnswer(userInput) && latestInfo.days) {
-        await sendAssistantPrompt(
-          `Let them know you'll keep the trip length at ${latestInfo.days} days.`
-        )
         await askNextQuestion()
         return
       }
       const days = extractNumber(userInput)
       if (days) {
-        updateTripInfo({ days })
-        await sendAssistantPrompt(
-          `Acknowledge that ${days} days will work well for their ${latestInfo.destination || 'trip'} and let them know you have noted it.`
-        )
-        await askNextQuestion()
+        const nextInfo = updateTripInfo({ days })
+        await askNextQuestion(nextInfo)
         return
       }
     }
 
     if (currentQuestion === 'hotel') {
       if (isSameAnswer(userInput) && latestInfo.hotelType) {
-        await sendAssistantPrompt(
-          `Confirm you're keeping ${latestInfo.hotelType} stays as previously selected.`
-        )
         await askNextQuestion()
         return
       }
       const hotelType = extractHotelType(userInput)
       if (hotelType) {
-        updateTripInfo({ hotelType })
-        await sendAssistantPrompt(
-          `Confirm that you've locked ${hotelType} stays for them and mention what that experience usually feels like.`
-        )
-        await askNextQuestion()
+        const nextInfo = updateTripInfo({ hotelType })
+        await askNextQuestion(nextInfo)
         return
       }
     }
 
     if (currentQuestion === 'budget') {
       if (isSameAnswer(userInput) && latestInfo.budget) {
-        const existingBudgetValue = parseInt(latestInfo.budget.replace(/,/g, ''), 10)
-        const budgetDisplay = isNaN(existingBudgetValue)
-          ? latestInfo.budget
-          : existingBudgetValue.toLocaleString('en-IN')
-        await sendAssistantPrompt(
-          `Let them know you'll continue planning around roughly ₹${budgetDisplay} and optimize accordingly.`
-        )
         await askNextQuestion()
         return
       }
       const budget = extractBudget(userInput)
       if (budget) {
-        updateTripInfo({ budget })
-        await sendAssistantPrompt(
-          `Let them know you've recorded a budget of roughly ₹${Number(budget).toLocaleString(
-            'en-IN'
-          )} and that you'll optimize the plan around it.`
-        )
-        await askNextQuestion()
+        const nextInfo = updateTripInfo({ budget })
+        await askNextQuestion(nextInfo)
         return
       }
     }
 
     if (currentQuestion === 'travelType') {
       if (isSameAnswer(userInput) && latestInfo.travelType) {
-        await sendAssistantPrompt(
-          `Confirm again that they are traveling ${latestInfo.travelType} and you'll personalize accordingly.`
-        )
         await askNextQuestion()
         return
       }
       const travelType = extractTravelType(userInput)
       if (travelType) {
-        updateTripInfo({ travelType })
-        await sendAssistantPrompt(
-          `Confirm they are traveling ${travelType} and mention you'll tailor experiences for that group.`
-        )
-        await askNextQuestion()
+        const nextInfo = updateTripInfo({ travelType })
+        await askNextQuestion(nextInfo)
         return
       }
     }
@@ -685,9 +687,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         'Remind them you can personalize better if you know whether they are traveling solo, as a couple, with family, or friends.',
     }
 
-    const fallbackPrompt =
+    const fallbackPrompt = withStyle(
       fallbackMap[currentQuestion] ||
-      'Acknowledge their message and let them know you are ready for the required detail.'
+        'Acknowledge their message and let them know you are ready for the required detail.',
+      28
+    )
     await sendAssistantPrompt(fallbackPrompt)
   }, [
     appendMessage,
@@ -707,7 +711,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const handleDateSelection = useCallback(
     async (isoDate: string) => {
       if (!isoDate) return
-      updateTripInfo({ travelDate: isoDate })
+      const nextInfo = updateTripInfo({ travelDate: isoDate })
       appendMessage({
         role: 'user',
         content: `Travel date selected: ${new Date(isoDate).toLocaleDateString('en-US', {
@@ -716,10 +720,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           day: 'numeric',
         })}`,
       })
-      await sendAssistantPrompt('Confirm the travel date they shared and let them know it is noted.')
-      await askNextQuestion()
+      await askNextQuestion(nextInfo)
     },
-    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+    [appendMessage, askNextQuestion, updateTripInfo]
   )
   const selectedMonthIndex = useMemo(() => {
     if (!tripInfo.travelDate) return null
@@ -746,52 +749,38 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   )
   const handleDaySelect = useCallback(
     async (label: string, daysValue: string) => {
-      updateTripInfo({ days: daysValue })
+      const nextInfo = updateTripInfo({ days: daysValue })
       appendMessage({ role: 'user', content: `Trip length: ${label} days` })
-      await sendAssistantPrompt(
-        `Acknowledge that ${label} days will work well for their ${
-          tripInfoRef.current.destination || 'trip'
-        } and let them know you have noted it.`
-      )
-      await askNextQuestion()
+      await askNextQuestion(nextInfo)
     },
-    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+    [appendMessage, askNextQuestion, updateTripInfo]
   )
 
   const handleBudgetSelect = useCallback(
     async (label: string, value: string) => {
-      updateTripInfo({ budget: value })
+      const nextInfo = updateTripInfo({ budget: value })
       appendMessage({ role: 'user', content: `Budget selected: ${label}` })
-      await sendAssistantPrompt(
-        `Let them know you've recorded a budget of roughly ${label} and that you'll optimize the plan around it.`
-      )
-      await askNextQuestion()
+      await askNextQuestion(nextInfo)
     },
-    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+    [appendMessage, askNextQuestion, updateTripInfo]
   )
 
   const handleHotelSelect = useCallback(
     async (label: string, mappedType: string) => {
-      updateTripInfo({ hotelType: mappedType })
+      const nextInfo = updateTripInfo({ hotelType: mappedType })
       appendMessage({ role: 'user', content: `Preferred stay: ${label}` })
-      await sendAssistantPrompt(
-        `Confirm that you've locked ${mappedType} accommodation for them and describe what that typically includes.`
-      )
-      await askNextQuestion()
+      await askNextQuestion(nextInfo)
     },
-    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+    [appendMessage, askNextQuestion, updateTripInfo]
   )
 
   const handleTravelTypeSelect = useCallback(
     async (label: string, travelType: string) => {
-      updateTripInfo({ travelType })
+      const nextInfo = updateTripInfo({ travelType })
       appendMessage({ role: 'user', content: `Travelling with: ${label}` })
-      await sendAssistantPrompt(
-        `Confirm they are traveling ${travelType} and mention you'll tailor experiences for that group.`
-      )
-      await askNextQuestion()
+      await askNextQuestion(nextInfo)
     },
-    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+    [appendMessage, askNextQuestion, updateTripInfo]
   )
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
