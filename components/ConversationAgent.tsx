@@ -1,6 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+  ChangeEvent,
+  KeyboardEvent,
+} from 'react'
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
 import destinationPackages from '@/data/destination_package.json'
@@ -24,6 +32,36 @@ const monthNames = [
 ]
 
 const TOTAL_STEPS = 6
+
+const dayOptions = [
+  ...Array.from({ length: 8 }, (_, idx) => {
+    const value = (idx + 2).toString()
+    return { label: value, value }
+  }),
+  { label: '10', value: '10' },
+  { label: '10+', value: '12' },
+]
+
+const budgetOptions = [
+  { label: '₹10k - ₹30k', value: '30000' },
+  { label: '₹30k - ₹50k', value: '50000' },
+  { label: '₹50k - ₹80k', value: '80000' },
+  { label: '₹80k - ₹1.5L', value: '150000' },
+  { label: '₹1.5L+', value: '200000' },
+]
+
+const hotelOptions = [
+  { label: '3★ Comfort', value: 'Budget' },
+  { label: '4★ Premium', value: 'Mid-Range' },
+  { label: '5★ Luxury', value: 'Luxury' },
+]
+
+const travelerOptions = [
+  { label: 'Solo', value: 'solo' },
+  { label: 'Family', value: 'family' },
+  { label: 'Couple', value: 'couple' },
+  { label: 'Friends', value: 'friends' },
+]
 
 const formatISODate = (date: Date) => {
   const year = date.getFullYear()
@@ -86,6 +124,16 @@ const parseFlexibleDate = (text: string) => {
   return null
 }
 
+const getUpcomingDateForMonth = (monthIndex: number) => {
+  const today = new Date()
+  let year = today.getFullYear()
+  if (monthIndex < today.getMonth()) {
+    year += 1
+  }
+  const day = Math.min(today.getDate(), 28) // avoid invalid dates
+  return formatISODate(new Date(year, monthIndex, day))
+}
+
 const isSameAnswer = (text: string) => {
   const normalized = text.trim().toLowerCase()
   return ['same', 'same as before', 'as before', 'no change', 'unchanged'].includes(
@@ -144,6 +192,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
+  const todayISO = useMemo(() => formatISODate(new Date()), [])
 
   useEffect(() => {
     messagesRef.current = messages
@@ -655,7 +704,97 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     updateTripInfo,
   ])
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleDateSelection = useCallback(
+    async (isoDate: string) => {
+      if (!isoDate) return
+      updateTripInfo({ travelDate: isoDate })
+      appendMessage({
+        role: 'user',
+        content: `Travel date selected: ${new Date(isoDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })}`,
+      })
+      await sendAssistantPrompt('Confirm the travel date they shared and let them know it is noted.')
+      await askNextQuestion()
+    },
+    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+  )
+  const selectedMonthIndex = useMemo(() => {
+    if (!tripInfo.travelDate) return null
+    const parsed = new Date(tripInfo.travelDate)
+    return isNaN(parsed.getTime()) ? null : parsed.getMonth()
+  }, [tripInfo.travelDate])
+
+  const handleMonthSelect = useCallback(
+    (monthIndex: number) => {
+      const iso = getUpcomingDateForMonth(monthIndex)
+      handleDateSelection(iso)
+    },
+    [handleDateSelection]
+  )
+
+  const handleCalendarInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value
+      if (value) {
+        handleDateSelection(value)
+      }
+    },
+    [handleDateSelection]
+  )
+  const handleDaySelect = useCallback(
+    async (label: string, daysValue: string) => {
+      updateTripInfo({ days: daysValue })
+      appendMessage({ role: 'user', content: `Trip length: ${label} days` })
+      await sendAssistantPrompt(
+        `Acknowledge that ${label} days will work well for their ${
+          tripInfoRef.current.destination || 'trip'
+        } and let them know you have noted it.`
+      )
+      await askNextQuestion()
+    },
+    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+  )
+
+  const handleBudgetSelect = useCallback(
+    async (label: string, value: string) => {
+      updateTripInfo({ budget: value })
+      appendMessage({ role: 'user', content: `Budget selected: ${label}` })
+      await sendAssistantPrompt(
+        `Let them know you've recorded a budget of roughly ${label} and that you'll optimize the plan around it.`
+      )
+      await askNextQuestion()
+    },
+    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+  )
+
+  const handleHotelSelect = useCallback(
+    async (label: string, mappedType: string) => {
+      updateTripInfo({ hotelType: mappedType })
+      appendMessage({ role: 'user', content: `Preferred stay: ${label}` })
+      await sendAssistantPrompt(
+        `Confirm that you've locked ${mappedType} accommodation for them and describe what that typically includes.`
+      )
+      await askNextQuestion()
+    },
+    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+  )
+
+  const handleTravelTypeSelect = useCallback(
+    async (label: string, travelType: string) => {
+      updateTripInfo({ travelType })
+      appendMessage({ role: 'user', content: `Travelling with: ${label}` })
+      await sendAssistantPrompt(
+        `Confirm they are traveling ${travelType} and mention you'll tailor experiences for that group.`
+      )
+      await askNextQuestion()
+    },
+    [appendMessage, askNextQuestion, sendAssistantPrompt, updateTripInfo]
+  )
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -735,6 +874,128 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                 className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors"
               >
                 {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Date Picker Helper */}
+      {currentQuestion === 'date' && (
+        <div className="border-t border-gray-100 bg-white px-4 py-6">
+          <p className="text-sm font-semibold text-gray-800 mb-3">Select your travel month</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-5">
+            {monthNames.map((month, idx) => {
+              const isSelected = selectedMonthIndex === idx
+              return (
+                <button
+                  key={month}
+                  type="button"
+                  onClick={() => handleMonthSelect(idx)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold capitalize transition-colors ${
+                    isSelected
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-primary/60'
+                  }`}
+                >
+                  {month.slice(0, 3)}
+                </button>
+              )
+            })}
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs uppercase font-semibold text-gray-500">
+              Or pick an exact date
+            </label>
+            <input
+              type="date"
+              min={todayISO}
+              value={tripInfo.travelDate || ''}
+              onChange={handleCalendarInputChange}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            />
+            <p className="text-xs text-gray-500">
+              We’ll note this immediately and move to the next step.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Day Count Selector */}
+      {currentQuestion === 'days' && (
+        <div className="border-t border-gray-100 bg-white px-4 py-6">
+          <p className="text-sm font-semibold text-gray-800 mb-3">How many days?</p>
+          <div className="grid grid-cols-5 gap-2">
+            {dayOptions.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => handleDaySelect(option.label, option.value)}
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-primary/60 hover:bg-primary/10 transition-colors"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Budget Selector */}
+      {currentQuestion === 'budget' && (
+        <div className="border-t border-gray-100 bg-white px-4 py-6 space-y-3">
+          <p className="text-sm font-semibold text-gray-800">Select your overall budget</p>
+          {budgetOptions.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => handleBudgetSelect(option.label, option.value)}
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-700 hover:border-primary/60 hover:bg-primary/5 transition-colors"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Hotel Selector */}
+      {currentQuestion === 'hotel' && (
+        <div className="border-t border-gray-100 bg-white px-4 py-6">
+          <p className="text-sm font-semibold text-gray-800 mb-3">Preferred stay style</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {hotelOptions.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => handleHotelSelect(option.label, option.value)}
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-4 text-left hover:border-primary/60 hover:bg-primary/5 transition-colors"
+              >
+                <p className="text-sm font-semibold text-gray-900">{option.label}</p>
+                <p className="text-xs text-gray-500">
+                  {option.value === 'Budget'
+                    ? 'Cozy 3★ stays'
+                    : option.value === 'Mid-Range'
+                    ? 'Polished 4★ hotels'
+                    : 'Luxury 5★ experience'}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Travel Type Selector */}
+      {currentQuestion === 'travelType' && (
+        <div className="border-t border-gray-100 bg-white px-4 py-6">
+          <p className="text-sm font-semibold text-gray-800 mb-3">Who are you travelling with?</p>
+          <div className="grid grid-cols-2 gap-3">
+            {travelerOptions.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleTravelTypeSelect(option.label, option.value)}
+                className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 hover:border-primary/60 hover:bg-primary/5 transition-colors"
+              >
+                {option.label}
               </button>
             ))}
           </div>
