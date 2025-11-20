@@ -66,6 +66,16 @@ const travelerOptions = [
   { label: 'Friends', value: 'friends' },
 ]
 
+const isTripInfoComplete = (info: TripInfo) =>
+  Boolean(
+    info.destination &&
+      info.travelDate &&
+      info.days &&
+      info.budget &&
+      info.hotelType &&
+      info.travelType
+  )
+
 const formatISODate = (date: Date) => {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -491,7 +501,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   }, [destinationSpecificPackages, tripInfo])
 
   const suggestedPackages = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
-  const showPackageSuggestions = Boolean(tripInfo.travelType && suggestedPackages.length > 0)
+  const showPackageSuggestions = Boolean(
+    currentQuestion === 'complete' && suggestedPackages.length > 0
+  )
 
   useEffect(() => {
     if (showPackageSuggestions && !tripDetailsAutoOpenedRef.current) {
@@ -531,6 +543,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const askNextQuestion = useCallback(
     async (infoOverride?: TripInfo) => {
+      if (currentQuestion === 'complete') return
       const currentInfo = infoOverride ?? tripInfoRef.current
     let questionPrompt = ''
 
@@ -572,12 +585,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       setCurrentQuestion('travelType')
     } else {
       await generateRecommendation()
+      setCurrentQuestion('complete')
       return
     }
 
-      await sendAssistantPrompt(questionPrompt)
-    },
-    [generateRecommendation, sendAssistantPrompt]
+    await sendAssistantPrompt(questionPrompt)
+  },
+  [currentQuestion, generateRecommendation, sendAssistantPrompt]
   )
 
   const handleSend = useCallback(async () => {
