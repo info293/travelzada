@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { currentUser, isAdmin, logout } = useAuth()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,6 +35,7 @@ export default function Header() {
     { href: '/destinations', label: 'Destinations' },
     { href: '/blog', label: 'Blog' },
     { href: '/contact', label: 'Contact' },
+    ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ]
 
   return (
@@ -56,18 +59,34 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="hidden sm:inline-block text-sm font-medium text-gray-600 hover:text-primary"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/signup"
-            className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
-          >
-            Sign Up
-          </Link>
+          {currentUser ? (
+            <>
+              <span className="hidden sm:inline-block text-sm text-gray-600">
+                {currentUser.email}
+              </span>
+              <button
+                onClick={logout}
+                className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden sm:inline-block text-sm font-medium text-gray-600 hover:text-primary"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -111,20 +130,39 @@ export default function Header() {
                 </Link>
               ))}
               <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
-                <Link
-                  href="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block py-2 text-base font-medium text-gray-700 hover:text-primary transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
-                >
-                  Sign Up
-                </Link>
+                {currentUser ? (
+                  <>
+                    <div className="py-2 text-base font-medium text-gray-700">
+                      {currentUser.email}
+                    </div>
+                    <button
+                      onClick={() => {
+                        logout()
+                        setIsMobileMenuOpen(false)
+                      }}
+                      className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block py-2 text-base font-medium text-gray-700 hover:text-primary transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/signup"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>

@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +15,14 @@ export default function LoginPage() {
   })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { login, loginWithGoogle, currentUser } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (currentUser) {
+      router.push('/')
+    }
+  }, [currentUser, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -52,14 +62,27 @@ export default function LoginPage() {
 
     setIsSubmitting(true)
     
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    
-    setIsSubmitting(false)
-    alert('Login successful! Redirecting...')
-    
-    // In a real app, you would redirect here
-    // router.push('/')
+    try {
+      await login(formData.email, formData.password)
+      router.push('/')
+    } catch (error: any) {
+      setErrors({ 
+        submit: error.message || 'Failed to sign in. Please check your credentials.' 
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle()
+      router.push('/')
+    } catch (error: any) {
+      setErrors({ 
+        submit: error.message || 'Failed to sign in with Google.' 
+      })
+    }
   }
 
   return (
@@ -134,6 +157,12 @@ export default function LoginPage() {
                 </label>
               </div>
 
+              {errors.submit && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  {errors.submit}
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -155,13 +184,12 @@ export default function LoginPage() {
             <div className="mt-6 pt-6 border-t border-gray-200">
               <p className="text-center text-sm text-gray-500 mb-4">Or sign in with</p>
               <div className="flex gap-3">
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                <button
+                  onClick={handleGoogleLogin}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <span className="text-xl">🔵</span>
                   <span className="font-medium">Google</span>
-                </button>
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <span className="text-xl">📘</span>
-                  <span className="font-medium">Facebook</span>
                 </button>
               </div>
             </div>
