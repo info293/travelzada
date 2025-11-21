@@ -258,6 +258,11 @@ export default function AdminDashboard() {
   const handlePackageSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+    if (!formData.Destination_ID || !formData.Destination_Name) {
+      alert('Please provide both Destination ID and Destination Name before saving.')
+      return
+    }
+
       const packageData: any = {
         ...formData,
         Last_Updated: new Date().toISOString().split('T')[0],
