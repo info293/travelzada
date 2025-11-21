@@ -297,7 +297,7 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-gray-200">
+                {/* <div className="mt-6 pt-6 border-t border-gray-200">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-gray-200"></div>
@@ -320,7 +320,7 @@ export default function LoginPage() {
                       <span>Google</span>
                     </button>
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           </div>

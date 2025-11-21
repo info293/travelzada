@@ -14,7 +14,6 @@ function AIPlannerContent() {
     destination: '',
     travelDate: '',
     days: '',
-    budget: '',
     hotelType: '',
   })
   const [isTripDetailsVisible, setIsTripDetailsVisible] = useState(false)

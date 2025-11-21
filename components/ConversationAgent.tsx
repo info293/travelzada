@@ -31,7 +31,20 @@ const monthNames = [
   'december',
 ]
 
-const TOTAL_STEPS = 6
+// Get next 6 months from today
+const getNextSixMonths = () => {
+  const today = new Date()
+  const months: { name: string; index: number }[] = []
+  for (let i = 0; i < 6; i++) {
+    const date = new Date(today.getFullYear(), today.getMonth() + i, 1)
+    const monthIndex = date.getMonth()
+    const monthName = monthNames[monthIndex]
+    months.push({ name: monthName, index: monthIndex })
+  }
+  return months
+}
+
+const TOTAL_STEPS = 5 // Removed budget step
 
 const withStyle = (instruction: string, maxWords = 35) =>
   `Keep the reply under ${maxWords} words. Be clear, upbeat, and avoid repetition. ${instruction}`
@@ -201,7 +214,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     preferences: [],
     travelType: '',
   })
+  const [userFeedback, setUserFeedback] = useState<string>('')
   const [currentQuestion, setCurrentQuestion] = useState<string>('destination')
+  const [feedbackAnswered, setFeedbackAnswered] = useState(false)
+  const [aiResponseComplete, setAiResponseComplete] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -257,8 +273,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     initialPromptSentRef.current = true
     sendAssistantPrompt(
       withStyle(
-        'Greet them briefly and ask which destination they want to plan. Offer two inspirations like Bali or Kerala.',
-        28
+        'Greet them briefly and ask which destination they want to plan.',
+        20
       )
     )
   }, [sendAssistantPrompt])
@@ -282,7 +298,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (tripInfo.destination) completed++
     if (tripInfo.travelDate) completed++
     if (tripInfo.days) completed++
-    if (tripInfo.budget) completed++
     if (tripInfo.hotelType) completed++
     if (tripInfo.travelType) completed++
     setProgress((completed / TOTAL_STEPS) * 100)
@@ -293,7 +308,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       destination: tripInfo.destination,
       travelDate: tripInfo.travelDate,
       days: tripInfo.days,
-      budget: tripInfo.budget,
       hotelType: tripInfo.hotelType,
     })
   }, [tripInfo, setFormData])
@@ -444,44 +458,149 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
   }
 
+  // Search packages based on feedback keywords
+  const searchPackageByFeedback = (pkg: DestinationPackage, feedback: string): number => {
+    if (!feedback || feedback.trim() === '') return 0
+    
+    const feedbackLower = feedback.toLowerCase()
+    const searchFields = [
+      pkg.Overview || '',
+      pkg.Inclusions || '',
+      pkg.Theme || '',
+      pkg.Mood || '',
+      pkg.Adventure_Level || '',
+      pkg.Stay_Type || '',
+      pkg.Day_Wise_Itinerary || '',
+      pkg.Ideal_Traveler_Persona || '',
+    ]
+    
+    const allText = searchFields.join(' ').toLowerCase()
+    const keywords = feedbackLower.split(/\s+/).filter(k => k.length > 2) // Filter out short words
+    
+    let matchCount = 0
+    keywords.forEach(keyword => {
+      if (allText.includes(keyword)) {
+        matchCount++
+      }
+    })
+    
+    // Return score based on how many keywords matched
+    if (matchCount === 0) return 0
+    if (matchCount === keywords.length) return 15 // All keywords matched - high priority
+    return (matchCount / keywords.length) * 10 // Partial match
+  }
+
   const scorePackage = (pkg: DestinationPackage, info: TripInfo) => {
     let score = 0
+    
+    // Base score for destination match (required)
     if (info.destination) {
       const target = normalize(info.destination)
       if (
         normalize(pkg.Destination_Name).includes(target) ||
         target.includes(normalize(pkg.Destination_Name))
       ) {
-        score += 5
+        score += 10 // Base score for matching destination
+      } else {
+        return 0 // Must match destination
       }
     }
-    if (info.travelType && pkg.Travel_Type?.toLowerCase() === info.travelType.toLowerCase()) {
-      score += 3
+    
+    // Feedback matching (only boost if package already matches basic criteria)
+    if (userFeedback && userFeedback.trim() !== '') {
+      const feedbackScore = searchPackageByFeedback(pkg, userFeedback)
+      // Only add feedback boost if package matches duration (within 2 days) and travel type
+      const requestedDays = parseInt(info.days, 10)
+      let pkgDays = null
+      if ((pkg as any).Duration_Days) {
+        pkgDays = (pkg as any).Duration_Days
+      } else {
+        pkgDays = extractDaysFromDuration(pkg.Duration)
+      }
+      const daysMatch = !isNaN(requestedDays) && pkgDays && Math.abs(pkgDays - requestedDays) <= 2
+      const travelMatch = info.travelType && pkg.Travel_Type && 
+        (pkg.Travel_Type.toLowerCase().includes(info.travelType.toLowerCase()) || 
+         info.travelType.toLowerCase().includes(pkg.Travel_Type.toLowerCase().split(' / ')[0]))
+      
+      // Only boost if package matches basic criteria
+      if (daysMatch && travelMatch && feedbackScore > 0) {
+        score += feedbackScore * 0.5 // Reduced weight - only 50% of feedback score
+      }
     }
-    const desiredBudget = getBudgetCategory(info.budget, info.hotelType)
-    if (
-      desiredBudget &&
-      pkg.Budget_Category?.toLowerCase() === desiredBudget.toLowerCase()
-    ) {
-      score += 2
+    
+    // Travel type matching (high priority)
+    if (info.travelType && pkg.Travel_Type) {
+      const pkgTravelType = pkg.Travel_Type.toLowerCase()
+      const userTravelType = info.travelType.toLowerCase()
+      
+      // Exact match
+      if (pkgTravelType === userTravelType) {
+        score += 12 // High priority for exact match
+      }
+      // Partial match (e.g., "Couple / Solo" contains "couple", or "Friends / Solo" contains "solo")
+      else if (pkgTravelType.includes(userTravelType)) {
+        score += 10 // Good match if it's in the list
+      }
+      // Check if any part of the package travel type matches
+      else if (pkgTravelType.includes(' / ')) {
+        const pkgTypes = pkgTravelType.split(' / ').map(t => t.trim())
+        if (pkgTypes.some(t => t === userTravelType || userTravelType.includes(t))) {
+          score += 10
+        }
+      } else {
+        // No match - significant penalty
+        score -= 8 // Penalize packages that don't match travel type
+      }
     }
+    
+    // Duration matching (high priority - use Duration_Days if available)
     const requestedDays = parseInt(info.days, 10)
-    const pkgDays = extractDaysFromDuration(pkg.Duration)
+    let pkgDays = null
+    
+    // Try to use Duration_Days field first (more accurate)
+    if ((pkg as any).Duration_Days) {
+      pkgDays = (pkg as any).Duration_Days
+    } else {
+      pkgDays = extractDaysFromDuration(pkg.Duration)
+    }
+    
     if (!isNaN(requestedDays) && pkgDays) {
       const diff = Math.abs(pkgDays - requestedDays)
-      if (diff === 0) score += 2
-      else if (diff <= 2) score += 1
+      if (diff === 0) {
+        score += 20 // Exact duration match - CRITICAL priority
+      } else if (diff === 1) {
+        score += 10 // Very close (1 day off) - good but not as good as exact
+      } else if (diff === 2) {
+        score += 4 // Close (2 days off) - acceptable
+      } else if (diff === 3) {
+        score += 1 // Somewhat close (3 days off) - less ideal
+      }
+      // No points for diff > 3 - too far off
     }
+    
+    // Hotel type matching (high priority)
     if (info.hotelType && pkg.Star_Category) {
-      const starHint = info.hotelType.includes('Luxury')
+      const starHint = info.hotelType.includes('Luxury') || info.hotelType.includes('5')
         ? '5'
-        : info.hotelType.includes('Budget')
+        : info.hotelType.includes('Budget') || info.hotelType.includes('3')
         ? '3'
         : '4'
+      
       if (pkg.Star_Category.includes(starHint)) {
-        score += 1
+        score += 10 // Exact hotel type match
+      } else {
+        // Penalize mismatches
+        const pkgStar = pkg.Star_Category.includes('5') ? '5' : pkg.Star_Category.includes('3') ? '3' : '4'
+        if (starHint === '4' && pkgStar === '5') {
+          score += 5 // User wants 4-star, got 5-star (upgrade is acceptable but not ideal)
+        } else if (starHint === '4' && pkgStar === '3') {
+          score -= 5 // User wants 4-star, got 3-star (downgrade is not ideal)
+        } else if (starHint === '5' && pkgStar === '4') {
+          score -= 3 // User wants 5-star, got 4-star (downgrade)
+        }
       }
     }
+    
     return score
   }
 
@@ -494,15 +613,89 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const rankedPackages = useMemo(() => {
     if (!tripInfo.destination || destinationSpecificPackages.length === 0) return []
-    return destinationSpecificPackages
+    
+    const scored = destinationSpecificPackages
       .map((pkg: DestinationPackage) => ({ pkg, score: scorePackage(pkg, tripInfo) }))
       .filter(({ score }) => score > 0)
-      .sort((a, b) => b.score - a.score)
-  }, [destinationSpecificPackages, tripInfo])
+      .sort((a, b) => {
+        const requestedDays = parseInt(tripInfo.days, 10)
+        const aDays = !isNaN(requestedDays) ? ((a.pkg as any).Duration_Days || extractDaysFromDuration(a.pkg.Duration) || 0) : 0
+        const bDays = !isNaN(requestedDays) ? ((b.pkg as any).Duration_Days || extractDaysFromDuration(b.pkg.Duration) || 0) : 0
+        const aDiff = !isNaN(requestedDays) ? Math.abs(aDays - requestedDays) : 999
+        const bDiff = !isNaN(requestedDays) ? Math.abs(bDays - requestedDays) : 999
+        
+        // FIRST: Prioritize exact duration matches (most important)
+        if (aDiff === 0 && bDiff !== 0) return -1 // a is exact match, b is not
+        if (bDiff === 0 && aDiff !== 0) return 1  // b is exact match, a is not
+        
+        // SECOND: If both are close (within 1 day), then consider feedback as tiebreaker
+        if (userFeedback && userFeedback.trim() !== '' && aDiff <= 1 && bDiff <= 1) {
+          const aFeedbackScore = searchPackageByFeedback(a.pkg, userFeedback)
+          const bFeedbackScore = searchPackageByFeedback(b.pkg, userFeedback)
+          // Only use feedback to break ties when duration is similar
+          if (aFeedbackScore > 0 && bFeedbackScore === 0) return -1 // a matches feedback, b doesn't
+          if (bFeedbackScore > 0 && aFeedbackScore === 0) return 1  // b matches feedback, a doesn't
+          if (aFeedbackScore !== bFeedbackScore) return bFeedbackScore - aFeedbackScore // Higher feedback score first
+        }
+        
+        // THIRD: Sort by total score (includes all factors including feedback boost)
+        if (b.score !== a.score) {
+          return b.score - a.score
+        }
+        
+        // FOURTH: If scores are equal, prefer closer duration match
+        if (aDiff !== bDiff) {
+          return aDiff - bDiff
+        }
+        
+        // FOURTH: Prefer packages that match hotel type exactly
+        const hotelMatch = tripInfo.hotelType?.includes('4') ? '4' : tripInfo.hotelType?.includes('5') ? '5' : '3'
+        const aHotelMatch = a.pkg.Star_Category?.includes(hotelMatch)
+        const bHotelMatch = b.pkg.Star_Category?.includes(hotelMatch)
+        
+        if (aHotelMatch !== bHotelMatch) {
+          return aHotelMatch ? -1 : 1
+        }
+        
+        // FIFTH: Prefer packages that match travel type exactly
+        const userTravelType = tripInfo.travelType?.toLowerCase()
+        const aTravelMatch = userTravelType && a.pkg.Travel_Type?.toLowerCase() === userTravelType
+        const bTravelMatch = userTravelType && b.pkg.Travel_Type?.toLowerCase() === userTravelType
+        
+        if (aTravelMatch !== bTravelMatch) {
+          return aTravelMatch ? -1 : 1
+        }
+        
+        return 0
+      })
+    
+    // Debug logging
+    console.log('📊 Package Ranking for:', {
+      destination: tripInfo.destination,
+      days: tripInfo.days,
+      hotelType: tripInfo.hotelType,
+      travelType: tripInfo.travelType
+    })
+    scored.slice(0, 5).forEach(({ pkg, score }, idx) => {
+      const pkgDays = (pkg as any).Duration_Days || extractDaysFromDuration(pkg.Duration)
+      console.log(`  ${idx + 1}. ${pkg.Destination_Name} (${pkg.Duration}) - Score: ${score}`, {
+        travelType: pkg.Travel_Type,
+        hotelType: pkg.Star_Category,
+        days: pkgDays,
+        matches: {
+          travelType: tripInfo.travelType && pkg.Travel_Type?.toLowerCase().includes(tripInfo.travelType.toLowerCase()),
+          hotelType: tripInfo.hotelType && pkg.Star_Category?.includes(tripInfo.hotelType.includes('4') ? '4' : tripInfo.hotelType.includes('5') ? '5' : '3'),
+          days: tripInfo.days && Math.abs((pkgDays || 0) - parseInt(tripInfo.days, 10)) <= 2
+        }
+      })
+    })
+    
+    return scored
+  }, [destinationSpecificPackages, tripInfo, userFeedback])
 
   const suggestedPackages = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
   const showPackageSuggestions = Boolean(
-    currentQuestion === 'complete' && suggestedPackages.length > 0
+    currentQuestion === 'complete' && suggestedPackages.length > 0 && aiResponseComplete
   )
 
   useEffect(() => {
@@ -516,6 +709,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     const currentInfo = tripInfoRef.current
     const bestMatch = rankedPackages[0]?.pkg
 
+    // Reset the flag before sending AI response
+    setAiResponseComplete(false)
+
     if (!bestMatch) {
       if (currentInfo.destination) {
         await sendAssistantPrompt(
@@ -526,6 +722,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           'Let the traveler know you could not find an exact package match but will have a human expert follow up shortly.'
         )
       }
+      // Mark AI response as complete even if no package found
+      setAiResponseComplete(true)
       return
     }
 
@@ -535,6 +733,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     )
 
     await sendAssistantPrompt(prompt, { packageMatch: bestMatch })
+    
+    // Mark AI response as complete after the message is sent
+    setAiResponseComplete(true)
+    
     if (!tripDetailsAutoOpenedRef.current) {
       tripDetailsAutoOpenedRef.current = true
       onTripDetailsRequest?.()
@@ -549,8 +751,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     if (!currentInfo.destination) {
       questionPrompt = withStyle(
-        'Greet them briefly and ask which destination they want to plan. Offer two examples like Bali or Kerala.',
-        28
+        'Greet them briefly and ask which destination they want to plan.',
+        20
       )
       setCurrentQuestion('destination')
     } else if (!currentInfo.travelDate) {
@@ -565,16 +767,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         30
       )
       setCurrentQuestion('days')
-    } else if (!currentInfo.budget) {
-      questionPrompt = withStyle(
-        `Great, ${currentInfo.days}-day plan noted. Ask for their total budget in INR and hint at ranges like ₹30k-50k or ₹80k+.`,
-        32
-      )
-      setCurrentQuestion('budget')
     } else if (!currentInfo.hotelType) {
       questionPrompt = withStyle(
-        'Thank them for sharing their budget and ask which stay style they prefer: 3-star, 4-star, or 5-star.',
-        28
+        'Thank them and ask which stay style they prefer: 3-star, 4-star, or 5-star.',
+        25
       )
       setCurrentQuestion('hotel')
     } else if (!currentInfo.travelType) {
@@ -583,6 +779,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         26
       )
       setCurrentQuestion('travelType')
+    } else if (!feedbackAnswered) {
+      questionPrompt = withStyle(
+        'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
+        35
+      )
+      setCurrentQuestion('feedback')
     } else {
       await generateRecommendation()
       setCurrentQuestion('complete')
@@ -596,6 +798,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const handleSend = useCallback(async () => {
     if (!input.trim()) return
+    
+    // If we're on feedback question and feedback was already answered, don't process again
+    if (currentQuestion === 'feedback' && feedbackAnswered) {
+      return
+    }
+    
     const userInput = input.trim()
     setInput('')
 
@@ -608,15 +816,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       if (dest) {
         updateTripInfo({ destination: dest })
         const destInfo = travelData.destinations.find((d: any) => d.name === dest)
-        const prompt = destInfo
-          ? withStyle(
-              `They picked ${dest}. In one sentence mention ${destInfo.description}. Add best time ${destInfo.bestTimeToVisit} and typical duration ${destInfo.duration}. Then ask when they plan to travel (month or exact date).`,
-              55
-            )
-          : withStyle(
-              `Acknowledge their interest in ${dest} and ask when they plan to travel (month or exact date).`,
-              35
-            )
+        const prompt = withStyle(
+          `Great choice! When do you plan to travel—any specific month or date in mind?`,
+          20
+        )
         await sendAssistantPrompt(prompt)
         setCurrentQuestion('date')
         return
@@ -662,19 +865,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
     }
 
-    if (currentQuestion === 'budget') {
-      if (isSameAnswer(userInput) && latestInfo.budget) {
-        await askNextQuestion()
-        return
-      }
-      const budget = extractBudget(userInput)
-      if (budget) {
-        const nextInfo = updateTripInfo({ budget })
-        await askNextQuestion(nextInfo)
-        return
-      }
-    }
-
     if (currentQuestion === 'travelType') {
       if (isSameAnswer(userInput) && latestInfo.travelType) {
         await askNextQuestion()
@@ -684,6 +874,41 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       if (travelType) {
         const nextInfo = updateTripInfo({ travelType })
         await askNextQuestion(nextInfo)
+        return
+      }
+    }
+
+    if (currentQuestion === 'feedback') {
+      // Prevent duplicate processing - if feedback was already answered, skip
+      if (feedbackAnswered) {
+        return
+      }
+      // User can skip or provide feedback
+      if (userInput.toLowerCase().includes('skip') || userInput.toLowerCase().trim() === '') {
+        setUserFeedback('')
+        setFeedbackAnswered(true)
+        setAiResponseComplete(false) // Reset before generating recommendation
+        setCurrentQuestion('complete')
+        // Don't append message again if it was already appended by the input handler
+        if (!messagesRef.current.some(m => m.role === 'user' && m.content === 'Skipped')) {
+          appendMessage({ role: 'user', content: 'Skipped' })
+        }
+        // Directly generate recommendation instead of calling askNextQuestion
+        await generateRecommendation()
+        return
+      } else {
+        // Store feedback and search packages
+        const feedback = userInput.trim()
+        setUserFeedback(feedback)
+        setFeedbackAnswered(true)
+        setAiResponseComplete(false) // Reset before generating recommendation
+        setCurrentQuestion('complete')
+        // Don't append message again if it was already appended by the input handler
+        if (!messagesRef.current.some(m => m.role === 'user' && m.content === feedback)) {
+          appendMessage({ role: 'user', content: feedback })
+        }
+        // Directly generate recommendation instead of calling askNextQuestion
+        await generateRecommendation()
         return
       }
     }
@@ -711,6 +936,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     appendMessage,
     askNextQuestion,
     currentQuestion,
+    feedbackAnswered,
+    generateRecommendation,
     extractBudget,
     extractDate,
     extractDestination,
@@ -770,14 +997,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     [appendMessage, askNextQuestion, updateTripInfo]
   )
 
-  const handleBudgetSelect = useCallback(
-    async (label: string, value: string) => {
-      const nextInfo = updateTripInfo({ budget: value })
-      appendMessage({ role: 'user', content: `Budget selected: ${label}` })
-      await askNextQuestion(nextInfo)
-    },
-    [appendMessage, askNextQuestion, updateTripInfo]
-  )
 
   const handleHotelSelect = useCallback(
     async (label: string, mappedType: string) => {
@@ -922,20 +1141,20 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 relative z-10">
           <p className="text-sm text-gray-800 mb-4">Select your travel month</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
-            {monthNames.map((month, idx) => {
-              const isSelected = selectedMonthIndex === idx
+            {getNextSixMonths().map(({ name, index }) => {
+              const isSelected = selectedMonthIndex === index
               return (
                 <button
-                  key={month}
+                  key={name}
                   type="button"
-                  onClick={() => handleMonthSelect(idx)}
+                  onClick={() => handleMonthSelect(index)}
                   className={`rounded-xl border-2 px-3 py-2.5 text-xs capitalize transition-all duration-200 ${
                     isSelected
                       ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-transparent shadow-lg shadow-purple-500/30'
                       : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50 shadow-sm'
                   }`}
                 >
-                  {month.slice(0, 3)}
+                  {name.slice(0, 3)}
                 </button>
               )
             })}
@@ -977,22 +1196,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         </div>
       )}
 
-      {/* Budget Selector */}
-      {currentQuestion === 'budget' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 space-y-3 relative z-10">
-          <p className="text-sm text-gray-800 mb-4">Select your overall budget</p>
-          {budgetOptions.map((option) => (
-            <button
-              key={option.label}
-              type="button"
-              onClick={() => handleBudgetSelect(option.label, option.value)}
-              className="w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-4 text-left text-sm text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md transition-all duration-200 shadow-sm"
-            >
-              <span className="text-purple-600">{option.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Hotel Selector */}
       {currentQuestion === 'hotel' && (
@@ -1039,6 +1242,74 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         </div>
       )}
 
+      {/* Feedback/Suggestions Input */}
+      {currentQuestion === 'feedback' && (
+        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 relative z-10">
+          <p className="text-sm text-gray-800 mb-2">Any specific questions or suggestions?</p>
+          <p className="text-xs text-gray-500 mb-4">Tell us what you'd like to include (e.g., spa, yoga, adventure, beach activities, etc.)</p>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={async (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  if (input.trim()) {
+                    const feedback = input.trim()
+                    setUserFeedback(feedback)
+                    setFeedbackAnswered(true)
+                    setAiResponseComplete(false) // Reset before generating recommendation
+                    setCurrentQuestion('complete')
+                    appendMessage({ role: 'user', content: feedback })
+                    setInput('')
+                    // Directly generate recommendation to avoid asking question again
+                    await generateRecommendation()
+                  }
+                }
+              }}
+              placeholder="e.g., spa, yoga, adventure activities..."
+              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                setUserFeedback('')
+                setFeedbackAnswered(true)
+                setAiResponseComplete(false) // Reset before generating recommendation
+                setCurrentQuestion('complete')
+                appendMessage({ role: 'user', content: 'Skipped' })
+                setInput('')
+                // Directly generate recommendation instead of calling askNextQuestion
+                await generateRecommendation()
+              }}
+              className="px-6 py-3 border-2 border-gray-300 rounded-xl text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
+            >
+              Skip
+            </button>
+            {input.trim() && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const feedback = input.trim()
+                  setUserFeedback(feedback)
+                  setFeedbackAnswered(true)
+                  setAiResponseComplete(false) // Reset before generating recommendation
+                  setCurrentQuestion('complete')
+                  appendMessage({ role: 'user', content: feedback })
+                  setInput('')
+                  // Directly generate recommendation to avoid asking question again
+                  await generateRecommendation()
+                }}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+              >
+                Submit
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Recommended Packages */}
       {showPackageSuggestions && (
         <div className="border-t border-gray-100 bg-gray-50 px-4 py-6">
@@ -1062,11 +1333,28 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {suggestedPackages.map((pkg) => (
+            {suggestedPackages.map((pkg) => {
+              // Extract image URL from Primary_Image_URL (handle markdown link format)
+              const imageUrl = pkg.Primary_Image_URL 
+                ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+              
+              return (
               <div
                 key={pkg.Destination_ID}
                 className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all"
               >
+                {/* Package Image */}
+                <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+                  <img
+                    src={imageUrl}
+                    alt={pkg.Destination_Name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                    }}
+                  />
+                </div>
                 <div className="p-5 space-y-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -1124,7 +1412,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
           <button
             type="button"
@@ -1158,12 +1447,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                 ? "When are you traveling? (e.g., March 2024 or 15/03/2024)"
                 : currentQuestion === 'days'
                 ? "How many days? (e.g., 5 days)"
-                : currentQuestion === 'budget'
-                ? "What's your budget? (e.g., ₹50,000 or luxury)"
                 : currentQuestion === 'hotel'
-                ? "What hotel type? (Budget, Mid-Range, Luxury, Boutique)"
+                ? "What hotel type? (3-star, 4-star, 5-star)"
                 : currentQuestion === 'travelType'
                 ? "Who are you traveling with? (solo, family, couple, friends)"
+                : currentQuestion === 'feedback'
+                ? "Any suggestions? (e.g., spa, yoga, adventure) or type 'skip'"
                 : "Type your message..."
             }
             className="flex-1 px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm transition-all"

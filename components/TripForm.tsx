@@ -12,7 +12,6 @@ interface TripFormProps {
     destination: string
     travelDate: string
     days: string
-    budget: string
     hotelType: string
   }
   setFormData: (data: any) => void
@@ -57,7 +56,7 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
   }
 
   const handleGenerate = async () => {
-    if (!formData.destination || !formData.travelDate || !formData.days || !formData.budget || !formData.hotelType) {
+    if (!formData.destination || !formData.travelDate || !formData.days || !formData.hotelType) {
       alert('Please fill in all fields')
       return
     }
@@ -74,16 +73,14 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
       return
     }
 
-    // Determine package type based on budget
+    // Determine package type based on hotel type
     let packageType = 'Mid-Range'
     let packagePrice = destination.budgetRange.midRange
     
-    const budgetNum = parseInt(formData.budget.replace(/,/g, '')) || 50000
-    
-    if (budgetNum < 30000) {
+    if (formData.hotelType === 'Budget' || formData.hotelType === '3-Star') {
       packageType = 'Budget'
       packagePrice = destination.budgetRange.budget
-    } else if (budgetNum > 80000) {
+    } else if (formData.hotelType === 'Luxury' || formData.hotelType === '5-Star') {
       packageType = 'Luxury'
       packagePrice = destination.budgetRange.luxury
     }
@@ -166,34 +163,6 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
           />
         </div>
 
-        {/* Budget */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Budget (₹)
-          </label>
-          <input
-            type="text"
-            value={formData.budget}
-            onChange={(e) => handleChange('budget', e.target.value)}
-            placeholder="e.g., 50,000"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <div className="mt-2">
-            <input
-              type="range"
-              min="10000"
-              max="500000"
-              step="10000"
-              value={formData.budget.replace(/,/g, '') || 50000}
-              onChange={(e) => handleChange('budget', parseInt(e.target.value).toLocaleString('en-IN'))}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>₹10,000</span>
-              <span>₹5,00,000</span>
-            </div>
-          </div>
-        </div>
 
         {/* Hotel Type */}
         <div>
@@ -217,7 +186,7 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
         {/* Generate Button */}
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !formData.destination || !formData.travelDate || !formData.days || !formData.budget || !formData.hotelType}
+          disabled={isGenerating || !formData.destination || !formData.travelDate || !formData.days || !formData.hotelType}
           className="w-full bg-primary text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isGenerating ? 'Generating Your Itinerary...' : 'GENERATE MY ITINERARY'}
