@@ -502,6 +502,42 @@ export default function AdminDashboard() {
     })
   }
 
+  const handleUpdateUserRole = async (userId: string, newRole: 'user' | 'admin', currentRole: 'user' | 'admin') => {
+    if (!userId) {
+      alert('User ID is required')
+      return
+    }
+
+    if (newRole === currentRole) {
+      return // No change needed
+    }
+
+    if (!confirm(`Are you sure you want to change this user's role from ${currentRole} to ${newRole}?`)) {
+      return
+    }
+
+    try {
+      const dbInstance = getDbInstance()
+      const userRef = doc(dbInstance, 'users', userId)
+      await updateDoc(userRef, {
+        role: newRole,
+      })
+
+      // Refresh users list
+      await fetchUsers()
+      
+      // If updating own role, show special message
+      if (userId === currentUser?.uid) {
+        alert(`Your role has been updated to ${newRole}. Please refresh the page or sign out and sign back in for the changes to take effect.`)
+      } else {
+        alert(`User role updated to ${newRole} successfully!`)
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error)
+      alert(`Error updating user role: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   const loadSampleTemplate = () => {
     const sample = [
       {
@@ -1291,6 +1327,7 @@ export default function AdminDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -1333,6 +1370,28 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={user.role}
+                            onChange={(e) => {
+                              const newRole = e.target.value as 'user' | 'admin'
+                              handleUpdateUserRole(user.id!, newRole, user.role)
+                            }}
+                            className={`text-xs px-3 py-1.5 border rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
+                              user.role === 'admin' 
+                                ? 'bg-purple-100 text-purple-800 border-purple-300' 
+                                : 'bg-gray-100 text-gray-800 border-gray-300'
+                            }`}
+                          >
+                            <option value="user">User</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          {user.id === currentUser?.uid && (
+                            <span className="text-xs text-gray-500 italic">(You)</span>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1353,13 +1412,23 @@ export default function AdminDashboard() {
               </div>
             </div>
             
-            {/* Debug Info */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800 font-semibold mb-2">💡 Note:</p>
-              <p className="text-xs text-yellow-700">
-                User documents are created automatically when users sign up. If you signed up before this feature was added, 
-                click "Sync Current User" to create your user document. You can also check the browser console (F12) for any errors.
-              </p>
+            {/* Info Box */}
+            <div className="space-y-3">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800 font-semibold mb-2">👤 Role Management:</p>
+                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                  <li>Use the dropdown in the "Actions" column to change user roles</li>
+                  <li>Users with "Admin" role can access the admin dashboard and manage content</li>
+                  <li>If you change your own role, please refresh the page or sign out and sign back in for changes to take effect</li>
+                </ul>
+              </div>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 font-semibold mb-2">💡 Note:</p>
+                <p className="text-xs text-yellow-700">
+                  User documents are created automatically when users sign up. If you signed up before this feature was added, 
+                  click "Sync Current User" to create your user document. You can also check the browser console (F12) for any errors.
+                </p>
+              </div>
             </div>
           </div>
         )}

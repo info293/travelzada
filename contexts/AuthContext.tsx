@@ -62,18 +62,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user)
-      // Check if user is admin (you can customize this logic)
-      // Check if email contains 'admin' or matches specific admin emails
+      // Check if user is admin from Firestore
       if (user && user.email) {
-        const adminEmails = ['admin@travelzada.com', 'admin@example.com']
-        const emailLower = user.email.toLowerCase()
-        // Check if email is in admin list OR contains 'admin' in the local part
-        const isAdminEmail = adminEmails.includes(emailLower) || 
-                            emailLower.split('@')[0].includes('admin')
-        setIsAdmin(isAdminEmail)
-        console.log('Admin check:', { email: user.email, isAdmin: isAdminEmail })
+        try {
+          const dbInstance = getDbInstance()
+          const userDoc = await getDoc(doc(dbInstance, 'users', user.uid))
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            const userRole = userData.role || 'user'
+            setIsAdmin(userRole === 'admin')
+            console.log('Admin check from Firestore:', { email: user.email, role: userRole, isAdmin: userRole === 'admin' })
+          } else {
+            // Fallback: Check if email contains 'admin' or matches specific admin emails
+            const adminEmails = ['admin@travelzada.com', 'admin@example.com']
+            const emailLower = user.email.toLowerCase()
+            const isAdminEmail = adminEmails.includes(emailLower) || 
+                                emailLower.split('@')[0].includes('admin')
+            setIsAdmin(isAdminEmail)
+            console.log('Admin check (fallback):', { email: user.email, isAdmin: isAdminEmail })
+          }
+        } catch (error) {
+          console.error('Error checking admin status:', error)
+          // Fallback: Check if email contains 'admin' or matches specific admin emails
+          const adminEmails = ['admin@travelzada.com', 'admin@example.com']
+          const emailLower = user.email.toLowerCase()
+          const isAdminEmail = adminEmails.includes(emailLower) || 
+                              emailLower.split('@')[0].includes('admin')
+          setIsAdmin(isAdminEmail)
+        }
       } else {
         setIsAdmin(false)
       }

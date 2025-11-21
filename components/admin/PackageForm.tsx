@@ -95,7 +95,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Overview *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Overview </label>
             <textarea
               name="Overview"
               value={formData.Overview || ''}
@@ -107,7 +107,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration </label>
             <input
               type="text"
               name="Duration"
@@ -119,7 +119,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Nights *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Nights </label>
             <input
               type="number"
               name="Duration_Nights"
@@ -131,7 +131,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Days *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Days </label>
             <input
               type="number"
               name="Duration_Days"
@@ -143,7 +143,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Slug *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Slug </label>
             <input
               type="text"
               name="Slug"
@@ -162,7 +162,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Travel Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Mood *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Mood </label>
             <select
               name="Mood"
               value={formData.Mood || ''}
@@ -178,7 +178,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Occasion *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Occasion </label>
             <input
               type="text"
               name="Occasion"
@@ -190,7 +190,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Type *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Type </label>
             <select
               name="Travel_Type"
               value={formData.Travel_Type || ''}
@@ -206,7 +206,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Theme *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Theme </label>
             <input
               type="text"
               name="Theme"
@@ -218,7 +218,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Adventure Level *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Adventure Level </label>
             <select
               name="Adventure_Level"
               value={formData.Adventure_Level || ''}
@@ -233,7 +233,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Group Size *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Group Size </label>
             <input
               type="text"
               name="Group_Size"
@@ -245,7 +245,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Child Friendly *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Child Friendly </label>
             <select
               name="Child_Friendly"
               value={formData.Child_Friendly || ''}
@@ -259,7 +259,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Elderly Friendly *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Elderly Friendly </label>
             <select
               name="Elderly_Friendly"
               value={formData.Elderly_Friendly || ''}
@@ -273,7 +273,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Language Preference *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Language Preference </label>
             <input
               type="text"
               name="Language_Preference"
@@ -285,7 +285,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Seasonality *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Seasonality </label>
             <input
               type="text"
               name="Seasonality"
@@ -297,7 +297,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Ideal Traveler Persona *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Ideal Traveler Persona </label>
             <textarea
               name="Ideal_Traveler_Persona"
               value={formData.Ideal_Traveler_Persona || ''}
@@ -316,7 +316,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Pricing</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Budget Category *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Budget Category </label>
             <select
               name="Budget_Category"
               value={formData.Budget_Category || ''}
@@ -332,7 +332,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range (INR) *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range (INR) </label>
             <input
               type="text"
               name="Price_Range_INR"
@@ -344,7 +344,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (INR) *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (INR) </label>
             <input
               type="number"
               name="Price_Min_INR"
@@ -356,7 +356,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (INR) *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (INR) </label>
             <input
               type="number"
               name="Price_Max_INR"
@@ -375,7 +375,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Accommodation</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Star Category *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Star Category </label>
             <select
               name="Star_Category"
               value={formData.Star_Category || ''}
@@ -390,7 +390,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Stay Type *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Stay Type </label>
             <input
               type="text"
               name="Stay_Type"
@@ -402,7 +402,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Meal Plan *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Meal Plan </label>
             <input
               type="text"
               name="Meal_Plan"
@@ -414,7 +414,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Examples *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Examples </label>
             <input
               type="text"
               name="Hotel_Examples"
@@ -426,7 +426,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Location Breakup *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Location Breakup </label>
             <input
               type="text"
               name="Location_Breakup"
@@ -445,7 +445,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Itinerary & Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Day Wise Itinerary *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Day Wise Itinerary </label>
             <textarea
               name="Day_Wise_Itinerary"
               value={formData.Day_Wise_Itinerary || ''}
@@ -457,7 +457,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Inclusions *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Inclusions </label>
             <textarea
               name="Inclusions"
               value={formData.Inclusions || ''}
@@ -480,7 +480,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Rating *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Rating </label>
             <input
               type="text"
               name="Rating"
@@ -499,7 +499,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Location & Transfer</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Airport Code *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Airport Code </label>
             <input
               type="text"
               name="Airport_Code"
@@ -511,7 +511,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Transfer Type *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Transfer Type </label>
             <select
               name="Transfer_Type"
               value={formData.Transfer_Type || ''}
@@ -525,7 +525,7 @@ export default function PackageForm({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Currency *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Currency </label>
             <input
               type="text"
               name="Currency"
@@ -537,7 +537,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Climate Type *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Climate Type </label>
             <input
               type="text"
               name="Climate_Type"
@@ -549,7 +549,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Safety Score *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Safety Score </label>
             <input
               type="text"
               name="Safety_Score"
@@ -561,7 +561,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Sustainability Score *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Sustainability Score </label>
             <input
               type="text"
               name="Sustainability_Score"
@@ -580,7 +580,7 @@ export default function PackageForm({
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Media & SEO</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Image URL *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Image URL </label>
             <input
               type="url"
               name="Primary_Image_URL"
@@ -592,7 +592,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Meta Image URL *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Meta Image URL </label>
             <input
               type="url"
               name="Meta_Image_URL"
@@ -604,7 +604,7 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Booking URL *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Booking URL </label>
             <input
               type="url"
               name="Booking_URL"
@@ -616,7 +616,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Title *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Title </label>
             <input
               type="text"
               name="SEO_Title"
@@ -628,7 +628,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Description *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Description </label>
             <textarea
               name="SEO_Description"
               value={formData.SEO_Description || ''}
@@ -640,7 +640,7 @@ export default function PackageForm({
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Keywords *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Keywords </label>
             <input
               type="text"
               name="SEO_Keywords"
