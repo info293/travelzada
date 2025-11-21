@@ -31,12 +31,18 @@ export default function Header() {
 
   const navItems = [
     { href: '/', label: 'Home' },
-    { href: '/ai-planner', label: 'AI Planner' },
+    { href: '/ai-planner', label: 'AI Planner', isAI: true },
     { href: '/destinations', label: 'Destinations' },
     { href: '/blog', label: 'Blog' },
     { href: '/contact', label: 'Contact' },
     ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ]
+
+  const SparkleIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+    <span
+      className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm`}
+    />
+  )
 
   return (
     <header
@@ -51,11 +57,28 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-primary transition-colors">
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const isAI = (item as any).isAI
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`transition-all duration-200 ${
+                  isAI
+                    ? 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md'
+                    : 'hover:text-primary'
+                }`}
+              >
+                {isAI && <SparkleIcon className="w-3.5 h-3.5" />}
+                <span>{item.label}</span>
+                {isAI && (
+                  <span className="text-[10px] uppercase tracking-wide text-purple-500 font-semibold">
+                    
+                  </span>
+                )}
+              </Link>
+            )
+          })}
         </nav>
 
         <div className="flex items-center gap-3">
@@ -119,16 +142,29 @@ export default function Header() {
           {/* Menu Panel */}
           <div className="fixed top-[73px] left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-40 md:hidden">
             <nav className="flex flex-col py-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="px-6 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const isAI = (item as any).isAI
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`px-6 py-3 text-base font-medium transition-colors ${
+                      isAI
+                        ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                    }`}
+                  >
+                    {isAI && <SparkleIcon className="w-4 h-4" />}
+                    {item.label}
+                    {isAI && (
+                      <span className="ml-2 text-[11px] uppercase tracking-wide text-purple-500 font-semibold">
+                        AI
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
               <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
                 {currentUser ? (
                   <>
