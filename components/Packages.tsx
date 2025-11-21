@@ -28,42 +28,30 @@ export default function Packages() {
       }
 
       try {
-        // Fetch first 4 packages from Firestore, ordered by creation date
-        let q
-        try {
-          q = query(
-            collection(db, 'packages'),
-            orderBy('createdAt', 'desc'),
-            limit(4)
-          )
-        } catch (error) {
-          // If orderBy fails, just fetch without ordering
-          console.log('OrderBy failed, fetching without order:', error)
-          q = query(collection(db, 'packages'), limit(4))
-        }
-
-        const querySnapshot = await getDocs(q)
+        // Fetch all packages from Firestore and filter for Bali
+        const packagesRef = collection(db, 'packages')
+        const allPackagesSnapshot = await getDocs(packagesRef)
         const packagesData: FirestorePackage[] = []
 
-        querySnapshot.forEach((doc) => {
+        allPackagesSnapshot.forEach((doc) => {
           const data = doc.data() as FirestorePackage
-          packagesData.push({ id: doc.id, ...data })
+          const destinationId = (data.Destination_ID || '').toLowerCase()
+          const destinationName = (data.Destination_Name || '').toLowerCase()
+          
+          // Check if "bali" appears in Destination_ID or Destination_Name
+          if (destinationId.includes('bali') || destinationName.includes('bali')) {
+            packagesData.push({ id: doc.id, ...data })
+          }
         })
 
-        // If we got less than 4, try to get more without orderBy
-        if (packagesData.length < 4) {
-          const allSnapshot = await getDocs(collection(db, 'packages'))
-          const allPackages: FirestorePackage[] = []
-          allSnapshot.forEach((doc) => {
-            const data = doc.data() as FirestorePackage
-            if (!packagesData.find(p => p.id === doc.id)) {
-              allPackages.push({ id: doc.id, ...data })
-            }
-          })
-          // Add more packages to reach 4
-          packagesData.push(...allPackages.slice(0, 4 - packagesData.length))
-        }
+        // Sort by createdAt if available, otherwise keep original order
+        packagesData.sort((a, b) => {
+          const aDate = (a as any).createdAt || 0
+          const bDate = (b as any).createdAt || 0
+          return bDate - aDate // Newest first
+        })
 
+        // Take first 4 Bali packages
         setPackages(packagesData.slice(0, 4))
       } catch (error) {
         console.error('Error fetching packages:', error)

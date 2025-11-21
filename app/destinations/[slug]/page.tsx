@@ -61,11 +61,14 @@ export default function DestinationDetailPage({ params }: PageProps) {
         allPackagesSnapshot.forEach((doc) => {
           const data = doc.data() as DestinationPackage
           const pkgName = data.Destination_Name?.toLowerCase() || ''
+          const pkgId = data.Destination_ID?.toLowerCase() || ''
           
-          // Match if package name contains destination or vice versa
+          // Match if package name or Destination_ID contains destination or vice versa
           if (pkgName.includes(normalizedDestination) || 
               normalizedDestination.includes(pkgName) ||
-              pkgName === normalizedDestination) {
+              pkgName === normalizedDestination ||
+              pkgId.includes(normalizedDestination) ||
+              normalizedDestination.includes(pkgId)) {
             packagesData.push({ id: doc.id, ...data })
           }
         })

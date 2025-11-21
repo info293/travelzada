@@ -78,7 +78,7 @@ const GUEST_REVIEWS = [
 
 export default function PackageDetailPage({ params }: PageProps) {
   const slug = decodeURIComponent(params.slug)
-  const packageId = params.packageId
+  const packageId = decodeURIComponent(params.packageId)
   const [packageData, setPackageData] = useState<DestinationPackage | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -94,6 +94,19 @@ export default function PackageDetailPage({ params }: PageProps) {
       try {
         setLoading(true)
         
+        // Helper function to check if package matches destination
+        const matchesDestination = (data: DestinationPackage): boolean => {
+          const normalizedSlug = slug.toLowerCase()
+          const pkgName = data.Destination_Name?.toLowerCase() || ''
+          const pkgId = data.Destination_ID?.toLowerCase() || ''
+          
+          // Check if Destination_Name or Destination_ID contains the slug (or vice versa)
+          return pkgName.includes(normalizedSlug) ||
+                 normalizedSlug.includes(pkgName) ||
+                 pkgId.includes(normalizedSlug) ||
+                 normalizedSlug.includes(pkgId)
+        }
+        
         // Try to fetch by document ID first
         const docRef = doc(db, 'packages', packageId)
         const docSnap = await getDoc(docRef)
@@ -101,8 +114,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         if (docSnap.exists()) {
           const data = docSnap.data() as DestinationPackage
           // Verify it matches the destination
-          if (data.Destination_Name?.toLowerCase().includes(slug.toLowerCase()) ||
-              slug.toLowerCase().includes(data.Destination_Name?.toLowerCase() || '')) {
+          if (matchesDestination(data)) {
             setPackageData({ id: docSnap.id, ...data })
             setLoading(false)
             return
@@ -112,33 +124,43 @@ export default function PackageDetailPage({ params }: PageProps) {
         // If not found by ID, try to find by Destination_ID
         const { collection, getDocs, query, where } = await import('firebase/firestore')
         const packagesRef = collection(db, 'packages')
-        const q = query(packagesRef, where('Destination_ID', '==', packageId))
-        const querySnapshot = await getDocs(q)
         
-        if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0]
-          const data = doc.data() as DestinationPackage
-          if (data.Destination_Name?.toLowerCase().includes(slug.toLowerCase()) ||
-              slug.toLowerCase().includes(data.Destination_Name?.toLowerCase() || '')) {
-            setPackageData({ id: doc.id, ...data })
-            setLoading(false)
-            return
+        try {
+          const q = query(packagesRef, where('Destination_ID', '==', packageId))
+          const querySnapshot = await getDocs(q)
+          
+          if (!querySnapshot.empty) {
+            const doc = querySnapshot.docs[0]
+            const data = doc.data() as DestinationPackage
+            if (matchesDestination(data)) {
+              setPackageData({ id: doc.id, ...data })
+              setLoading(false)
+              return
+            }
           }
+        } catch (queryError) {
+          // If query fails (e.g., missing index), continue to fallback search
+          console.log('Query by Destination_ID failed, trying fallback:', queryError)
         }
         
         // If still not found, try searching all packages
+        console.log(`Searching all packages for packageId: ${packageId}, slug: ${slug}`)
         const allPackagesSnapshot = await getDocs(packagesRef)
         for (const doc of allPackagesSnapshot.docs) {
           const data = doc.data() as DestinationPackage
-          if ((data.Destination_ID === packageId || doc.id === packageId) &&
-              (data.Destination_Name?.toLowerCase().includes(slug.toLowerCase()) ||
-               slug.toLowerCase().includes(data.Destination_Name?.toLowerCase() || ''))) {
+          const matchesId = data.Destination_ID === packageId || doc.id === packageId
+          const matchesDest = matchesDestination(data)
+          console.log(`Package ${doc.id}: Destination_ID=${data.Destination_ID}, matchesId=${matchesId}, matchesDest=${matchesDest}`)
+          
+          if (matchesId && matchesDest) {
+            console.log(`Found package: ${doc.id}`)
             setPackageData({ id: doc.id, ...data })
             setLoading(false)
             return
           }
         }
         
+        console.log(`Package not found: ${packageId}`)
         setNotFound(true)
       } catch (error) {
         console.error('Error fetching package:', error)
@@ -335,17 +357,24 @@ export default function PackageDetailPage({ params }: PageProps) {
                 {createItinerary().map((day, index) => (
                   <details
                     key={day.day}
-                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm"
+                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm [&[open]_summary_svg]:rotate-180"
                     open={index === 0}
                   >
-                    <summary className="flex items-center justify-between cursor-pointer">
+                    <summary className="flex items-center justify-between cursor-pointer list-none">
                       <div className="flex items-center gap-3 text-lg font-medium">
                         <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
                           {index + 1}
                         </span>
                         {day.day}: {day.title}
                       </div>
-                      <span className="text-sm text-primary">View details</span>
+                      <svg 
+                        className="w-5 h-5 text-primary transition-transform duration-200" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
                     </summary>
                     <div className="mt-4 text-gray-600 space-y-3">
                       <p>{day.description}</p>
