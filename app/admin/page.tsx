@@ -116,6 +116,19 @@ export default function AdminDashboard() {
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null)
   const [formData, setFormData] = useState<Partial<DestinationPackage>>({})
   const [blogFormData, setBlogFormData] = useState<Partial<BlogPost>>({})
+  const [showBulkImport, setShowBulkImport] = useState(false)
+  const [bulkImportJson, setBulkImportJson] = useState('')
+  const [bulkImportStatus, setBulkImportStatus] = useState<{
+    loading: boolean
+    success: number
+    errors: string[]
+    processing: boolean
+  }>({
+    loading: false,
+    success: 0,
+    errors: [],
+    processing: false,
+  })
 
   useEffect(() => {
     if (!loading && (!currentUser || !isAdmin)) {
@@ -379,6 +392,167 @@ export default function AdminDashboard() {
     setActiveTab('blogs')
   }
 
+  const handleBulkImport = async () => {
+    if (!bulkImportJson.trim()) {
+      alert('Please paste JSON data before importing.')
+      return
+    }
+
+    setBulkImportStatus({
+      loading: true,
+      success: 0,
+      errors: [],
+      processing: true,
+    })
+
+    try {
+      // Parse JSON
+      let packagesData: DestinationPackage[]
+      try {
+        packagesData = JSON.parse(bulkImportJson)
+      } catch (parseError) {
+        setBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: [`Invalid JSON format: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`],
+          processing: false,
+        })
+        return
+      }
+
+      // Validate it's an array
+      if (!Array.isArray(packagesData)) {
+        setBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: ['JSON must be an array of package objects'],
+          processing: false,
+        })
+        return
+      }
+
+      if (packagesData.length === 0) {
+        setBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: ['JSON array is empty'],
+          processing: false,
+        })
+        return
+      }
+
+      const dbInstance = getDbInstance()
+      const errors: string[] = []
+      let successCount = 0
+
+      // Process packages one by one
+      for (let i = 0; i < packagesData.length; i++) {
+        const pkg = packagesData[i]
+        
+        try {
+          // Validate required fields
+          if (!pkg.Destination_ID || !pkg.Destination_Name) {
+            errors.push(`Package ${i + 1}: Missing required fields (Destination_ID or Destination_Name)`)
+            continue
+          }
+
+          // Prepare package data
+          const packageData: any = {
+            ...pkg,
+            Last_Updated: new Date().toISOString().split('T')[0],
+            Created_By: currentUser?.email || 'Bulk Import',
+          }
+
+          // Add to Firestore
+          await addDoc(collection(dbInstance, 'packages'), packageData)
+          successCount++
+        } catch (error) {
+          errors.push(`Package ${i + 1} (${pkg.Destination_ID || 'Unknown'}): ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      }
+
+      setBulkImportStatus({
+        loading: false,
+        success: successCount,
+        errors,
+        processing: false,
+      })
+
+      if (successCount > 0) {
+        fetchPackages()
+      }
+    } catch (error) {
+      setBulkImportStatus({
+        loading: false,
+        success: 0,
+        errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+        processing: false,
+      })
+    }
+  }
+
+  const handleBulkImportCancel = () => {
+    setShowBulkImport(false)
+    setBulkImportJson('')
+    setBulkImportStatus({
+      loading: false,
+      success: 0,
+      errors: [],
+      processing: false,
+    })
+  }
+
+  const loadSampleTemplate = () => {
+    const sample = [
+      {
+        "Destination_ID": "DEST_SAMPLE_001",
+        "Destination_Name": "Sample Destination",
+        "Overview": "A beautiful destination for your next vacation",
+        "Duration": "3 Nights / 4 Days",
+        "Mood": "Relax",
+        "Occasion": "Family Vacation",
+        "Travel_Type": "Family",
+        "Budget_Category": "Mid",
+        "Price_Range_INR": "₹50,000 – ₹70,000 per person",
+        "Theme": "Beach / Culture",
+        "Adventure_Level": "Light",
+        "Stay_Type": "Resort",
+        "Star_Category": "4-Star",
+        "Meal_Plan": "Breakfast Only",
+        "Group_Size": "2 Adults + 1 Child",
+        "Child_Friendly": "Yes",
+        "Elderly_Friendly": "Yes",
+        "Language_Preference": "English",
+        "Seasonality": "All Year",
+        "Hotel_Examples": "Sample Resort, Example Hotel",
+        "Inclusions": "4★ stay with breakfast, airport transfers, city tour",
+        "Exclusions": "Flights, meals other than breakfast, personal expenses",
+        "Day_Wise_Itinerary": "Day 1: Arrive & relax | Day 2: City tour | Day 3: Beach activities | Day 4: Depart",
+        "Rating": "4.5/5",
+        "Location_Breakup": "3N Main City",
+        "Airport_Code": "XXX",
+        "Transfer_Type": "Private",
+        "Currency": "INR",
+        "Climate_Type": "Tropical",
+        "Safety_Score": "8/10",
+        "Sustainability_Score": "7/10",
+        "Ideal_Traveler_Persona": "Families seeking a relaxing beach vacation",
+        "Slug": "sample-destination",
+        "Primary_Image_URL": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80",
+        "Booking_URL": "https://travelzada.com/packages/DEST_SAMPLE_001",
+        "Price_Min_INR": 50000,
+        "Price_Max_INR": 70000,
+        "Duration_Nights": 3,
+        "Duration_Days": 4,
+        "SEO_Title": "Sample Destination Package | 3-Night Family Getaway",
+        "SEO_Description": "Experience a wonderful 3-night family vacation at our sample destination with resort stays and tours included.",
+        "SEO_Keywords": "sample destination, family vacation, beach holiday",
+        "Meta_Image_URL": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80"
+      }
+    ]
+    setBulkImportJson(JSON.stringify(sample, null, 2))
+  }
+
   if (loading || isLoading) {
     return (
       <main className="min-h-screen bg-white">
@@ -534,7 +708,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <button
                   onClick={handleNewPackage}
                   className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
@@ -552,6 +726,18 @@ export default function AdminDashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   <span className="font-semibold text-gray-700">New Blog Post</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveTab('packages')
+                    setShowBulkImport(true)
+                  }}
+                  className="flex items-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-600 hover:bg-green-50 transition-colors"
+                >
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span className="font-semibold text-gray-700">Bulk Import Packages</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('users')}
@@ -637,16 +823,27 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {!showForm && (
+            {!showForm && !showBulkImport && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                   <h2 className="text-xl font-bold text-gray-900">All Packages</h2>
-                  <button
-                    onClick={handleNewPackage}
-                    className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
-                  >
-                    + Add New
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBulkImport(true)}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Bulk Import JSON
+                    </button>
+                    <button
+                      onClick={handleNewPackage}
+                      className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
+                    >
+                      + Add New
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -690,6 +887,124 @@ export default function AdminDashboard() {
                   {packages.length === 0 && (
                     <div className="text-center py-12 text-gray-500">No packages found</div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Bulk Import Section */}
+            {showBulkImport && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Bulk Import Packages (JSON)</h2>
+                  <button
+                    onClick={handleBulkImportCancel}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Paste JSON Array of Packages
+                      </label>
+                      <button
+                        type="button"
+                        onClick={loadSampleTemplate}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Load Sample Template
+                      </button>
+                    </div>
+                    <textarea
+                      value={bulkImportJson}
+                      onChange={(e) => setBulkImportJson(e.target.value)}
+                      placeholder={`[\n  {\n    "Destination_ID": "DEST_001_BALI",\n    "Destination_Name": "Bali, Indonesia",\n    "Overview": "Romantic island escape...",\n    "Duration": "5 Nights / 6 Days",\n    ...\n  },\n  ...\n]`}
+                      rows={15}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 font-semibold mb-2">📋 JSON Format Requirements:</p>
+                    <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                      <li>Must be a valid JSON array: <code className="bg-blue-100 px-1 rounded">[{`{...}`}]</code></li>
+                      <li>Each package object must have <code className="bg-blue-100 px-1 rounded">Destination_ID</code> and <code className="bg-blue-100 px-1 rounded">Destination_Name</code></li>
+                      <li>All other fields are optional but recommended</li>
+                      <li>See <code className="bg-blue-100 px-1 rounded">data/destination_package.json</code> for example format</li>
+                    </ul>
+                  </div>
+
+                  {bulkImportStatus.processing && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-sm text-yellow-800 font-semibold">
+                          Processing packages... Please wait.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!bulkImportStatus.processing && (bulkImportStatus.success > 0 || bulkImportStatus.errors.length > 0) && (
+                    <div className="space-y-3">
+                      {bulkImportStatus.success > 0 && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <p className="text-sm text-green-800 font-semibold">
+                            ✅ Successfully imported {bulkImportStatus.success} package{bulkImportStatus.success !== 1 ? 's' : ''}!
+                          </p>
+                        </div>
+                      )}
+                      {bulkImportStatus.errors.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <p className="text-sm text-red-800 font-semibold mb-2">
+                            ❌ {bulkImportStatus.errors.length} error{bulkImportStatus.errors.length !== 1 ? 's' : ''} occurred:
+                          </p>
+                          <ul className="text-xs text-red-700 space-y-1 max-h-40 overflow-y-auto">
+                            {bulkImportStatus.errors.map((error, idx) => (
+                              <li key={idx} className="list-disc list-inside">{error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={handleBulkImport}
+                      disabled={bulkImportStatus.processing || !bulkImportJson.trim()}
+                      className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {bulkImportStatus.processing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Import Packages
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleBulkImportCancel}
+                      disabled={bulkImportStatus.processing}
+                      className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
