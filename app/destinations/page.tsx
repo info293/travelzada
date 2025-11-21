@@ -12,11 +12,14 @@ export default function DestinationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCountry, setFilterCountry] = useState('all')
   
-  const allDestinations = travelData.destinations
+  // Filter to show only Bali destinations
+  const allDestinations = travelData.destinations.filter((d: any) => 
+    d.name.toLowerCase() === 'bali'
+  )
   const countrySet = new Set<string>(allDestinations.map((d: any) => d.country as string))
   const countries: string[] = ['all', ...Array.from(countrySet)]
 
-  // Filter destinations
+  // Filter destinations (only Bali will be shown)
   const filteredDestinations = allDestinations.filter((destination: any) => {
     const matchesSearch = destination.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          destination.description.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -1,13 +1,30 @@
 'use client'
 
-import { use } from 'react'
+import { use, useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
-import { travelPackages } from '@/data/package-data'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 const travelData = travelDatabase as any
+
+interface DestinationPackage {
+  id?: string
+  Destination_ID: string
+  Destination_Name: string
+  Overview: string
+  Duration: string
+  Mood: string
+  Occasion: string
+  Travel_Type: string
+  Star_Category: string
+  Price_Range_INR: string
+  Primary_Image_URL: string
+  Inclusions: string
+  [key: string]: any
+}
 
 interface PageProps {
   params: Promise<{ slug: string }> | { slug: string }
@@ -16,13 +33,53 @@ interface PageProps {
 export default function DestinationDetailPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params
   const destinationName = decodeURIComponent(resolvedParams.slug)
+  const [destinationPackages, setDestinationPackages] = useState<DestinationPackage[]>([])
+  const [loading, setLoading] = useState(true)
   
   const destination = travelData.destinations.find(
     (d: any) => d.name.toLowerCase() === destinationName.toLowerCase()
   )
-  const destinationPackages = travelPackages.filter(
-    (pkg) => pkg.destination.toLowerCase() === destinationName.toLowerCase()
-  )
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      if (typeof window === 'undefined' || !db) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        // Normalize destination name for matching (handle "Bali" vs "bali")
+        const normalizedDestination = destinationName.toLowerCase()
+        
+        // Fetch all packages from Firestore and filter client-side
+        // (Firestore doesn't support case-insensitive queries)
+        const packagesRef = collection(db, 'packages')
+        const allPackagesSnapshot = await getDocs(packagesRef)
+        const packagesData: DestinationPackage[] = []
+        
+        allPackagesSnapshot.forEach((doc) => {
+          const data = doc.data() as DestinationPackage
+          const pkgName = data.Destination_Name?.toLowerCase() || ''
+          
+          // Match if package name contains destination or vice versa
+          if (pkgName.includes(normalizedDestination) || 
+              normalizedDestination.includes(pkgName) ||
+              pkgName === normalizedDestination) {
+            packagesData.push({ id: doc.id, ...data })
+          }
+        })
+        
+        setDestinationPackages(packagesData)
+      } catch (error) {
+        console.error('Error fetching packages:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPackages()
+  }, [destinationName])
 
   if (!destination) {
     return (
@@ -91,7 +148,15 @@ export default function DestinationDetailPage({ params }: PageProps) {
       </section>
       
       {/* Packages Section */}
-      {destinationPackages.length > 0 && (
+      {loading ? (
+        <section className="py-12 md:py-16 px-4 md:px-12 bg-gray-50 border-b border-gray-200">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center py-12">
+              <p className="text-gray-600">Loading packages...</p>
+            </div>
+          </div>
+        </section>
+      ) : destinationPackages.length > 0 ? (
         <section className="py-12 md:py-16 px-4 md:px-12 bg-gray-50 border-b border-gray-200">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -115,71 +180,72 @@ export default function DestinationDetailPage({ params }: PageProps) {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-              {destinationPackages.map((pkg) => (
-                <Link
-                  key={pkg.id}
-                  href={`/destinations/${encodeURIComponent(destination.name)}/${pkg.id}`}
-                  className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
-                >
-                  <div className="relative h-44 overflow-hidden">
-                    <img
-                      src={pkg.image}
-                      alt={pkg.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    {pkg.badge && (
-                      <span className="absolute top-3 left-3 bg-black/70 text-white text-[10px] font-semibold px-2.5 py-0.5 rounded-full">
-                        {pkg.badge}
-                      </span>
-                    )}
-                    {pkg.type && (
-                      <span className="absolute top-3 right-3 bg-white text-gray-900 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow">
-                        {pkg.type}
-                      </span>
-                    )}
-                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-semibold px-3 py-0.5 rounded-b-full shadow">
-                      2 More Options Available
-                    </span>
-                  </div>
-                  <div className="p-4 flex-1 flex flex-col gap-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{pkg.title}</h3>
-                      <p className="text-xs text-gray-500">{pkg.nightsSummary}</p>
+              {destinationPackages.map((pkg) => {
+                // Extract image URL from Primary_Image_URL (handle markdown format)
+                const imageUrl = pkg.Primary_Image_URL
+                  ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                  : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                
+                // Generate package ID from Destination_ID or use Firestore doc id
+                const packageId = pkg.Destination_ID || pkg.id || 'package'
+                
+                return (
+                  <Link
+                    key={pkg.id || packageId}
+                    href={`/destinations/${encodeURIComponent(destination.name)}/${packageId}`}
+                    className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
+                  >
+                    <div className="relative h-44 overflow-hidden">
+                      <img
+                        src={imageUrl}
+                        alt={pkg.Destination_Name || 'Package'}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                        }}
+                      />
+                      {pkg.Star_Category && (
+                        <span className="absolute top-3 right-3 bg-white text-gray-900 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow">
+                          {pkg.Star_Category}
+                        </span>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-600">
-                      <div className="space-y-0.5">
-                        <p>{pkg.hotelLevel}</p>
-                        <p>{pkg.activitiesCount} Activities</p>
-                        <p>{pkg.meals}</p>
+                    <div className="p-4 flex-1 flex flex-col gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{pkg.Destination_Name || 'Package'}</h3>
+                        <p className="text-xs text-gray-500">{pkg.Duration || ''}</p>
                       </div>
-                      <div className="space-y-0.5">
-                        {pkg.perks.slice(0, 3).map((perk) => (
-                          <p key={perk} className="text-primary">✓ {perk}</p>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[5px] p-3 text-sm">
-                      <p className="text-xs text-gray-500 mb-1">
-                        {pkg.paymentNote || 'Flexible payment options available'}
-                      </p>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <p className="text-[11px] uppercase text-gray-500 tracking-wide">Per Person</p>
-                          <p className="text-2xl font-bold text-gray-900">{pkg.pricePerPerson}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-600">
+                        <div className="space-y-0.5">
+                          <p>{pkg.Star_Category || 'Hotel'}</p>
+                          <p>{pkg.Travel_Type || 'Travel'}</p>
+                          <p>{pkg.Mood || 'Experience'}</p>
                         </div>
-                        <div className="text-right text-xs text-gray-600">
-                          <p>Total Price</p>
-                          <p className="font-semibold">{pkg.totalPrice}</p>
+                        <div className="space-y-0.5">
+                          {pkg.Inclusions?.split(',').slice(0, 3).map((inclusion: string, idx: number) => (
+                            <p key={idx} className="text-primary">✓ {inclusion.trim()}</p>
+                          ))}
                         </div>
                       </div>
+                      <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[5px] p-3 text-sm">
+                        <p className="text-xs text-gray-500 mb-1">
+                          Flexible payment options available
+                        </p>
+                        <div className="flex items-end justify-between">
+                          <div>
+                            <p className="text-[11px] uppercase text-gray-500 tracking-wide">Price Range</p>
+                            <p className="text-2xl font-bold text-gray-900">{pkg.Price_Range_INR || 'Contact for price'}</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           </div>
         </section>
-      )}
+      ) : null}
 
       {/* Quick Info Bar */}
       <section className="bg-gray-50 border-b border-gray-200">
