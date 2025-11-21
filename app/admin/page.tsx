@@ -305,12 +305,11 @@ export default function AdminDashboard() {
       const now = new Date().toISOString()
       const blogData: any = {
         title: blogFormData.title || '',
-        subtitle: blogFormData.subtitle,
+        subtitle: blogFormData.subtitle || '',
         description: blogFormData.description || '',
         content: blogFormData.content || '',
         image: blogFormData.image || '',
         author: blogFormData.author || currentUser?.email?.split('@')[0] || 'Admin',
-        authorImage: blogFormData.authorImage,
         date: blogFormData.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase(),
         category: blogFormData.category || 'Travel Tips',
         readTime: blogFormData.readTime || '5 min read',
@@ -321,6 +320,11 @@ export default function AdminDashboard() {
         published: blogFormData.published !== undefined ? blogFormData.published : true,
         createdAt: editingBlog?.createdAt || now,
         updatedAt: now,
+      }
+      
+      // Only include authorImage if it has a value (Firestore doesn't allow undefined)
+      if (blogFormData.authorImage) {
+        blogData.authorImage = blogFormData.authorImage
       }
 
       const dbInstance = getDbInstance()
