@@ -68,7 +68,8 @@ export default function BlogPostPage({ params }: PageProps) {
         if (!isNaN(numericId)) {
           const foundPost = blogPosts.find(p => p.id === numericId)
           if (foundPost) {
-            setPost(foundPost)
+            // Convert number ID to string to match BlogPost interface
+            setPost({ ...foundPost, id: String(foundPost.id) })
             setLoading(false)
             return
           }
@@ -121,7 +122,8 @@ export default function BlogPostPage({ params }: PageProps) {
         if (!isNaN(numericId)) {
           const foundPost = blogPosts.find(p => p.id === numericId)
           if (foundPost) {
-            setPost(foundPost)
+            // Convert number ID to string to match BlogPost interface
+            setPost({ ...foundPost, id: String(foundPost.id) })
             setLoading(false)
             return
           }
