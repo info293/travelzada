@@ -12,9 +12,11 @@ import {
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
 import destinationPackages from '@/data/destination_package.json'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 const travelData = travelDatabase as any
-type DestinationPackage = (typeof destinationPackages)[0]
+type DestinationPackage = (typeof destinationPackages)[0] & { id?: string }
 
 const monthNames = [
   'january',
@@ -218,6 +220,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [currentQuestion, setCurrentQuestion] = useState<string>('destination')
   const [feedbackAnswered, setFeedbackAnswered] = useState(false)
   const [aiResponseComplete, setAiResponseComplete] = useState(false)
+  const [firestorePackages, setFirestorePackages] = useState<DestinationPackage[]>([])
+  const [packagesLoading, setPackagesLoading] = useState(true)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -227,6 +231,63 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  // Fetch packages from Firestore on component mount
+  useEffect(() => {
+    const fetchPackagesFromFirestore = async () => {
+      if (typeof window === 'undefined' || !db) {
+        setPackagesLoading(false)
+        return
+      }
+
+      try {
+        setPackagesLoading(true)
+        const packagesRef = collection(db, 'packages')
+        const querySnapshot = await getDocs(packagesRef)
+        const packagesData: DestinationPackage[] = []
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as DestinationPackage
+          packagesData.push({ id: doc.id, ...data })
+        })
+        
+        setFirestorePackages(packagesData)
+        console.log(`✅ Loaded ${packagesData.length} packages from Firestore`)
+      } catch (error) {
+        console.error('Error fetching packages from Firestore:', error)
+      } finally {
+        setPackagesLoading(false)
+      }
+    }
+
+    fetchPackagesFromFirestore()
+  }, [])
+
+  // Combine Firestore packages with JSON packages (remove duplicates by Destination_ID)
+  const allPackages = useMemo(() => {
+    const combined: DestinationPackage[] = []
+    const seenIds = new Set<string>()
+    
+    // First, add Firestore packages (priority)
+    firestorePackages.forEach((pkg) => {
+      const id = pkg.Destination_ID || pkg.id
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id)
+        combined.push(pkg)
+      }
+    })
+    
+    // Then, add JSON packages that don't exist in Firestore
+    destinationPackages.forEach((pkg) => {
+      const id = pkg.Destination_ID
+      if (id && !seenIds.has(id)) {
+        seenIds.add(id)
+        combined.push(pkg)
+      }
+    })
+    
+    return combined
+  }, [firestorePackages])
 
   const appendMessage = useCallback((message: Message) => {
     setMessages((prev) => {
@@ -606,10 +667,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const destinationSpecificPackages = useMemo(() => {
     if (!tripInfo.destination) return []
-    return destinationPackages.filter((pkg: DestinationPackage) =>
+    return allPackages.filter((pkg: DestinationPackage) =>
       matchesDestination(pkg.Destination_Name, tripInfo.destination)
     )
-  }, [tripInfo.destination])
+  }, [tripInfo.destination, allPackages])
 
   const rankedPackages = useMemo(() => {
     if (!tripInfo.destination || destinationSpecificPackages.length === 0) return []
@@ -1119,7 +1180,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         <div className="px-6 pb-4 relative z-10">
           <p className="text-xs text-gray-500 mb-3 font-medium">Quick suggestions:</p>
           <div className="flex flex-wrap gap-2">
-            {['I want to visit Bali', 'Tell me about Goa', 'Plan a trip to Kerala', 'Rajasthan trip'].map((suggestion) => (
+            {['I want to visit Bali'].map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={async () => {
@@ -1339,9 +1400,14 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                 ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
                 : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
               
+              // Generate package URL - use Destination_ID or Firestore doc id
+              const packageId = pkg.Destination_ID || (pkg as any).id || 'package'
+              const destinationName = tripInfo.destination || pkg.Destination_Name || 'Bali'
+              const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
+              
               return (
               <div
-                key={pkg.Destination_ID}
+                key={pkg.Destination_ID || (pkg as any).id}
                 className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all"
               >
                 {/* Package Image */}
@@ -1404,12 +1470,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                       ))}
                     </ul>
                   </div>
-                  <button
-                    onClick={() => onTripDetailsRequest?.()}
-                    className="w-full rounded-xl border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                  <Link
+                    href={packageUrl}
+                    className="block w-full text-center rounded-xl border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
                   >
-                    Customize This Plan
-                  </button>
+                    View Full Details
+                  </Link>
                 </div>
               </div>
               )
