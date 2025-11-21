@@ -13,7 +13,7 @@ export default function Hero() {
             <div className="inline-block">
               <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-primary font-semibold bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3.5 h-3.5 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm"></span>
-                Premium Travel Planning
+                Premium Travel Planner
               </span>
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold text-ink mb-6 leading-tight">
@@ -23,7 +23,7 @@ export default function Hero() {
               </span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed max-w-xl">
-              One best itinerary made just for you. Share your preferences and we'll deliver a ready-to-book plan.
+             Travelzada- with your better half 💞
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -44,15 +44,15 @@ export default function Hero() {
             </div>
             <div className="flex items-center gap-8 pt-4">
               <div>
-                <p className="text-2xl font-semibold text-ink">5,000+</p>
+                <p className="text-2xl font-semibold text-ink">5,00+</p>
                 <p className="text-sm text-gray-600">Happy Travelers</p>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-ink">4.9★</p>
+                <p className="text-2xl font-semibold text-ink">5★</p>
                 <p className="text-sm text-gray-600">Average Rating</p>
               </div>
               <div>
-                <p className="text-2xl font-semibold text-ink">50+</p>
+                <p className="text-2xl font-semibold text-ink">25+</p>
                 <p className="text-sm text-gray-600">Destinations</p>
               </div>
             </div>
@@ -75,7 +75,7 @@ export default function Hero() {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-semibold text-ink text-base">Trusted by 5,000+</p>
+                  <p className="font-semibold text-ink text-base">Trusted by 5,00+</p>
                   <p className="text-sm text-gray-600">Travelers worldwide</p>
                 </div>
               </div>
