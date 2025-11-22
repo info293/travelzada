@@ -88,12 +88,29 @@ interface DestinationPackage {
   }>
 }
 
+interface BlogSection {
+  type: 'intro' | 'paragraph' | 'heading' | 'subheading' | 'image' | 'quote' | 'list' | 'cta' | 'divider' | 'faq' | 'toc' | 'related'
+  content?: string
+  text?: string
+  imageUrl?: string
+  imageAlt?: string
+  items?: string[]
+  author?: string
+  link?: string
+  linkText?: string
+  question?: string
+  answer?: string
+  faqs?: Array<{ question: string; answer: string }>
+  relatedLinks?: Array<{ title: string; url: string; description?: string }>
+}
+
 interface BlogPost {
   id?: string
   title: string
   subtitle?: string
   description: string
   content: string
+  blogStructure?: BlogSection[] // Rich content structure for best user experience
   image: string
   author: string
   authorImage?: string
@@ -107,6 +124,13 @@ interface BlogPost {
   published?: boolean
   createdAt?: string
   updatedAt?: string
+  // SEO Fields
+  metaTitle?: string
+  metaDescription?: string
+  keywords?: string[]
+  canonicalUrl?: string
+  ogImage?: string
+  schemaType?: 'Article' | 'BlogPosting' | 'NewsArticle'
 }
 
 interface User {
@@ -169,7 +193,7 @@ export default function AdminDashboard() {
   const [editingPackage, setEditingPackage] = useState<DestinationPackage | null>(null)
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null)
   const [formData, setFormData] = useState<Partial<DestinationPackage>>({})
-  const [blogFormData, setBlogFormData] = useState<Partial<BlogPost>>({})
+  const [blogFormData, setBlogFormData] = useState<Partial<BlogPost> & { blogStructure?: BlogSection[] | string }>({})
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [bulkImportJson, setBulkImportJson] = useState('')
   const [bulkImportStatus, setBulkImportStatus] = useState<{
@@ -536,6 +560,37 @@ export default function AdminDashboard() {
     e.preventDefault()
     try {
       const now = new Date().toISOString()
+      // Parse blogStructure if it's a string
+      let blogStructure: BlogSection[] | undefined = undefined
+      const blogStructureValue = blogFormData.blogStructure
+      
+      if (blogStructureValue) {
+        if (typeof blogStructureValue === 'string') {
+          const trimmed = blogStructureValue.trim()
+          if (trimmed) {
+            try {
+              blogStructure = JSON.parse(trimmed) as BlogSection[]
+            } catch {
+              // If parsing fails, leave as undefined
+              blogStructure = undefined
+            }
+          }
+        } else if (Array.isArray(blogStructureValue)) {
+          blogStructure = blogStructureValue
+        }
+      }
+
+      // Helper function to remove undefined values
+      const removeUndefined = (obj: any): any => {
+        const cleaned: any = {}
+        for (const key in obj) {
+          if (obj[key] !== undefined && obj[key] !== null) {
+            cleaned[key] = obj[key]
+          }
+        }
+        return cleaned
+      }
+
       const blogData: any = {
         title: blogFormData.title || '',
         subtitle: blogFormData.subtitle || '',
@@ -553,18 +608,47 @@ export default function AdminDashboard() {
         published: blogFormData.published !== undefined ? blogFormData.published : true,
         createdAt: editingBlog?.createdAt || now,
         updatedAt: now,
+        schemaType: blogFormData.schemaType || 'BlogPosting',
+      }
+
+      // Only include optional fields if they have values
+      if (blogStructure) {
+        blogData.blogStructure = blogStructure
       }
       
-      // Only include authorImage if it has a value (Firestore doesn't allow undefined)
       if (blogFormData.authorImage) {
         blogData.authorImage = blogFormData.authorImage
       }
 
+      // SEO Fields - only include if they have values
+      if (blogFormData.metaTitle && blogFormData.metaTitle.trim()) {
+        blogData.metaTitle = blogFormData.metaTitle.trim()
+      }
+      
+      if (blogFormData.metaDescription && blogFormData.metaDescription.trim()) {
+        blogData.metaDescription = blogFormData.metaDescription.trim()
+      }
+      
+      if (blogFormData.keywords && Array.isArray(blogFormData.keywords) && blogFormData.keywords.length > 0) {
+        blogData.keywords = blogFormData.keywords.filter(k => k && k.trim())
+      }
+      
+      if (blogFormData.canonicalUrl && blogFormData.canonicalUrl.trim()) {
+        blogData.canonicalUrl = blogFormData.canonicalUrl.trim()
+      }
+      
+      if (blogFormData.ogImage && blogFormData.ogImage.trim()) {
+        blogData.ogImage = blogFormData.ogImage.trim()
+      }
+
+      // Remove any remaining undefined values before saving
+      const cleanedBlogData = removeUndefined(blogData)
+
       const dbInstance = getDbInstance()
       if (editingBlog?.id) {
-        await updateDoc(doc(dbInstance, 'blogs', editingBlog.id), blogData)
+        await updateDoc(doc(dbInstance, 'blogs', editingBlog.id), cleanedBlogData)
       } else {
-        await addDoc(collection(dbInstance, 'blogs'), blogData)
+        await addDoc(collection(dbInstance, 'blogs'), cleanedBlogData)
       }
 
       setShowBlogForm(false)
@@ -1458,7 +1542,215 @@ export default function AdminDashboard() {
                         rows={10}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Basic content (fallback if blog structure is not provided)</p>
                     </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Blog Structure (JSON) - Best User Experience Format
+                      </label>
+                      <textarea
+                        name="blogStructure"
+                        value={typeof blogFormData.blogStructure === 'string' ? blogFormData.blogStructure : JSON.stringify(blogFormData.blogStructure || [], null, 2)}
+                        onChange={handleBlogInputChange}
+                        rows={20}
+                        placeholder={`Example - Best Blog Structure:
+[
+  {
+    "type": "intro",
+    "text": "Traveling solo can be one of the most rewarding experiences. It teaches you independence, helps you discover yourself, and allows you to travel at your own pace."
+  },
+  {
+    "type": "heading",
+    "text": "Why Solo Travel is Life-Changing"
+  },
+  {
+    "type": "paragraph",
+    "text": "When you travel alone, every decision is yours. You wake up when you want, eat where you want, and explore at your own rhythm. This freedom is liberating and helps you understand yourself better."
+  },
+  {
+    "type": "image",
+    "imageUrl": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80",
+    "imageAlt": "Solo traveler exploring a beautiful destination"
+  },
+  {
+    "type": "subheading",
+    "text": "Top Benefits of Solo Travel"
+  },
+  {
+    "type": "list",
+    "items": [
+      "Complete freedom to plan your itinerary",
+      "Opportunity to meet new people and make friends",
+      "Personal growth and self-discovery",
+      "Flexibility to change plans on a whim",
+      "Time for reflection and mindfulness"
+    ]
+  },
+  {
+    "type": "quote",
+    "text": "Traveling solo does not mean traveling alone. It means being open to meeting new people and having new experiences.",
+    "author": "Travel Expert"
+  },
+  {
+    "type": "heading",
+    "text": "Essential Tips for First-Time Solo Travelers"
+  },
+  {
+    "type": "paragraph",
+    "text": "Start with a destination that feels safe and familiar. Research your accommodation options, learn basic phrases in the local language, and always keep someone informed about your itinerary."
+  },
+  {
+    "type": "divider"
+  },
+  {
+    "type": "faq",
+    "faqs": [
+      {
+        "question": "Is solo travel safe?",
+        "answer": "Yes, with proper planning and awareness, solo travel can be very safe. Always research your destination, stay in reputable accommodations, and keep someone informed of your itinerary."
+      },
+      {
+        "question": "How do I meet people while traveling solo?",
+        "answer": "Stay in hostels, join group tours, use social travel apps, attend local events, and be open to conversations with locals and fellow travelers."
+      }
+    ]
+  },
+  {
+    "type": "toc"
+  },
+  {
+    "type": "related",
+    "relatedLinks": [
+      {
+        "title": "Best Destinations for Solo Travelers",
+        "url": "/destinations",
+        "description": "Discover destinations perfect for solo adventures"
+      },
+      {
+        "title": "Solo Travel Safety Guide",
+        "url": "/blog/safety-guide",
+        "description": "Essential safety tips for solo travelers"
+      }
+    ]
+  },
+  {
+    "type": "cta",
+    "text": "Ready to start your solo adventure? Explore our curated travel packages designed for independent travelers.",
+    "link": "/destinations",
+    "linkText": "Browse Destinations"
+  }
+]`}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-xs"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter JSON array of sections. Types: intro, paragraph, heading, subheading, image, quote, list, cta, divider, faq, toc, related
+                      </p>
+                    </div>
+                    
+                    {/* SEO Section */}
+                    <div className="md:col-span-2 border-t border-gray-200 pt-6 mt-6">
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">SEO Optimization</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Meta Title (for SEO) - Leave empty to use blog title
+                          </label>
+                          <input
+                            type="text"
+                            name="metaTitle"
+                            value={blogFormData.metaTitle || ''}
+                            onChange={handleBlogInputChange}
+                            placeholder="Optimized title for search engines (50-60 characters)"
+                            maxLength={60}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {blogFormData.metaTitle?.length || 0}/60 characters
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Meta Description (for SEO) - Leave empty to use blog description
+                          </label>
+                          <textarea
+                            name="metaDescription"
+                            value={blogFormData.metaDescription || ''}
+                            onChange={handleBlogInputChange}
+                            placeholder="Optimized description for search engines (150-160 characters)"
+                            maxLength={160}
+                            rows={3}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {blogFormData.metaDescription?.length || 0}/160 characters
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Keywords (comma-separated)
+                          </label>
+                          <input
+                            type="text"
+                            name="keywords"
+                            value={Array.isArray(blogFormData.keywords) ? blogFormData.keywords.join(', ') : (typeof blogFormData.keywords === 'string' ? blogFormData.keywords : '')}
+                            onChange={(e) => {
+                              const keywords = e.target.value.split(',').map(k => k.trim()).filter(k => k)
+                              setBlogFormData((prev) => ({
+                                ...prev,
+                                keywords: keywords,
+                              }))
+                            }}
+                            placeholder="travel, solo travel, adventure, tips"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Separate keywords with commas</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Canonical URL (optional)
+                            </label>
+                            <input
+                              type="url"
+                              name="canonicalUrl"
+                              value={blogFormData.canonicalUrl || ''}
+                              onChange={handleBlogInputChange}
+                              placeholder="https://travelzada.com/blog/post"
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              OG Image URL (for social sharing) - Leave empty to use main image
+                            </label>
+                            <input
+                              type="url"
+                              name="ogImage"
+                              value={blogFormData.ogImage || ''}
+                              onChange={handleBlogInputChange}
+                              placeholder="https://images.unsplash.com/..."
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Schema Type (for structured data)
+                          </label>
+                          <select
+                            name="schemaType"
+                            value={blogFormData.schemaType || 'BlogPosting'}
+                            onChange={handleBlogInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="BlogPosting">BlogPosting</option>
+                            <option value="Article">Article</option>
+                            <option value="NewsArticle">NewsArticle</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    
                     <div className="flex items-center gap-6">
                       <label className="flex items-center gap-2">
                         <input

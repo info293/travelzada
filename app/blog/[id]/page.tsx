@@ -7,12 +7,29 @@ import Link from 'next/link'
 import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
+interface BlogSection {
+  type: 'intro' | 'paragraph' | 'heading' | 'subheading' | 'image' | 'quote' | 'list' | 'cta' | 'divider' | 'faq' | 'toc' | 'related'
+  content?: string
+  text?: string
+  imageUrl?: string
+  imageAlt?: string
+  items?: string[]
+  author?: string
+  link?: string
+  linkText?: string
+  question?: string
+  answer?: string
+  faqs?: Array<{ question: string; answer: string }>
+  relatedLinks?: Array<{ title: string; url: string; description?: string }>
+}
+
 interface BlogPost {
   id?: string
   title: string
   subtitle?: string
   description: string
   content: string
+  blogStructure?: BlogSection[]
   image: string
   author: string
   authorImage?: string
@@ -22,6 +39,13 @@ interface BlogPost {
   likes?: number
   comments?: number
   shares?: number
+  // SEO Fields
+  metaTitle?: string
+  metaDescription?: string
+  keywords?: string[]
+  canonicalUrl?: string
+  ogImage?: string
+  schemaType?: 'Article' | 'BlogPosting' | 'NewsArticle'
 }
 
 // Fallback hardcoded posts (for backward compatibility)
@@ -141,6 +165,147 @@ export default function BlogPostPage({ params }: PageProps) {
     fetchBlogPost()
   }, [postId])
 
+  // Generate structured data for SEO (only if post exists)
+  const structuredData = post ? {
+    '@context': 'https://schema.org',
+    '@type': post.schemaType || 'BlogPosting',
+    headline: post.metaTitle || post.title,
+    description: post.metaDescription || post.description,
+    image: post.ogImage || post.image,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      '@type': 'Person',
+      name: post.author,
+      ...(post.authorImage && { image: post.authorImage }),
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Travelzada',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://travelzada.com/logo.png',
+      },
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': typeof window !== 'undefined' ? window.location.href : '',
+    },
+    ...(post.category && { articleSection: post.category }),
+    ...(post.readTime && { timeRequired: post.readTime }),
+  } : null
+
+  // Generate FAQ structured data if FAQ sections exist
+  const faqSections = post?.blogStructure?.filter(s => s.type === 'faq') || []
+  const faqStructuredData = faqSections.length > 0 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqSections.flatMap(section => {
+      if (section.faqs && section.faqs.length > 0) {
+        return section.faqs.map(faq => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: faq.answer,
+          },
+        }))
+      }
+      if (section.question && section.answer) {
+        return [{
+          '@type': 'Question',
+          name: section.question,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: section.answer,
+          },
+        }]
+      }
+      return []
+    }),
+  } : null
+
+  const metaTitle = post?.metaTitle || post?.title || 'Blog Post'
+  const metaDescription = post?.metaDescription || post?.description || ''
+  const metaKeywords = post?.keywords?.join(', ') || post?.category || ''
+  const ogImage = post?.ogImage || post?.image || ''
+  const canonicalUrl = post?.canonicalUrl || (typeof window !== 'undefined' ? window.location.href : '')
+
+  // Update document head for SEO - MUST be called before any early returns
+  useEffect(() => {
+    if (!post) return
+    if (typeof document !== 'undefined') {
+      // Update title
+      document.title = `${metaTitle} | Travelzada`
+      
+      // Update or create meta tags
+      const updateMetaTag = (name: string, content: string, attribute: string = 'name') => {
+        let meta = document.querySelector(`meta[${attribute}="${name}"]`)
+        if (!meta) {
+          meta = document.createElement('meta')
+          meta.setAttribute(attribute, name)
+          document.head.appendChild(meta)
+        }
+        meta.setAttribute('content', content)
+      }
+
+      updateMetaTag('title', metaTitle)
+      updateMetaTag('description', metaDescription)
+      if (metaKeywords) updateMetaTag('keywords', metaKeywords)
+      updateMetaTag('author', post.author)
+      
+      // Open Graph tags
+      updateMetaTag('og:type', 'article', 'property')
+      updateMetaTag('og:url', canonicalUrl, 'property')
+      updateMetaTag('og:title', metaTitle, 'property')
+      updateMetaTag('og:description', metaDescription, 'property')
+      updateMetaTag('og:image', ogImage, 'property')
+      updateMetaTag('og:site_name', 'Travelzada', 'property')
+      updateMetaTag('article:published_time', post.date, 'property')
+      updateMetaTag('article:author', post.author, 'property')
+      if (post.category) updateMetaTag('article:section', post.category, 'property')
+      
+      // Twitter tags
+      updateMetaTag('twitter:card', 'summary_large_image')
+      updateMetaTag('twitter:url', canonicalUrl)
+      updateMetaTag('twitter:title', metaTitle)
+      updateMetaTag('twitter:description', metaDescription)
+      updateMetaTag('twitter:image', ogImage)
+      
+      // Additional SEO
+      updateMetaTag('robots', 'index, follow')
+      updateMetaTag('language', 'English')
+      
+      // Canonical URL
+      let canonical = document.querySelector('link[rel="canonical"]')
+      if (!canonical) {
+        canonical = document.createElement('link')
+        canonical.setAttribute('rel', 'canonical')
+        document.head.appendChild(canonical)
+      }
+      canonical.setAttribute('href', canonicalUrl)
+
+      // Add structured data
+      const addStructuredData = (data: any, id: string) => {
+        let script = document.getElementById(id) as HTMLScriptElement | null
+        if (!script) {
+          script = document.createElement('script')
+          script.id = id
+          script.type = 'application/ld+json'
+          document.head.appendChild(script)
+        }
+        script.textContent = JSON.stringify(data)
+      }
+
+      if (structuredData) {
+        addStructuredData(structuredData, 'blog-structured-data')
+      }
+      if (faqStructuredData) {
+        addStructuredData(faqStructuredData, 'faq-structured-data')
+      }
+    }
+  }, [post, metaTitle, metaDescription, metaKeywords, ogImage, canonicalUrl, structuredData, faqStructuredData])
+
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault()
     if (email.trim()) {
@@ -187,7 +352,7 @@ export default function BlogPostPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-white">
-      <Header />
+        <Header />
       
       {/* Main Content */}
       <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
@@ -239,8 +404,10 @@ export default function BlogPostPage({ params }: PageProps) {
                 <div className="mb-8">
                   <img
                     src={post.image}
-                    alt={post.title}
+                    alt={post.metaDescription || post.description || post.title}
+                    title={post.title}
                     className="w-full h-auto rounded-lg"
+                    loading="eager"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
                     }}
@@ -249,54 +416,211 @@ export default function BlogPostPage({ params }: PageProps) {
               )}
 
               {/* Article Content */}
-              <article className="prose prose-lg max-w-none">
-                <div className="text-gray-700 leading-relaxed text-base md:text-lg">
-                  {post.content.split('\n').map((paragraph, index) => {
-                    if (paragraph.startsWith('## ')) {
+              <article itemScope itemType="https://schema.org/BlogPosting" className="prose prose-lg max-w-none">
+                {post.blogStructure && post.blogStructure.length > 0 ? (
+                  // Render rich blog structure
+                  <div className="space-y-8">
+                    {post.blogStructure.map((section, index) => {
+                      switch (section.type) {
+                        case 'intro':
+                          return (
+                            <div key={index} className="text-xl md:text-2xl text-gray-800 font-medium leading-relaxed mb-8 pb-6 border-b border-gray-200">
+                              {section.text || section.content}
+                            </div>
+                          )
+                        case 'heading':
+                          return (
+                            <h2 key={`heading-${index}`} id={`heading-${index}`} className="text-3xl md:text-4xl font-bold text-gray-900 mt-12 mb-6 scroll-mt-20">
+                              {section.text || section.content}
+                            </h2>
+                          )
+                        case 'subheading':
+                          return (
+                            <h3 key={`heading-${index}`} id={`heading-${index}`} className="text-2xl md:text-3xl font-bold text-gray-900 mt-10 mb-4 scroll-mt-20">
+                              {section.text || section.content}
+                            </h3>
+                          )
+                        case 'paragraph':
+                          return (
+                            <p key={index} className="text-base md:text-lg text-gray-700 leading-relaxed mb-6">
+                              {section.text || section.content}
+                            </p>
+                          )
+                        case 'image':
+                          return (
+                            <div key={index} className="my-8">
+                              <img
+                                src={section.imageUrl || ''}
+                                alt={section.imageAlt || 'Blog image'}
+                                className="w-full h-auto rounded-lg shadow-lg"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+                                }}
+                              />
+                              {section.imageAlt && (
+                                <p className="text-sm text-gray-500 italic mt-2 text-center">{section.imageAlt}</p>
+                              )}
+                            </div>
+                          )
+                        case 'quote':
+                          return (
+                            <blockquote key={index} className="border-l-4 border-primary pl-6 py-4 my-8 bg-gray-50 rounded-r-lg">
+                              <p className="text-lg md:text-xl text-gray-800 italic mb-2">
+                                "{section.text || section.content}"
+                              </p>
+                              {section.author && (
+                                <cite className="text-sm text-gray-600 font-semibold not-italic">— {section.author}</cite>
+                              )}
+                            </blockquote>
+                          )
+                        case 'list':
+                          return (
+                            <ul key={index} className="list-disc list-inside space-y-3 my-6 text-base md:text-lg text-gray-700">
+                              {section.items?.map((item, itemIndex) => (
+                                <li key={itemIndex} className="leading-relaxed">{item}</li>
+                              ))}
+                            </ul>
+                          )
+                        case 'cta':
+                          return (
+                            <div key={index} className="bg-gradient-to-r from-primary to-primary-dark rounded-xl p-8 my-10 text-center text-white">
+                              <p className="text-xl md:text-2xl font-semibold mb-4">{section.text || section.content}</p>
+                              {section.link && (
+                                <Link
+                                  href={section.link}
+                                  className="inline-block bg-white text-primary px-8 py-3 rounded-lg font-bold hover:bg-gray-100 transition-colors"
+                                >
+                                  {section.linkText || 'Learn More'}
+                                </Link>
+                              )}
+                            </div>
+                          )
+                        case 'divider':
+                          return (
+                            <div key={index} className="my-10 border-t border-gray-200"></div>
+                          )
+                        case 'faq':
+                          return (
+                            <section key={index} className="my-10 bg-gray-50 rounded-xl p-8">
+                              <h3 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h3>
+                              <div className="space-y-6">
+                                {section.faqs && section.faqs.length > 0 ? (
+                                  section.faqs.map((faq, faqIndex) => (
+                                    <details key={faqIndex} className="bg-white rounded-lg p-4 shadow-sm">
+                                      <summary className="font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                                        {faq.question}
+                                      </summary>
+                                      <p className="mt-3 text-gray-700 leading-relaxed">{faq.answer}</p>
+                                    </details>
+                                  ))
+                                ) : section.question && section.answer ? (
+                                  <details className="bg-white rounded-lg p-4 shadow-sm">
+                                    <summary className="font-semibold text-gray-900 cursor-pointer hover:text-primary transition-colors">
+                                      {section.question}
+                                    </summary>
+                                    <p className="mt-3 text-gray-700 leading-relaxed">{section.answer}</p>
+                                  </details>
+                                ) : null}
+                              </div>
+                            </section>
+                          )
+                        case 'toc':
+                          // Generate table of contents from headings in blogStructure
+                          const headings = post.blogStructure?.filter(s => s.type === 'heading' || s.type === 'subheading') || []
+                          return (
+                            <nav key={index} className="my-10 bg-gradient-to-r from-primary/10 to-primary-dark/10 rounded-xl p-6 border-l-4 border-primary">
+                              <h3 className="text-xl font-bold text-gray-900 mb-4">Table of Contents</h3>
+                              <ol className="list-decimal list-inside space-y-2">
+                                {headings.map((heading, headingIndex) => (
+                                  <li key={headingIndex}>
+                                    <a
+                                      href={`#heading-${headingIndex}`}
+                                      className="text-primary hover:text-primary-dark font-medium transition-colors"
+                                    >
+                                      {heading.text || heading.content}
+                                    </a>
+                                  </li>
+                                ))}
+                              </ol>
+                            </nav>
+                          )
+                        case 'related':
+                          return (
+                            <section key={index} className="my-10">
+                              <h3 className="text-2xl font-bold text-gray-900 mb-6">Related Content</h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {section.relatedLinks?.map((link, linkIndex) => (
+                                  <Link
+                                    key={linkIndex}
+                                    href={link.url}
+                                    className="block p-4 bg-white border border-gray-200 rounded-lg hover:border-primary hover:shadow-md transition-all"
+                                  >
+                                    <h4 className="font-semibold text-gray-900 mb-2 hover:text-primary transition-colors">
+                                      {link.title}
+                                    </h4>
+                                    {link.description && (
+                                      <p className="text-sm text-gray-600">{link.description}</p>
+                                    )}
+                                  </Link>
+                                ))}
+                              </div>
+                            </section>
+                          )
+                        default:
+                          return null
+                      }
+                    })}
+                  </div>
+                ) : (
+                  // Fallback to basic content parsing
+                  <div className="text-gray-700 leading-relaxed text-base md:text-lg">
+                    {post.content.split('\n').map((paragraph, index) => {
+                      if (paragraph.startsWith('## ')) {
+                        return (
+                          <h2 key={index} className="text-3xl font-bold text-gray-900 mt-10 mb-4">
+                            {paragraph.replace('## ', '')}
+                          </h2>
+                        )
+                      }
+                      if (paragraph.startsWith('### ')) {
+                        return (
+                          <h3 key={index} className="text-2xl font-bold text-gray-900 mt-8 mb-3">
+                            {paragraph.replace('### ', '')}
+                          </h3>
+                        )
+                      }
+                      if (paragraph.startsWith('- ') || paragraph.startsWith('* ')) {
+                        return (
+                          <li key={index} className="ml-6 mb-2 list-disc">
+                            {paragraph.replace(/^[-*] /, '')}
+                          </li>
+                        )
+                      }
+                      if (paragraph.startsWith('1. ') || /^\d+\. /.test(paragraph)) {
+                        return (
+                          <li key={index} className="ml-6 mb-2 list-decimal">
+                            {paragraph.replace(/^\d+\. /, '')}
+                          </li>
+                        )
+                      }
+                      if (paragraph.trim() === '') {
+                        return <br key={index} />
+                      }
+                      if (paragraph.trim().startsWith('**') && paragraph.trim().endsWith('**')) {
+                        return (
+                          <p key={index} className="mb-6 font-semibold text-gray-900 text-lg">
+                            {paragraph.replace(/\*\*/g, '')}
+                          </p>
+                        )
+                      }
                       return (
-                        <h2 key={index} className="text-3xl font-bold text-gray-900 mt-10 mb-4">
-                          {paragraph.replace('## ', '')}
-                        </h2>
-                      )
-                    }
-                    if (paragraph.startsWith('### ')) {
-                      return (
-                        <h3 key={index} className="text-2xl font-bold text-gray-900 mt-8 mb-3">
-                          {paragraph.replace('### ', '')}
-                        </h3>
-                      )
-                    }
-                    if (paragraph.startsWith('- ') || paragraph.startsWith('* ')) {
-                      return (
-                        <li key={index} className="ml-6 mb-2 list-disc">
-                          {paragraph.replace(/^[-*] /, '')}
-                        </li>
-                      )
-                    }
-                    if (paragraph.startsWith('1. ') || /^\d+\. /.test(paragraph)) {
-                      return (
-                        <li key={index} className="ml-6 mb-2 list-decimal">
-                          {paragraph.replace(/^\d+\. /, '')}
-                        </li>
-                      )
-                    }
-                    if (paragraph.trim() === '') {
-                      return <br key={index} />
-                    }
-                    if (paragraph.trim().startsWith('**') && paragraph.trim().endsWith('**')) {
-                      return (
-                        <p key={index} className="mb-6 font-semibold text-gray-900 text-lg">
-                          {paragraph.replace(/\*\*/g, '')}
+                        <p key={index} className="mb-6 leading-relaxed">
+                          {paragraph}
                         </p>
                       )
-                    }
-                    return (
-                      <p key={index} className="mb-6 leading-relaxed">
-                        {paragraph}
-                      </p>
-                    )
-                  })}
-                </div>
+                    })}
+                  </div>
+                )}
               </article>
 
               {/* Share Section */}
