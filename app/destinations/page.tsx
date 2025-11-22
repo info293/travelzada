@@ -1,26 +1,82 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import DestinationCard from '@/components/DestinationCard'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import travelDatabase from '@/data/travel-database.json'
 
 const travelData = travelDatabase as any
 
+interface Destination {
+  id?: string
+  name: string
+  country: string
+  description: string
+  image: string
+  slug: string
+  featured?: boolean
+  packageIds?: string[]
+}
+
 export default function DestinationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCountry, setFilterCountry] = useState('all')
-  
-  // Filter to show only Bali destinations
-  const allDestinations = travelData.destinations.filter((d: any) => 
-    d.name.toLowerCase() === 'bali'
-  )
-  const countrySet = new Set<string>(allDestinations.map((d: any) => d.country as string))
+  const [destinations, setDestinations] = useState<Destination[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      if (typeof window === 'undefined' || !db) {
+        // Fallback to JSON data
+        const allDestinations = travelData.destinations.filter((d: any) => 
+          d.name.toLowerCase() === 'bali'
+        )
+        setDestinations(allDestinations)
+        setLoading(false)
+        return
+      }
+
+      try {
+        const destinationsRef = collection(db, 'destinations')
+        const querySnapshot = await getDocs(destinationsRef)
+        const destinationsData: Destination[] = []
+        
+        querySnapshot.forEach((doc) => {
+          destinationsData.push({ id: doc.id, ...doc.data() } as Destination)
+        })
+        
+        // If no destinations in Firestore, fallback to JSON
+        if (destinationsData.length === 0) {
+          const allDestinations = travelData.destinations.filter((d: any) => 
+            d.name.toLowerCase() === 'bali'
+          )
+          setDestinations(allDestinations)
+        } else {
+          setDestinations(destinationsData)
+        }
+      } catch (error) {
+        console.error('Error fetching destinations:', error)
+        // Fallback to JSON data
+        const allDestinations = travelData.destinations.filter((d: any) => 
+          d.name.toLowerCase() === 'bali'
+        )
+        setDestinations(allDestinations)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDestinations()
+  }, [])
+
+  const countrySet = new Set<string>(destinations.map((d) => d.country))
   const countries: string[] = ['all', ...Array.from(countrySet)]
 
-  // Filter destinations (only Bali will be shown)
-  const filteredDestinations = allDestinations.filter((destination: any) => {
+  // Filter destinations
+  const filteredDestinations = destinations.filter((destination) => {
     const matchesSearch = destination.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          destination.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          destination.country.toLowerCase().includes(searchQuery.toLowerCase())
@@ -77,7 +133,7 @@ export default function DestinationsPage() {
           
           {/* Results Count */}
           <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredDestinations.length} of {allDestinations.length} destinations
+            Showing {filteredDestinations.length} of {destinations.length} destinations
           </div>
         </div>
       </section>
@@ -85,10 +141,15 @@ export default function DestinationsPage() {
       {/* Destinations Grid */}
       <section className="py-16 px-4 md:px-12">
         <div className="max-w-6xl mx-auto">
-          {filteredDestinations.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading destinations...</p>
+            </div>
+          ) : filteredDestinations.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredDestinations.map((destination: any, index: number) => (
-                <DestinationCard key={index} destination={destination} />
+              {filteredDestinations.map((destination, index) => (
+                <DestinationCard key={destination.id || index} destination={destination} />
               ))}
             </div>
           ) : (

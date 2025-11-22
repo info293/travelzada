@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -51,8 +52,15 @@ export default function Header() {
       }`}
     >
       <div className="max-w-6xl mx-auto px-4 md:px-6 lg:px-0 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold text-ink tracking-tight">
-          Travelzada
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/images/logo/Travelzada Logo April (1).png"
+            alt="Travelzada Logo"
+            width={150}
+            height={50}
+            className="h-8 w-auto object-contain"
+            priority
+          />
         </Link>
 
         {/* Desktop Navigation */}

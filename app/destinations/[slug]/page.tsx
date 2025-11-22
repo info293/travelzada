@@ -34,54 +34,105 @@ export default function DestinationDetailPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params
   const destinationName = decodeURIComponent(resolvedParams.slug)
   const [destinationPackages, setDestinationPackages] = useState<DestinationPackage[]>([])
+  const [destination, setDestination] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  
-  const destination = travelData.destinations.find(
-    (d: any) => d.name.toLowerCase() === destinationName.toLowerCase()
-  )
 
   useEffect(() => {
-    const fetchPackages = async () => {
+    const fetchDestinationAndPackages = async () => {
       if (typeof window === 'undefined' || !db) {
+        // Fallback to JSON
+        const foundDestination = travelData.destinations.find(
+          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
+                     d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+        )
+        setDestination(foundDestination)
         setLoading(false)
         return
       }
 
       try {
         setLoading(true)
-        // Normalize destination name for matching (handle "Bali" vs "bali")
         const normalizedDestination = destinationName.toLowerCase()
         
-        // Fetch all packages from Firestore and filter client-side
-        // (Firestore doesn't support case-insensitive queries)
+        // First, try to fetch destination from Firestore
+        const destinationsRef = collection(db, 'destinations')
+        const destinationsSnapshot = await getDocs(destinationsRef)
+        let foundDestination: any = null
+        
+        destinationsSnapshot.forEach((doc) => {
+          const data = doc.data()
+          const destSlug = data.slug?.toLowerCase() || ''
+          const destName = data.name?.toLowerCase() || ''
+          
+          if (destSlug === normalizedDestination || 
+              destName === normalizedDestination ||
+              destSlug.includes(normalizedDestination) ||
+              normalizedDestination.includes(destSlug)) {
+            foundDestination = { id: doc.id, ...data }
+          }
+        })
+        
+        // If not found in Firestore, fallback to JSON
+        if (!foundDestination) {
+          foundDestination = travelData.destinations.find(
+            (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
+                       d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+          )
+        }
+        
+        setDestination(foundDestination)
+        
+        // Fetch packages from Firestore
         const packagesRef = collection(db, 'packages')
         const allPackagesSnapshot = await getDocs(packagesRef)
         const packagesData: DestinationPackage[] = []
         
+        // Get linked package IDs from destination if available
+        const linkedPackageIds = foundDestination?.packageIds || []
+        const hasLinkedPackages = Array.isArray(linkedPackageIds) && linkedPackageIds.length > 0
+        
         allPackagesSnapshot.forEach((doc) => {
           const data = doc.data() as DestinationPackage
-          const pkgName = data.Destination_Name?.toLowerCase() || ''
-          const pkgId = data.Destination_ID?.toLowerCase() || ''
+          const pkgId = data.Destination_ID || ''
           
-          // Match if package name or Destination_ID contains destination or vice versa
-          if (pkgName.includes(normalizedDestination) || 
+          let shouldInclude = false
+          
+          // First priority: Check if package ID is in the linked packageIds array
+          if (hasLinkedPackages) {
+            shouldInclude = linkedPackageIds.includes(pkgId)
+          } else {
+            // Fallback: Match by destination name if no linked packages
+            const pkgName = data.Destination_Name?.toLowerCase() || ''
+            const normalizedPkgId = pkgId.toLowerCase()
+            
+            // Match if package name or Destination_ID contains destination or vice versa
+            shouldInclude = pkgName.includes(normalizedDestination) || 
               normalizedDestination.includes(pkgName) ||
               pkgName === normalizedDestination ||
-              pkgId.includes(normalizedDestination) ||
-              normalizedDestination.includes(pkgId)) {
+              normalizedPkgId.includes(normalizedDestination) ||
+              normalizedDestination.includes(normalizedPkgId)
+          }
+          
+          if (shouldInclude) {
             packagesData.push({ id: doc.id, ...data })
           }
         })
         
         setDestinationPackages(packagesData)
       } catch (error) {
-        console.error('Error fetching packages:', error)
+        console.error('Error fetching destination:', error)
+        // Fallback to JSON
+        const foundDestination = travelData.destinations.find(
+          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
+                     d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+        )
+        setDestination(foundDestination)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchPackages()
+    fetchDestinationAndPackages()
   }, [destinationName])
 
   if (!destination) {
@@ -105,7 +156,11 @@ export default function DestinationDetailPage({ params }: PageProps) {
     )
   }
 
-  const getDestinationImage = (name: string) => {
+  const getDestinationImage = (dest: any) => {
+    // Use image from Firestore if available
+    if (dest?.image) return dest.image
+    
+    // Fallback to image map
     const imageMap: { [key: string]: string } = {
       'Bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=80',
       'Goa': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80',
@@ -116,10 +171,10 @@ export default function DestinationDetailPage({ params }: PageProps) {
       'Thailand': 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=1200&q=80',
       'Maldives': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80',
     }
-    return imageMap[name] || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80'
+    return imageMap[dest?.name] || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80'
   }
 
-  const imageUrl = getDestinationImage(destination.name)
+  const imageUrl = destination ? getDestinationImage(destination) : ''
 
   return (
     <main className="min-h-screen bg-white">
@@ -137,14 +192,14 @@ export default function DestinationDetailPage({ params }: PageProps) {
           <div className="max-w-6xl mx-auto w-full px-4 md:px-12 pb-12">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold">
-                {destination.country}
+                {destination?.country || 'Destination'}
               </span>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-              {destination.name}
+              {destination?.name || destinationName}
             </h1>
             <p className="text-xl text-white/90 max-w-3xl">
-              {destination.description}
+              {destination?.description || 'A beautiful destination waiting to be explored.'}
             </p>
           </div>
         </div>
@@ -165,10 +220,10 @@ export default function DestinationDetailPage({ params }: PageProps) {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                  Featured {destination.name} Packages
+                  Featured {destination?.name || destinationName} Packages
                 </h2>
                 <p className="text-gray-600">
-                  Curated itineraries crafted by experts for {destination.name}
+                  Curated itineraries crafted by experts for {destination?.name || destinationName}
                 </p>
               </div>
               <Link
@@ -195,7 +250,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 return (
                   <Link
                     key={pkg.id || packageId}
-                    href={`/destinations/${encodeURIComponent(destination.name)}/${packageId}`}
+                    href={`/destinations/${encodeURIComponent(destination?.slug || destination?.name || destinationName)}/${packageId}`}
                     className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
                   >
                     <div className="relative h-44 overflow-hidden">
@@ -256,19 +311,25 @@ export default function DestinationDetailPage({ params }: PageProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <p className="text-sm text-gray-500 mb-1">Best Time to Visit</p>
-              <p className="font-semibold text-gray-900">{destination.bestTimeToVisit.split('(')[0].trim()}</p>
+              <p className="font-semibold text-gray-900">
+                {destination?.bestTimeToVisit 
+                  ? (destination.bestTimeToVisit.includes('(') 
+                      ? destination.bestTimeToVisit.split('(')[0].trim() 
+                      : destination.bestTimeToVisit)
+                  : 'Year-round'}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">Recommended Duration</p>
-              <p className="font-semibold text-gray-900">{destination.duration}</p>
+              <p className="font-semibold text-gray-900">{destination?.duration || '5-7 days recommended'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">Currency</p>
-              <p className="font-semibold text-gray-900">{destination.currency}</p>
+              <p className="font-semibold text-gray-900">{destination?.currency || 'Contact for details'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500 mb-1">Language</p>
-              <p className="font-semibold text-gray-900">{destination.language}</p>
+              <p className="font-semibold text-gray-900">{destination?.language || 'English'}</p>
             </div>
           </div>
         </div>
@@ -365,7 +426,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
               </div>
               <div className="space-y-3">
                 <Link
-                  href={`/ai-planner?destination=${encodeURIComponent(destination.name)}`}
+                  href={`/ai-planner?destination=${encodeURIComponent(destination?.name || destinationName)}`}
                   className="block w-full bg-primary text-white text-center px-6 py-4 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
                 >
                   Plan Your Trip with AI

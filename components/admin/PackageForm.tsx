@@ -47,11 +47,31 @@ interface DestinationPackage {
   SEO_Description: string
   SEO_Keywords: string
   Meta_Image_URL: string
+  Guest_Reviews?: Array<{
+    name: string
+    content: string
+    date: string
+    rating?: string
+  }>
+  Booking_Policies?: {
+    booking?: string[]
+    payment?: string[]
+    cancellation?: string[]
+  }
+  FAQ_Items?: Array<{
+    question: string
+    answer: string
+  }>
+  Why_Book_With_Us?: Array<{
+    label: string
+    description: string
+  }>
 }
 
 interface PackageFormProps {
   formData: Partial<DestinationPackage>
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+  setFormData?: (updater: (prev: Partial<DestinationPackage>) => Partial<DestinationPackage>) => void
   editingPackage: DestinationPackage | null
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
@@ -60,6 +80,7 @@ interface PackageFormProps {
 export default function PackageForm({
   formData,
   handleInputChange,
+  setFormData,
   editingPackage,
   onSubmit,
   onCancel,
@@ -651,6 +672,111 @@ export default function PackageForm({
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Guest Reviews, Policies & FAQ Section */}
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Guest Reviews, Policies & FAQ</h3>
+        
+        {/* Guest Reviews */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Guest Reviews (JSON Array)</label>
+          <textarea
+            name="Guest_Reviews"
+            value={formData.Guest_Reviews ? JSON.stringify(formData.Guest_Reviews, null, 2) : ''}
+            onChange={(e) => {
+              try {
+                const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                if (setFormData) {
+                  setFormData((prev: any) => ({ ...prev, Guest_Reviews: parsed }))
+                } else {
+                  handleInputChange({ target: { name: 'Guest_Reviews', value: JSON.stringify(parsed) } } as any)
+                }
+              } catch {
+                // Invalid JSON, keep as string for now
+              }
+            }}
+            rows={6}
+            placeholder={`[\n  {\n    "name": "Anjali Mehta",\n    "content": "Best vacation ever!",\n    "date": "14 November 2025",\n    "rating": "5/5"\n  }\n]`}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each review should have: name, content, date, and optional rating.</p>
+        </div>
+
+        {/* Booking Policies */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Booking Policies (JSON Object)</label>
+          <textarea
+            name="Booking_Policies"
+            value={formData.Booking_Policies ? JSON.stringify(formData.Booking_Policies, null, 2) : ''}
+            onChange={(e) => {
+              try {
+                const parsed = e.target.value ? JSON.parse(e.target.value) : {}
+                if (setFormData) {
+                  setFormData((prev: any) => ({ ...prev, Booking_Policies: parsed }))
+                } else {
+                  handleInputChange({ target: { name: 'Booking_Policies', value: JSON.stringify(parsed) } } as any)
+                }
+              } catch {
+                // Invalid JSON
+              }
+            }}
+            rows={6}
+            placeholder={`{\n  "booking": ["Instant confirmation", "Flexible dates", "24/7 support"],\n  "payment": ["Pay in instalments", "Zero cost EMI", "Secure transactions"],\n  "cancellation": ["Free cancellation up to 7 days", "Partial refund available"]\n}`}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">Enter as JSON object with booking, payment, and cancellation arrays.</p>
+        </div>
+
+        {/* FAQ Items */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">FAQ Items (JSON Array)</label>
+          <textarea
+            name="FAQ_Items"
+            value={formData.FAQ_Items ? JSON.stringify(formData.FAQ_Items, null, 2) : ''}
+            onChange={(e) => {
+              try {
+                const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                if (setFormData) {
+                  setFormData((prev: any) => ({ ...prev, FAQ_Items: parsed }))
+                } else {
+                  handleInputChange({ target: { name: 'FAQ_Items', value: JSON.stringify(parsed) } } as any)
+                }
+              } catch {
+                // Invalid JSON
+              }
+            }}
+            rows={6}
+            placeholder={`[\n  {\n    "question": "What is the best time to visit?",\n    "answer": "The dry season from April to October..."\n  }\n]`}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each FAQ should have: question and answer.</p>
+        </div>
+
+        {/* Why Book With Us */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Why Book With Us (JSON Array)</label>
+          <textarea
+            name="Why_Book_With_Us"
+            value={formData.Why_Book_With_Us ? JSON.stringify(formData.Why_Book_With_Us, null, 2) : ''}
+            onChange={(e) => {
+              try {
+                const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                if (setFormData) {
+                  setFormData((prev: any) => ({ ...prev, Why_Book_With_Us: parsed }))
+                } else {
+                  handleInputChange({ target: { name: 'Why_Book_With_Us', value: JSON.stringify(parsed) } } as any)
+                }
+              } catch {
+                // Invalid JSON
+              }
+            }}
+            rows={5}
+            placeholder={`[\n  {\n    "label": "Best Price Guarantee",\n    "description": "Direct contracts with premium hotels"\n  }\n]`}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+          />
+          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each item should have: label and description.</p>
         </div>
       </div>
 

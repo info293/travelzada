@@ -2,7 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['images.unsplash.com', 'unsplash.com'],
+    domains: ['images.unsplash.com', 'unsplash.com', 'www.freepik.com', 'freepik.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
   webpack: (config, { isServer }) => {
     // Fix for undici and other Node.js modules

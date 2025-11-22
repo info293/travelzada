@@ -1,11 +1,21 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Footer() {
   return (
     <footer className="bg-ink text-white py-12">
       <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
         <div>
-          <p className="text-2xl font-bold mb-4">Travelzada</p>
+          <Link href="/" className="inline-block mb-4">
+            <Image
+              src="/images/logo/Travelzada Logo April (1).png"
+              alt="Travelzada Logo"
+              width={150}
+              height={50}
+              className="h-10 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
+          </Link>
           <p className="text-sm text-white/70">
             Plan premium journeys with AI precision and a human touch.
           </p>

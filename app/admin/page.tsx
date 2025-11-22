@@ -66,6 +66,25 @@ interface DestinationPackage {
   SEO_Description: string
   SEO_Keywords: string
   Meta_Image_URL: string
+  Guest_Reviews?: Array<{
+    name: string
+    content: string
+    date: string
+    rating?: string
+  }>
+  Booking_Policies?: {
+    booking?: string[]
+    payment?: string[]
+    cancellation?: string[]
+  }
+  FAQ_Items?: Array<{
+    question: string
+    answer: string
+  }>
+  Why_Book_With_Us?: Array<{
+    label: string
+    description: string
+  }>
 }
 
 interface BlogPost {
@@ -100,7 +119,33 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'dashboard'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'dashboard'
+
+interface Destination {
+  id?: string
+  name: string
+  country: string
+  description: string
+  image: string
+  slug: string
+  featured?: boolean
+  packageIds?: string[] // Array of package Destination_IDs linked to this destination
+  // Additional fields for frontend
+  bestTimeToVisit?: string
+  duration?: string
+  currency?: string
+  language?: string
+  highlights?: string[] // Array of highlight strings
+  activities?: string[] // Array of activity strings
+  budgetRange?: {
+    budget: string
+    midRange: string
+    luxury: string
+  }
+  hotelTypes?: string[] // Array of hotel type strings
+  createdAt?: string
+  updatedAt?: string
+}
 
 export default function AdminDashboard() {
   const { currentUser, isAdmin, loading } = useAuth()
@@ -109,6 +154,10 @@ export default function AdminDashboard() {
   const [packages, setPackages] = useState<DestinationPackage[]>([])
   const [blogs, setBlogs] = useState<BlogPost[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [destinations, setDestinations] = useState<Destination[]>([])
+  const [showDestinationForm, setShowDestinationForm] = useState(false)
+  const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
+  const [destinationFormData, setDestinationFormData] = useState<Partial<Destination>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showBlogForm, setShowBlogForm] = useState(false)
@@ -149,6 +198,7 @@ export default function AdminDashboard() {
         fetchPackages(),
         fetchBlogs(),
         fetchUsers(),
+        fetchDestinations(),
       ])
     } finally {
       setIsLoading(false)
@@ -182,6 +232,20 @@ export default function AdminDashboard() {
       setBlogs(blogsData)
     } catch (error) {
       console.error('Error fetching blogs:', error)
+    }
+  }
+
+  const fetchDestinations = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      const querySnapshot = await getDocs(collection(dbInstance, 'destinations'))
+      const destinationsData: Destination[] = []
+      querySnapshot.forEach((doc) => {
+        destinationsData.push({ id: doc.id, ...doc.data() } as Destination)
+      })
+      setDestinations(destinationsData)
+    } catch (error) {
+      console.error('Error fetching destinations:', error)
     }
   }
 
@@ -730,6 +794,16 @@ export default function AdminDashboard() {
                 Blogs ({blogs.length})
               </button>
               <button
+                onClick={() => setActiveTab('destinations')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'destinations'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Destinations ({destinations.length})
+              </button>
+              <button
                 onClick={() => setActiveTab('users')}
                 className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
                   activeTab === 'users'
@@ -852,6 +926,7 @@ export default function AdminDashboard() {
                 <PackageForm
                   formData={formData}
                   handleInputChange={handleInputChange}
+                  setFormData={setFormData}
                   editingPackage={editingPackage}
                   onSubmit={handlePackageSubmit}
                   onCancel={() => {
@@ -1266,6 +1341,357 @@ export default function AdminDashboard() {
                   </table>
                   {blogs.length === 0 && (
                     <div className="text-center py-12 text-gray-500">No blog posts found</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Destinations Tab */}
+        {activeTab === 'destinations' && (
+          <div className="space-y-6">
+            {showDestinationForm && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  {editingDestination ? 'Edit Destination' : 'Create New Destination'}
+                </h2>
+                <form onSubmit={async (e) => {
+                  e.preventDefault()
+                  try {
+                    const destinationData: any = {
+                      name: destinationFormData.name || '',
+                      country: destinationFormData.country || '',
+                      description: destinationFormData.description || '',
+                      image: destinationFormData.image || '',
+                      slug: destinationFormData.slug || (destinationFormData.name?.toLowerCase().replace(/\s+/g, '-') || ''),
+                      featured: destinationFormData.featured || false,
+                      packageIds: destinationFormData.packageIds || [],
+                      bestTimeToVisit: destinationFormData.bestTimeToVisit || '',
+                      duration: destinationFormData.duration || '',
+                      currency: destinationFormData.currency || '',
+                      language: destinationFormData.language || '',
+                      highlights: destinationFormData.highlights || [],
+                      activities: destinationFormData.activities || [],
+                      budgetRange: destinationFormData.budgetRange || {},
+                      hotelTypes: destinationFormData.hotelTypes || [],
+                      updatedAt: new Date().toISOString(),
+                    }
+                    if (!editingDestination?.id) {
+                      destinationData.createdAt = new Date().toISOString()
+                    }
+
+                    const dbInstance = getDbInstance()
+                    if (editingDestination?.id) {
+                      await updateDoc(doc(dbInstance, 'destinations', editingDestination.id), destinationData)
+                    } else {
+                      await addDoc(collection(dbInstance, 'destinations'), destinationData)
+                    }
+
+                    setShowDestinationForm(false)
+                    setEditingDestination(null)
+                    setDestinationFormData({})
+                    fetchDestinations()
+                  } catch (error) {
+                    console.error('Error saving destination:', error)
+                    alert('Error saving destination. Please try again.')
+                  }
+                }} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Name *</label>
+                      <input
+                        type="text"
+                        value={destinationFormData.name || ''}
+                        onChange={(e) => setDestinationFormData({ ...destinationFormData, name: e.target.value })}
+                        required
+                        placeholder="Bali"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Country *</label>
+                      <input
+                        type="text"
+                        value={destinationFormData.country || ''}
+                        onChange={(e) => setDestinationFormData({ ...destinationFormData, country: e.target.value })}
+                        required
+                        placeholder="Indonesia"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
+                      <textarea
+                        value={destinationFormData.description || ''}
+                        onChange={(e) => setDestinationFormData({ ...destinationFormData, description: e.target.value })}
+                        required
+                        rows={3}
+                        placeholder="A beautiful tropical destination..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL *</label>
+                      <input
+                        type="url"
+                        value={destinationFormData.image || ''}
+                        onChange={(e) => setDestinationFormData({ ...destinationFormData, image: e.target.value })}
+                        required
+                        placeholder="https://images.unsplash.com/..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Slug *</label>
+                      <input
+                        type="text"
+                        value={destinationFormData.slug || (destinationFormData.name?.toLowerCase().replace(/\s+/g, '-') || '')}
+                        onChange={(e) => setDestinationFormData({ ...destinationFormData, slug: e.target.value })}
+                        required
+                        placeholder="bali"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Linked Package IDs (comma-separated)</label>
+                      <input
+                        type="text"
+                        value={destinationFormData.packageIds?.join(', ') || ''}
+                        onChange={(e) => {
+                          const ids = e.target.value.split(',').map(id => id.trim()).filter(id => id)
+                          setDestinationFormData({ ...destinationFormData, packageIds: ids })
+                        }}
+                        placeholder="DEST_BALI_001, DEST_BALI_002"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Enter Destination_IDs of packages to link to this destination</p>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={destinationFormData.featured || false}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, featured: e.target.checked })}
+                          className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                        />
+                        <span className="text-sm font-semibold text-gray-700">Featured</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Additional Information Section */}
+                  <div className="border-t pt-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Additional Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Best Time to Visit</label>
+                        <input
+                          type="text"
+                          value={destinationFormData.bestTimeToVisit || ''}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, bestTimeToVisit: e.target.value })}
+                          placeholder="April to October (dry season)"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Recommended Duration</label>
+                        <input
+                          type="text"
+                          value={destinationFormData.duration || ''}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, duration: e.target.value })}
+                          placeholder="5-7 days recommended"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Currency</label>
+                        <input
+                          type="text"
+                          value={destinationFormData.currency || ''}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, currency: e.target.value })}
+                          placeholder="Indonesian Rupiah (IDR)"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Language</label>
+                        <input
+                          type="text"
+                          value={destinationFormData.language || ''}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, language: e.target.value })}
+                          placeholder="Indonesian, Balinese"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Highlights (JSON Array)</label>
+                        <textarea
+                          value={destinationFormData.highlights ? JSON.stringify(destinationFormData.highlights, null, 2) : ''}
+                          onChange={(e) => {
+                            try {
+                              const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                              setDestinationFormData({ ...destinationFormData, highlights: parsed })
+                            } catch {
+                              // Invalid JSON
+                            }
+                          }}
+                          rows={4}
+                          placeholder={`[\n  "Ubud rice terraces",\n  "Tanah Lot Temple",\n  "Seminyak Beach"\n]`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Enter as JSON array of strings</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Activities (JSON Array)</label>
+                        <textarea
+                          value={destinationFormData.activities ? JSON.stringify(destinationFormData.activities, null, 2) : ''}
+                          onChange={(e) => {
+                            try {
+                              const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                              setDestinationFormData({ ...destinationFormData, activities: parsed })
+                            } catch {
+                              // Invalid JSON
+                            }
+                          }}
+                          rows={4}
+                          placeholder={`[\n  "Beach relaxation",\n  "Temple visits",\n  "Water sports"\n]`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Enter as JSON array of strings</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Budget Range (JSON Object)</label>
+                        <textarea
+                          value={destinationFormData.budgetRange ? JSON.stringify(destinationFormData.budgetRange, null, 2) : ''}
+                          onChange={(e) => {
+                            try {
+                              const parsed = e.target.value ? JSON.parse(e.target.value) : {}
+                              setDestinationFormData({ ...destinationFormData, budgetRange: parsed })
+                            } catch {
+                              // Invalid JSON
+                            }
+                          }}
+                          rows={5}
+                          placeholder={`{\n  "budget": "₹30,000 - ₹50,000",\n  "midRange": "₹50,000 - ₹80,000",\n  "luxury": "₹80,000+"\n}`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Enter as JSON object with budget, midRange, and luxury fields</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Types (JSON Array)</label>
+                        <textarea
+                          value={destinationFormData.hotelTypes ? JSON.stringify(destinationFormData.hotelTypes, null, 2) : ''}
+                          onChange={(e) => {
+                            try {
+                              const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                              setDestinationFormData({ ...destinationFormData, hotelTypes: parsed })
+                            } catch {
+                              // Invalid JSON
+                            }
+                          }}
+                          rows={3}
+                          placeholder={`[\n  "Beach resorts",\n  "Villa rentals",\n  "Boutique hotels"\n]`}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Enter as JSON array of strings</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      type="submit"
+                      className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                    >
+                      {editingDestination ? 'Update Destination' : 'Create Destination'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDestinationForm(false)
+                        setEditingDestination(null)
+                        setDestinationFormData({})
+                      }}
+                      className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {!showDestinationForm && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900">All Destinations</h2>
+                  <button
+                    onClick={() => {
+                      setEditingDestination(null)
+                      setDestinationFormData({})
+                      setShowDestinationForm(true)
+                    }}
+                    className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
+                  >
+                    + Add New
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Country</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packages</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {destinations.map((dest) => (
+                        <tr key={dest.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900">{dest.name}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{dest.country}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">{dest.slug}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {dest.packageIds?.length || 0} package(s)
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              onClick={() => {
+                                setEditingDestination(dest)
+                                setDestinationFormData(dest)
+                                setShowDestinationForm(true)
+                              }}
+                              className="text-primary hover:text-primary-dark mr-4 text-sm font-semibold"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm('Are you sure you want to delete this destination?')) return
+                                try {
+                                  const dbInstance = getDbInstance()
+                                  await deleteDoc(doc(dbInstance, 'destinations', dest.id!))
+                                  fetchDestinations()
+                                } catch (error) {
+                                  console.error('Error deleting destination:', error)
+                                  alert('Error deleting destination. Please try again.')
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {destinations.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">No destinations found</div>
                   )}
                 </div>
               </div>

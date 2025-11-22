@@ -27,6 +27,25 @@ interface DestinationPackage {
   Theme?: string
   Stay?: string
   Day_Wise_Itinerary?: string
+  Guest_Reviews?: Array<{
+    name: string
+    content: string
+    date: string
+    rating?: string
+  }>
+  Booking_Policies?: {
+    booking?: string[]
+    payment?: string[]
+    cancellation?: string[]
+  }
+  FAQ_Items?: Array<{
+    question: string
+    answer: string
+  }>
+  Why_Book_With_Us?: Array<{
+    label: string
+    description: string
+  }>
   [key: string]: any
 }
 
@@ -43,7 +62,8 @@ const WHY_BOOK_WITH_US: Bullet[] = [
   { label: 'Flexible Payments', description: 'Pay in secure instalments with zero cost EMI' },
 ]
 
-const FAQ_ITEMS = [
+// Default fallback values (used if not in Firestore)
+const DEFAULT_FAQ_ITEMS = [
   {
     question: 'What is the best time to visit Bali?',
     answer:
@@ -61,18 +81,25 @@ const FAQ_ITEMS = [
   },
 ]
 
-const GUEST_REVIEWS = [
+const DEFAULT_GUEST_REVIEWS: Array<{
+  name: string
+  content: string
+  date: string
+  rating?: string
+}> = [
   {
     name: 'Anjali Mehta',
     content:
       'Best vacation ever! The Ubud rice terraces were breathtaking, and the candlelight dinner on the beach was so romantic.',
     date: '14 November 2025',
+    rating: '5/5',
   },
   {
     name: 'Priya & Rahul Sharma',
     content:
       'Our honeymoon in Bali was absolutely magical. Every detail was perfectly arranged and the private transfers made it seamless.',
     date: '11 November 2025',
+    rating: '5/5',
   },
 ]
 
@@ -400,11 +427,13 @@ export default function PackageDetailPage({ params }: PageProps) {
 
             <SectionCard title="Guest Reviews">
               <div className="space-y-6">
-                {GUEST_REVIEWS.map((review) => (
-                  <div key={review.name} className="rounded-[5px] border border-gray-200 p-5 bg-white">
+                {(packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0 
+                  ? packageData.Guest_Reviews 
+                  : DEFAULT_GUEST_REVIEWS).map((review, idx) => (
+                  <div key={idx} className="rounded-[5px] border border-gray-200 p-5 bg-white">
                     <div className="flex justify-between items-center mb-2">
                       <p className="font-semibold">{review.name}</p>
-                      <p className="text-yellow-500">★★★★★</p>
+                      <p className="text-yellow-500">{review.rating || '★★★★★'}</p>
                     </div>
                     <p className="text-gray-600 mb-2">{review.content}</p>
                     <p className="text-sm text-gray-500">{review.date}</p>
@@ -415,17 +444,28 @@ export default function PackageDetailPage({ params }: PageProps) {
 
             <SectionCard title="Booking Policies">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <PolicyCard title="Booking" items={['Instant confirmation', 'Flexible dates', '24/7 support']} />
-                <PolicyCard title="Payment" items={['Pay in instalments', 'Zero cost EMI', 'Secure transactions']} />
-                <PolicyCard title="Cancellation" items={['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']} />
+                <PolicyCard 
+                  title="Booking" 
+                  items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']} 
+                />
+                <PolicyCard 
+                  title="Payment" 
+                  items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']} 
+                />
+                <PolicyCard 
+                  title="Cancellation" 
+                  items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']} 
+                />
               </div>
             </SectionCard>
 
             <SectionCard title="Frequently Asked Questions">
               <div className="space-y-4">
-                {FAQ_ITEMS.map((faq) => (
+                {(packageData.FAQ_Items && packageData.FAQ_Items.length > 0 
+                  ? packageData.FAQ_Items 
+                  : DEFAULT_FAQ_ITEMS).map((faq, idx) => (
                   <details
-                    key={faq.question}
+                    key={idx}
                     className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm"
                   >
                     <summary className="cursor-pointer text-lg font-medium text-[#1e1d2f]">
@@ -506,8 +546,10 @@ export default function PackageDetailPage({ params }: PageProps) {
               </div>
               <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
-                {WHY_BOOK_WITH_US.map((item) => (
-                  <div key={item.label} className="flex gap-3 text-sm text-gray-600">
+                {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0 
+                  ? packageData.Why_Book_With_Us 
+                  : WHY_BOOK_WITH_US).map((item, idx) => (
+                  <div key={idx} className="flex gap-3 text-sm text-gray-600">
                     <span className="text-primary">✓</span>
                     <div>
                       <p className="font-medium text-gray-900">{item.label}</p>
