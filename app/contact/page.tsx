@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -14,6 +16,7 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -25,24 +28,44 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError('')
     
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    
-    setIsSubmitting(false)
-    setSubmitted(true)
-    
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setSubmitted(false)
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        subject: '',
-        message: '',
+    try {
+      if (typeof window === 'undefined' || !db) {
+        throw new Error('Database is not available. Please try again later.')
+      }
+
+      // Save to Firestore
+      await addDoc(collection(db, 'contact_messages'), {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim() || '',
+        subject: formData.subject,
+        message: formData.message.trim(),
+        status: 'new',
+        createdAt: serverTimestamp(),
+        read: false,
       })
-    }, 3000)
+
+      setIsSubmitting(false)
+      setSubmitted(true)
+      
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setSubmitted(false)
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          subject: '',
+          message: '',
+        })
+      }, 3000)
+    } catch (err: any) {
+      console.error('Error submitting contact form:', err)
+      setError(err.message || 'Something went wrong. Please try again later.')
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -311,6 +334,11 @@ export default function ContactPage() {
                       />
                     </div>
                     
+                    {error && (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <p className="text-sm text-red-800">{error}</p>
+                      </div>
+                    )}
                     <button
                       type="submit"
                       disabled={isSubmitting}

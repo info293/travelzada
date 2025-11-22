@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, where, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 interface BlogPost {
@@ -29,6 +29,8 @@ export default function BlogPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'latest' | 'top' | 'discussions'>('latest')
   const [email, setEmail] = useState('')
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribeMessage, setSubscribeMessage] = useState('')
 
   useEffect(() => {
     fetchBlogs()
@@ -90,11 +92,62 @@ export default function BlogPage() {
     }
   }
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email.trim()) {
-      alert('Thank you for subscribing!')
+    const emailValue = email.trim().toLowerCase()
+    
+    if (!emailValue) {
+      setSubscribeMessage('Please enter a valid email address.')
+      return
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(emailValue)) {
+      setSubscribeMessage('Please enter a valid email address.')
+      return
+    }
+
+    try {
+      setSubscribing(true)
+      setSubscribeMessage('')
+
+      if (typeof window === 'undefined' || !db) {
+        setSubscribeMessage('Unable to subscribe. Please try again later.')
+        return
+      }
+
+      // Check if email already exists
+      const subscribersRef = collection(db, 'newsletter_subscribers')
+      const existingQuery = query(subscribersRef, where('email', '==', emailValue))
+      const existingSnapshot = await getDocs(existingQuery)
+
+      if (!existingSnapshot.empty) {
+        setSubscribeMessage('This email is already subscribed!')
+        setEmail('')
+        return
+      }
+
+      // Add email to Firestore
+      await addDoc(subscribersRef, {
+        email: emailValue,
+        subscribedAt: serverTimestamp(),
+        status: 'active',
+        source: 'blog_page',
+      })
+
+      setSubscribeMessage('Thank you for subscribing!')
       setEmail('')
+      
+      // Clear message after 3 seconds
+      setTimeout(() => {
+        setSubscribeMessage('')
+      }, 3000)
+    } catch (error) {
+      console.error('Error subscribing:', error)
+      setSubscribeMessage('Something went wrong. Please try again later.')
+    } finally {
+      setSubscribing(false)
     }
   }
 
@@ -142,7 +195,7 @@ export default function BlogPage() {
       <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           {/* Header with Tabs and Search */}
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
+          {/* <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
             <div className="flex items-center gap-6">
               <button
                 onClick={() => setActiveTab('latest')}
@@ -183,10 +236,10 @@ export default function BlogPage() {
               </button>
               <div className="w-8 h-8 rounded bg-gradient-to-br from-primary to-primary-dark"></div>
             </div>
-          </div>
+          </div> */}
 
           {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 py-20">
             {/* Left Column - Article Listings */}
             <div className="lg:col-span-2 space-y-6">
               {allPosts.map((post) => (
@@ -243,16 +296,31 @@ export default function BlogPage() {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value)
+                        setSubscribeMessage('')
+                      }}
                       placeholder="Type your email..."
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                      disabled={subscribing}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      required
                     />
                     <button
                       type="submit"
-                      className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm"
+                      disabled={subscribing}
+                      className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Subscribe
+                      {subscribing ? 'Subscribing...' : 'Subscribe'}
                     </button>
+                    {subscribeMessage && (
+                      <p className={`text-xs text-center ${
+                        subscribeMessage.includes('Thank you') 
+                          ? 'text-green-600' 
+                          : 'text-red-600'
+                      }`}>
+                        {subscribeMessage}
+                      </p>
+                    )}
                   </form>
                 </div>
               </div>

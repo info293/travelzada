@@ -144,7 +144,7 @@ export default function PackageForm({
             <input
               type="number"
               name="Duration_Nights"
-              value={formData.Duration_Nights || ''}
+              value={formData.Duration_Nights !== undefined && formData.Duration_Nights !== null ? formData.Duration_Nights : ''}
               onChange={handleInputChange}
               required
               placeholder="5"
@@ -156,7 +156,7 @@ export default function PackageForm({
             <input
               type="number"
               name="Duration_Days"
-              value={formData.Duration_Days || ''}
+              value={formData.Duration_Days !== undefined && formData.Duration_Days !== null ? formData.Duration_Days : ''}
               onChange={handleInputChange}
               required
               placeholder="6"
@@ -196,6 +196,10 @@ export default function PackageForm({
               <option value="Explore">Explore</option>
               <option value="Relax">Relax</option>
               <option value="Adventure">Adventure</option>
+              <option value="Luxury">Luxury</option>
+              {formData.Mood && !['Romantic', 'Explore', 'Relax', 'Adventure', 'Luxury'].includes(formData.Mood) && (
+                <option value={formData.Mood}>{formData.Mood} (Current)</option>
+              )}
             </select>
           </div>
           <div>
@@ -224,6 +228,12 @@ export default function PackageForm({
               <option value="Family">Family</option>
               <option value="Solo">Solo</option>
               <option value="Friends">Friends</option>
+              <option value="Friends / Solo">Friends / Solo</option>
+              <option value="Solo / Small Group">Solo / Small Group</option>
+              <option value="Couple / Solo / Family">Couple / Solo / Family</option>
+              {formData.Travel_Type && !['Couple', 'Family', 'Solo', 'Friends', 'Friends / Solo', 'Solo / Small Group', 'Couple / Solo / Family'].includes(formData.Travel_Type) && (
+                <option value={formData.Travel_Type}>{formData.Travel_Type} (Current)</option>
+              )}
             </select>
           </div>
           <div>
@@ -251,6 +261,9 @@ export default function PackageForm({
               <option value="Light">Light</option>
               <option value="Moderate">Moderate</option>
               <option value="High">High</option>
+              {formData.Adventure_Level && !['Light', 'Moderate', 'High'].includes(formData.Adventure_Level) && (
+                <option value={formData.Adventure_Level}>{formData.Adventure_Level} (Current)</option>
+              )}
             </select>
           </div>
           <div>
@@ -350,6 +363,9 @@ export default function PackageForm({
               <option value="Mid">Mid</option>
               <option value="Premium">Premium</option>
               <option value="Luxury">Luxury</option>
+              {formData.Budget_Category && !['Economy', 'Mid', 'Premium', 'Luxury'].includes(formData.Budget_Category) && (
+                <option value={formData.Budget_Category}>{formData.Budget_Category} (Current)</option>
+              )}
             </select>
           </div>
           <div>
@@ -369,7 +385,7 @@ export default function PackageForm({
             <input
               type="number"
               name="Price_Min_INR"
-              value={formData.Price_Min_INR || ''}
+              value={formData.Price_Min_INR !== undefined && formData.Price_Min_INR !== null ? formData.Price_Min_INR : ''}
               onChange={handleInputChange}
               required
               placeholder="95000"
@@ -381,7 +397,7 @@ export default function PackageForm({
             <input
               type="number"
               name="Price_Max_INR"
-              value={formData.Price_Max_INR || ''}
+              value={formData.Price_Max_INR !== undefined && formData.Price_Max_INR !== null ? formData.Price_Max_INR : ''}
               onChange={handleInputChange}
               required
               placeholder="110000"
@@ -408,6 +424,9 @@ export default function PackageForm({
               <option value="3-Star">3-Star</option>
               <option value="4-Star">4-Star</option>
               <option value="5-Star">5-Star</option>
+              {formData.Star_Category && !['3-Star', '4-Star', '5-Star'].includes(formData.Star_Category) && (
+                <option value={formData.Star_Category}>{formData.Star_Category} (Current)</option>
+              )}
             </select>
           </div>
           <div>

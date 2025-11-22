@@ -119,7 +119,7 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'dashboard'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'careers' | 'dashboard'
 
 interface Destination {
   id?: string
@@ -155,6 +155,9 @@ export default function AdminDashboard() {
   const [blogs, setBlogs] = useState<BlogPost[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [destinations, setDestinations] = useState<Destination[]>([])
+  const [subscribers, setSubscribers] = useState<Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }>>([])
+  const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }>>([])
+  const [jobApplications, setJobApplications] = useState<Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }>>([])
   const [showDestinationForm, setShowDestinationForm] = useState(false)
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
   const [destinationFormData, setDestinationFormData] = useState<Partial<Destination>>({})
@@ -199,6 +202,9 @@ export default function AdminDashboard() {
         fetchBlogs(),
         fetchUsers(),
         fetchDestinations(),
+        fetchSubscribers(),
+        fetchContactMessages(),
+        fetchJobApplications(),
       ])
     } finally {
       setIsLoading(false)
@@ -290,6 +296,129 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching users:', error)
       alert('Error fetching users. Check console for details.')
+    }
+  }
+
+  const fetchSubscribers = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'newsletter_subscribers'), orderBy('subscribedAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch (orderError) {
+        console.log('OrderBy failed for subscribers, fetching without order:', orderError)
+        querySnapshot = await getDocs(collection(dbInstance, 'newsletter_subscribers'))
+      }
+      
+      const subscribersData: Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }> = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        subscribersData.push({
+          id: doc.id,
+          email: data.email || '',
+          subscribedAt: data.subscribedAt?.toDate?.()?.toISOString() || data.subscribedAt || new Date().toISOString(),
+          status: data.status || 'active',
+          source: data.source || 'unknown',
+        })
+      })
+      
+      // Sort manually if needed
+      subscribersData.sort((a, b) => {
+        const dateA = new Date(a.subscribedAt).getTime()
+        const dateB = new Date(b.subscribedAt).getTime()
+        return dateB - dateA
+      })
+      
+      setSubscribers(subscribersData)
+      console.log('Fetched subscribers:', subscribersData.length)
+    } catch (error) {
+      console.error('Error fetching subscribers:', error)
+    }
+  }
+
+  const fetchContactMessages = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'contact_messages'), orderBy('createdAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch (orderError) {
+        console.log('OrderBy failed for contact messages, fetching without order:', orderError)
+        querySnapshot = await getDocs(collection(dbInstance, 'contact_messages'))
+      }
+      
+      const messagesData: Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }> = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        messagesData.push({
+          id: doc.id,
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          subject: data.subject || '',
+          message: data.message || '',
+          status: data.status || 'new',
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+          read: data.read || false,
+        })
+      })
+      
+      // Sort manually if needed
+      messagesData.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+      
+      setContactMessages(messagesData)
+      console.log('Fetched contact messages:', messagesData.length)
+    } catch (error) {
+      console.error('Error fetching contact messages:', error)
+    }
+  }
+
+  const fetchJobApplications = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'job_applications'), orderBy('createdAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch (orderError) {
+        console.log('OrderBy failed for job applications, fetching without order:', orderError)
+        querySnapshot = await getDocs(collection(dbInstance, 'job_applications'))
+      }
+      
+      const applicationsData: Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }> = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        applicationsData.push({
+          id: doc.id,
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          linkedin: data.linkedin || '',
+          position: data.position || '',
+          coverLetter: data.coverLetter || '',
+          status: data.status || 'new',
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+          read: data.read || false,
+        })
+      })
+      
+      // Sort manually if needed
+      applicationsData.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+      
+      setJobApplications(applicationsData)
+      console.log('Fetched job applications:', applicationsData.length)
+    } catch (error) {
+      console.error('Error fetching job applications:', error)
     }
   }
 
@@ -434,7 +563,32 @@ export default function AdminDashboard() {
 
   const handleEditPackage = (pkg: DestinationPackage) => {
     setEditingPackage(pkg)
-    setFormData(pkg)
+    // Ensure number fields are properly converted (handle both string and number types from Firestore)
+    const formattedData: Partial<DestinationPackage> = {
+      ...pkg,
+      // Convert number fields from string to number if needed
+      Price_Min_INR: pkg.Price_Min_INR !== undefined && pkg.Price_Min_INR !== null 
+        ? (typeof pkg.Price_Min_INR === 'string' ? Number(pkg.Price_Min_INR) : pkg.Price_Min_INR)
+        : undefined,
+      Price_Max_INR: pkg.Price_Max_INR !== undefined && pkg.Price_Max_INR !== null
+        ? (typeof pkg.Price_Max_INR === 'string' ? Number(pkg.Price_Max_INR) : pkg.Price_Max_INR)
+        : undefined,
+      Duration_Nights: pkg.Duration_Nights !== undefined && pkg.Duration_Nights !== null
+        ? (typeof pkg.Duration_Nights === 'string' ? Number(pkg.Duration_Nights) : pkg.Duration_Nights)
+        : undefined,
+      Duration_Days: pkg.Duration_Days !== undefined && pkg.Duration_Days !== null
+        ? (typeof pkg.Duration_Days === 'string' ? Number(pkg.Duration_Days) : pkg.Duration_Days)
+        : undefined,
+      // Trim string fields to remove any whitespace that might cause dropdown mismatches
+      Mood: typeof pkg.Mood === 'string' ? pkg.Mood.trim() : pkg.Mood,
+      Travel_Type: typeof pkg.Travel_Type === 'string' ? pkg.Travel_Type.trim() : pkg.Travel_Type,
+      Adventure_Level: typeof pkg.Adventure_Level === 'string' ? pkg.Adventure_Level.trim() : pkg.Adventure_Level,
+      Budget_Category: typeof pkg.Budget_Category === 'string' ? pkg.Budget_Category.trim() : pkg.Budget_Category,
+      Star_Category: typeof pkg.Star_Category === 'string' ? pkg.Star_Category.trim() : pkg.Star_Category,
+      Child_Friendly: typeof pkg.Child_Friendly === 'string' ? pkg.Child_Friendly.trim() : pkg.Child_Friendly,
+      Elderly_Friendly: typeof pkg.Elderly_Friendly === 'string' ? pkg.Elderly_Friendly.trim() : pkg.Elderly_Friendly,
+    }
+    setFormData(formattedData)
     setShowForm(true)
     setActiveTab('packages')
   }
@@ -812,6 +966,36 @@ export default function AdminDashboard() {
                 }`}
               >
                 Users ({users.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('subscribers')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'subscribers'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Newsletter ({subscribers.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('contacts')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'contacts'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Contact ({contactMessages.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('careers')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'careers'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Careers ({jobApplications.length})
               </button>
             </nav>
           </div>
@@ -1858,6 +2042,389 @@ export default function AdminDashboard() {
                   User documents are created automatically when users sign up. If you signed up before this feature was added, 
                   click "Sync Current User" to create your user document. You can also check the browser console (F12) for any errors.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Newsletter Subscribers Tab */}
+        {activeTab === 'subscribers' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Newsletter Subscribers ({subscribers.length})</h2>
+                <button
+                  onClick={fetchSubscribers}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subscribed Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {subscribers.map((subscriber) => (
+                      <tr key={subscriber.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{subscriber.email}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            subscriber.status === 'active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {subscriber.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {subscriber.source || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {subscriber.subscribedAt 
+                            ? new Date(subscriber.subscribedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Are you sure you want to delete ${subscriber.email}?`)) return
+                              try {
+                                const dbInstance = getDbInstance()
+                                if (subscriber.id) {
+                                  await deleteDoc(doc(dbInstance, 'newsletter_subscribers', subscriber.id))
+                                  fetchSubscribers()
+                                  alert('Subscriber deleted successfully!')
+                                }
+                              } catch (error) {
+                                console.error('Error deleting subscriber:', error)
+                                alert('Error deleting subscriber. Please try again.')
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {subscribers.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">No newsletter subscribers yet</div>
+                    <div className="text-sm text-gray-400">
+                      Subscribers will appear here when they sign up through the blog page newsletter form.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Contact Messages Tab */}
+        {activeTab === 'contacts' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Contact Messages ({contactMessages.length})</h2>
+                <button
+                  onClick={fetchContactMessages}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {contactMessages.map((message) => (
+                      <tr 
+                        key={message.id} 
+                        className={`hover:bg-gray-50 ${!message.read ? 'bg-blue-50' : ''}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{message.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{message.email}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {message.phone || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate" title={message.subject}>
+                            {message.subject}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            message.status === 'new' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : message.status === 'read'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {message.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {message.createdAt 
+                            ? new Date(message.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                // Show message details in a modal or alert
+                                const details = `
+Name: ${message.name}
+Email: ${message.email}
+Phone: ${message.phone || 'N/A'}
+Subject: ${message.subject}
+Message: ${message.message}
+                                `.trim()
+                                alert(details)
+                                
+                                // Mark as read
+                                if (message.id && !message.read) {
+                                  const dbInstance = getDbInstance()
+                                  updateDoc(doc(dbInstance, 'contact_messages', message.id), {
+                                    read: true,
+                                    status: 'read',
+                                  }).then(() => {
+                                    fetchContactMessages()
+                                  }).catch((error) => {
+                                    console.error('Error updating message:', error)
+                                  })
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Are you sure you want to delete this message from ${message.name}?`)) return
+                                try {
+                                  const dbInstance = getDbInstance()
+                                  if (message.id) {
+                                    await deleteDoc(doc(dbInstance, 'contact_messages', message.id))
+                                    fetchContactMessages()
+                                    alert('Message deleted successfully!')
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting message:', error)
+                                  alert('Error deleting message. Please try again.')
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {contactMessages.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">No contact messages yet</div>
+                    <div className="text-sm text-gray-400">
+                      Messages will appear here when users submit the contact form.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Job Applications Tab */}
+        {activeTab === 'careers' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Job Applications ({jobApplications.length})</h2>
+                <button
+                  onClick={fetchJobApplications}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LinkedIn</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {jobApplications.map((application) => (
+                      <tr 
+                        key={application.id} 
+                        className={`hover:bg-gray-50 ${!application.read ? 'bg-blue-50' : ''}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{application.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{application.email}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 font-medium">{application.position}</div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {application.phone || 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          {application.linkedin ? (
+                            <a 
+                              href={application.linkedin} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                            >
+                              View Profile
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-400">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            application.status === 'new' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : application.status === 'read'
+                              ? 'bg-gray-100 text-gray-800'
+                              : application.status === 'reviewed'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {application.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {application.createdAt 
+                            ? new Date(application.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                // Show application details in a modal or alert
+                                const details = `
+Name: ${application.name}
+Email: ${application.email}
+Phone: ${application.phone || 'N/A'}
+Position: ${application.position}
+LinkedIn: ${application.linkedin || 'N/A'}
+
+Cover Letter:
+${application.coverLetter}
+                                `.trim()
+                                alert(details)
+                                
+                                // Mark as read
+                                if (application.id && !application.read) {
+                                  const dbInstance = getDbInstance()
+                                  updateDoc(doc(dbInstance, 'job_applications', application.id), {
+                                    read: true,
+                                    status: 'read',
+                                  }).then(() => {
+                                    fetchJobApplications()
+                                  }).catch((error) => {
+                                    console.error('Error updating application:', error)
+                                  })
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Are you sure you want to delete this application from ${application.name}?`)) return
+                                try {
+                                  const dbInstance = getDbInstance()
+                                  if (application.id) {
+                                    await deleteDoc(doc(dbInstance, 'job_applications', application.id))
+                                    fetchJobApplications()
+                                    alert('Application deleted successfully!')
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting application:', error)
+                                  alert('Error deleting application. Please try again.')
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {jobApplications.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">No job applications yet</div>
+                    <div className="text-sm text-gray-400">
+                      Applications will appear here when candidates apply through the careers page.
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

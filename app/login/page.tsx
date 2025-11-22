@@ -102,7 +102,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-shimmer"></div>
       </div>
 
-      <section className="py-8 md:py-12 px-4 md:px-12 relative z-10 flex items-center min-h-[calc(100vh-200px)]">
+      <section className="py-12 md:py-20 px-4 md:px-12 relative z-10 flex items-center min-h-[calc(100vh-200px)]">
         <div className="max-w-6xl mx-auto w-full grid lg:grid-cols-2 gap-8 lg:gap-10 items-center">
           {/* Left Side - Visual Content */}
           <div className="hidden lg:block space-y-6 text-white">

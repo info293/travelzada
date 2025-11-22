@@ -8,7 +8,7 @@ export default function StoryPage() {
       
       {/* Hero Section */}
       <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w- py-6 mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Our Story
           </h1>
