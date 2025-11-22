@@ -323,6 +323,8 @@ export default function PackageDetailPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
       <Header />
 
+      
+
       <section className="relative h-[420px] md:h-[520px] w-full">
         <Image
           src={imageUrl}
@@ -335,6 +337,17 @@ export default function PackageDetailPage({ params }: PageProps) {
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
+        {/* Back Button - Positioned over image */}
+        <div className="absolute top-20 left-4 md:left-8 z-10">
+          <Link
+            href={`/destinations/${slug}`}
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
+          >
+            <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        </div>
       </section>
 
       <section className="relative -mt-36 md:-mt-40 px-4 md:px-8 pb-20">

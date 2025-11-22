@@ -15,6 +15,7 @@ import {
   query,
   orderBy,
   where,
+  deleteField,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PackageForm from '@/components/admin/PackageForm'
@@ -161,6 +162,7 @@ export default function AdminDashboard() {
   const [showDestinationForm, setShowDestinationForm] = useState(false)
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
   const [destinationFormData, setDestinationFormData] = useState<Partial<Destination>>({})
+  const [packageIdsInput, setPackageIdsInput] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showBlogForm, setShowBlogForm] = useState(false)
@@ -469,11 +471,49 @@ export default function AdminDashboard() {
       return
     }
 
+      // Build package data, excluding undefined values
       const packageData: any = {
         ...formData,
         Last_Updated: new Date().toISOString().split('T')[0],
         Created_By: currentUser?.email || 'Admin',
       }
+
+      // Handle Price_Min_INR - only include if it has a valid value
+      const minPriceValue = formData.Price_Min_INR
+      if (minPriceValue !== undefined && minPriceValue !== null) {
+        const minValueStr = String(minPriceValue).trim()
+        if (minValueStr !== '' && !isNaN(Number(minValueStr)) && Number(minValueStr) >= 0) {
+          packageData.Price_Min_INR = Number(minValueStr)
+        } else if (editingPackage?.id) {
+          // If editing and value is empty or invalid, remove the field
+          packageData.Price_Min_INR = deleteField()
+        }
+      } else if (editingPackage?.id) {
+        // If editing and value is empty, remove the field
+        packageData.Price_Min_INR = deleteField()
+      }
+
+      // Handle Price_Max_INR - only include if it has a valid value
+      const maxPriceValue = formData.Price_Max_INR
+      if (maxPriceValue !== undefined && maxPriceValue !== null) {
+        const maxValueStr = String(maxPriceValue).trim()
+        if (maxValueStr !== '' && !isNaN(Number(maxValueStr)) && Number(maxValueStr) >= 0) {
+          packageData.Price_Max_INR = Number(maxValueStr)
+        } else if (editingPackage?.id) {
+          // If editing and value is empty or invalid, remove the field
+          packageData.Price_Max_INR = deleteField()
+        }
+      } else if (editingPackage?.id) {
+        // If editing and value is empty, remove the field
+        packageData.Price_Max_INR = deleteField()
+      }
+
+      // Remove any undefined values from packageData (Firestore doesn't accept undefined)
+      Object.keys(packageData).forEach(key => {
+        if (packageData[key] === undefined) {
+          delete packageData[key]
+        }
+      })
 
       const dbInstance = getDbInstance()
       if (editingPackage?.id) {
@@ -1575,6 +1615,7 @@ export default function AdminDashboard() {
                     setShowDestinationForm(false)
                     setEditingDestination(null)
                     setDestinationFormData({})
+                    setPackageIdsInput('')
                     fetchDestinations()
                   } catch (error) {
                     console.error('Error saving destination:', error)
@@ -1641,15 +1682,34 @@ export default function AdminDashboard() {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Linked Package IDs (comma-separated)</label>
                       <input
                         type="text"
-                        value={destinationFormData.packageIds?.join(', ') || ''}
+                        value={packageIdsInput}
                         onChange={(e) => {
-                          const ids = e.target.value.split(',').map(id => id.trim()).filter(id => id)
+                          // Store raw input value - allow user to type freely including commas
+                          const inputValue = e.target.value
+                          setPackageIdsInput(inputValue)
+                          // Parse IDs only when there's actual content (not just a trailing comma)
+                          // This allows typing commas without losing them
+                          if (inputValue.trim()) {
+                            const ids = inputValue
+                              .split(',')
+                              .map(id => id.trim())
+                              .filter(id => id) // Only filter empty strings, not trailing commas
+                            setDestinationFormData({ ...destinationFormData, packageIds: ids })
+                          } else {
+                            setDestinationFormData({ ...destinationFormData, packageIds: [] })
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // When user leaves the field, clean up and finalize
+                          const inputValue = e.target.value.trim().replace(/,\s*$/, '') // Remove trailing comma
+                          setPackageIdsInput(inputValue)
+                          const ids = inputValue.split(',').map(id => id.trim()).filter(id => id)
                           setDestinationFormData({ ...destinationFormData, packageIds: ids })
                         }}
-                        placeholder="DEST_BALI_001, DEST_BALI_002"
+                        placeholder="DEST_BALI_001, DEST_BALI_002, DEST_BALI_003"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Enter Destination_IDs of packages to link to this destination</p>
+                      <p className="text-xs text-gray-500 mt-1">Enter Destination_IDs separated by commas (e.g., DEST_BALI_001, DEST_BALI_002)</p>
                     </div>
                     <div>
                       <label className="flex items-center gap-2">
@@ -1795,6 +1855,7 @@ export default function AdminDashboard() {
                         setShowDestinationForm(false)
                         setEditingDestination(null)
                         setDestinationFormData({})
+                        setPackageIdsInput('')
                       }}
                       className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
                     >
@@ -1813,6 +1874,7 @@ export default function AdminDashboard() {
                     onClick={() => {
                       setEditingDestination(null)
                       setDestinationFormData({})
+                      setPackageIdsInput('')
                       setShowDestinationForm(true)
                     }}
                     className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
@@ -1847,6 +1909,7 @@ export default function AdminDashboard() {
                               onClick={() => {
                                 setEditingDestination(dest)
                                 setDestinationFormData(dest)
+                                setPackageIdsInput(dest.packageIds?.join(', ') || '')
                                 setShowDestinationForm(true)
                               }}
                               className="text-primary hover:text-primary-dark mr-4 text-sm font-semibold"

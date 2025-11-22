@@ -188,6 +188,17 @@ export default function DestinationDetailPage({ params }: PageProps) {
         >
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
         </div>
+        {/* Back Button - Positioned over image */}
+        <div className="absolute top-20 left-4 md:left-12 z-10">
+          <Link
+            href="/destinations"
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
+          >
+            <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        </div>
         <div className="relative z-10 h-full flex items-end">
           <div className="max-w-6xl mx-auto w-full px-4 md:px-12 pb-12">
             <div className="flex items-center gap-2 mb-4">

@@ -381,25 +381,23 @@ export default function PackageForm({
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (INR) </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (INR) <span className="text-gray-400 font-normal">(Optional)</span></label>
             <input
               type="number"
               name="Price_Min_INR"
               value={formData.Price_Min_INR !== undefined && formData.Price_Min_INR !== null ? formData.Price_Min_INR : ''}
               onChange={handleInputChange}
-              required
               placeholder="95000"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (INR) </label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (INR) <span className="text-gray-400 font-normal">(Optional)</span></label>
             <input
               type="number"
               name="Price_Max_INR"
               value={formData.Price_Max_INR !== undefined && formData.Price_Max_INR !== null ? formData.Price_Max_INR : ''}
               onChange={handleInputChange}
-              required
               placeholder="110000"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />

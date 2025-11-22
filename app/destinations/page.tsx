@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import DestinationCard from '@/components/DestinationCard'
@@ -90,13 +91,25 @@ export default function DestinationsPage() {
       
       {/* Hero Section */}
       <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
-        <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Explore Amazing Destinations
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover your next adventure with our hand-picked destinations. From tropical beaches to mountain peaks, find the perfect place for your dream vacation.
-          </p>
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-0 mt-8">
+            <Link
+              href="/"
+              className="inline-flex items-center text-gray-900 hover:text-primary transition-colors"
+            >
+              <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          </div>
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Explore Amazing Destinations
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Discover your next adventure with our hand-picked destinations. From tropical beaches to mountain peaks, find the perfect place for your dream vacation.
+            </p>
+          </div>
         </div>
       </section>
 
