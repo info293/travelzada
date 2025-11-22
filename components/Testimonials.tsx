@@ -1,27 +1,201 @@
-import Link from 'next/link'
+'use client'
 
-const testimonials = [
-  {
-    name: 'Sarah L.',
-    rating: 5,
-    quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Flawless!',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80',
-  },
-  {
-    name: 'Mark T.',
-    rating: 5,
-    quote: 'As a solo traveler, I used to spend weeks planning. Now, I just tell Travelzada what I like, it creates the perfect itinerary in minutes. Game-changer!',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80',
-  },
-  {
-    name: 'Emily C.',
-    rating: 5,
-    quote: 'The best part is getting one perfect itinerary, not twenty confusing options. It saved so much time and stress. Highly recommend!',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80',
-  },
-]
+import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+
+interface Testimonial {
+  id?: string
+  name: string
+  rating: number
+  quote: string
+  featured?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
 
 export default function Testimonials() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  const [loading, setLoading] = useState(true)
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const MAX_LENGTH = 150 // Character limit before showing "read more"
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      if (typeof window === 'undefined' || !db) {
+        // Fallback to hardcoded testimonials
+        setTestimonials([
+          {
+            name: 'Sarah L.',
+            rating: 5,
+            quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Flawless!',
+          },
+          {
+            name: 'Mark T.',
+            rating: 5,
+            quote: 'As a solo traveler, I used to spend weeks planning. Now, I just tell Travelzada what I like, it creates the perfect itinerary in minutes. Game-changer!',
+          },
+          {
+            name: 'Emily C.',
+            rating: 5,
+            quote: 'The best part is getting one perfect itinerary, not twenty confusing options. It saved so much time and stress. Highly recommend!',
+          },
+        ])
+        setLoading(false)
+        return
+      }
+
+      try {
+        const dbInstance = db
+        let querySnapshot
+        try {
+          // Try to get featured testimonials first, then regular ones
+          const featuredQuery = query(
+            collection(dbInstance, 'testimonials'),
+            where('featured', '==', true),
+            orderBy('createdAt', 'desc')
+          )
+          querySnapshot = await getDocs(featuredQuery)
+        } catch (orderError) {
+          // If orderBy fails, just get all testimonials
+          const allQuery = query(collection(dbInstance, 'testimonials'))
+          querySnapshot = await getDocs(allQuery)
+        }
+
+        const testimonialsData: Testimonial[] = []
+        querySnapshot.forEach((doc) => {
+          const data = doc.data()
+          testimonialsData.push({
+            id: doc.id,
+            name: data.name || '',
+            rating: data.rating || 5,
+            quote: data.quote || '',
+            featured: data.featured || false,
+            createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+          })
+        })
+
+        // If no testimonials found, use fallback
+        if (testimonialsData.length === 0) {
+          setTestimonials([
+            {
+              name: 'Sarah L.',
+              rating: 5,
+              quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Flawless!',
+            },
+            {
+              name: 'Mark T.',
+              rating: 5,
+              quote: 'As a solo traveler, I used to spend weeks planning. Now, I just tell Travelzada what I like, it creates the perfect itinerary in minutes. Game-changer!',
+            },
+            {
+              name: 'Emily C.',
+              rating: 5,
+              quote: 'The best part is getting one perfect itinerary, not twenty confusing options. It saved so much time and stress. Highly recommend!',
+            },
+          ])
+        } else {
+          setTestimonials(testimonialsData)
+        }
+      } catch (error) {
+        console.error('Error fetching testimonials:', error)
+        // Fallback to hardcoded testimonials on error
+        setTestimonials([
+          {
+            name: 'Sarah L.',
+            rating: 5,
+            quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Flawless!',
+          },
+          {
+            name: 'Mark T.',
+            rating: 5,
+            quote: 'As a solo traveler, I used to spend weeks planning. Now, I just tell Travelzada what I like, it creates the perfect itinerary in minutes. Game-changer!',
+          },
+          {
+            name: 'Emily C.',
+            rating: 5,
+            quote: 'The best part is getting one perfect itinerary, not twenty confusing options. It saved so much time and stress. Highly recommend!',
+          },
+        ])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTestimonials()
+  }, [])
+
+  const scrollToIndex = (index: number) => {
+    if (scrollContainerRef.current) {
+      const cardWidth = scrollContainerRef.current.offsetWidth / (window.innerWidth >= 768 ? 3 : 1)
+      scrollContainerRef.current.scrollTo({
+        left: index * cardWidth,
+        behavior: 'smooth',
+      })
+      setCurrentIndex(index)
+    }
+  }
+
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const scrollLeft = scrollContainerRef.current.scrollLeft
+      const cardWidth = scrollContainerRef.current.offsetWidth / (window.innerWidth >= 768 ? 3 : 1)
+      const newIndex = Math.round(scrollLeft / cardWidth)
+      setCurrentIndex(newIndex)
+    }
+  }
+
+  const nextSlide = () => {
+    const maxIndex = Math.max(0, testimonials.length - (window.innerWidth >= 768 ? 3 : 1))
+    const nextIndex = currentIndex < maxIndex ? currentIndex + 1 : 0
+    scrollToIndex(nextIndex)
+  }
+
+  const prevSlide = () => {
+    const maxIndex = Math.max(0, testimonials.length - (window.innerWidth >= 768 ? 3 : 1))
+    const prevIndex = currentIndex > 0 ? currentIndex - 1 : maxIndex
+    scrollToIndex(prevIndex)
+  }
+
+  const toggleExpand = (testimonialId: string) => {
+    setExpandedCards((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(testimonialId)) {
+        newSet.delete(testimonialId)
+      } else {
+        newSet.add(testimonialId)
+      }
+      return newSet
+    })
+  }
+
+  const isExpanded = (testimonialId: string) => {
+    return expandedCards.has(testimonialId)
+  }
+
+  const shouldShowReadMore = (quote: string) => {
+    return quote.length > MAX_LENGTH
+  }
+
+  const getTruncatedText = (quote: string) => {
+    if (quote.length <= MAX_LENGTH) return quote
+    return quote.substring(0, MAX_LENGTH) + '...'
+  }
+
+  if (loading) {
+    return (
+      <section className="py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-cream via-white to-cream relative overflow-hidden">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading testimonials...</p>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-cream via-white to-cream relative overflow-hidden">
       {/* Decorative elements */}
@@ -39,39 +213,113 @@ export default function Testimonials() {
           Join thousands of satisfied travelers who've experienced the perfect trip
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          {testimonials.map((testimonial, index) => (
-            <div 
-              key={index} 
-              className="bg-white rounded-3xl p-8 shadow-lg text-left border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
-            >
-              <div className="flex items-center gap-4 mb-6">
-                <div className="relative">
-                  <img 
-                    src={testimonial.avatar} 
-                    alt={testimonial.name} 
-                    className="w-16 h-16 rounded-full border-4 border-primary/10 group-hover:border-primary/30 transition-colors" 
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+        {/* Slider Container */}
+        <div className="relative mb-12">
+          {/* Navigation Buttons */}
+          {testimonials.length > (window.innerWidth >= 768 ? 3 : 1) && (
+            <>
+              <button
+                onClick={prevSlide}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 md:-translate-x-12 z-20 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+                aria-label="Previous testimonials"
+              >
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={nextSlide}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 md:translate-x-12 z-20 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all hover:scale-110"
+                aria-label="Next testimonials"
+              >
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {/* Scrollable Cards Container */}
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex gap-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth pb-4"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {testimonials.map((testimonial, index) => {
+              const testimonialId = testimonial.id || `testimonial-${index}`
+              const isQuoteExpanded = isExpanded(testimonialId)
+              const showReadMore = shouldShowReadMore(testimonial.quote)
+              const displayText = isQuoteExpanded || !showReadMore 
+                ? testimonial.quote 
+                : getTruncatedText(testimonial.quote)
+
+              return (
+                <div
+                  key={testimonialId}
+                  className="flex-shrink-0 w-full md:w-1/3 snap-start"
+                >
+                  <div className="bg-white rounded-3xl p-8 shadow-lg text-left border border-gray-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group h-full flex flex-col">
+                    <div className="mb-6">
+                      <p className="font-semibold text-ink text-base mb-2">{testimonial.name}</p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(testimonial.rating)].map((_, i) => (
+                          <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex-grow">
+                      <p className="text-gray-700 leading-relaxed text-base italic">
+                        "{displayText}"
+                      </p>
+                    </div>
+                    {showReadMore && (
+                      <button
+                        onClick={() => toggleExpand(testimonialId)}
+                        className="mt-4 text-primary hover:text-primary-dark font-semibold text-sm transition-colors flex items-center gap-1"
+                      >
+                        {isQuoteExpanded ? (
+                          <>
+                            Read Less
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                          </>
+                        ) : (
+                          <>
+                            Read More
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div>
-                  <p className="font-semibold text-ink text-base">{testimonial.name}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <p className="text-gray-700 leading-relaxed text-base italic">"{testimonial.quote}"</p>
+              )
+            })}
+          </div>
+
+          {/* Dots Indicator */}
+          {testimonials.length > (window.innerWidth >= 768 ? 3 : 1) && (
+            <div className="flex justify-center gap-2 mt-8">
+              {Array.from({ length: Math.ceil(testimonials.length / (window.innerWidth >= 768 ? 3 : 1)) }).map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => scrollToIndex(index)}
+                  className={`w-3 h-3 rounded-full transition-all ${
+                    Math.floor(currentIndex) === index
+                      ? 'bg-primary w-8'
+                      : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <Link
@@ -84,7 +332,12 @@ export default function Testimonials() {
           </svg>
         </Link>
       </div>
+
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </section>
   )
 }
-

@@ -279,12 +279,12 @@ export default function DestinationDetailPage({ params }: PageProps) {
                         </span>
                       )}
                     </div>
-                    <div className="p-4 flex-1 flex flex-col gap-3">
+                    <div className="p-4 flex-1 flex flex-col gap-3 min-h-[280px] max-h-[320px]">
                       <div>
                         <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{pkg.Destination_Name || 'Package'}</h3>
                         <p className="text-xs text-gray-500">{pkg.Duration || ''}</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-600">
+                      <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-600 flex-1 min-h-[80px]">
                         <div className="space-y-0.5">
                           <p>{pkg.Star_Category || 'Hotel'}</p>
                           <p>{pkg.Travel_Type || 'Travel'}</p>
@@ -296,15 +296,17 @@ export default function DestinationDetailPage({ params }: PageProps) {
                           ))}
                         </div>
                       </div>
-                      <div className="bg-gray-50 border border-dashed border-gray-200 rounded-[5px] p-3 text-sm">
-                        <p className="text-xs text-gray-500 mb-1">
-                          Flexible payment options available
-                        </p>
-                        <div className="flex items-end justify-between">
-                          <div>
-                            <p className="text-[11px] uppercase text-gray-500 tracking-wide">Price Range</p>
-                            <p className="text-2xl font-bold text-gray-900">{pkg.Price_Range_INR || 'Contact for price'}</p>
+                      <div className="p-0">
+                        <div className="relative bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 rounded-lg p-3 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                          {/* Animated gradient overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/20 via-transparent to-amber-700/20 rounded-lg"></div>
+                          {/* Content */}
+                          <div className="relative z-10">
+                            <p className="text-[10px] uppercase text-amber-900 tracking-wide font-normal mb-1 drop-shadow-sm">Price Range</p>
+                            <p className="text-sm font-normal text-white drop-shadow-md leading-tight">{pkg.Price_Range_INR || 'Contact for price'}</p>
                           </div>
+                          {/* Decorative corner accent */}
+                          <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-br from-yellow-200/30 to-transparent rounded-bl-full"></div>
                         </div>
                       </div>
                     </div>
@@ -317,7 +319,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
       ) : null}
 
       {/* Quick Info Bar */}
-      <section className="bg-gray-50 border-b border-gray-200">
+      {/* <section className="bg-gray-50 border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-12 py-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
@@ -344,7 +346,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Main Content - Commented Out */}
       {/* 

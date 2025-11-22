@@ -144,7 +144,17 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'careers' | 'dashboard'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'careers' | 'testimonials' | 'dashboard'
+
+interface Testimonial {
+  id?: string
+  name: string
+  rating: number
+  quote: string
+  featured?: boolean
+  createdAt?: string
+  updatedAt?: string
+}
 
 interface Destination {
   id?: string
@@ -183,6 +193,10 @@ export default function AdminDashboard() {
   const [subscribers, setSubscribers] = useState<Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }>>([])
   const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }>>([])
   const [jobApplications, setJobApplications] = useState<Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }>>([])
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  const [showTestimonialForm, setShowTestimonialForm] = useState(false)
+  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null)
+  const [testimonialFormData, setTestimonialFormData] = useState<Partial<Testimonial>>({})
   const [showDestinationForm, setShowDestinationForm] = useState(false)
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
   const [destinationFormData, setDestinationFormData] = useState<Partial<Destination>>({})
@@ -231,6 +245,7 @@ export default function AdminDashboard() {
         fetchSubscribers(),
         fetchContactMessages(),
         fetchJobApplications(),
+        fetchTestimonials(),
       ])
     } finally {
       setIsLoading(false)
@@ -446,6 +461,105 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error fetching job applications:', error)
     }
+  }
+
+  const fetchTestimonials = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'testimonials'), orderBy('createdAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch (orderError) {
+        console.log('OrderBy failed for testimonials, fetching without order:', orderError)
+        querySnapshot = await getDocs(collection(dbInstance, 'testimonials'))
+      }
+      
+      const testimonialsData: Testimonial[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        testimonialsData.push({
+          id: doc.id,
+          name: data.name || '',
+          rating: data.rating || 5,
+          quote: data.quote || '',
+          featured: data.featured || false,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+        })
+      })
+      
+      setTestimonials(testimonialsData)
+    } catch (error) {
+      console.error('Error fetching testimonials:', error)
+    }
+  }
+
+  const handleTestimonialInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setTestimonialFormData((prev) => ({
+      ...prev,
+      [name]: name === 'rating' ? Number(value) : value,
+    }))
+  }
+
+  const handleTestimonialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const now = new Date().toISOString()
+      const testimonialData: any = {
+        name: testimonialFormData.name || '',
+        rating: testimonialFormData.rating || 5,
+        quote: testimonialFormData.quote || '',
+        featured: testimonialFormData.featured || false,
+        updatedAt: now,
+      }
+
+      if (!editingTestimonial?.id) {
+        testimonialData.createdAt = now
+      }
+
+      const dbInstance = getDbInstance()
+      if (editingTestimonial?.id) {
+        await updateDoc(doc(dbInstance, 'testimonials', editingTestimonial.id), testimonialData)
+      } else {
+        await addDoc(collection(dbInstance, 'testimonials'), testimonialData)
+      }
+
+      setShowTestimonialForm(false)
+      setEditingTestimonial(null)
+      setTestimonialFormData({})
+      fetchTestimonials()
+    } catch (error) {
+      console.error('Error saving testimonial:', error)
+      alert('Error saving testimonial. Please try again.')
+    }
+  }
+
+  const handleEditTestimonial = (testimonial: Testimonial) => {
+    setEditingTestimonial(testimonial)
+    setTestimonialFormData(testimonial)
+    setShowTestimonialForm(true)
+    setActiveTab('testimonials')
+  }
+
+  const handleDeleteTestimonial = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this testimonial?')) return
+    try {
+      const dbInstance = getDbInstance()
+      await deleteDoc(doc(dbInstance, 'testimonials', id))
+      fetchTestimonials()
+    } catch (error) {
+      console.error('Error deleting testimonial:', error)
+      alert('Error deleting testimonial. Please try again.')
+    }
+  }
+
+  const handleNewTestimonial = () => {
+    setEditingTestimonial(null)
+    setTestimonialFormData({})
+    setShowTestimonialForm(true)
+    setActiveTab('testimonials')
   }
 
   // Helper to ensure db is available
@@ -1120,6 +1234,16 @@ export default function AdminDashboard() {
                 }`}
               >
                 Careers ({jobApplications.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('testimonials')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'testimonials'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Testimonials ({testimonials.length})
               </button>
             </nav>
           </div>
@@ -2782,6 +2906,161 @@ ${application.coverLetter}
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Testimonials Tab */}
+        {activeTab === 'testimonials' && (
+          <div className="space-y-6">
+            {showTestimonialForm && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  {editingTestimonial ? 'Edit Testimonial' : 'Create New Testimonial'}
+                </h2>
+                <form onSubmit={handleTestimonialSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name *</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={testimonialFormData.name || ''}
+                      onChange={handleTestimonialInputChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Rating *</label>
+                    <select
+                      name="rating"
+                      value={testimonialFormData.rating || 5}
+                      onChange={handleTestimonialInputChange}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value={5}>5 Stars</option>
+                      <option value={4}>4 Stars</option>
+                      <option value={3}>3 Stars</option>
+                      <option value={2}>2 Stars</option>
+                      <option value={1}>1 Star</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quote/Review *</label>
+                    <textarea
+                      name="quote"
+                      value={testimonialFormData.quote || ''}
+                      onChange={handleTestimonialInputChange}
+                      required
+                      rows={4}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name="featured"
+                      checked={testimonialFormData.featured || false}
+                      onChange={(e) => setTestimonialFormData(prev => ({ ...prev, featured: e.target.checked }))}
+                      className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    />
+                    <label className="text-sm font-semibold text-gray-700">Featured</label>
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      type="submit"
+                      className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+                    >
+                      {editingTestimonial ? 'Update Testimonial' : 'Create Testimonial'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTestimonialForm(false)
+                        setEditingTestimonial(null)
+                        setTestimonialFormData({})
+                      }}
+                      className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+            {!showTestimonialForm && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-900">All Testimonials</h2>
+                  <button
+                    onClick={handleNewTestimonial}
+                    className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
+                  >
+                    + New Testimonial
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Featured</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {testimonials.map((testimonial) => (
+                        <tr key={testimonial.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-gray-900">{testimonial.name}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1">
+                              {[...Array(testimonial.rating)].map((_, i) => (
+                                <svg key={i} className="w-5 h-5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 max-w-md truncate">{testimonial.quote}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              testimonial.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {testimonial.featured ? 'Featured' : 'Regular'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditTestimonial(testimonial)}
+                                className="text-primary hover:text-primary-dark text-sm font-semibold"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTestimonial(testimonial.id!)}
+                                className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {testimonials.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">No testimonials found</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
