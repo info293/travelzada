@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { ReactNode } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -109,6 +109,8 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [packageData, setPackageData] = useState<DestinationPackage | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchPackage = async () => {
@@ -319,38 +321,416 @@ export default function PackageDetailPage({ params }: PageProps) {
     `Check out ${packageTitle} on Travelzada • ${packageUrl}`
   )
 
+  const handleDownloadItinerary = async () => {
+    if (!contentRef.current || isGeneratingPDF) return
+
+    try {
+      setIsGeneratingPDF(true)
+      
+      // Dynamically import client-side only libraries
+      const [jsPDFModule, html2canvasModule] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas')
+      ])
+      const jsPDF = jsPDFModule.default || jsPDFModule
+      const html2canvas = html2canvasModule.default || html2canvasModule
+      
+      // Store original states
+      const detailsElements = contentRef.current.querySelectorAll('details')
+      const originalStates: boolean[] = []
+      detailsElements.forEach((detail, index) => {
+        originalStates[index] = (detail as HTMLDetailsElement).open
+        ;(detail as HTMLDetailsElement).open = true
+      })
+
+      // Wait for content to render and images to load
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Convert Next.js Image components to regular img tags for PDF capture
+      const nextImages = contentRef.current.querySelectorAll('img[srcset], img[data-next-image], img[data-pdf-image], span[data-pdf-image]')
+      const imageConversionPromises: Promise<void>[] = []
+      
+      nextImages.forEach((element) => {
+        const imgElement = element as HTMLElement
+        
+        // Get the actual image source
+        let actualSrc = ''
+        
+        // Check if it has data-pdf-image attribute (our custom attribute)
+        if (imgElement.hasAttribute('data-pdf-image')) {
+          actualSrc = imgElement.getAttribute('data-pdf-image') || ''
+        } else if (imgElement.tagName === 'IMG') {
+          const img = imgElement as HTMLImageElement
+          actualSrc = img.src
+          
+          // If it's a Next.js optimized image, try to get the original src
+          if (img.srcset) {
+            // Extract the largest image from srcset
+            const srcsetMatch = img.srcset.match(/(https?:\/\/[^\s,]+)/g)
+            if (srcsetMatch && srcsetMatch.length > 0) {
+              actualSrc = srcsetMatch[srcsetMatch.length - 1] // Get the largest one
+            }
+          }
+          
+          // If src contains Next.js image optimization, try to get original
+          if (actualSrc.includes('/_next/image')) {
+            try {
+              const urlParams = new URL(actualSrc)
+              const urlParam = urlParams.searchParams.get('url')
+              if (urlParam) {
+                actualSrc = decodeURIComponent(urlParam)
+              } else {
+                // Try regex fallback
+                const urlMatch = actualSrc.match(/url=([^&]+)/)
+                if (urlMatch) {
+                  actualSrc = decodeURIComponent(urlMatch[1])
+                }
+              }
+            } catch (e) {
+              // If URL parsing fails, try regex
+              const urlMatch = actualSrc.match(/url=([^&]+)/)
+              if (urlMatch) {
+                actualSrc = decodeURIComponent(urlMatch[1])
+              }
+            }
+          }
+        } else {
+          // It's a span wrapper, find the img inside
+          const innerImg = imgElement.querySelector('img')
+          if (innerImg) {
+            actualSrc = innerImg.src
+            if (innerImg.srcset) {
+              const srcsetMatch = innerImg.srcset.match(/(https?:\/\/[^\s,]+)/g)
+              if (srcsetMatch && srcsetMatch.length > 0) {
+                actualSrc = srcsetMatch[srcsetMatch.length - 1]
+              }
+            }
+          }
+        }
+        
+        if (!actualSrc) return
+        
+        // Find the actual img element (might be inside a span for Next.js Image)
+        let targetImg: HTMLImageElement | null = null
+        if (imgElement.tagName === 'IMG') {
+          targetImg = imgElement as HTMLImageElement
+        } else {
+          targetImg = imgElement.querySelector('img') as HTMLImageElement
+        }
+        
+        if (!targetImg) return
+        
+        // Get computed styles
+        const computedStyle = window.getComputedStyle(targetImg)
+        const parentStyle = targetImg.parentElement ? window.getComputedStyle(targetImg.parentElement) : null
+        
+        // Create a new img element with the actual source
+        const newImg = document.createElement('img')
+        newImg.src = actualSrc
+        newImg.alt = targetImg.alt || packageTitle
+        newImg.style.cssText = `
+          position: ${computedStyle.position};
+          width: ${computedStyle.width};
+          height: ${computedStyle.height};
+          object-fit: ${computedStyle.objectFit || 'cover'};
+          display: block;
+          visibility: visible;
+          opacity: 1;
+        `
+        if (parentStyle) {
+          newImg.style.position = parentStyle.position === 'relative' ? 'absolute' : computedStyle.position
+          newImg.style.top = computedStyle.top
+          newImg.style.left = computedStyle.left
+          newImg.style.right = computedStyle.right
+          newImg.style.bottom = computedStyle.bottom
+        }
+        
+        // Replace the Next.js Image with regular img
+        const promise = new Promise<void>((resolve) => {
+          newImg.onload = () => {
+            if (targetImg && targetImg.parentNode) {
+              // Replace the entire parent if it's a span wrapper
+              if (targetImg.parentElement && targetImg.parentElement.tagName === 'SPAN') {
+                targetImg.parentElement.replaceWith(newImg)
+              } else {
+                targetImg.parentNode.replaceChild(newImg, targetImg)
+              }
+            }
+            resolve()
+          }
+          newImg.onerror = () => {
+            // If image fails, try to fix the src of original
+            if (targetImg) {
+              targetImg.src = actualSrc
+              targetImg.removeAttribute('srcset')
+            }
+            resolve()
+          }
+          // Timeout after 5 seconds
+          setTimeout(resolve, 5000)
+        })
+        imageConversionPromises.push(promise)
+      })
+      
+      // Wait for all image conversions
+      await Promise.all(imageConversionPromises)
+      
+      // Wait for all images to load (including converted ones)
+      const allImages = contentRef.current.querySelectorAll('img')
+      const imagePromises = Array.from(allImages).map((img) => {
+        const imgElement = img as HTMLImageElement
+        if (imgElement.complete && imgElement.naturalWidth > 0) {
+          return Promise.resolve<void>(undefined)
+        }
+        return new Promise<void>((resolve) => {
+          imgElement.onload = () => resolve()
+          imgElement.onerror = () => resolve() // Continue even if image fails
+          // Timeout after 5 seconds
+          setTimeout(() => resolve(), 5000)
+        })
+      })
+      await Promise.all(imagePromises)
+
+      // Additional wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Hide elements that shouldn't be in PDF
+      const elementsToHide = contentRef.current.querySelectorAll('[data-pdf-hide="true"]')
+      const originalDisplays: string[] = []
+      elementsToHide.forEach((el) => {
+        originalDisplays.push((el as HTMLElement).style.display)
+        ;(el as HTMLElement).style.display = 'none'
+      })
+
+      // Hide iframes (maps) as they can't be captured properly
+      const iframes = contentRef.current.querySelectorAll('iframe')
+      const originalIframeDisplays: string[] = []
+      iframes.forEach((iframe) => {
+        originalIframeDisplays.push((iframe as HTMLElement).style.display)
+        ;(iframe as HTMLElement).style.display = 'none'
+      })
+
+      // Ensure content is visible
+      const originalOverflow = contentRef.current.style.overflow
+      contentRef.current.style.overflow = 'visible'
+      contentRef.current.style.position = 'relative'
+
+      // Scroll to top to ensure we capture from the beginning
+      const originalScrollTop = window.pageYOffset || document.documentElement.scrollTop
+      window.scrollTo(0, 0)
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Capture the content area with better options
+      const canvas = await html2canvas(contentRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#f8f5f0',
+        width: contentRef.current.scrollWidth,
+        height: contentRef.current.scrollHeight,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: contentRef.current.scrollWidth,
+        windowHeight: contentRef.current.scrollHeight,
+        allowTaint: true, // Changed to true to allow external images
+        removeContainer: false,
+        imageTimeout: 20000, // Increased timeout for image loading
+        foreignObjectRendering: false, // Disable for better image support
+        proxy: undefined, // No proxy needed
+        onclone: (clonedDoc) => {
+          // Handle Next.js Image components in cloned document
+          const clonedImages = clonedDoc.querySelectorAll('img')
+          clonedImages.forEach((img) => {
+            const imgElement = img as HTMLImageElement
+            imgElement.style.display = 'block'
+            imgElement.style.visibility = 'visible'
+            imgElement.style.opacity = '1'
+            imgElement.style.maxWidth = '100%'
+            imgElement.style.height = 'auto'
+            imgElement.style.objectFit = 'cover'
+            
+            // Fix Next.js optimized image URLs
+            let actualSrc = imgElement.src
+            if (actualSrc.includes('/_next/image')) {
+              // Extract original URL from Next.js image optimization URL
+              try {
+                const urlParams = new URL(actualSrc)
+                const urlParam = urlParams.searchParams.get('url')
+                if (urlParam) {
+                  actualSrc = decodeURIComponent(urlParam)
+                  imgElement.src = actualSrc
+                }
+              } catch (e) {
+                // If parsing fails, try regex
+                const urlMatch = actualSrc.match(/url=([^&]+)/)
+                if (urlMatch) {
+                  actualSrc = decodeURIComponent(urlMatch[1])
+                  imgElement.src = actualSrc
+                }
+              }
+            }
+            
+            // Remove srcset as it can cause issues
+            imgElement.removeAttribute('srcset')
+            imgElement.removeAttribute('sizes')
+            
+            // Ensure crossorigin for external images
+            if (actualSrc.startsWith('http')) {
+              imgElement.crossOrigin = 'anonymous'
+            }
+          })
+          
+          // Ensure all text is visible
+          const allElements = clonedDoc.querySelectorAll('*')
+          allElements.forEach((el) => {
+            const element = el as HTMLElement
+            if (element.style) {
+              if (element.style.color === 'transparent' || element.style.opacity === '0') {
+                element.style.color = 'inherit'
+                element.style.opacity = '1'
+              }
+            }
+          })
+        }
+      })
+
+      // Restore scroll position
+      window.scrollTo(0, originalScrollTop)
+
+      // Restore styles
+      contentRef.current.style.overflow = originalOverflow
+
+      // Restore hidden elements
+      elementsToHide.forEach((el, index) => {
+        ;(el as HTMLElement).style.display = originalDisplays[index] || ''
+      })
+      iframes.forEach((iframe, index) => {
+        ;(iframe as HTMLElement).style.display = originalIframeDisplays[index] || ''
+      })
+
+      // Restore scroll position
+      window.scrollTo(0, originalScrollTop)
+
+      // Restore hidden elements
+      elementsToHide.forEach((el, index) => {
+        ;(el as HTMLElement).style.display = originalDisplays[index] || ''
+      })
+
+      // Check if canvas has content
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Failed to capture page content - canvas is empty')
+      }
+
+      // Verify canvas has actual content (not just blank)
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        const imageData = ctx.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100))
+        const data = imageData.data
+        let hasContent = false
+        for (let i = 0; i < data.length; i += 4) {
+          // Check if pixel is not just background color
+          const r = data[i]
+          const g = data[i + 1]
+          const b = data[i + 2]
+          const a = data[i + 3]
+          // Background is #f8f5f0 which is rgb(248, 245, 240)
+          if (a > 0 && (Math.abs(r - 248) > 10 || Math.abs(g - 245) > 10 || Math.abs(b - 240) > 10)) {
+            hasContent = true
+            break
+          }
+        }
+        if (!hasContent) {
+          console.warn('Canvas appears to be blank, but continuing...')
+        }
+      }
+
+      const imgData = canvas.toDataURL('image/png', 1.0)
+      
+      if (!imgData || imgData === 'data:,') {
+        throw new Error('Failed to generate image data from canvas')
+      }
+      
+      // Calculate PDF dimensions
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      const pdfWidth = 210 // A4 width in mm
+      const pdfHeight = (imgHeight * pdfWidth) / imgWidth
+      const pageHeight = 297 // A4 height in mm
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const totalPages = Math.ceil(pdfHeight / pageHeight)
+      
+      // Add pages with content
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) {
+          pdf.addPage()
+        }
+        
+        const yPosition = -(i * pageHeight)
+        
+        pdf.addImage(
+          imgData,
+          'PNG',
+          0,
+          yPosition,
+          pdfWidth,
+          pdfHeight,
+          undefined,
+          'FAST'
+        )
+      }
+
+      // Save the PDF
+      const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
+      pdf.save(fileName)
+      
+      // Restore original states
+      detailsElements.forEach((detail, index) => {
+        ;(detail as HTMLDetailsElement).open = originalStates[index]
+      })
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
       <Header />
 
-      
+      <div ref={contentRef} className="pdf-content bg-[#f8f5f0]">
+        <section className="relative h-[420px] md:h-[520px] w-full">
+          <Image
+            src={imageUrl}
+            alt={packageTitle}
+            fill
+            className="object-cover"
+            priority
+            data-pdf-image={imageUrl}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
+          {/* Back Button - Positioned over image */}
+          <div className="absolute top-20 left-4 md:left-8 z-10" data-pdf-hide="true">
+            <Link
+              href={`/destinations/${slug}`}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
+            >
+              <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          </div>
+        </section>
 
-      <section className="relative h-[420px] md:h-[520px] w-full">
-        <Image
-          src={imageUrl}
-          alt={packageTitle}
-          fill
-          className="object-cover"
-          priority
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
-        {/* Back Button - Positioned over image */}
-        <div className="absolute top-20 left-4 md:left-8 z-10">
-          <Link
-            href={`/destinations/${slug}`}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
-          >
-            <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-        </div>
-      </section>
-
-      <section className="relative -mt-36 md:-mt-40 px-4 md:px-8 pb-20">
+        <section className="relative -mt-36 md:-mt-40 px-4 md:px-8 pb-20">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 items-start">
           <div className="space-y-8">
             <article className="bg-white rounded-[5px] shadow-lg p-8 space-y-6">
@@ -520,12 +900,13 @@ export default function PackageDetailPage({ params }: PageProps) {
                 >
                   Enquire Now
                 </Link>
-                <Link
-                  href="/packages/itinerary.pdf"
-                  className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white"
+                <button
+                  onClick={handleDownloadItinerary}
+                  disabled={isGeneratingPDF}
+                  className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Download Itinerary
-                </Link>
+                  {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
+                </button>
               </div>
               <div className="pt-4 border-t border-gray-100 space-y-3">
                 <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
@@ -606,6 +987,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           </aside>
         </div>
       </section>
+      </div>
 
       <Footer />
     </main>
