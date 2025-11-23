@@ -1137,9 +1137,30 @@ export default function AdminDashboard() {
       
       <div className="max-w-7xl mx-auto px-4 md:px-12 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Manage packages, blogs, and users</p>
+        <div className="mb-12">
+          <div className="flex items-center gap-4 mb-4 mt-12">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary bg-white border border-gray-200 rounded-lg hover:border-primary/50 hover:bg-primary/5 transition-all shadow-sm hover:shadow-md"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="font-semibold">Back to Home</span>
+            </button>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+              <p className="text-gray-600">Manage packages, blogs, users, and leads</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>{currentUser?.email}</span>
+            </div>
+          </div>
         </div>
 
         {/* Stats Cards */}
