@@ -144,7 +144,7 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'careers' | 'testimonials' | 'dashboard'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard'
 
 interface Testimonial {
   id?: string
@@ -192,6 +192,7 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [subscribers, setSubscribers] = useState<Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }>>([])
   const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }>>([])
+  const [leads, setLeads] = useState<Array<{ id?: string; name: string; mobile: string; sourceUrl: string; packageName: string; status: string; createdAt: any; read: boolean }>>([])
   const [jobApplications, setJobApplications] = useState<Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }>>([])
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [showTestimonialForm, setShowTestimonialForm] = useState(false)
@@ -244,6 +245,7 @@ export default function AdminDashboard() {
         fetchDestinations(),
         fetchSubscribers(),
         fetchContactMessages(),
+        fetchLeads(),
         fetchJobApplications(),
         fetchTestimonials(),
       ])
@@ -417,6 +419,47 @@ export default function AdminDashboard() {
       console.log('Fetched contact messages:', messagesData.length)
     } catch (error) {
       console.error('Error fetching contact messages:', error)
+    }
+  }
+
+  const fetchLeads = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'leads'), orderBy('createdAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch (orderError) {
+        console.log('OrderBy failed for leads, fetching without order:', orderError)
+        querySnapshot = await getDocs(collection(dbInstance, 'leads'))
+      }
+      
+      const leadsData: Array<{ id?: string; name: string; mobile: string; sourceUrl: string; packageName: string; status: string; createdAt: any; read: boolean }> = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        leadsData.push({
+          id: doc.id,
+          name: data.name || '',
+          mobile: data.mobile || '',
+          sourceUrl: data.sourceUrl || '',
+          packageName: data.packageName || '',
+          status: data.status || 'new',
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+          read: data.read || false,
+        })
+      })
+      
+      // Sort manually if needed
+      leadsData.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+      
+      setLeads(leadsData)
+      console.log('Fetched leads:', leadsData.length)
+    } catch (error) {
+      console.error('Error fetching leads:', error)
     }
   }
 
@@ -1224,6 +1267,16 @@ export default function AdminDashboard() {
                 }`}
               >
                 Contact ({contactMessages.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('leads')}
+                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
+                  activeTab === 'leads'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Leads ({leads.length})
               </button>
               <button
                 onClick={() => setActiveTab('careers')}
@@ -2746,6 +2799,161 @@ Message: ${message.message}
                     <div className="text-gray-500 mb-4">No contact messages yet</div>
                     <div className="text-sm text-gray-400">
                       Messages will appear here when users submit the contact form.
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Leads Tab */}
+        {activeTab === 'leads' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Leads ({leads.length})</h2>
+                <button
+                  onClick={fetchLeads}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Package</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source URL</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {leads.map((lead) => (
+                      <tr 
+                        key={lead.id} 
+                        className={`hover:bg-gray-50 ${!lead.read ? 'bg-blue-50' : ''}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{lead.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{lead.mobile}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{lead.packageName || 'N/A'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <a 
+                            href={lead.sourceUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold truncate max-w-xs block"
+                            title={lead.sourceUrl}
+                          >
+                            {lead.sourceUrl.length > 50 ? `${lead.sourceUrl.substring(0, 50)}...` : lead.sourceUrl}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            lead.status === 'new' ? 'bg-green-100 text-green-800' :
+                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                            lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {lead.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-500">
+                            {new Date(lead.createdAt).toLocaleDateString()} {new Date(lead.createdAt).toLocaleTimeString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                // Show lead details
+                                const details = `
+Name: ${lead.name}
+Mobile: ${lead.mobile}
+Package: ${lead.packageName || 'N/A'}
+Source URL: ${lead.sourceUrl}
+Status: ${lead.status}
+Date: ${new Date(lead.createdAt).toLocaleString()}
+                                `.trim()
+                                alert(details)
+                                
+                                // Mark as read
+                                if (lead.id && !lead.read) {
+                                  const dbInstance = getDbInstance()
+                                  updateDoc(doc(dbInstance, 'leads', lead.id), {
+                                    read: true,
+                                    status: lead.status === 'new' ? 'contacted' : lead.status,
+                                  }).then(() => {
+                                    fetchLeads()
+                                  }).catch((error) => {
+                                    console.error('Error updating lead:', error)
+                                  })
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (lead.id) {
+                                  try {
+                                    const dbInstance = getDbInstance()
+                                    await updateDoc(doc(dbInstance, 'leads', lead.id), {
+                                      status: lead.status === 'new' ? 'contacted' : lead.status === 'contacted' ? 'converted' : 'new',
+                                    })
+                                    fetchLeads()
+                                  } catch (error) {
+                                    console.error('Error updating lead status:', error)
+                                    alert('Error updating lead status. Please try again.')
+                                  }
+                                }
+                              }}
+                              className="text-green-600 hover:text-green-800 text-sm font-semibold"
+                            >
+                              {lead.status === 'new' ? 'Mark Contacted' : lead.status === 'contacted' ? 'Mark Converted' : 'Reset'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (lead.id && confirm('Are you sure you want to delete this lead?')) {
+                                  try {
+                                    const dbInstance = getDbInstance()
+                                    await deleteDoc(doc(dbInstance, 'leads', lead.id))
+                                    fetchLeads()
+                                    alert('Lead deleted successfully!')
+                                  } catch (error) {
+                                    console.error('Error deleting lead:', error)
+                                    alert('Error deleting lead. Please try again.')
+                                  }
+                                }
+                              }}
+                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {leads.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">No leads yet</div>
+                    <div className="text-sm text-gray-400">
+                      Leads will appear here when users submit the enquiry form.
                     </div>
                   </div>
                 )}

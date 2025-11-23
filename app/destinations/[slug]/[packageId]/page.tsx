@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import LeadForm from '@/components/LeadForm'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -110,6 +111,7 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [showLeadForm, setShowLeadForm] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -894,12 +896,12 @@ export default function PackageDetailPage({ params }: PageProps) {
                 <p className="text-sm text-gray-500">Per person • twin sharing</p>
               </div>
               <div className="flex flex-col gap-3">
-                <Link
-                  href={`/contact?package=${packageId}`}
+                <button
+                  onClick={() => setShowLeadForm(true)}
                   className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
                 >
                   Enquire Now
-                </Link>
+                </button>
                 <button
                   onClick={handleDownloadItinerary}
                   disabled={isGeneratingPDF}
@@ -990,6 +992,13 @@ export default function PackageDetailPage({ params }: PageProps) {
       </div>
 
       <Footer />
+
+      <LeadForm
+        isOpen={showLeadForm}
+        onClose={() => setShowLeadForm(false)}
+        sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        packageName={packageData.Destination_Name}
+      />
     </main>
   )
 }
