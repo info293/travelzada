@@ -222,6 +222,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [aiResponseComplete, setAiResponseComplete] = useState(false)
   const [firestorePackages, setFirestorePackages] = useState<DestinationPackage[]>([])
   const [packagesLoading, setPackagesLoading] = useState(true)
+  const [destinations, setDestinations] = useState<Array<{ id?: string; name: string; slug?: string }>>([])
+  const [destinationsLoading, setDestinationsLoading] = useState(true)
+  const [destinationDayOptions, setDestinationDayOptions] = useState<Array<{ label: string; value: string }>>([])
+  const [destinationHotelOptions, setDestinationHotelOptions] = useState<Array<{ label: string; value: string }>>([])
+  const [destinationTravelTypeOptions, setDestinationTravelTypeOptions] = useState<Array<{ label: string; value: string }>>([])
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -231,6 +236,43 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  // Fetch destinations from Firestore on component mount
+  useEffect(() => {
+    const fetchDestinationsFromFirestore = async () => {
+      if (typeof window === 'undefined' || !db) {
+        setDestinationsLoading(false)
+        return
+      }
+
+      try {
+        setDestinationsLoading(true)
+        const destinationsRef = collection(db, 'destinations')
+        const querySnapshot = await getDocs(destinationsRef)
+        const destinationsData: Array<{ id?: string; name: string; slug?: string }> = []
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.name) {
+            destinationsData.push({ 
+              id: doc.id, 
+              name: data.name,
+              slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-')
+            })
+          }
+        })
+        
+        setDestinations(destinationsData)
+        console.log(`✅ Loaded ${destinationsData.length} destinations from Firestore`)
+      } catch (error) {
+        console.error('Error fetching destinations from Firestore:', error)
+      } finally {
+        setDestinationsLoading(false)
+      }
+    }
+
+    fetchDestinationsFromFirestore()
+  }, [])
 
   // Fetch packages from Firestore on component mount
   useEffect(() => {
@@ -262,6 +304,160 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     fetchPackagesFromFirestore()
   }, [])
+
+  // Update day options and hotel options based on selected destination
+  useEffect(() => {
+    if (!tripInfo.destination || firestorePackages.length === 0) {
+      setDestinationDayOptions([])
+      setDestinationHotelOptions([])
+      setDestinationTravelTypeOptions([])
+      return
+    }
+
+    // Find packages for the selected destination
+    const normalizedDestination = normalizeDestination(tripInfo.destination)
+    const destinationPackages = firestorePackages.filter((pkg) => {
+      const pkgName = normalizeDestination(pkg.Destination_Name || '')
+      return pkgName.includes(normalizedDestination) || normalizedDestination.includes(pkgName)
+    })
+
+    // Extract unique duration days from packages
+    const daySet = new Set<number>()
+    destinationPackages.forEach((pkg) => {
+      // Try Duration_Days first, then Duration_Nights, then parse Duration string
+      if (pkg.Duration_Days) {
+        daySet.add(pkg.Duration_Days)
+      } else if (pkg.Duration_Nights) {
+        daySet.add(pkg.Duration_Nights + 1) // Nights + 1 = Days
+      } else if (pkg.Duration) {
+        // Parse duration string like "5 Nights / 6 Days" or "6 Days"
+        const durationMatch = pkg.Duration.match(/(\d+)\s*(?:Days|days|Day|day)/i)
+        if (durationMatch) {
+          daySet.add(parseInt(durationMatch[1], 10))
+        } else {
+          const nightsMatch = pkg.Duration.match(/(\d+)\s*(?:Nights|nights|Night|night)/i)
+          if (nightsMatch) {
+            daySet.add(parseInt(nightsMatch[1], 10) + 1)
+          }
+        }
+      }
+    })
+
+    // Convert to sorted array and create options
+    const sortedDays = Array.from(daySet).sort((a, b) => a - b)
+    const dayOptionsForDestination = sortedDays.map((days) => ({
+      label: days.toString(),
+      value: days.toString(),
+    }))
+
+    // Extract unique hotel types (Star_Category) from packages
+    const hotelTypeSet = new Set<string>()
+    destinationPackages.forEach((pkg) => {
+      if (pkg.Star_Category) {
+        // Extract star rating from Star_Category (e.g., "3 Star", "4 Star", "5 Star", "3★", etc.)
+        const starMatch = pkg.Star_Category.match(/(\d+)\s*(?:Star|star|★)/i)
+        if (starMatch) {
+          const starValue = starMatch[1]
+          hotelTypeSet.add(starValue)
+        } else if (pkg.Star_Category.includes('3') || pkg.Star_Category.toLowerCase().includes('budget')) {
+          hotelTypeSet.add('3')
+        } else if (pkg.Star_Category.includes('4') || pkg.Star_Category.toLowerCase().includes('mid')) {
+          hotelTypeSet.add('4')
+        } else if (pkg.Star_Category.includes('5') || pkg.Star_Category.toLowerCase().includes('luxury')) {
+          hotelTypeSet.add('5')
+        }
+      }
+    })
+
+    // Convert to sorted array and create hotel options with proper labels
+    const sortedStars = Array.from(hotelTypeSet).sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+    const hotelOptionsForDestination = sortedStars.map((star) => {
+      const starNum = parseInt(star, 10)
+      let label = ''
+      let value = ''
+      
+      if (starNum === 3) {
+        label = '3★ Comfort'
+        value = 'Budget'
+      } else if (starNum === 4) {
+        label = '4★ Premium'
+        value = 'Mid-Range'
+      } else if (starNum === 5) {
+        label = '5★ Luxury'
+        value = 'Luxury'
+      } else {
+        label = `${star}★`
+        value = starNum <= 3 ? 'Budget' : starNum === 4 ? 'Mid-Range' : 'Luxury'
+      }
+      
+      return { label, value }
+    })
+
+    // Update state
+    if (dayOptionsForDestination.length > 0) {
+      setDestinationDayOptions(dayOptionsForDestination)
+    } else {
+      setDestinationDayOptions([])
+    }
+
+    if (hotelOptionsForDestination.length > 0) {
+      setDestinationHotelOptions(hotelOptionsForDestination)
+    } else {
+      setDestinationHotelOptions([])
+    }
+
+    // Extract unique travel types from packages
+    const travelTypeMap = new Map<string, string>() // value -> label
+    destinationPackages.forEach((pkg) => {
+      if (pkg.Travel_Type) {
+        const travelType = pkg.Travel_Type.toLowerCase().trim()
+        
+        // Map various travel type formats to standard values
+        if (travelType.includes('solo') || travelType.includes('single')) {
+          travelTypeMap.set('solo', 'Solo')
+        } else if (travelType.includes('family') || travelType.includes('families')) {
+          travelTypeMap.set('family', 'Family')
+        } else if (travelType.includes('couple') || travelType.includes('couples') || travelType.includes('romantic')) {
+          travelTypeMap.set('couple', 'Couple')
+        } else if (travelType.includes('friend') || travelType.includes('group') || travelType.includes('friends')) {
+          travelTypeMap.set('friends', 'Friends')
+        }
+      }
+      
+      // Also check Group_Size field if available
+      if (pkg.Group_Size) {
+        const groupSize = pkg.Group_Size.toLowerCase().trim()
+        if (groupSize.includes('solo') || groupSize.includes('single') || groupSize === '1') {
+          travelTypeMap.set('solo', 'Solo')
+        } else if (groupSize.includes('family') || groupSize.includes('families')) {
+          travelTypeMap.set('family', 'Family')
+        } else if (groupSize.includes('couple') || groupSize === '2') {
+          travelTypeMap.set('couple', 'Couple')
+        } else if (groupSize.includes('group') || groupSize.includes('friend')) {
+          travelTypeMap.set('friends', 'Friends')
+        }
+      }
+    })
+
+    // Convert to array with proper order (solo, couple, family, friends)
+    const travelTypeOptionsForDestination: Array<{ label: string; value: string }> = []
+    const order = ['solo', 'couple', 'family', 'friends']
+    order.forEach((value) => {
+      if (travelTypeMap.has(value)) {
+        travelTypeOptionsForDestination.push({
+          label: travelTypeMap.get(value)!,
+          value: value,
+        })
+      }
+    })
+
+    // Update travel type options
+    if (travelTypeOptionsForDestination.length > 0) {
+      setDestinationTravelTypeOptions(travelTypeOptionsForDestination)
+    } else {
+      setDestinationTravelTypeOptions([])
+    }
+  }, [tripInfo.destination, firestorePackages])
 
   // Combine Firestore packages with JSON packages (remove duplicates by Destination_ID)
   const allPackages = useMemo(() => {
@@ -1180,19 +1376,36 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         <div className="px-6 pb-4 relative z-10">
           <p className="text-xs text-gray-500 mb-3 font-medium">Quick suggestions:</p>
           <div className="flex flex-wrap gap-2">
-            {['I want to visit Bali'].map((suggestion) => (
+            {destinationsLoading ? (
+              <div className="text-xs text-gray-400">Loading destinations...</div>
+            ) : destinations.length > 0 ? (
+              destinations.slice(0, 6).map((dest) => (
+                <button
+                  key={dest.id || dest.name}
+                  onClick={async () => {
+                    const suggestion = `I want to visit ${dest.name}`
+                    setInput(suggestion)
+                    await new Promise(resolve => setTimeout(resolve, 100))
+                    await handleSend()
+                  }}
+                  className="px-4 py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  I want to visit {dest.name}
+                </button>
+              ))
+            ) : (
               <button
-                key={suggestion}
                 onClick={async () => {
+                  const suggestion = 'I want to visit Bali'
                   setInput(suggestion)
                   await new Promise(resolve => setTimeout(resolve, 100))
                   await handleSend()
                 }}
                 className="px-4 py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
               >
-                {suggestion}
+                I want to visit Bali
               </button>
-            ))}
+            )}
           </div>
         </div>
       )}
@@ -1241,19 +1454,33 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       {/* Day Count Selector */}
       {currentQuestion === 'days' && (
         <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 relative z-10">
-          <p className="text-sm text-gray-800 mb-4">How many days?</p>
-          <div className="grid grid-cols-5 gap-2">
-            {dayOptions.map((option) => (
+          <p className="text-sm text-gray-800 mb-4">
+            {destinationDayOptions.length > 0 
+              ? `Great choice! How many days are you planning to spend in ${tripInfo.destination}? You can tap a quick option if you'd like!`
+              : `How many days are you planning to spend in ${tripInfo.destination}?`
+            }
+          </p>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {(destinationDayOptions.length > 0 ? destinationDayOptions : dayOptions).map((option) => (
               <button
                 key={option.label}
                 type="button"
                 onClick={() => handleDaySelect(option.label, option.value)}
-                className="rounded-xl border-2 border-gray-200 bg-white px-3 py-3 text-sm text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md transition-all duration-200 shadow-sm"
+                className={`rounded-xl border-2 bg-white px-3 py-3 text-sm transition-all duration-200 shadow-sm ${
+                  destinationDayOptions.length > 0 && destinationDayOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 text-purple-700 hover:bg-purple-50 hover:shadow-md font-semibold'
+                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
+                }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
+          {destinationDayOptions.length > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              💡 These options are based on our best packages for {tripInfo.destination}
+            </p>
+          )}
         </div>
       )}
 
@@ -1261,16 +1488,31 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       {/* Hotel Selector */}
       {currentQuestion === 'hotel' && (
         <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 relative z-10">
-          <p className="text-sm text-gray-800 mb-4">Preferred stay style</p>
+          <p className="text-sm text-gray-800 mb-4">
+            {destinationHotelOptions.length > 0
+              ? `Thank you! Exciting times ahead! What stay style do you prefer for ${tripInfo.destination}?`
+              : 'What stay style do you prefer: 3-star, 4-star, or 5-star accommodation?'
+            }
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {hotelOptions.map((option) => (
+            {(destinationHotelOptions.length > 0 ? destinationHotelOptions : hotelOptions).map((option) => (
               <button
                 key={option.label}
                 type="button"
                 onClick={() => handleHotelSelect(option.label, option.value)}
-                className="rounded-2xl border-2 border-gray-200 bg-white px-5 py-5 text-left hover:border-purple-300 hover:bg-purple-50 hover:shadow-lg transition-all duration-200 shadow-sm"
+                className={`rounded-2xl border-2 bg-white px-5 py-5 text-left hover:shadow-lg transition-all duration-200 shadow-sm ${
+                  destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 hover:border-purple-600 hover:bg-purple-50'
+                    : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                }`}
               >
-                <p className="text-sm text-gray-900 mb-1">{option.label}</p>
+                <p className={`text-sm mb-1 ${
+                  destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
+                    ? 'text-purple-700 font-semibold'
+                    : 'text-gray-900'
+                }`}>
+                  {option.label}
+                </p>
                 <p className="text-xs text-gray-500">
                   {option.value === 'Budget'
                     ? 'Cozy 3★ stays'
@@ -1281,25 +1523,44 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
               </button>
             ))}
           </div>
+          {destinationHotelOptions.length > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              💡 These options are based on our available packages for {tripInfo.destination}
+            </p>
+          )}
         </div>
       )}
 
       {/* Travel Type Selector */}
       {currentQuestion === 'travelType' && (
         <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-6 py-6 relative z-10">
-          <p className="text-sm text-gray-800 mb-4">Who are you travelling with?</p>
+          <p className="text-sm text-gray-800 mb-4">
+            {destinationTravelTypeOptions.length > 0
+              ? `Excellent! A week in ${tripInfo.destination} sounds splendid. Who will you be travelling with?`
+              : 'Who are you travelling with?'
+            }
+          </p>
           <div className="grid grid-cols-2 gap-3">
-            {travelerOptions.map((option) => (
+            {(destinationTravelTypeOptions.length > 0 ? destinationTravelTypeOptions : travelerOptions).map((option) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => handleTravelTypeSelect(option.label, option.value)}
-                className="rounded-xl border-2 border-gray-200 bg-white px-5 py-4 text-sm text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md transition-all duration-200 shadow-sm"
+                className={`rounded-xl border-2 bg-white px-5 py-4 text-sm transition-all duration-200 shadow-sm ${
+                  destinationTravelTypeOptions.length > 0 && destinationTravelTypeOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 text-purple-700 hover:border-purple-600 hover:bg-purple-50 hover:shadow-md font-semibold'
+                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
+                }`}
               >
                 {option.label}
               </button>
             ))}
           </div>
+          {destinationTravelTypeOptions.length > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              💡 These options are based on our available packages for {tripInfo.destination}
+            </p>
+          )}
         </div>
       )}
 
