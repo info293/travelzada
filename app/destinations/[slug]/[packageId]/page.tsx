@@ -125,34 +125,19 @@ export default function PackageDetailPage({ params }: PageProps) {
       try {
         setLoading(true)
         
-        // Helper function to check if package matches destination
-        const matchesDestination = (data: DestinationPackage): boolean => {
-          const normalizedSlug = slug.toLowerCase()
-          const pkgName = data.Destination_Name?.toLowerCase() || ''
-          const pkgId = data.Destination_ID?.toLowerCase() || ''
-          
-          // Check if Destination_Name or Destination_ID contains the slug (or vice versa)
-          return pkgName.includes(normalizedSlug) ||
-                 normalizedSlug.includes(pkgName) ||
-                 pkgId.includes(normalizedSlug) ||
-                 normalizedSlug.includes(pkgId)
-        }
-        
-        // Try to fetch by document ID first
+        // Try to fetch by document ID first (most direct way)
         const docRef = doc(db, 'packages', packageId)
         const docSnap = await getDoc(docRef)
         
         if (docSnap.exists()) {
           const data = docSnap.data() as DestinationPackage
-          // Verify it matches the destination
-          if (matchesDestination(data)) {
-            setPackageData({ id: docSnap.id, ...data })
-            setLoading(false)
-            return
-          }
+          // If found by document ID, use it regardless of destination slug
+          setPackageData({ id: docSnap.id, ...data })
+          setLoading(false)
+          return
         }
         
-        // If not found by ID, try to find by Destination_ID
+        // If not found by document ID, try to find by Destination_ID
         const { collection, getDocs, query, where } = await import('firebase/firestore')
         const packagesRef = collection(db, 'packages')
         
@@ -163,27 +148,25 @@ export default function PackageDetailPage({ params }: PageProps) {
           if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0]
             const data = doc.data() as DestinationPackage
-            if (matchesDestination(data)) {
-              setPackageData({ id: doc.id, ...data })
-              setLoading(false)
-              return
-            }
+            // If found by Destination_ID, use it regardless of destination slug
+            setPackageData({ id: doc.id, ...data })
+            setLoading(false)
+            return
           }
         } catch (queryError) {
           // If query fails (e.g., missing index), continue to fallback search
           console.log('Query by Destination_ID failed, trying fallback:', queryError)
         }
         
-        // If still not found, try searching all packages
-        console.log(`Searching all packages for packageId: ${packageId}, slug: ${slug}`)
+        // If still not found, try searching all packages by ID match only
+        console.log(`Searching all packages for packageId: ${packageId}`)
         const allPackagesSnapshot = await getDocs(packagesRef)
         for (const doc of allPackagesSnapshot.docs) {
           const data = doc.data() as DestinationPackage
+          // Match by Destination_ID or document ID only (ignore destination slug)
           const matchesId = data.Destination_ID === packageId || doc.id === packageId
-          const matchesDest = matchesDestination(data)
-          console.log(`Package ${doc.id}: Destination_ID=${data.Destination_ID}, matchesId=${matchesId}, matchesDest=${matchesDest}`)
           
-          if (matchesId && matchesDest) {
+          if (matchesId) {
             console.log(`Found package: ${doc.id}`)
             setPackageData({ id: doc.id, ...data })
             setLoading(false)
