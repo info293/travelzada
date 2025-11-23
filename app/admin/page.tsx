@@ -19,6 +19,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PackageForm from '@/components/admin/PackageForm'
+import ViewModal from '@/components/admin/ViewModal'
+import type { ReactNode } from 'react'
 
 interface DestinationPackage {
   id?: string
@@ -221,6 +223,11 @@ export default function AdminDashboard() {
     success: 0,
     errors: [],
     processing: false,
+  })
+  const [viewModal, setViewModal] = useState<{ isOpen: boolean; title: string; content: ReactNode | null }>({
+    isOpen: false,
+    title: '',
+    content: null,
   })
 
   useEffect(() => {
@@ -1137,7 +1144,7 @@ export default function AdminDashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Packages</p>
@@ -1151,7 +1158,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Blogs</p>
@@ -1165,7 +1172,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Users</p>
@@ -1179,7 +1186,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Published Blogs</p>
@@ -1194,111 +1201,238 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'dashboard'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setActiveTab('packages')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'packages'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Packages ({packages.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('blogs')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'blogs'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Blogs ({blogs.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('destinations')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'destinations'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Destinations ({destinations.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'users'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Users ({users.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('subscribers')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'subscribers'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Newsletter ({subscribers.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('contacts')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'contacts'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Contact ({contactMessages.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('leads')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'leads'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Leads ({leads.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('careers')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'careers'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Careers ({jobApplications.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('testimonials')}
-                className={`px-6 py-4 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === 'testimonials'
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Testimonials ({testimonials.length})
-              </button>
-            </nav>
+        {/* Navigation Tabs - Modern Grid Layout */}
+        <div className="mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'dashboard'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-700'}`}>
+                  Dashboard
+                </div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('packages')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'packages'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'packages' ? 'text-primary' : 'text-gray-700'}`}>
+                  Packages
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{packages.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('blogs')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'blogs'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'blogs' ? 'text-primary' : 'text-gray-700'}`}>
+                  Blogs
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{blogs.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('destinations')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'destinations'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'destinations' ? 'text-primary' : 'text-gray-700'}`}>
+                  Destinations
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{destinations.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'users'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'users' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'users' ? 'text-primary' : 'text-gray-700'}`}>
+                  Users
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{users.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('leads')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'leads'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'leads' ? 'text-primary' : 'text-gray-700'}`}>
+                  Leads
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{leads.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('contacts')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'contacts'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'contacts' ? 'text-primary' : 'text-gray-700'}`}>
+                  Contact
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{contactMessages.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('subscribers')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'subscribers'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'subscribers' ? 'text-primary' : 'text-gray-700'}`}>
+                  Newsletter
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{subscribers.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('careers')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'careers'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-5.196 0-8.07-.745-9-1.745M21 13.255v-2.51A23.931 23.931 0 0112 8c-5.196 0-8.07.745-9 1.745m18 0v6.51A23.931 23.931 0 0112 21c-5.196 0-8.07-.745-9-1.745m0 0v-6.51M3 13.255A23.931 23.931 0 0112 15c5.196 0 8.07-.745 9-1.745" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'careers' ? 'text-primary' : 'text-gray-700'}`}>
+                  Careers
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{jobApplications.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('testimonials')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                activeTab === 'testimonials'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+              }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'testimonials' ? 'text-primary' : 'text-gray-700'}`}>
+                  Testimonials
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">{testimonials.length}</div>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -1424,8 +1558,8 @@ export default function AdminDashboard() {
             )}
 
             {!showForm && !showBulkImport && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
                   <h2 className="text-xl font-bold text-gray-900">All Packages</h2>
                   <div className="flex gap-2">
                     <button
@@ -1475,7 +1609,7 @@ export default function AdminDashboard() {
                             </button>
                             <button
                               onClick={() => handleDeletePackage(pkg.id!)}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -2023,7 +2157,7 @@ export default function AdminDashboard() {
                             </button>
                             <button
                               onClick={() => handleDeleteBlog(blog.id!)}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -2397,7 +2531,7 @@ export default function AdminDashboard() {
                                   alert('Error deleting destination. Please try again.')
                                 }
                               }}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -2685,22 +2819,22 @@ export default function AdminDashboard() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
+                  <tbody className="divide-y divide-gray-200 bg-white">
                     {contactMessages.map((message) => (
                       <tr 
                         key={message.id} 
-                        className={`hover:bg-gray-50 ${!message.read ? 'bg-blue-50' : ''}`}
+                        className={`hover:bg-gray-50 transition-colors ${!message.read ? 'bg-blue-50/50' : ''}`}
                       >
                         <td className="px-6 py-4">
                           <div className="font-medium text-gray-900">{message.name}</div>
@@ -2742,15 +2876,40 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => {
-                                // Show message details in a modal or alert
-                                const details = `
-Name: ${message.name}
-Email: ${message.email}
-Phone: ${message.phone || 'N/A'}
-Subject: ${message.subject}
-Message: ${message.message}
-                                `.trim()
-                                alert(details)
+                                setViewModal({
+                                  isOpen: true,
+                                  title: `Contact Message from ${message.name}`,
+                                  content: (
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Name</p>
+                                          <p className="text-gray-900">{message.name}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Email</p>
+                                          <a href={`mailto:${message.email}`} className="text-primary hover:underline">{message.email}</a>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Phone</p>
+                                          <a href={`tel:${message.phone}`} className="text-primary hover:underline">{message.phone || 'N/A'}</a>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Date</p>
+                                          <p className="text-gray-900">{new Date(message.createdAt).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-500 mb-1">Subject</p>
+                                        <p className="text-gray-900 font-medium">{message.subject}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-500 mb-1">Message</p>
+                                        <p className="text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-200">{message.message}</p>
+                                      </div>
+                                    </div>
+                                  ),
+                                })
                                 
                                 // Mark as read
                                 if (message.id && !message.read) {
@@ -2765,7 +2924,7 @@ Message: ${message.message}
                                   })
                                 }
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm font-semibold transition-colors"
                             >
                               View
                             </button>
@@ -2784,7 +2943,7 @@ Message: ${message.message}
                                   alert('Error deleting message. Please try again.')
                                 }
                               }}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -2810,8 +2969,8 @@ Message: ${message.message}
         {/* Leads Tab */}
         {activeTab === 'leads' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-900">Leads ({leads.length})</h2>
                 <button
                   onClick={fetchLeads}
@@ -2878,16 +3037,49 @@ Message: ${message.message}
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => {
-                                // Show lead details
-                                const details = `
-Name: ${lead.name}
-Mobile: ${lead.mobile}
-Package: ${lead.packageName || 'N/A'}
-Source URL: ${lead.sourceUrl}
-Status: ${lead.status}
-Date: ${new Date(lead.createdAt).toLocaleString()}
-                                `.trim()
-                                alert(details)
+                                setViewModal({
+                                  isOpen: true,
+                                  title: `Lead from ${lead.name}`,
+                                  content: (
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Name</p>
+                                          <p className="text-gray-900">{lead.name}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Mobile</p>
+                                          <a href={`tel:${lead.mobile}`} className="text-primary hover:underline">{lead.mobile}</a>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Package</p>
+                                          <p className="text-gray-900">{lead.packageName || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Status</p>
+                                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
+                                            lead.status === 'new' ? 'bg-green-100 text-green-800' :
+                                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                                            lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                                            'bg-gray-100 text-gray-800'
+                                          }`}>
+                                            {lead.status}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Date</p>
+                                          <p className="text-gray-900">{new Date(lead.createdAt).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-500 mb-1">Source URL</p>
+                                        <a href={lead.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                                          {lead.sourceUrl}
+                                        </a>
+                                      </div>
+                                    </div>
+                                  ),
+                                })
                                 
                                 // Mark as read
                                 if (lead.id && !lead.read) {
@@ -2902,7 +3094,7 @@ Date: ${new Date(lead.createdAt).toLocaleString()}
                                   })
                                 }
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm font-semibold transition-colors"
                             >
                               View
                             </button>
@@ -2939,7 +3131,7 @@ Date: ${new Date(lead.createdAt).toLocaleString()}
                                   }
                                 }
                               }}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -2965,8 +3157,8 @@ Date: ${new Date(lead.createdAt).toLocaleString()}
         {/* Job Applications Tab */}
         {activeTab === 'careers' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-900">Job Applications ({jobApplications.length})</h2>
                 <button
                   onClick={fetchJobApplications}
@@ -3049,18 +3241,48 @@ Date: ${new Date(lead.createdAt).toLocaleString()}
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => {
-                                // Show application details in a modal or alert
-                                const details = `
-Name: ${application.name}
-Email: ${application.email}
-Phone: ${application.phone || 'N/A'}
-Position: ${application.position}
-LinkedIn: ${application.linkedin || 'N/A'}
-
-Cover Letter:
-${application.coverLetter}
-                                `.trim()
-                                alert(details)
+                                setViewModal({
+                                  isOpen: true,
+                                  title: `Job Application from ${application.name}`,
+                                  content: (
+                                    <div className="space-y-4">
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Name</p>
+                                          <p className="text-gray-900">{application.name}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Email</p>
+                                          <a href={`mailto:${application.email}`} className="text-primary hover:underline">{application.email}</a>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Phone</p>
+                                          <a href={`tel:${application.phone}`} className="text-primary hover:underline">{application.phone || 'N/A'}</a>
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Position</p>
+                                          <p className="text-gray-900 font-medium">{application.position}</p>
+                                        </div>
+                                        {application.linkedin && (
+                                          <div className="col-span-2">
+                                            <p className="text-sm font-semibold text-gray-500 mb-1">LinkedIn</p>
+                                            <a href={application.linkedin} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                                              {application.linkedin}
+                                            </a>
+                                          </div>
+                                        )}
+                                        <div>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Date</p>
+                                          <p className="text-gray-900">{new Date(application.createdAt).toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-semibold text-gray-500 mb-1">Cover Letter</p>
+                                        <p className="text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-200">{application.coverLetter}</p>
+                                      </div>
+                                    </div>
+                                  ),
+                                })
                                 
                                 // Mark as read
                                 if (application.id && !application.read) {
@@ -3075,7 +3297,7 @@ ${application.coverLetter}
                                   })
                                 }
                               }}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm font-semibold transition-colors"
                             >
                               View
                             </button>
@@ -3094,7 +3316,7 @@ ${application.coverLetter}
                                   alert('Error deleting application. Please try again.')
                                 }
                               }}
-                              className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                              className="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 text-sm font-semibold transition-colors"
                             >
                               Delete
                             </button>
@@ -3274,6 +3496,15 @@ ${application.coverLetter}
       </div>
 
       <Footer />
+
+      {/* View Modal */}
+      <ViewModal
+        isOpen={viewModal.isOpen}
+        onClose={() => setViewModal({ isOpen: false, title: '', content: null })}
+        title={viewModal.title}
+      >
+        {viewModal.content}
+      </ViewModal>
     </main>
   )
 }
