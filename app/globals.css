@@ -61,3 +61,129 @@ html {
   display: none;
 }
 
+/* Header scroll animations */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.header-nav-item {
+  animation: fadeInUp 0.6s ease-out backwards;
+}
+
+.header-nav-item:nth-child(1) { animation-delay: 0.1s; }
+.header-nav-item:nth-child(2) { animation-delay: 0.15s; }
+.header-nav-item:nth-child(3) { animation-delay: 0.2s; }
+.header-nav-item:nth-child(4) { animation-delay: 0.25s; }
+.header-nav-item:nth-child(5) { animation-delay: 0.3s; }
+.header-nav-item:nth-child(6) { animation-delay: 0.35s; }
+
+/* Rotating globe animation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+
+
+/* 3D Flip effect */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Additional sparkle animation */
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2) rotate(180deg);
+  }
+}
+
+.animate-sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+/* Slide out up animation */
+@keyframes slide-out-up {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+/* Slide in up animation */
+@keyframes slide-in-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* AI Planner hover animations */
+.ai-planner-btn:hover .ai-text-original {
+  animation: slide-out-up 0.4s ease-in forwards;
+}
+
+.ai-planner-btn:hover .ai-text-new {
+  animation: slide-in-up 0.5s ease-out 0.5s forwards;
+}
+
