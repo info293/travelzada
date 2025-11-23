@@ -83,7 +83,7 @@ export default function ContactPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <a 
-              href="mailto:hello@travelzada.com" 
+              href="mailto:info@travelzada.com" 
               className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary rounded-full font-semibold hover:bg-primary hover:text-white transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,7 +92,7 @@ export default function ContactPage() {
               Email Us
             </a>
             <a 
-              href="tel:+911234567890" 
+              href="tel:+919929962350" 
               className="inline-flex items-center gap-2 px-6 py-3 bg-white border-2 border-primary text-primary rounded-full font-semibold hover:bg-primary hover:text-white transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,8 +121,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Email</h3>
-                      <a href="mailto:hello@travelzada.com" className="text-primary hover:underline">
-                        hello@travelzada.com
+                      <a href="mailto:info@travelzada.com" className="text-primary hover:underline">
+                        info@travelzada.com
                       </a>
                     </div>
                   </div>
@@ -135,8 +135,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                      <a href="tel:+911234567890" className="text-primary hover:underline">
-                        +91 123 456 7890
+                      <a href="tel:+919929962350" className="text-primary hover:underline">
+                        +919929962350
                       </a>
                     </div>
                   </div>
@@ -151,8 +151,8 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Address</h3>
                       <p className="text-gray-600">
-                        123 Travel Street<br />
-                        Mumbai, Maharashtra 400001<br />
+                        Jaipur<br />
+                        Rajasthan<br />
                         India
                       </p>
                     </div>
@@ -166,10 +166,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Business Hours</h3>
-                      <p className="text-gray-600">
-                        Monday - Friday: 9:00 AM - 6:00 PM<br />
-                        Saturday: 10:00 AM - 4:00 PM<br />
-                        Sunday: Closed
+                      <p className="text-gray-600 font-medium">
+                        Always Open - 24/7 Services
                       </p>
                     </div>
                   </div>
@@ -292,7 +290,7 @@ export default function ContactPage() {
                           value={formData.phone}
                           onChange={handleChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                          placeholder="+91 123 456 7890"
+                          placeholder="+919929962350"
                         />
                       </div>
                       

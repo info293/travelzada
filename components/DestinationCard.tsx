@@ -134,10 +134,10 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
             <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
             <p className="text-2xl font-semibold text-[#1e1d2f]">{startingPrice}</p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          {/* <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <span>🕐</span>
             <span>{durationFormatted}</span>
-          </div>
+          </div> */}
         </div>
       </div>
     </Link>

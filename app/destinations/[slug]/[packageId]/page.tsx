@@ -299,8 +299,8 @@ export default function PackageDetailPage({ params }: PageProps) {
   
   const packageUrl = `https://travelzada.com/destinations/${slug}/${packageId}`
   const packageTitle = packageData.Destination_Name || 'Package'
-  const whatsappShare = `https://wa.me/?text=${encodeURIComponent(
-    `Hi! I'm interested in the ${packageTitle} package. Could you share more details? ${packageUrl}`
+  const whatsappShare = `https://wa.me/919929962350?text=${encodeURIComponent(
+    `Hello! I'm interested in booking the ${packageTitle} package.\n\nPackage Details:\n${packageUrl}\n\nPlease share more information about:\n- Availability\n- Pricing details\n- Booking process\n\nThank you!`
   )}`
   const shareText = encodeURIComponent(
     `Check out ${packageTitle} on Travelzada • ${packageUrl}`
@@ -876,7 +876,7 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div>
                 <p className="text-sm text-gray-500">Starting from</p>
                 <p className="text-4xl font-serif text-[#c99846]">{packageData.Price_Range_INR || 'Contact for price'}</p>
-                <p className="text-sm text-gray-500">Per person • twin sharing</p>
+                {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
               </div>
               <div className="flex flex-col gap-3">
                 <button
@@ -904,24 +904,46 @@ export default function PackageDetailPage({ params }: PageProps) {
                   >
                     WhatsApp
                   </a>
-                  <a
-                    href={`https://twitter.com/intent/tweet?text=${shareText}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={async () => {
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: packageTitle,
+                            text: `Check out ${packageTitle} on Travelzada`,
+                            url: packageUrl,
+                          })
+                        } catch (err) {
+                          // User cancelled or error occurred
+                          if ((err as Error).name !== 'AbortError') {
+                            console.error('Error sharing:', err)
+                          }
+                        }
+                      } else {
+                        // Fallback: open Twitter share in new tab
+                        window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
+                      }
+                    }}
                     className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
                   >
                     Share
-                  </a>
+                  </button>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
                 <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
-                <p className="flex items-center gap-2 text-gray-600">
-                  <span aria-hidden="true">📞</span> +91 98765 43210
-                </p>
-                <p className="flex items-center gap-2 text-gray-600">
-                  <span aria-hidden="true">✉️</span> hello@travelzada.com
-                </p>
+                <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  +919929962350
+                </a>
+                <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  info@travelzada.com
+                </a>
               </div>
               <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
                 <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
@@ -941,14 +963,17 @@ export default function PackageDetailPage({ params }: PageProps) {
 
             <SectionCard title="Travel Concierge">
               <p className="text-gray-600 mb-3">
-                Need help customising this journey? Speak to our Bali specialist for curated stays,
+                Need help customising this journey? Speak to our specialist for curated stays,
                 private experiences and visa assistance.
               </p>
               <Link
-                href="tel:+919876543210"
-                className="inline-flex items-center gap-3 text-primary font-semibold"
+                href="tel:+919929962350"
+                className="inline-flex items-center gap-3 text-primary font-semibold hover:text-primary-dark transition-colors"
               >
-                Call +91 98765 43210 →
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Call +919929962350 →
               </Link>
             </SectionCard>
 
@@ -961,10 +986,14 @@ export default function PackageDetailPage({ params }: PageProps) {
             </SectionCard>
 
             <SectionCard title="Need a Custom Quote?">
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-3">
                 Email us at{' '}
-                <a href="mailto:hello@travelzada.com" className="text-primary font-semibold">
-                  hello@travelzada.com
+                <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
+                  info@travelzada.com
+                </a>{' '}
+                or call us at{' '}
+                <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
+                  +919929962350
                 </a>{' '}
                 with your travel dates and preferences.
               </p>

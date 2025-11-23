@@ -178,11 +178,11 @@ export default function Packages() {
                 <div className="p-5 text-left">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-gray-500 uppercase tracking-wide">{pkg.Duration || 'Custom'}</span>
-                    <span className="text-sm font-semibold text-orange-500">{price}</span>
+                    {/* <span className="text-sm font-semibold text-orange-500">{price}</span> */}
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">{pkg.Destination_Name}</h3>
                   <p className="text-sm text-gray-600 mb-4">{destinationSlug}</p>
-                  <span className="text-orange-500 font-semibold text-sm hover:underline">
+                  <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent font-semibold text-sm hover:underline">
                     View details →
                   </span>
                 </div>

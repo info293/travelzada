@@ -287,34 +287,83 @@ export default function DestinationDetailPage({ params }: PageProps) {
                         </span>
                       )}
                     </div>
-                    <div className="p-4 flex-1 flex flex-col gap-3 min-h-[280px] max-h-[320px]">
+                    <div className="p-3.5 flex-1 flex flex-col gap-2.5 min-h-[240px] max-h-[280px]">
                       <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-2">{pkg.Destination_Name || 'Package'}</h3>
-                        <p className="text-xs text-gray-500">{pkg.Duration || ''}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-[13px] text-gray-600 flex-1 min-h-[80px]">
-                        <div className="space-y-0.5">
-                          <p>{pkg.Star_Category || 'Hotel'}</p>
-                          <p>{pkg.Travel_Type || 'Travel'}</p>
-                          <p>{pkg.Mood || 'Experience'}</p>
-                        </div>
-                        <div className="space-y-0.5">
-                          {pkg.Inclusions?.split(',').slice(0, 3).map((inclusion: string, idx: number) => (
-                            <p key={idx} className="text-primary">✓ {inclusion.trim()}</p>
-                          ))}
+                        <h3 className="text-sm font-bold text-gray-900 mb-1 line-clamp-2 leading-tight">{pkg.Destination_Name || 'Package'}</h3>
+                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-0.5">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>{pkg.Duration || 'Duration not specified'}</span>
                         </div>
                       </div>
+                      
+                      {/* Package Details - Compact */}
+                      <div className="flex-1 space-y-2">
+                        {/* Key Features as Small Badges */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {pkg.Star_Category && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-[10px] font-semibold border border-purple-100">
+                              <svg className="w-2.5 h-2.5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                              {pkg.Star_Category}
+                            </span>
+                          )}
+                          {pkg.Travel_Type && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-semibold border border-indigo-100">
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              {pkg.Travel_Type}
+                            </span>
+                          )}
+                          {pkg.Mood && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-pink-50 text-pink-700 rounded-md text-[10px] font-semibold border border-pink-100">
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              {pkg.Mood}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Inclusions - Compact */}
+                        {pkg.Inclusions && (
+                          <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                            <p className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                              <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Inclusions
+                            </p>
+                            <div className="space-y-1">
+                              {pkg.Inclusions.split(',').slice(0, 3).map((inclusion: string, idx: number) => (
+                                <div key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-700 min-w-0">
+                                  <svg className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                  <span className="leading-snug truncate flex-1 min-w-0">{inclusion.trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Price Section - Compact */}
                       <div className="p-0">
-                        <div className="relative bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-600 rounded-lg p-3 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+                        <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg p-2.5 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 overflow-hidden">
                           {/* Animated gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/20 via-transparent to-amber-700/20 rounded-lg"></div>
+                          <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-transparent to-indigo-700/20 rounded-lg"></div>
                           {/* Content */}
                           <div className="relative z-10">
-                            <p className="text-[10px] uppercase text-amber-900 tracking-wide font-normal mb-1 drop-shadow-sm">Price Range</p>
-                            <p className="text-sm font-normal text-white drop-shadow-md leading-tight">{pkg.Price_Range_INR || 'Contact for price'}</p>
+                            <p className="text-[9px] uppercase text-white/90 tracking-wide font-semibold mb-0.5 drop-shadow-sm">Starting From</p>
+                            <p className="text-sm font-bold text-white drop-shadow-md leading-tight">{pkg.Price_Range_INR || 'Contact for price'}</p>
                           </div>
                           {/* Decorative corner accent */}
-                          <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-br from-yellow-200/30 to-transparent rounded-bl-full"></div>
+                          <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-purple-300/30 to-transparent rounded-bl-full"></div>
                         </div>
                       </div>
                     </div>
