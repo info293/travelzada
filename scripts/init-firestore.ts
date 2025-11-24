@@ -35,15 +35,15 @@ async function initFirestore() {
     }
 
     // Add all packages
-    for (const pkg of destinationPackages) {
+    for (const pkg of destinationPackages as any[]) {
       const packageData = {
-        ...pkg,
+        ...(pkg as Record<string, any>),
         Last_Updated: new Date().toISOString().split('T')[0],
         Created_By: 'System Import',
       }
       
       await addDoc(packagesRef, packageData)
-      console.log(`Added package: ${pkg.Destination_ID}`)
+      console.log(`Added package: ${(pkg as any).Destination_ID}`)
     }
 
     console.log(`Successfully imported ${destinationPackages.length} packages to Firestore!`)

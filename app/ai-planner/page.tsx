@@ -27,7 +27,7 @@ function AIPlannerContent() {
   }, [searchParams])
 
   const handleTripDetailsRequest = useCallback(() => {
-    setIsTripDetailsVisible(true)
+    setIsTripDetailsVisible(false)
   }, [])
 
   return (
@@ -43,13 +43,13 @@ function AIPlannerContent() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative z-10 py-12 md:py-16 px-4 md:px-12">
+      <section className="relative z-10 py-16 md:py-16 px-4 md:px-10" style={{marginTop: '10px'}}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 mb-6 shadow-sm mx-auto w-full max-w-xs justify-center">
-              <span className="w-4 h-4 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm"></span>
-              <span className="text-sm text-purple-700">Powered by AI</span>
+            <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 mb-4 md:mb-6 shadow-sm mx-auto justify-center">
+              <span className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm flex-shrink-0"></span>
+              <span className="text-xs md:text-sm text-purple-700 font-medium whitespace-nowrap">Powered by AI</span>
             </div>
 
             {/* Main Heading */}
@@ -85,8 +85,8 @@ function AIPlannerContent() {
 
       {/* Conversation Agent */}
       <section className="relative z-10 py-6 px-4 md:px-12">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden">
+        <div className="max-w-4xl mx-auto w-full overflow-hidden">
+          <div className="bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden w-full max-w-full">
             {/* Decorative Elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-100/30 to-indigo-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-purple-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
