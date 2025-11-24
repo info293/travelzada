@@ -184,6 +184,24 @@ interface Destination {
   updatedAt?: string
 }
 
+interface Lead {
+  id?: string
+  name: string
+  mobile: string
+  sourceUrl: string
+  packageName: string
+  status: string
+  createdAt: any
+  read: boolean
+  email?: string
+  destination?: string
+  travelDate?: string
+  travelersCount?: number
+  travelType?: string
+  budget?: string
+  notes?: string
+}
+
 export default function AdminDashboard() {
   const { currentUser, isAdmin, loading } = useAuth()
   const router = useRouter()
@@ -194,7 +212,20 @@ export default function AdminDashboard() {
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [subscribers, setSubscribers] = useState<Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }>>([])
   const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }>>([])
-  const [leads, setLeads] = useState<Array<{ id?: string; name: string; mobile: string; sourceUrl: string; packageName: string; status: string; createdAt: any; read: boolean }>>([])
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [editingLead, setEditingLead] = useState<Lead | null>(null)
+  const [isLeadDetailsModalOpen, setLeadDetailsModalOpen] = useState(false)
+  const [leadDetailsForm, setLeadDetailsForm] = useState({
+    email: '',
+    destination: '',
+    travelDate: '',
+    travelersCount: '',
+    travelType: '',
+    budget: '',
+    notes: '',
+  })
+  const [leadDetailsError, setLeadDetailsError] = useState<string | null>(null)
+  const [isLeadDetailsSaving, setIsLeadDetailsSaving] = useState(false)
   const [jobApplications, setJobApplications] = useState<Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }>>([])
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [showTestimonialForm, setShowTestimonialForm] = useState(false)
@@ -441,9 +472,20 @@ export default function AdminDashboard() {
         querySnapshot = await getDocs(collection(dbInstance, 'leads'))
       }
       
-      const leadsData: Array<{ id?: string; name: string; mobile: string; sourceUrl: string; packageName: string; status: string; createdAt: any; read: boolean }> = []
+      const leadsData: Lead[] = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
+        const travelersCountValue =
+          typeof data.travelersCount === 'number'
+            ? data.travelersCount
+            : parseInt(
+                data.travelersCount ||
+                  data.members ||
+                  data.totalGuests ||
+                  data.peopleCount ||
+                  '',
+                10
+              )
         leadsData.push({
           id: doc.id,
           name: data.name || '',
@@ -453,10 +495,16 @@ export default function AdminDashboard() {
           status: data.status || 'new',
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
           read: data.read || false,
+          email: data.email || '',
+          destination: data.destination || '',
+          travelDate: data.travelDate || '',
+          travelersCount: Number.isNaN(travelersCountValue) ? undefined : travelersCountValue,
+          travelType: data.travelType || '',
+          budget: data.budget || '',
+          notes: data.notes || data.message || '',
         })
       })
       
-      // Sort manually if needed
       leadsData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime()
         const dateB = new Date(b.createdAt).getTime()
@@ -542,6 +590,99 @@ export default function AdminDashboard() {
       setTestimonials(testimonialsData)
     } catch (error) {
       console.error('Error fetching testimonials:', error)
+    }
+  }
+
+  const formatDateForInput = (value?: string) => {
+    if (!value) return ''
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return ''
+    return parsed.toISOString().split('T')[0]
+  }
+
+  const startLeadDetailsEdit = (lead: Lead) => {
+    setEditingLead(lead)
+    setLeadDetailsError(null)
+    setLeadDetailsForm({
+      email: lead.email || '',
+      destination: lead.destination || '',
+      travelDate: formatDateForInput(lead.travelDate),
+      travelersCount: lead.travelersCount ? String(lead.travelersCount) : '',
+      travelType: lead.travelType || '',
+      budget: lead.budget || '',
+      notes: lead.notes || '',
+    })
+  setLeadDetailsModalOpen(true)
+  }
+
+  const handleLeadDetailsChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target
+    setLeadDetailsForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const cancelLeadDetailsEdit = () => {
+    setEditingLead(null)
+    setLeadDetailsError(null)
+    setLeadDetailsForm({
+      email: '',
+      destination: '',
+      travelDate: '',
+      travelersCount: '',
+      travelType: '',
+      budget: '',
+      notes: '',
+    })
+  setLeadDetailsModalOpen(false)
+  }
+
+  const handleLeadDetailsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLead?.id) return
+
+    try {
+      setIsLeadDetailsSaving(true)
+      setLeadDetailsError(null)
+
+      const dbInstance = getDbInstance()
+      const updatePayload: Record<string, any> = {}
+
+      const assignField = (key: string, value: string) => {
+        const trimmed = value.trim()
+        updatePayload[key] = trimmed ? trimmed : deleteField()
+      }
+
+      assignField('email', leadDetailsForm.email)
+      assignField('destination', leadDetailsForm.destination)
+      assignField('travelDate', leadDetailsForm.travelDate)
+      assignField('travelType', leadDetailsForm.travelType)
+      assignField('budget', leadDetailsForm.budget)
+      assignField('notes', leadDetailsForm.notes)
+
+      if (leadDetailsForm.travelersCount.trim()) {
+        const count = parseInt(leadDetailsForm.travelersCount.trim(), 10)
+        if (Number.isNaN(count) || count <= 0) {
+          throw new Error('Travelers count must be a positive number')
+        }
+        updatePayload.travelersCount = count
+      } else {
+        updatePayload.travelersCount = deleteField()
+      }
+
+      await updateDoc(doc(dbInstance, 'leads', editingLead.id), updatePayload)
+      await fetchLeads()
+      cancelLeadDetailsEdit()
+      alert('Lead details updated successfully!')
+    } catch (error: any) {
+      console.error('Error updating lead details:', error)
+      setLeadDetailsError(error.message || 'Failed to update lead details. Please try again.')
+    } finally {
+      setIsLeadDetailsSaving(false)
     }
   }
 
@@ -3055,7 +3196,13 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => startLeadDetailsEdit(lead)}
+                              className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 text-sm font-semibold transition-colors"
+                            >
+                              {lead.destination || lead.travelDate || lead.travelersCount ? 'Edit Details' : 'Add Details'}
+                            </button>
                             <button
                               onClick={() => {
                                 setViewModal({
@@ -3172,6 +3319,7 @@ export default function AdminDashboard() {
                 )}
               </div>
             </div>
+
           </div>
         )}
 
@@ -3525,6 +3673,115 @@ export default function AdminDashboard() {
         title={viewModal.title}
       >
         {viewModal.content}
+      </ViewModal>
+
+      <ViewModal
+        isOpen={isLeadDetailsModalOpen && Boolean(editingLead)}
+        onClose={cancelLeadDetailsEdit}
+        title={editingLead ? `Update Lead Details` : 'Update Lead Details'}
+      >
+        <form onSubmit={handleLeadDetailsSubmit} className="space-y-4">
+          {leadDetailsError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+              {leadDetailsError}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={leadDetailsForm.email}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="guest@email.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Destination</label>
+              <input
+                type="text"
+                name="destination"
+                value={leadDetailsForm.destination}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Bali, Kerala, Maldives..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Travel Date</label>
+              <input
+                type="date"
+                name="travelDate"
+                value={leadDetailsForm.travelDate}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Travelers Count</label>
+              <input
+                type="number"
+                name="travelersCount"
+                min={1}
+                value={leadDetailsForm.travelersCount}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="e.g. 2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Travel Style</label>
+              <input
+                type="text"
+                name="travelType"
+                value={leadDetailsForm.travelType}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Couple, Family, Friends..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Budget Preference</label>
+              <input
+                type="text"
+                name="budget"
+                value={leadDetailsForm.budget}
+                onChange={handleLeadDetailsChange}
+                className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Budget / Mid-range / Luxury"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Internal Notes</label>
+            <textarea
+              name="notes"
+              rows={4}
+              value={leadDetailsForm.notes}
+              onChange={handleLeadDetailsChange}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              placeholder="Add requirements shared during call, hotel category, preferred airline..."
+            />
+          </div>
+          <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={cancelLeadDetailsEdit}
+              className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLeadDetailsSaving}
+              className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              {isLeadDetailsSaving ? 'Saving...' : 'Save Details'}
+            </button>
+          </div>
+        </form>
       </ViewModal>
     </main>
   )

@@ -115,6 +115,19 @@ export default function PackageDetailPage({ params }: PageProps) {
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storageKey = `destination-lead-popup:${slug.toLowerCase()}`
+    if (sessionStorage.getItem(storageKey) === 'true') return
+
+    const timer = window.setTimeout(() => {
+      setShowLeadForm(true)
+      sessionStorage.setItem(storageKey, 'true')
+    }, 30000)
+
+    return () => window.clearTimeout(timer)
+  }, [slug])
+
+  useEffect(() => {
     const fetchPackage = async () => {
       if (typeof window === 'undefined' || !db) {
         setLoading(false)
@@ -875,7 +888,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
               <div>
                 <p className="text-sm text-gray-500">Starting from</p>
-                <p className="text-4xl font-serif text-[#c99846]">{packageData.Price_Range_INR || 'Contact for price'}</p>
+                <p className="text-4xl font-serif text-[#c99846]">{packageData.Price_Range_INR || 'Contact for price'} INR</p>
                 {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
               </div>
               <div className="flex flex-col gap-3">
@@ -1004,6 +1017,18 @@ export default function PackageDetailPage({ params }: PageProps) {
       </div>
 
       <Footer />
+
+      {!showLeadForm && (
+        <div className="md:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => setShowLeadForm(true)}
+            className="pointer-events-auto w-full bg-primary text-white py-3.5 rounded-full font-semibold shadow-xl shadow-primary/30 hover:bg-primary-dark transition"
+          >
+            Enquire Now
+          </button>
+        </div>
+      )}
 
       <LeadForm
         isOpen={showLeadForm}

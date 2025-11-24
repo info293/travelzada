@@ -3,7 +3,7 @@ import Link from 'next/link'
 const features = [
   {
     title: 'One itinerary, not twenty',
-    description: 'We send one perfect plan so you never sift through endless options.',
+    description: 'We send one perfect plan so you never shift through endless options.',
   },
   {
     title: 'Clear reasoning',

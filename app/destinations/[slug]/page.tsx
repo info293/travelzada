@@ -360,7 +360,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                           {/* Content */}
                           <div className="relative z-10">
                             <p className="text-[9px] uppercase text-white/90 tracking-wide font-semibold mb-0.5 drop-shadow-sm">Starting From</p>
-                            <p className="text-sm font-bold text-white drop-shadow-md leading-tight">{pkg.Price_Range_INR || 'Contact for price'}</p>
+                            <p className="text-sm font-bold text-white drop-shadow-md leading-tight"> INR  {pkg.Price_Range_INR || 'Contact for price'}</p>
                           </div>
                           {/* Decorative corner accent */}
                           <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-purple-300/30 to-transparent rounded-bl-full"></div>

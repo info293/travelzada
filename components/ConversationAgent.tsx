@@ -1286,7 +1286,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none"></div>
       
       {/* Progress Bar */}
-      <div className="px-6 pt-6 relative z-10">
+      <div className="px-6 pt-6 sticky top-0 z-20 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
