@@ -1423,8 +1423,81 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     const latestInfo = tripInfoRef.current
 
+    // Check if user is asking for packages/inquiry form
+    const userInputLower = userInput.toLowerCase()
+    const wantsPackages = userInputLower.includes('inquiry') || 
+                         userInputLower.includes('form') || 
+                         userInputLower.includes('package') && (userInputLower.includes('show') || userInputLower.includes('dikhao') || userInputLower.includes('chahiye'))
+    
+    // Check if user mentions honeymoon/romantic trip
+    const mentionsHoneymoon = userInputLower.includes('honeymoon') || 
+                             userInputLower.includes('romantic') ||
+                             (userInputLower.includes('package') && userInputLower.includes('honeymoon'))
+    
+    // Check if user is confirming/agreeing to Bali
+    const isConfirming = userInputLower.includes('yes') || 
+                        userInputLower.includes('okay') || 
+                        userInputLower.includes('ok') ||
+                        userInputLower.includes('theek') ||
+                        userInputLower.includes('haan') ||
+                        userInputLower.includes('hmm')
+
+    // If user mentions honeymoon but no destination, ask for confirmation
+    if (mentionsHoneymoon && !latestInfo.destination && currentQuestion === 'destination') {
+      const availableDests = destinations.length > 0
+        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+        : ['Bali']
+      
+      const prompt = withStyle(
+        `Perfect! Bali is an amazing honeymoon destination with romantic beaches and stunning sunsets. Would you like to plan your honeymoon in ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`,
+        35
+      )
+      await sendAssistantPrompt(prompt, {}, availableDests)
+      return
+    }
+
+    // If user is confirming/agreeing but we don't have destination yet, check context first
+    if (isConfirming && !latestInfo.destination && currentQuestion === 'destination') {
+      // Check if Bali was mentioned in previous messages (including AI responses)
+      const recentMessages = messagesRef.current.slice(-5)
+      const baliMentioned = recentMessages.some(msg => 
+        msg.content.toLowerCase().includes('bali')
+      )
+      
+      if (baliMentioned) {
+        // User confirmed, set Bali as destination and continue
+        const updates: Partial<TripInfo> = { destination: 'Bali' }
+        const nextInfo = updateTripInfo(updates)
+        await askNextQuestion(nextInfo)
+        return
+      } else {
+        // No Bali mentioned, ask for confirmation
+        const availableDests = destinations.length > 0
+          ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+          : ['Bali']
+        
+        const prompt = withStyle(
+          `Great! I'd love to help you plan your trip to ${availableDests[0]}. Can you confirm you want to proceed with ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`,
+          35
+        )
+        await sendAssistantPrompt(prompt, {}, availableDests)
+        return
+      }
+    }
+
     // Use AI to extract data from user response
     const extractedData = await extractDataWithAI(userInput, currentQuestion, latestInfo)
+
+    // If user wants to see packages and we have a destination, show packages directly
+    if (wantsPackages && latestInfo.destination) {
+      // User wants packages - generate recommendations directly
+      setCurrentQuestion('complete')
+      setFeedbackAnswered(true)
+      setUserFeedback('')
+      setAiResponseComplete(false)
+      await generateRecommendation()
+      return
+    }
 
     // If AI understood the response, use extracted data
     if (extractedData.understood) {
@@ -1432,30 +1505,42 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       let hasUpdates = false
 
       // Update trip info with extracted data
-      if (extractedData.destination && !latestInfo.destination) {
-        // Normalize destination to match database (case-insensitive)
-        const normalizedDest = extractedData.destination.trim()
-        const destLower = normalizedDest.toLowerCase()
+      // Also check if user mentioned destination in confirming context
+      if ((extractedData.destination || (isConfirming && !latestInfo.destination)) && !latestInfo.destination) {
+        // If confirming, check if Bali was mentioned in conversation context
+        const recentMessages = messagesRef.current.slice(-5)
+        const baliMentioned = recentMessages.some(msg => 
+          msg.content.toLowerCase().includes('bali')
+        )
         
-        // Check if destination is Bali - only Bali is supported for now
-        if (destLower !== 'bali') {
-          // Let AI generate a natural response about other destinations being under construction
-          const availableDests = destinations.length > 0
-            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-            : ['Bali']
+        // If confirming and Bali was mentioned, use Bali
+        const dest = extractedData.destination || (isConfirming && baliMentioned ? 'Bali' : null)
+        
+        if (dest) {
+          // Normalize destination to match database (case-insensitive)
+          const normalizedDest = dest.trim()
+          const destLower = normalizedDest.toLowerCase()
           
-          const prompt = withStyle(
-            'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
-            50
-          )
-          await sendAssistantPrompt(prompt, {}, availableDests)
-          return
+          // Check if destination is Bali - only Bali is supported for now
+          if (destLower !== 'bali') {
+            // Let AI generate a natural response about other destinations being under construction
+            const availableDests = destinations.length > 0
+              ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+              : ['Bali']
+            
+            const prompt = withStyle(
+              'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
+              50
+            )
+            await sendAssistantPrompt(prompt, {}, availableDests)
+            return
+          }
+          
+          // Normalize to "Bali" (capitalize first letter)
+          updates.destination = 'Bali'
+          hasUpdates = true
+          console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
         }
-        
-        // Normalize to "Bali" (capitalize first letter)
-        updates.destination = 'Bali'
-        hasUpdates = true
-        console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
       }
 
       if (extractedData.travelDate && !latestInfo.travelDate) {
@@ -1475,6 +1560,16 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
       if (extractedData.travelType && !latestInfo.travelType) {
         updates.travelType = extractedData.travelType
+        hasUpdates = true
+      }
+      
+      // Special handling: If user says "honeymoon package" or similar, extract couple travel type
+      if (!latestInfo.travelType && (
+        userInputLower.includes('honeymoon') || 
+        userInputLower.includes('romantic') ||
+        (userInputLower.includes('package') && userInputLower.includes('honeymoon'))
+      )) {
+        updates.travelType = 'couple'
         hasUpdates = true
       }
 
@@ -1509,6 +1604,17 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         console.log('[AI Extraction] Applying updates:', updates)
         const nextInfo = updateTripInfo(updates)
         console.log('[AI Extraction] Updated tripInfo:', nextInfo)
+        
+        // If user asked for packages and we now have enough info, show packages
+        if (wantsPackages && nextInfo.destination) {
+          setCurrentQuestion('complete')
+          setFeedbackAnswered(true)
+          setUserFeedback('')
+          setAiResponseComplete(false)
+          await generateRecommendation()
+          return
+        }
+        
         // Force move to next question after updating trip info
         await askNextQuestion(nextInfo)
         return
@@ -1516,6 +1622,17 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         // Even if no updates, if AI understood with high confidence, acknowledge and ask next question
         // This handles cases where user confirms something
         console.log('[AI Extraction] AI understood but no updates, moving to next question')
+        
+        // If user wants packages, show them
+        if (wantsPackages && latestInfo.destination) {
+          setCurrentQuestion('complete')
+          setFeedbackAnswered(true)
+          setUserFeedback('')
+          setAiResponseComplete(false)
+          await generateRecommendation()
+          return
+        }
+        
         await askNextQuestion()
         return
       } else {
@@ -1525,6 +1642,20 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           extractedData
         })
       }
+    }
+    
+    // Handle case where user wants packages but we don't have destination yet
+    if (wantsPackages && !latestInfo.destination) {
+      const availableDests = destinations.length > 0
+        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+        : ['Bali']
+      
+      const prompt = withStyle(
+        `I'd love to show you packages! To get started, can you confirm you want to explore ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" and I'll show you amazing packages!`,
+        35
+      )
+      await sendAssistantPrompt(prompt, {}, availableDests)
+      return
     }
 
     // Fallback to regex extraction if AI didn't understand or confidence is low

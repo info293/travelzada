@@ -155,11 +155,14 @@ function buildContextPrompt(
     case 'destination':
       prompt = `CURRENT QUESTION: "Which destination do you want to plan?"
 AVAILABLE DESTINATIONS: ${availableDestinations.length > 0 ? availableDestinations.join(', ') : 'Bali'}
+EXISTING CONTEXT: ${existingTripInfo.destination ? `Previously mentioned: ${existingTripInfo.destination}` : 'None'}
 EXTRACT: destination name (must match available destinations exactly, case-insensitive)
 - If user says "bli", "bali", "BALI" → return "Bali"
+- If user says "yes", "okay", "ok", "theek", "haan" and context mentions a destination → extract that destination
+- If user says "honeymoon package" or "package" and context has destination → extract that destination
 - If user says something similar to an available destination, normalize it to the exact destination name
 - Return the EXACT destination name from the available destinations list
-- Set "understood: true" if you can identify a destination, even with typos`
+- Set "understood: true" if you can identify a destination, even with typos or from context`
       break
 
     case 'date':
@@ -192,8 +195,9 @@ EXISTING INFO: ${existingTripInfo.destination ? `Destination: ${existingTripInfo
 EXTRACT: travelType ("solo", "family", "couple", or "friends")
 - "alone", "myself", "solo" → "solo"
 - "with kids", "family", "children" → "family"
-- "with partner", "romantic", "honeymoon" → "couple"
-- "with friends", "group" → "friends"`
+- "with partner", "romantic", "honeymoon", "honeymoon package" → "couple"
+- "with friends", "group" → "friends"
+- If user mentions "package" with "honeymoon" or "romantic" → "couple"`
       break
 
     case 'feedback':
@@ -206,7 +210,13 @@ EXTRACT: feedback (user's activity preferences, suggestions, or questions as tex
 
     default:
       prompt = `CURRENT QUESTION: General conversation
-EXTRACT: Any trip information you can find (destination, date, days, hotelType, travelType, budget, feedback)`
+EXISTING INFO: ${existingTripInfo.destination ? `Destination: ${existingTripInfo.destination}` : 'None'}
+EXTRACT: Any trip information you can find (destination, date, days, hotelType, travelType, budget, feedback)
+SPECIAL CASES:
+- If user says "honeymoon package", "honeymoon", "romantic package" → extract travelType: "couple" and destination: "Bali" (if available)
+- If user says "inquiry form", "packages", "show packages", "package dikhao", "enquire form" → this is a request to see packages, set understood: true
+- If user agrees to a destination (says "yes", "okay", "ok", "theek hai", "haan", "hmm") → extract destination from context or use "Bali" if available
+- If user confirms and mentions "package" → extract destination from context and travelType if mentioned (e.g., "honeymoon" → "couple")`
   }
 
   return prompt
