@@ -48,6 +48,16 @@ const getNextSixMonths = () => {
 
 const TOTAL_STEPS = 5 // Removed budget step
 
+const thinkingMessages = [
+  'AI thinking...',
+  'Planning your perfect trip...',
+  'Finding the best options...',
+  'Analyzing your preferences...',
+  'Crafting personalized recommendations...',
+  'Searching our database...',
+  'Almost there...',
+]
+
 const withStyle = (instruction: string, maxWords = 35) =>
   `Keep the reply under ${maxWords} words. Be clear, upbeat, and avoid repetition. ${instruction}`
 
@@ -205,6 +215,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [thinkingMessage, setThinkingMessage] = useState(0)
   const [progress, setProgress] = useState(0)
   const [completedSteps, setCompletedSteps] = useState(0)
   const [tripInfo, setTripInfo] = useState<TripInfo>({
@@ -507,15 +518,29 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   }, [])
 
   const sendAssistantPrompt = useCallback(
-    async (prompt: string, extra: Partial<Message> = {}) => {
+    async (prompt: string, extra: Partial<Message> = {}, availableDestinationsForContext?: string[]) => {
       setIsTyping(true)
+      setThinkingMessage(0)
+      
+      // Start rotating thinking messages
+      const messageInterval = setInterval(() => {
+        setThinkingMessage((prev) => (prev + 1) % thinkingMessages.length)
+      }, 2000) // Change message every 2 seconds
+      
       try {
+        // Get available destinations (only Bali for now, or from database)
+        const destinationsToSend = availableDestinationsForContext || 
+          (destinations.length > 0 
+            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+            : ['Bali']) // Only Bali is supported
+
         const response = await fetch('/api/ai-planner/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt,
             conversation: messagesRef.current.slice(-6),
+            availableDestinations: destinationsToSend,
           }),
         })
         const data = await response.json()
@@ -532,22 +557,32 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           ...extra,
         })
       } finally {
+        clearInterval(messageInterval)
         setIsTyping(false)
+        setThinkingMessage(0)
       }
     },
-    [appendMessage]
+    [appendMessage, destinations]
   )
 
   useEffect(() => {
     if (initialPromptSentRef.current) return
     initialPromptSentRef.current = true
+    
+    // Get available destinations (only Bali for now)
+    const availableDests = destinations.length > 0
+      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+      : ['Bali']
+    
     sendAssistantPrompt(
       withStyle(
-        'Greet them briefly and ask which destination they want to plan.',
-        20
-      )
+        `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
+        30
+      ),
+      {},
+      availableDests
     )
-  }, [sendAssistantPrompt])
+  }, [sendAssistantPrompt, destinations])
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -1205,7 +1240,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       80
     )
 
-    await sendAssistantPrompt(prompt, { packageMatch: bestMatch })
+    // Get available destinations for context
+    const availableDests = destinations.length > 0
+      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+      : ['Bali']
+
+    await sendAssistantPrompt(prompt, { packageMatch: bestMatch }, availableDests)
     
     // Mark AI response as complete after the message is sent
     setAiResponseComplete(true)
@@ -1214,7 +1254,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       tripDetailsAutoOpenedRef.current = true
       onTripDetailsRequest?.()
     }
-  }, [onTripDetailsRequest, rankedPackages, sendAssistantPrompt])
+  }, [onTripDetailsRequest, rankedPackages, sendAssistantPrompt, destinations])
 
   const askNextQuestion = useCallback(
     async (infoOverride?: TripInfo) => {
@@ -1223,9 +1263,14 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     let questionPrompt = ''
 
     if (!currentInfo.destination) {
+      // Get available destinations (only Bali for now)
+      const availableDests = destinations.length > 0
+        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+        : ['Bali']
+      
       questionPrompt = withStyle(
-        'Greet them briefly and ask which destination they want to plan.',
-        20
+        `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
+        30
       )
       setCurrentQuestion('destination')
     } else if (!currentInfo.travelDate) {
@@ -1296,10 +1341,72 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       return
     }
 
-    await sendAssistantPrompt(questionPrompt)
+    // Get available destinations for context
+    const availableDests = destinations.length > 0
+      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+      : ['Bali']
+    
+    await sendAssistantPrompt(questionPrompt, {}, availableDests)
   },
-  [currentQuestion, generateRecommendation, sendAssistantPrompt, destinationTravelTypeOptions, updateTripInfo, appendMessage]
+  [currentQuestion, generateRecommendation, sendAssistantPrompt, destinationTravelTypeOptions, updateTripInfo, appendMessage, destinations]
   )
+
+  // AI-powered data extraction function
+  const extractDataWithAI = useCallback(async (
+    userInput: string,
+    currentQuestion: string,
+    existingTripInfo: TripInfo
+  ): Promise<{
+    destination?: string | null
+    travelDate?: string | null
+    days?: string | null
+    hotelType?: string | null
+    travelType?: string | null
+    budget?: string | null
+    feedback?: string | null
+    confidence: 'high' | 'medium' | 'low'
+    understood: boolean
+  }> => {
+    // Show thinking indicator during extraction
+    setIsTyping(true)
+    setThinkingMessage(0)
+    
+    // Start rotating thinking messages
+    const messageInterval = setInterval(() => {
+      setThinkingMessage((prev) => (prev + 1) % thinkingMessages.length)
+    }, 2000)
+    
+    try {
+      // Get available destinations for context
+      const availableDestinations = destinations.length > 0
+        ? destinations.map(d => d.name)
+        : travelData.destinations.map((d: any) => d.name)
+
+      const response = await fetch('/api/ai-planner/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userInput,
+          currentQuestion,
+          existingTripInfo,
+          availableDestinations,
+        }),
+      })
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('AI extraction failed:', error)
+      return {
+        confidence: 'low',
+        understood: false,
+      }
+    } finally {
+      clearInterval(messageInterval)
+      setIsTyping(false)
+      setThinkingMessage(0)
+    }
+  }, [destinations])
 
   const handleSend = useCallback(async () => {
     if (!input.trim()) return
@@ -1316,21 +1423,145 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     const latestInfo = tripInfoRef.current
 
+    // Use AI to extract data from user response
+    const extractedData = await extractDataWithAI(userInput, currentQuestion, latestInfo)
+
+    // If AI understood the response, use extracted data
+    if (extractedData.understood) {
+      const updates: Partial<TripInfo> = {}
+      let hasUpdates = false
+
+      // Update trip info with extracted data
+      if (extractedData.destination && !latestInfo.destination) {
+        // Normalize destination to match database (case-insensitive)
+        const normalizedDest = extractedData.destination.trim()
+        const destLower = normalizedDest.toLowerCase()
+        
+        // Check if destination is Bali - only Bali is supported for now
+        if (destLower !== 'bali') {
+          // Let AI generate a natural response about other destinations being under construction
+          const availableDests = destinations.length > 0
+            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+            : ['Bali']
+          
+          const prompt = withStyle(
+            'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
+            50
+          )
+          await sendAssistantPrompt(prompt, {}, availableDests)
+          return
+        }
+        
+        // Normalize to "Bali" (capitalize first letter)
+        updates.destination = 'Bali'
+        hasUpdates = true
+        console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
+      }
+
+      if (extractedData.travelDate && !latestInfo.travelDate) {
+        updates.travelDate = extractedData.travelDate
+        hasUpdates = true
+      }
+
+      if (extractedData.days && !latestInfo.days) {
+        updates.days = extractedData.days
+        hasUpdates = true
+      }
+
+      if (extractedData.hotelType && !latestInfo.hotelType) {
+        updates.hotelType = extractedData.hotelType
+        hasUpdates = true
+      }
+
+      if (extractedData.travelType && !latestInfo.travelType) {
+        updates.travelType = extractedData.travelType
+        hasUpdates = true
+      }
+
+      if (extractedData.budget && !latestInfo.budget) {
+        updates.budget = extractedData.budget
+        hasUpdates = true
+      }
+
+      // Handle feedback separately
+      if (currentQuestion === 'feedback') {
+        if (extractedData.feedback === null || userInput.toLowerCase().includes('skip')) {
+          // User skipped feedback
+          setUserFeedback('')
+          setFeedbackAnswered(true)
+          setAiResponseComplete(false)
+          setCurrentQuestion('complete')
+          await generateRecommendation()
+          return
+        } else if (extractedData.feedback) {
+          // User provided feedback
+          setUserFeedback(extractedData.feedback)
+          setFeedbackAnswered(true)
+          setAiResponseComplete(false)
+          setCurrentQuestion('complete')
+          await generateRecommendation()
+          return
+        }
+      }
+
+      // If we have updates, apply them and move to next question
+      if (hasUpdates) {
+        console.log('[AI Extraction] Applying updates:', updates)
+        const nextInfo = updateTripInfo(updates)
+        console.log('[AI Extraction] Updated tripInfo:', nextInfo)
+        // Force move to next question after updating trip info
+        await askNextQuestion(nextInfo)
+        return
+      } else if (extractedData.understood && extractedData.confidence === 'high') {
+        // Even if no updates, if AI understood with high confidence, acknowledge and ask next question
+        // This handles cases where user confirms something
+        console.log('[AI Extraction] AI understood but no updates, moving to next question')
+        await askNextQuestion()
+        return
+      } else {
+        console.log('[AI Extraction] AI did not understand or no updates:', {
+          understood: extractedData.understood,
+          confidence: extractedData.confidence,
+          extractedData
+        })
+      }
+    }
+
+    // Fallback to regex extraction if AI didn't understand or confidence is low
+    // This ensures backward compatibility
     if (!latestInfo.destination) {
       const dest = extractDestination(userInput)
       if (dest) {
+        // Check if destination is Bali - only Bali is supported for now
+        if (dest.toLowerCase() !== 'bali') {
+          const availableDests = destinations.length > 0
+            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+            : ['Bali']
+          
+          const prompt = withStyle(
+            'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
+            50
+          )
+          await sendAssistantPrompt(prompt, {}, availableDests)
+          return
+        }
         updateTripInfo({ destination: dest })
-        const destInfo = travelData.destinations.find((d: any) => d.name === dest)
+        
+        const availableDests = destinations.length > 0
+          ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+          : ['Bali']
+        
         const prompt = withStyle(
           `Great choice! When do you plan to travel—any specific month or date in mind?`,
           20
         )
-        await sendAssistantPrompt(prompt)
+        await sendAssistantPrompt(prompt, {}, availableDests)
         setCurrentQuestion('date')
         return
       }
     }
 
+    // Fallback regex extraction for date
     if (currentQuestion === 'date') {
       if (isSameAnswer(userInput) && latestInfo.travelDate) {
         await askNextQuestion()
@@ -1344,6 +1575,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
     }
 
+    // Fallback regex extraction for days
     if (currentQuestion === 'days') {
       if (isSameAnswer(userInput) && latestInfo.days) {
         await askNextQuestion()
@@ -1357,6 +1589,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
     }
 
+    // Fallback regex extraction for hotel
     if (currentQuestion === 'hotel') {
       if (isSameAnswer(userInput) && latestInfo.hotelType) {
         await askNextQuestion()
@@ -1370,6 +1603,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
     }
 
+    // Fallback regex extraction for travel type
     if (currentQuestion === 'travelType') {
       if (isSameAnswer(userInput) && latestInfo.travelType) {
         await askNextQuestion()
@@ -1418,15 +1652,20 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
     }
 
+    // Get available destinations for context
+    const availableDests = destinations.length > 0
+      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
+      : ['Bali']
+
     const fallbackMap: Record<string, string> = {
       destination:
-        'Let them know you still need to know where they want to go and offer a couple of popular examples.',
+        `Let them know you still need to know where they want to go. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
       date: 'Kindly remind them you still need their travel dates and that a month is enough.',
       days: 'Let them know the trip length helps shape the plan and ask again for number of days.',
       budget:
         'Explain that even a rough budget helps you recommend the right experiences and ask for an amount or band.',
       hotel:
-        'Ask again about preferred stay style (Budget, Mid-Range, Luxury, Boutique) and explain why it matters.',
+        'Ask again about preferred stay style (3-star, 4-star, or 5-star) and explain why it matters.',
       travelType:
         'Remind them you can personalize better if you know whether they are traveling solo, as a couple, with family, or friends.',
     }
@@ -1434,9 +1673,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     const fallbackPrompt = withStyle(
       fallbackMap[currentQuestion] ||
         'Acknowledge their message and let them know you are ready for the required detail.',
-      28
+      35
     )
-    await sendAssistantPrompt(fallbackPrompt)
+    await sendAssistantPrompt(fallbackPrompt, {}, availableDests)
   }, [
     appendMessage,
     askNextQuestion,
@@ -1449,6 +1688,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     extractHotelType,
     extractNumber,
     extractTravelType,
+    extractDataWithAI,
     input,
     sendAssistantPrompt,
     updateTripInfo,
@@ -1638,16 +1878,21 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         ))}
         {isTyping && (
           <div className="flex items-start gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg animate-pulse">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
-            <div className="bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 shadow-sm">
-              <div className="flex space-x-2">
-                <div className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-bounce"></div>
-                <div className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2.5 h-2.5 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl px-5 py-4 shadow-sm max-w-[85%] md:max-w-[80%]">
+              <div className="flex items-center gap-3">
+                <div className="flex space-x-1.5">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+                <p className="text-sm text-gray-600 font-medium animate-pulse">
+                  {thinkingMessages[thinkingMessage]}
+                </p>
               </div>
             </div>
           </div>
@@ -2067,7 +2312,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
               )
             })}
           </div>
-          <button
+          {/* <button
             type="button"
             onClick={() => {
               // Initialize edit form with current trip info
@@ -2077,7 +2322,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             className="mt-4 md:mt-6 w-full rounded-xl border border-dashed border-primary/40 bg-white px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
           >
             Edit Trip Details & Regenerate
-          </button>
+          </button> */}
         </div>
       )}
 

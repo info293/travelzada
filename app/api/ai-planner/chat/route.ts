@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, conversation = [] } = await request.json()
+    const { prompt, conversation = [], availableDestinations = [] } = await request.json()
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -41,6 +41,18 @@ export async function POST(request: Request) {
     if (history.length) {
       console.log('[AI Planner] Conversation tail:', history)
     }
+    if (availableDestinations.length > 0) {
+      console.log('[AI Planner] Available destinations:', availableDestinations)
+    }
+
+    // Build system prompt with available destinations context
+    let systemPrompt = 'You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.'
+    
+    // Add available destinations context if provided
+    if (Array.isArray(availableDestinations) && availableDestinations.length > 0) {
+      const destinationsList = availableDestinations.join(', ')
+      systemPrompt += `\n\nIMPORTANT: Only mention destinations that are available in our database. Currently available destinations: ${destinationsList}. Do NOT suggest or mention any other destinations that are not in this list.`
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -48,8 +60,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: 'system',
-          content:
-            'You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.',
+          content: systemPrompt,
         },
         ...history,
         {
