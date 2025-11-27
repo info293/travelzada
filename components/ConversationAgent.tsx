@@ -237,9 +237,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [destinationDayOptions, setDestinationDayOptions] = useState<Array<{ label: string; value: string }>>([])
   const [destinationHotelOptions, setDestinationHotelOptions] = useState<Array<{ label: string; value: string }>>([])
   const [destinationTravelTypeOptions, setDestinationTravelTypeOptions] = useState<Array<{ label: string; value: string }>>([])
+  const [selectedMonthForCalendar, setSelectedMonthForCalendar] = useState<number | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const todayISO = useMemo(() => formatISODate(new Date()), [])
   const initialPromptSentRef = useRef(false)
 
@@ -1476,10 +1478,44 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const handleMonthSelect = useCallback(
     (monthIndex: number) => {
+      // Set the selected month for calendar focus (don't auto-select a date)
+      setSelectedMonthForCalendar(monthIndex)
+      // Set a date in that month to help the calendar navigate there
       const iso = getUpcomingDateForMonth(monthIndex)
-      handleDateSelection(iso)
+      
+      // Use ref if available, otherwise query selector
+      const dateInput = dateInputRef.current || (document.querySelector('input[type="date"]') as HTMLInputElement)
+      
+      if (dateInput) {
+        dateInput.value = iso
+        // Scroll the input into view if needed
+        dateInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        
+        // Try to open the calendar picker immediately (within the same user gesture)
+        // This should work because we're still within the button click event
+        if (dateInput.showPicker) {
+          try {
+            // Call showPicker synchronously - this should work within the user gesture
+            dateInput.showPicker()
+          } catch (err) {
+            // If showPicker fails (e.g., browser doesn't support it or gesture expired),
+            // try clicking the input as fallback
+            dateInput.focus()
+            // Use requestAnimationFrame to ensure DOM is ready, then click
+            requestAnimationFrame(() => {
+              dateInput.click()
+            })
+          }
+        } else {
+          // Browser doesn't support showPicker, use click fallback
+          dateInput.focus()
+          requestAnimationFrame(() => {
+            dateInput.click()
+          })
+        }
+      }
     },
-    [handleDateSelection]
+    []
   )
 
   const handleCalendarInputChange = useCallback(
@@ -1660,20 +1696,79 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       {/* Date Picker Helper */}
       {currentQuestion === 'date' && (
         <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-200">
-            <label className="text-sm font-semibold text-gray-800 mb-2 block">
-              Select your travel date
-            </label>
-            <input
-              type="date"
-              min={todayISO}
-              value={tripInfo.travelDate || ''}
-              onChange={handleCalendarInputChange}
-              className="w-full rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              We'll note this immediately and move to the next step.
-            </p>
+          <div className="space-y-4 bg-white rounded-xl p-4 md:p-6 border border-gray-200">
+            <div>
+              <label className="text-sm font-semibold text-gray-800 mb-3 block">
+                Select your travel date
+              </label>
+              <p className="text-xs text-gray-600 mb-4">
+                Choose a month first, then pick a specific date
+              </p>
+              
+              {/* Month Selector */}
+              <div className="mb-4">
+                <p className="text-xs font-medium text-gray-700 mb-2">Select Month (optional - helps navigate to the right month):</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  {getNextSixMonths().map((month) => {
+                    const isSelected = selectedMonthForCalendar === month.index || selectedMonthIndex === month.index
+                    return (
+                      <button
+                        key={month.index}
+                        type="button"
+                        onClick={() => handleMonthSelect(month.index)}
+                        className={`rounded-lg border-2 px-3 py-2.5 text-xs md:text-sm font-medium transition-all duration-200 ${
+                          isSelected
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                        }`}
+                      >
+                        {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Date Picker */}
+              <div>
+                <p className="text-xs font-medium text-gray-700 mb-2">Select Specific Date:</p>
+                <div className="relative">
+                  <input
+                    ref={dateInputRef}
+                    type="date"
+                    min={todayISO}
+                    value={tripInfo.travelDate || (selectedMonthForCalendar !== null ? getUpcomingDateForMonth(selectedMonthForCalendar) : '')}
+                    onChange={handleCalendarInputChange}
+                    className="w-full rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all cursor-pointer relative z-10"
+                    style={{ cursor: 'pointer', position: 'relative', zIndex: 10 }}
+                    onClick={(e) => {
+                      // Ensure the calendar opens when clicked
+                      const input = e.target as HTMLInputElement
+                      e.stopPropagation()
+                      // Try modern showPicker API - this works because it's a direct user gesture
+                      if (input.showPicker) {
+                        try {
+                          input.showPicker()
+                        } catch (err) {
+                          // Fallback: just focus if showPicker fails
+                          input.focus()
+                        }
+                      } else {
+                        // Fallback for older browsers - just focus
+                        input.focus()
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {tripInfo.travelDate 
+                    ? `✅ Selected: ${new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+                    : selectedMonthForCalendar !== null
+                    ? `💡 Click the date field above to pick a date in ${monthNames[selectedMonthForCalendar].charAt(0).toUpperCase() + monthNames[selectedMonthForCalendar].slice(1)}`
+                    : '💡 Click a month above to navigate, or click the date field to pick any date'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

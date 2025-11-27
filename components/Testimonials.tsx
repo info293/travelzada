@@ -20,7 +20,10 @@ export default function Testimonials() {
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
+  const [isHovered, setIsHovered] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const MAX_LENGTH = 150 // Character limit before showing "read more"
 
   useEffect(() => {
@@ -128,6 +131,60 @@ export default function Testimonials() {
     fetchTestimonials()
   }, [])
 
+  // Auto-scroll functionality
+  useEffect(() => {
+    // Only auto-scroll if there are testimonials and user is not hovering
+    if (testimonials.length === 0 || isHovered) {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current)
+        autoScrollIntervalRef.current = null
+      }
+      return
+    }
+
+    // Calculate how many cards are visible at once
+    const getVisibleCards = () => {
+      if (typeof window === 'undefined') return 1
+      return window.innerWidth >= 768 ? 3 : 1
+    }
+
+    const visibleCards = getVisibleCards()
+    const maxIndex = Math.max(0, testimonials.length - visibleCards)
+
+    // Only auto-scroll if there are more testimonials than visible cards
+    if (testimonials.length <= visibleCards) {
+      return
+    }
+
+    // Set up auto-scroll interval (scroll every 2.5 seconds)
+    autoScrollIntervalRef.current = setInterval(() => {
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = prevIndex >= maxIndex ? 0 : prevIndex + 1
+        // Scroll to the next index
+        if (scrollContainerRef.current) {
+          const cardWidth = scrollContainerRef.current.offsetWidth / visibleCards
+          scrollContainerRef.current.scrollTo({
+            left: nextIndex * cardWidth,
+            behavior: 'smooth',
+          })
+        }
+        return nextIndex
+      })
+    }, 2500) // 2.5 seconds interval
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current)
+        autoScrollIntervalRef.current = null
+      }
+      if (resumeTimeoutRef.current) {
+        clearTimeout(resumeTimeoutRef.current)
+        resumeTimeoutRef.current = null
+      }
+    }
+  }, [testimonials.length, isHovered])
+
   const scrollToIndex = (index: number) => {
     if (scrollContainerRef.current) {
       const cardWidth = scrollContainerRef.current.offsetWidth / (window.innerWidth >= 768 ? 3 : 1)
@@ -139,6 +196,19 @@ export default function Testimonials() {
     }
   }
 
+  const pauseAutoScroll = () => {
+    setIsHovered(true)
+    // Clear any existing resume timeout
+    if (resumeTimeoutRef.current) {
+      clearTimeout(resumeTimeoutRef.current)
+    }
+    // Resume auto-scroll after 3 seconds of no interaction
+    resumeTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false)
+      resumeTimeoutRef.current = null
+    }, 3000)
+  }
+
   const handleScroll = () => {
     if (scrollContainerRef.current) {
       const scrollLeft = scrollContainerRef.current.scrollLeft
@@ -146,18 +216,24 @@ export default function Testimonials() {
       const newIndex = Math.round(scrollLeft / cardWidth)
       setCurrentIndex(newIndex)
     }
+    // Pause auto-scroll temporarily when user manually scrolls
+    pauseAutoScroll()
   }
 
   const nextSlide = () => {
     const maxIndex = Math.max(0, testimonials.length - (window.innerWidth >= 768 ? 3 : 1))
     const nextIndex = currentIndex < maxIndex ? currentIndex + 1 : 0
     scrollToIndex(nextIndex)
+    // Pause auto-scroll temporarily when user clicks navigation
+    pauseAutoScroll()
   }
 
   const prevSlide = () => {
     const maxIndex = Math.max(0, testimonials.length - (window.innerWidth >= 768 ? 3 : 1))
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : maxIndex
     scrollToIndex(prevIndex)
+    // Pause auto-scroll temporarily when user clicks navigation
+    pauseAutoScroll()
   }
 
   const toggleExpand = (testimonialId: string) => {
@@ -243,6 +319,8 @@ export default function Testimonials() {
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             className="flex gap-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory scroll-smooth pb-4"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
@@ -309,7 +387,11 @@ export default function Testimonials() {
               {Array.from({ length: Math.ceil(testimonials.length / (window.innerWidth >= 768 ? 3 : 1)) }).map((_, index) => (
                 <button
                   key={index}
-                  onClick={() => scrollToIndex(index)}
+                  onClick={() => {
+                    scrollToIndex(index)
+                    // Pause auto-scroll temporarily when user clicks dot
+                    pauseAutoScroll()
+                  }}
                   className={`w-3 h-3 rounded-full transition-all ${
                     Math.floor(currentIndex) === index
                       ? 'bg-primary w-8'

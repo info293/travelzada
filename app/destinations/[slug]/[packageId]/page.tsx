@@ -888,7 +888,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
               <div>
                 <p className="text-sm text-gray-500">Starting from</p>
-                <p className="text-4xl font-serif text-[#c99846]">{packageData.Price_Range_INR || 'Contact for price'} INR</p>
+                <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
                 {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
               </div>
               <div className="flex flex-col gap-3">
