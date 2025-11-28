@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import SchemaMarkup, { generateArticleSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -350,8 +351,28 @@ export default function BlogPostPage({ params }: PageProps) {
     )
   }
 
+  // Generate schema.org structured data for SEO
+  const articleSchema = post ? generateArticleSchema({
+    headline: post.title,
+    description: post.description || post.subtitle,
+    image: post.image,
+    author: post.author,
+    datePublished: post.date,
+    dateModified: post.date,
+  }) : null
+
+  // Generate breadcrumb schema
+  const breadcrumbSchema = post ? generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' },
+    { name: 'Blog', url: 'https://www.travelzada.com/blog' },
+    { name: post.title },
+  ]) : null
+
   return (
-    <main className="min-h-screen bg-white">
+    <>
+      {articleSchema && <SchemaMarkup schema={articleSchema} id="article-schema" />}
+      {breadcrumbSchema && <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema" />}
+      <main className="min-h-screen bg-white">
         <Header />
       
       {/* Main Content */}
@@ -743,6 +764,7 @@ export default function BlogPostPage({ params }: PageProps) {
       </section>
 
       <Footer />
-    </main>
+      </main>
+    </>
   )
 }

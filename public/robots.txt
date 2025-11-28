@@ -1,0 +1,82 @@
+# robots.txt for Travelzada - Travel Planning Website
+# This file tells search engines which pages they can and cannot access
+# Optimized for SEO with destination clusters and package routes
+
+# Allow all search engines to crawl the site
+User-agent: *
+Allow: /
+
+# ============================================
+# DISALLOWED PATHS (Private/Admin Areas)
+# ============================================
+# Disallow admin and authentication pages (private areas)
+Disallow: /admin/
+Disallow: /login
+Disallow: /signup
+
+# Disallow API routes (not meant for search engines)
+Disallow: /api/
+
+# ============================================
+# ALLOWED PATHS (Public Pages)
+# ============================================
+
+# Top-Level Pages
+Allow: /
+Allow: /about-us/
+Allow: /contact
+Allow: /careers
+Allow: /reviews
+Allow: /story
+Allow: /press
+Allow: /ai-planner
+
+# Package Category Pages
+Allow: /honeymoon-packages/
+Allow: /international-packages/
+Allow: /india-packages/
+Allow: /deals/
+
+# Blog Pages
+Allow: /blog/
+Allow: /blog/*
+
+# Destinations Pages
+Allow: /destinations/
+Allow: /destinations/*
+
+# Package Detail Pages (Dynamic Routes)
+Allow: /destinations/*/*
+
+# ============================================
+# DESTINATION CLUSTERS (Bali Example)
+# ============================================
+# Bali Tour Packages
+Allow: /bali-tour-packages/
+Allow: /bali-honeymoon-packages/
+Allow: /bali-5n6d-package/
+Allow: /bali-7n8d-package/
+Allow: /bali-nusa-penida/
+Allow: /bali-water-sports/
+Allow: /bali-instagram-spots/
+Allow: /bali-travel-cost-from-india
+
+# ============================================
+# STATIC ASSETS
+# ============================================
+# Allow images for better SEO and image search
+Allow: /images/
+Allow: /images/*
+
+# ============================================
+# SITEMAP
+# ============================================
+# Sitemap location (update with your actual domain when deployed)
+# Example: Sitemap: https://www.travelzada.com/sitemap.xml
+Sitemap: https://www.travelzada.com/sitemap.xml
+
+# ============================================
+# CRAWL DELAY (Optional)
+# ============================================
+# Uncomment and adjust if needed to prevent server overload:
+# Crawl-delay: 1

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import LeadForm from '@/components/LeadForm'
+import SchemaMarkup, { generateTravelPackageSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -248,6 +249,26 @@ export default function PackageDetailPage({ params }: PageProps) {
     return match ? parseInt(match[1]) : (packageData.Duration_Days || 5)
   }
   const days = extractDays(packageData.Duration)
+
+  // Generate schema.org structured data for SEO
+  const packageSchema = generateTravelPackageSchema({
+    name: packageData.Destination_Name || 'Travel Package',
+    description: packageData.Overview || packageData.Destination_Name,
+    image: imageUrl,
+    priceRange: packageData.Price_Range_INR,
+    currency: 'INR',
+    duration: packageData.Duration,
+    destination: slug,
+    url: typeof window !== 'undefined' ? window.location.href : `https://www.travelzada.com/destinations/${slug}/${packageId}`,
+  })
+
+  // Generate breadcrumb schema
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' },
+    { name: 'Destinations', url: 'https://www.travelzada.com/destinations' },
+    { name: slug, url: `https://www.travelzada.com/destinations/${slug}` },
+    { name: packageData.Destination_Name || 'Package' },
+  ])
   
   // Create itinerary from Day_Wise_Itinerary field or generate from duration
   const createItinerary = () => {
@@ -698,8 +719,11 @@ export default function PackageDetailPage({ params }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
-      <Header />
+    <>
+      <SchemaMarkup schema={packageSchema} id="package-schema" />
+      <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema" />
+      <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
+        <Header />
 
       <div ref={contentRef} className="pdf-content bg-[#f8f5f0]">
         <section className="relative h-[420px] md:h-[520px] w-full">
@@ -1036,7 +1060,8 @@ export default function PackageDetailPage({ params }: PageProps) {
         sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
         packageName={packageData.Destination_Name}
       />
-    </main>
+      </main>
+    </>
   )
 }
 
