@@ -55,11 +55,17 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
     return '5D/4N'
   }
 
-  // Extract price from budget range (e.g., "₹30,000 - ₹50,000" -> "₹30,000")
+  // Extract price from budget range (e.g., "₹30,000 - ₹50,000" -> "INR 30,000")
   const getStartingPrice = (budget?: string): string => {
     if (!budget) return 'Contact for price'
     const match = budget.match(/₹[\d,]+/)
-    return match ? match[0] : budget.split('-')[0].trim()
+    if (match) {
+      // Replace ₹ with INR
+      return match[0].replace('₹', 'INR ')
+    }
+    const price = budget.split('-')[0].trim()
+    // Replace ₹ with INR if present
+    return price.replace('₹', 'INR ')
   }
 
   // Generate a deterministic rating based on destination name
@@ -85,8 +91,12 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
   return (
     <Link
       href={`/destinations/${encodeURIComponent(destinationSlug)}`}
-      className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 block"
+      className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 border border-gray-100 block relative group"
     >
+      {/* Shine Effect Overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+      </div>
       {/* Image Section */}
       <div className="relative h-48 overflow-hidden">
         {!imageError ? (
@@ -118,26 +128,25 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
       {/* Content Section */}
       <div className="p-4 bg-white">
         {/* Location */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+        <div className="flex items-center text-3xl gap-1.5 text-xs text-gray-500 mb-1.5">
           <span>📍</span>
-          <span>{destination.name}, {destination.country}</span>
+          <span className="text-xl font-bold">{destination.name}, {destination.country}</span>
         </div>
 
         {/* Package Title */}
-        <h3 className="text-base font-medium text-[#1e1d2f] mb-3 line-clamp-2">
+        {/* <h3 className="text-base font-medium text-[#1e1d2f] mb-3 line-clamp-2">
           {destination.description || `${destination.name} Adventure Package`}
-        </h3>
+        </h3> */}
 
-        {/* Price and Duration Row */}
-        <div className="flex items-end justify-between">
-          <div>
+        {/* Price and Explore More Row */}
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex-1">
             <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
             <p className="text-2xl font-semibold text-[#1e1d2f]">{startingPrice}</p>
           </div>
-          {/* <div className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span>🕐</span>
-            <span>{durationFormatted}</span>
-          </div> */}
+          <span className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap">
+            Explore More
+          </span>
         </div>
       </div>
     </Link>

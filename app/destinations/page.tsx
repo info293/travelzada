@@ -106,15 +106,12 @@ export default function DestinationsPage() {
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Explore Amazing Destinations
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Discover your next adventure with our hand-picked destinations. From tropical beaches to mountain peaks, find the perfect place for your dream vacation.
-            </p>
           </div>
         </div>
       </section>
 
       {/* Search and Filter Section */}
-      <section className="py-8 px-4 md:px-12 bg-white border-b border-gray-200">
+      <section className="py-4 px-4 md:px-12 bg-white border-b border-gray-200">
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Bar */}

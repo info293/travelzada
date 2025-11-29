@@ -89,21 +89,21 @@ const DEFAULT_GUEST_REVIEWS: Array<{
   date: string
   rating?: string
 }> = [
-  {
-    name: 'Anjali Mehta',
-    content:
-      'Best vacation ever! The Ubud rice terraces were breathtaking, and the candlelight dinner on the beach was so romantic.',
-    date: '14 November 2025',
-    rating: '5/5',
-  },
-  {
-    name: 'Priya & Rahul Sharma',
-    content:
-      'Our honeymoon in Bali was absolutely magical. Every detail was perfectly arranged and the private transfers made it seamless.',
-    date: '11 November 2025',
-    rating: '5/5',
-  },
-]
+    {
+      name: 'Anjali Mehta',
+      content:
+        'Best vacation ever! The Ubud rice terraces were breathtaking, and the candlelight dinner on the beach was so romantic.',
+      date: '14 November 2025',
+      rating: '5/5',
+    },
+    {
+      name: 'Priya & Rahul Sharma',
+      content:
+        'Our honeymoon in Bali was absolutely magical. Every detail was perfectly arranged and the private transfers made it seamless.',
+      date: '11 November 2025',
+      rating: '5/5',
+    },
+  ]
 
 export default function PackageDetailPage({ params }: PageProps) {
   const slug = decodeURIComponent(params.slug)
@@ -113,6 +113,8 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [notFound, setNotFound] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [showLeadForm, setShowLeadForm] = useState(false)
+  const [showAllReviews, setShowAllReviews] = useState(false)
+  const [showAllFAQs, setShowAllFAQs] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -138,11 +140,11 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       try {
         setLoading(true)
-        
+
         // Try to fetch by document ID first (most direct way)
         const docRef = doc(db, 'packages', packageId)
         const docSnap = await getDoc(docRef)
-        
+
         if (docSnap.exists()) {
           const data = docSnap.data() as DestinationPackage
           // If found by document ID, use it regardless of destination slug
@@ -150,15 +152,15 @@ export default function PackageDetailPage({ params }: PageProps) {
           setLoading(false)
           return
         }
-        
+
         // If not found by document ID, try to find by Destination_ID
         const { collection, getDocs, query, where } = await import('firebase/firestore')
         const packagesRef = collection(db, 'packages')
-        
+
         try {
           const q = query(packagesRef, where('Destination_ID', '==', packageId))
           const querySnapshot = await getDocs(q)
-          
+
           if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0]
             const data = doc.data() as DestinationPackage
@@ -171,7 +173,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           // If query fails (e.g., missing index), continue to fallback search
           console.log('Query by Destination_ID failed, trying fallback:', queryError)
         }
-        
+
         // If still not found, try searching all packages by ID match only
         console.log(`Searching all packages for packageId: ${packageId}`)
         const allPackagesSnapshot = await getDocs(packagesRef)
@@ -179,7 +181,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           const data = doc.data() as DestinationPackage
           // Match by Destination_ID or document ID only (ignore destination slug)
           const matchesId = data.Destination_ID === packageId || doc.id === packageId
-          
+
           if (matchesId) {
             console.log(`Found package: ${doc.id}`)
             setPackageData({ id: doc.id, ...data })
@@ -187,7 +189,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             return
           }
         }
-        
+
         console.log(`Package not found: ${packageId}`)
         setNotFound(true)
       } catch (error) {
@@ -238,11 +240,11 @@ export default function PackageDetailPage({ params }: PageProps) {
   const imageUrl = packageData.Primary_Image_URL
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-  
+
   // Parse inclusions and exclusions
   const inclusions = packageData.Inclusions?.split(',').map((i: string) => i.trim()) || []
   const exclusions = packageData.Exclusions?.split(',').map((e: string) => e.trim()) || []
-  
+
   // Extract days from Duration or Duration_Days
   const extractDays = (duration: string): number => {
     const match = duration.match(/(\d+)/)
@@ -269,7 +271,7 @@ export default function PackageDetailPage({ params }: PageProps) {
     { name: slug, url: `https://www.travelzada.com/destinations/${slug}` },
     { name: packageData.Destination_Name || 'Package' },
   ])
-  
+
   // Create itinerary from Day_Wise_Itinerary field or generate from duration
   const createItinerary = () => {
     // Check if Day_Wise_Itinerary exists in package data
@@ -277,7 +279,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       // Parse the Day_Wise_Itinerary string
       // Format: "Day 1: Arrive & relax | Day 2: Ubud Tour | Day 3: Watersports | ..."
       const itineraryItems = packageData.Day_Wise_Itinerary.split('|').map((item: string) => item.trim())
-      
+
       return itineraryItems.map((item: string, index: number) => {
         // Extract day number and title
         const dayMatch = item.match(/Day\s*(\d+):\s*(.+)/i)
@@ -287,16 +289,16 @@ export default function PackageDetailPage({ params }: PageProps) {
           return {
             day: `Day ${dayNum}`,
             title: title,
-            description: index === 0 
+            description: index === 0
               ? `Arrive in ${packageData.Destination_Name || 'Bali'} and check into your hotel. ${packageData.Overview || ''}`
               : index === itineraryItems.length - 1
-              ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
-              : `Enjoy ${title.toLowerCase()} in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
-            details: index === 0 
+                ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
+                : `Enjoy ${title.toLowerCase()} in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
+            details: index === 0
               ? ['Airport pickup', 'Hotel check-in', 'Welcome briefing']
               : index === itineraryItems.length - 1
-              ? ['Hotel check-out', 'Airport transfer', 'Departure']
-              : inclusions.slice(0, 3)
+                ? ['Hotel check-out', 'Airport transfer', 'Departure']
+                : inclusions.slice(0, 3)
           }
         } else {
           // Fallback if format doesn't match
@@ -309,7 +311,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         }
       })
     }
-    
+
     // Fallback: Generate simple itinerary based on duration
     const itinerary = []
     for (let i = 1; i <= days; i++) {
@@ -319,18 +321,18 @@ export default function PackageDetailPage({ params }: PageProps) {
         description: i === 1
           ? `Arrive in ${packageData.Destination_Name || 'Bali'} and check into your hotel. ${packageData.Overview || ''}`
           : i === days
-          ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
-          : `Enjoy your stay in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
+            ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
+            : `Enjoy your stay in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
         details: i === 1
           ? ['Airport pickup', 'Hotel check-in', 'Welcome briefing']
           : i === days
-          ? ['Hotel check-out', 'Airport transfer', 'Departure']
-          : inclusions.slice(0, 3)
+            ? ['Hotel check-out', 'Airport transfer', 'Departure']
+            : inclusions.slice(0, 3)
       })
     }
     return itinerary
   }
-  
+
   const packageUrl = `https://travelzada.com/destinations/${slug}/${packageId}`
   const packageTitle = packageData.Destination_Name || 'Package'
   const whatsappShare = `https://wa.me/919929962350?text=${encodeURIComponent(
@@ -345,7 +347,7 @@ export default function PackageDetailPage({ params }: PageProps) {
 
     try {
       setIsGeneratingPDF(true)
-      
+
       // Dynamically import client-side only libraries
       const [jsPDFModule, html2canvasModule] = await Promise.all([
         import('jspdf'),
@@ -353,13 +355,13 @@ export default function PackageDetailPage({ params }: PageProps) {
       ])
       const jsPDF = jsPDFModule.default || jsPDFModule
       const html2canvas = html2canvasModule.default || html2canvasModule
-      
+
       // Store original states
       const detailsElements = contentRef.current.querySelectorAll('details')
       const originalStates: boolean[] = []
       detailsElements.forEach((detail, index) => {
         originalStates[index] = (detail as HTMLDetailsElement).open
-        ;(detail as HTMLDetailsElement).open = true
+          ; (detail as HTMLDetailsElement).open = true
       })
 
       // Wait for content to render and images to load
@@ -368,20 +370,20 @@ export default function PackageDetailPage({ params }: PageProps) {
       // Convert Next.js Image components to regular img tags for PDF capture
       const nextImages = contentRef.current.querySelectorAll('img[srcset], img[data-next-image], img[data-pdf-image], span[data-pdf-image]')
       const imageConversionPromises: Promise<void>[] = []
-      
+
       nextImages.forEach((element) => {
         const imgElement = element as HTMLElement
-        
+
         // Get the actual image source
         let actualSrc = ''
-        
+
         // Check if it has data-pdf-image attribute (our custom attribute)
         if (imgElement.hasAttribute('data-pdf-image')) {
           actualSrc = imgElement.getAttribute('data-pdf-image') || ''
         } else if (imgElement.tagName === 'IMG') {
           const img = imgElement as HTMLImageElement
           actualSrc = img.src
-          
+
           // If it's a Next.js optimized image, try to get the original src
           if (img.srcset) {
             // Extract the largest image from srcset
@@ -390,7 +392,7 @@ export default function PackageDetailPage({ params }: PageProps) {
               actualSrc = srcsetMatch[srcsetMatch.length - 1] // Get the largest one
             }
           }
-          
+
           // If src contains Next.js image optimization, try to get original
           if (actualSrc.includes('/_next/image')) {
             try {
@@ -426,9 +428,9 @@ export default function PackageDetailPage({ params }: PageProps) {
             }
           }
         }
-        
+
         if (!actualSrc) return
-        
+
         // Find the actual img element (might be inside a span for Next.js Image)
         let targetImg: HTMLImageElement | null = null
         if (imgElement.tagName === 'IMG') {
@@ -436,13 +438,13 @@ export default function PackageDetailPage({ params }: PageProps) {
         } else {
           targetImg = imgElement.querySelector('img') as HTMLImageElement
         }
-        
+
         if (!targetImg) return
-        
+
         // Get computed styles
         const computedStyle = window.getComputedStyle(targetImg)
         const parentStyle = targetImg.parentElement ? window.getComputedStyle(targetImg.parentElement) : null
-        
+
         // Create a new img element with the actual source
         const newImg = document.createElement('img')
         newImg.src = actualSrc
@@ -463,7 +465,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           newImg.style.right = computedStyle.right
           newImg.style.bottom = computedStyle.bottom
         }
-        
+
         // Replace the Next.js Image with regular img
         const promise = new Promise<void>((resolve) => {
           newImg.onload = () => {
@@ -490,10 +492,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         })
         imageConversionPromises.push(promise)
       })
-      
+
       // Wait for all image conversions
       await Promise.all(imageConversionPromises)
-      
+
       // Wait for all images to load (including converted ones)
       const allImages = contentRef.current.querySelectorAll('img')
       const imagePromises = Array.from(allImages).map((img) => {
@@ -518,7 +520,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       const originalDisplays: string[] = []
       elementsToHide.forEach((el) => {
         originalDisplays.push((el as HTMLElement).style.display)
-        ;(el as HTMLElement).style.display = 'none'
+          ; (el as HTMLElement).style.display = 'none'
       })
 
       // Hide iframes (maps) as they can't be captured properly
@@ -526,7 +528,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       const originalIframeDisplays: string[] = []
       iframes.forEach((iframe) => {
         originalIframeDisplays.push((iframe as HTMLElement).style.display)
-        ;(iframe as HTMLElement).style.display = 'none'
+          ; (iframe as HTMLElement).style.display = 'none'
       })
 
       // Ensure content is visible
@@ -569,7 +571,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             imgElement.style.maxWidth = '100%'
             imgElement.style.height = 'auto'
             imgElement.style.objectFit = 'cover'
-            
+
             // Fix Next.js optimized image URLs
             let actualSrc = imgElement.src
             if (actualSrc.includes('/_next/image')) {
@@ -590,17 +592,17 @@ export default function PackageDetailPage({ params }: PageProps) {
                 }
               }
             }
-            
+
             // Remove srcset as it can cause issues
             imgElement.removeAttribute('srcset')
             imgElement.removeAttribute('sizes')
-            
+
             // Ensure crossorigin for external images
             if (actualSrc.startsWith('http')) {
               imgElement.crossOrigin = 'anonymous'
             }
           })
-          
+
           // Ensure all text is visible
           const allElements = clonedDoc.querySelectorAll('*')
           allElements.forEach((el) => {
@@ -623,10 +625,10 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       // Restore hidden elements
       elementsToHide.forEach((el, index) => {
-        ;(el as HTMLElement).style.display = originalDisplays[index] || ''
+        ; (el as HTMLElement).style.display = originalDisplays[index] || ''
       })
       iframes.forEach((iframe, index) => {
-        ;(iframe as HTMLElement).style.display = originalIframeDisplays[index] || ''
+        ; (iframe as HTMLElement).style.display = originalIframeDisplays[index] || ''
       })
 
       // Restore scroll position
@@ -634,7 +636,7 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       // Restore hidden elements
       elementsToHide.forEach((el, index) => {
-        ;(el as HTMLElement).style.display = originalDisplays[index] || ''
+        ; (el as HTMLElement).style.display = originalDisplays[index] || ''
       })
 
       // Check if canvas has content
@@ -666,30 +668,30 @@ export default function PackageDetailPage({ params }: PageProps) {
       }
 
       const imgData = canvas.toDataURL('image/png', 1.0)
-      
+
       if (!imgData || imgData === 'data:,') {
         throw new Error('Failed to generate image data from canvas')
       }
-      
+
       // Calculate PDF dimensions
       const imgWidth = canvas.width
       const imgHeight = canvas.height
       const pdfWidth = 210 // A4 width in mm
       const pdfHeight = (imgHeight * pdfWidth) / imgWidth
       const pageHeight = 297 // A4 height in mm
-      
+
       // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4')
       const totalPages = Math.ceil(pdfHeight / pageHeight)
-      
+
       // Add pages with content
       for (let i = 0; i < totalPages; i++) {
         if (i > 0) {
           pdf.addPage()
         }
-        
+
         const yPosition = -(i * pageHeight)
-        
+
         pdf.addImage(
           imgData,
           'PNG',
@@ -705,10 +707,10 @@ export default function PackageDetailPage({ params }: PageProps) {
       // Save the PDF
       const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
       pdf.save(fileName)
-      
+
       // Restore original states
       detailsElements.forEach((detail, index) => {
-        ;(detail as HTMLDetailsElement).open = originalStates[index]
+        ; (detail as HTMLDetailsElement).open = originalStates[index]
       })
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -725,280 +727,352 @@ export default function PackageDetailPage({ params }: PageProps) {
       <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
         <Header />
 
-      <div ref={contentRef} className="pdf-content bg-[#f8f5f0]">
-        <section className="relative h-[420px] md:h-[520px] w-full">
-          <Image
-            src={imageUrl}
-            alt={packageTitle}
-            fill
-            className="object-cover"
-            priority
-            data-pdf-image={imageUrl}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
-          {/* Back Button - Positioned over image */}
-          <div className="absolute top-20 left-4 md:left-8 z-10" data-pdf-hide="true">
-            <Link
-              href={`/destinations/${slug}`}
-              className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
-            >
-              <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-          </div>
-        </section>
-
-        <section className="relative -mt-36 md:-mt-40 px-4 md:px-8 pb-20">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 items-start">
-          <div className="space-y-8">
-            <article className="bg-white rounded-[5px] shadow-lg p-8 space-y-6">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-primary font-semibold uppercase tracking-wide">
-                <span className="px-3 py-1 bg-primary/10 rounded-full">{packageData.Destination_Name}</span>
-                <span className="px-3 py-1 bg-gray-100 rounded-full">{packageData.Duration}</span>
-                <span className="px-3 py-1 bg-gray-100 rounded-full">{packageData.Star_Category || 'Hotel'}</span>
-              </div>
-              <div className="flex flex-col gap-3">
-                <h1 className="text-4xl md:text-5xl font-serif text-[#1e1d2f]">{packageTitle}</h1>
-                <p className="text-sm text-primary font-semibold">Flexible payment options available</p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-                <StatBlock label="Duration" value={packageData.Duration} />
-                <StatBlock label="Location" value={packageData.Destination_Name || 'Bali, Indonesia'} />
-                <StatBlock label="Hotel" value={packageData.Star_Category || 'Hotel'} />
-                <StatBlock label="Travel Type" value={packageData.Travel_Type || '—'} />
-              </div>
-            </article>
-            <SectionCard title="Package Highlights" intro={packageData.Overview}>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-                <Fact label="Destination" value={packageData.Destination_Name || 'Bali, Indonesia'} />
-                <Fact label="Duration" value={packageData.Duration} />
-                <Fact label="Mood" value={packageData.Mood || 'Relax'} />
-                <Fact label="Theme" value={packageData.Theme || 'Beach / Culture'} />
-                <Fact label="Travel Type" value={packageData.Travel_Type || 'Couple'} />
-                <Fact label="Stay" value={packageData.Stay || packageData.Star_Category || 'Hotel'} />
-              </dl>
-            </SectionCard>
-
-            <SectionCard title="Highlights">
-              <ul className="space-y-3 text-lg text-[#1e1d2f]">
-                {inclusions.slice(0, 5).map((inclusion, idx) => (
-                  <li key={idx} className="flex items-start gap-4">
-                    <span className="mt-1 text-primary">✔</span>
-                    <p>{inclusion}</p>
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-
-            <SectionCard title="Day-wise Itinerary">
-              <div className="space-y-4">
-                {createItinerary().map((day, index) => (
-                  <details
-                    key={day.day}
-                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm [&[open]_summary_svg]:rotate-180"
-                    open={index === 0}
-                  >
-                    <summary className="flex items-center justify-between cursor-pointer list-none">
-                      <div className="flex items-center gap-3 text-lg font-medium">
-                        <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold">
-                          {index + 1}
-                        </span>
-                        {day.day}: {day.title}
-                      </div>
-                      <svg 
-                        className="w-5 h-5 text-primary transition-transform duration-200" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </summary>
-                    <div className="mt-4 text-gray-600 space-y-3">
-                      <p>{day.description}</p>
-                      <ul className="list-disc pl-6 space-y-1">
-                        {day.details.map((detail, idx) => (
-                          <li key={idx}>{detail}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </details>
-                ))}
-              </div>
-            </SectionCard>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <SectionCard title="Inclusions">
-                <ListWithIcon items={inclusions} icon="✓" iconClass="text-green-600" />
-              </SectionCard>
-              <SectionCard title="Exclusions">
-                <ListWithIcon items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']} icon="✕" iconClass="text-red-500" />
-              </SectionCard>
+        <div ref={contentRef} className="pdf-content bg-[#f8f5f0]">
+          <section className="relative h-[300px] sm:h-[380px] md:h-[420px] lg:h-[520px] w-full">
+            <Image
+              src={imageUrl}
+              alt={packageTitle}
+              fill
+              className="object-cover"
+              priority
+              data-pdf-image={imageUrl}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
+            {/* Back Button - Positioned over image */}
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-20 md:left-8 z-10" data-pdf-hide="true">
+              <Link
+                href={`/destinations/${slug}`}
+                className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </Link>
             </div>
+          </section>
 
-            <SectionCard title="Guest Reviews">
-              <div className="space-y-6">
-                {(packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0 
-                  ? packageData.Guest_Reviews 
-                  : DEFAULT_GUEST_REVIEWS).map((review, idx) => (
-                  <div key={idx} className="rounded-[5px] border border-gray-200 p-5 bg-white">
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="font-semibold">{review.name}</p>
-                      <p className="text-yellow-500">{review.rating || '★★★★★'}</p>
-                    </div>
-                    <p className="text-gray-600 mb-2">{review.content}</p>
-                    <p className="text-sm text-gray-500">{review.date}</p>
+          <section className="relative -mt-24 sm:-mt-28 md:-mt-36 lg:-mt-40 px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-20">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 md:gap-8 items-start">
+              <div className="space-y-6 md:space-y-8">
+                <article className="bg-white rounded-lg sm:rounded-[5px] shadow-lg p-5 sm:p-6 md:p-8 space-y-4 sm:space-y-5 md:space-y-6">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-primary font-semibold uppercase tracking-wide">
+                    <span className="px-2.5 sm:px-3 py-1 bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">{packageData.Destination_Name}</span>
+                    <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Duration}</span>
+                    <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Star_Category || 'Hotel'}</span>
                   </div>
-                ))}
-              </div>
-            </SectionCard>
+                  <div className="flex flex-col gap-2 sm:gap-3">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif text-[#1e1d2f] leading-tight">{packageTitle}</h1>
+                    <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
+                      <span className="text-lg">💳</span>
+                      Flexible payment options available
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
+                    <StatBlock label="Duration" value={packageData.Duration} />
+                    <StatBlock label="Location" value={packageData.Destination_Name || 'Bali, Indonesia'} />
+                    <StatBlock label="Hotel" value={packageData.Star_Category || 'Hotel'} />
+                    <StatBlock label="Travel Type" value={packageData.Travel_Type || '—'} />
+                  </div>
+                </article>
 
-            <SectionCard title="Booking Policies">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <PolicyCard 
-                  title="Booking" 
-                  items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']} 
-                />
-                <PolicyCard 
-                  title="Payment" 
-                  items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']} 
-                />
-                <PolicyCard 
-                  title="Cancellation" 
-                  items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']} 
-                />
-              </div>
-            </SectionCard>
+                {/* Mobile Price Section - Static Part */}
+                <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+                  <div>
+                    <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
+                    <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                  </div>
+                  <div className="flex flex-col gap-2.5 sm:gap-3">
+                    <button
+                      onClick={() => setShowLeadForm(true)}
+                      className="w-full text-center bg-primary text-white py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-primary/90 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      Enquire Now
+                    </button>
+                  </div>
+                </div>
 
-            <SectionCard title="Frequently Asked Questions">
-              <div className="space-y-4">
-                {(packageData.FAQ_Items && packageData.FAQ_Items.length > 0 
-                  ? packageData.FAQ_Items 
-                  : DEFAULT_FAQ_ITEMS).map((faq, idx) => (
-                  <details
-                    key={idx}
-                    className="rounded-[5px] border border-gray-200 bg-white p-5 open:shadow-sm"
-                  >
-                    <summary className="cursor-pointer text-lg font-medium text-[#1e1d2f]">
-                      {faq.question}
-                    </summary>
-                    <p className="mt-3 text-gray-600">{faq.answer}</p>
-                  </details>
-                ))}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="Location Map">
-              <div className="aspect-[16/9] rounded-[5px] overflow-hidden border border-gray-200 shadow-sm">
-                <iframe
-                  title={`Map of ${packageData.Destination_Name || 'Bali'}`}
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d252111.25858393507!2d114.79136011672423!3d-8.4543220429647!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd239dc54737811%3A0x3030bfbca7cb180!2sBali%2C%20Indonesia!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
-                  width="600"
-                  height="450"
-                  loading="lazy"
-                  allowFullScreen
-                  referrerPolicy="no-referrer-when-downgrade"
-                  className="w-full h-full"
-                ></iframe>
-              </div>
-            </SectionCard>
-          </div>
-
-          <aside className="space-y-6 lg:sticky lg:top-24">
-            <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
-              <div>
-                <p className="text-sm text-gray-500">Starting from</p>
-                <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
-                {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
-              </div>
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => setShowLeadForm(true)}
-                  className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
-                >
-                  Enquire Now
-                </button>
-                <button
-                  onClick={handleDownloadItinerary}
-                  disabled={isGeneratingPDF}
-                  className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
-                </button>
-              </div>
-              <div className="pt-4 border-t border-gray-100 space-y-3">
-                <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
-                <div className="flex gap-3">
-                  <a
-                    href={whatsappShare}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
-                  >
-                    WhatsApp
-                  </a>
+                {/* Mobile Download Button - Sticky Part */}
+                <div className="lg:hidden sticky top-24 z-20">
                   <button
-                    onClick={async () => {
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: packageTitle,
-                            text: `Check out ${packageTitle} on Travelzada`,
-                            url: packageUrl,
-                          })
-                        } catch (err) {
-                          // User cancelled or error occurred
-                          if ((err as Error).name !== 'AbortError') {
-                            console.error('Error sharing:', err)
-                          }
-                        }
-                      } else {
-                        // Fallback: open Twitter share in new tab
-                        window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
-                      }
-                    }}
-                    className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
+                    onClick={handleDownloadItinerary}
+                    disabled={isGeneratingPDF}
+                    className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-xl"
                   >
-                    Share
+                    {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
                   </button>
                 </div>
+
+                <SectionCard title="Highlights">
+                  <ul className="space-y-2.5 sm:space-y-3 text-base sm:text-lg text-[#1e1d2f]">
+                    {inclusions.slice(0, 5).map((inclusion, idx) => (
+                      <li key={idx} className="flex items-start gap-3 sm:gap-4">
+                        <span className="mt-0.5 sm:mt-1 text-primary text-lg sm:text-xl flex-shrink-0">✔</span>
+                        <p className="leading-relaxed">{inclusion}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </SectionCard>
+
+                <SectionCard title="Day-wise Itinerary">
+                  <div className="space-y-3 sm:space-y-4">
+                    {createItinerary().map((day, index) => (
+                      <details
+                        key={day.day}
+                        className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30 [&[open]_summary_svg]:rotate-180"
+                      >
+                        <summary className="flex items-center justify-between cursor-pointer list-none gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg font-medium flex-1 min-w-0">
+                            <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
+                              {index + 1}
+                            </span>
+                            <span className="truncate sm:whitespace-normal">
+                              <span className="hidden sm:inline">{day.day}: </span>
+                              <span className="sm:font-normal">{day.title}</span>
+                            </span>
+                          </div>
+                          <svg
+                            className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-transform duration-200 flex-shrink-0"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </summary>
+                        <div className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600 space-y-2 sm:space-y-3">
+                          <p className="leading-relaxed">{day.description}</p>
+                          <ul className="list-disc pl-5 sm:pl-6 space-y-1">
+                            {day.details.map((detail, idx) => (
+                              <li key={idx} className="leading-relaxed">{detail}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </details>
+                    ))}
+                  </div>
+                </SectionCard>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <SectionCard title="Inclusions">
+                    <ListWithIcon items={inclusions} icon="✓" iconClass="text-green-600" />
+                  </SectionCard>
+                  <SectionCard title="Exclusions">
+                    <ListWithIcon items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']} icon="✕" iconClass="text-red-500" />
+                  </SectionCard>
+                </div>
+
+                <SectionCard title="Guest Reviews">
+                  <div className="space-y-4 sm:space-y-5 md:space-y-6">
+                    {(() => {
+                      const allReviews = packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0
+                        ? packageData.Guest_Reviews
+                        : DEFAULT_GUEST_REVIEWS
+                      const displayedReviews = showAllReviews ? allReviews : allReviews.slice(0, 3)
+
+                      return (
+                        <>
+                          {displayedReviews.map((review, idx) => (
+                            <div key={idx} className="rounded-lg sm:rounded-[5px] border border-gray-200 p-4 sm:p-5 bg-white hover:shadow-md transition-shadow">
+                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
+                                <p className="font-semibold text-sm sm:text-base">{review.name}</p>
+                                <p className="text-yellow-500 text-sm sm:text-base">{review.rating || '★★★★★'}</p>
+                              </div>
+                              <p className="text-sm sm:text-base text-gray-600 mb-2 leading-relaxed">{review.content}</p>
+                              <p className="text-xs sm:text-sm text-gray-500">{review.date}</p>
+                            </div>
+                          ))}
+                          {allReviews.length > 3 && !showAllReviews && (
+                            <button
+                              onClick={() => setShowAllReviews(true)}
+                              className="w-full py-3 text-center border-2 border-primary text-primary font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-primary hover:text-white transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              View All Reviews ({allReviews.length})
+                            </button>
+                          )}
+                          {showAllReviews && allReviews.length > 3 && (
+                            <button
+                              onClick={() => setShowAllReviews(false)}
+                              className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-gray-100 transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              Show Less
+                            </button>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Booking Policies">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+                    <PolicyCard
+                      title="Booking"
+                      items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']}
+                    />
+                    <PolicyCard
+                      title="Payment"
+                      items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']}
+                    />
+                    <PolicyCard
+                      title="Cancellation"
+                      items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']}
+                    />
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Frequently Asked Questions">
+                  <div className="space-y-4">
+                    {(() => {
+                      const allFAQs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0
+                        ? packageData.FAQ_Items
+                        : DEFAULT_FAQ_ITEMS
+                      const displayedFAQs = showAllFAQs ? allFAQs : allFAQs.slice(0, 5)
+
+                      return (
+                        <>
+                          {displayedFAQs.map((faq, idx) => (
+                            <details
+                              key={idx}
+                              className="rounded-[5px] border border-gray-200 bg-white p-4 md:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30"
+                            >
+                              <summary className="cursor-pointer text-base md:text-lg font-medium text-[#1e1d2f] leading-relaxed">
+                                {faq.question}
+                              </summary>
+                              <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">{faq.answer}</p>
+                            </details>
+                          ))}
+                          {allFAQs.length > 5 && !showAllFAQs && (
+                            <button
+                              onClick={() => setShowAllFAQs(true)}
+                              className="w-full py-3 text-center border-2 border-primary text-primary font-semibold rounded-[5px] hover:bg-primary hover:text-white transition-colors"
+                            >
+                              View All FAQs ({allFAQs.length})
+                            </button>
+                          )}
+                          {showAllFAQs && allFAQs.length > 5 && (
+                            <button
+                              onClick={() => setShowAllFAQs(false)}
+                              className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold rounded-[5px] hover:bg-gray-100 transition-colors"
+                            >
+                              Show Less
+                            </button>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </SectionCard>
+
+                <SectionCard title="Location Map">
+                  <div className="aspect-[16/9] rounded-lg sm:rounded-[5px] overflow-hidden border border-gray-200 shadow-sm">
+                    <iframe
+                      title={`Map of ${packageData.Destination_Name || 'Bali'}`}
+                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d252111.25858393507!2d114.79136011672423!3d-8.4543220429647!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd239dc54737811%3A0x3030bfbca7cb180!2sBali%2C%20Indonesia!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
+                      width="600"
+                      height="450"
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="w-full h-full"
+                    ></iframe>
+                  </div>
+                </SectionCard>
               </div>
-              <div className="space-y-2 text-sm">
-                <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
-                <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  +919929962350
-                </a>
-                <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  info@travelzada.com
-                </a>
-              </div>
-              <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
-                <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
-                {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0 
-                  ? packageData.Why_Book_With_Us 
-                  : WHY_BOOK_WITH_US).map((item, idx) => (
-                  <div key={idx} className="flex gap-3 text-sm text-gray-600">
-                    <span className="text-primary">✓</span>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.label}</p>
-                      <p>{item.description}</p>
+
+              <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
+                <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
+                  <div>
+                    <p className="text-sm text-gray-500">Starting from</p>
+                    <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                    {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => setShowLeadForm(true)}
+                      className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
+                    >
+                      Enquire Now
+                    </button>
+                    <button
+                      onClick={handleDownloadItinerary}
+                      disabled={isGeneratingPDF}
+                      className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
+                    </button>
+                  </div>
+                  <div className="pt-4 border-t border-gray-100 space-y-3">
+                    <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
+                    <div className="flex gap-3">
+                      <a
+                        href={whatsappShare}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
+                      >
+                        WhatsApp
+                      </a>
+                      <button
+                        onClick={async () => {
+                          if (navigator.share) {
+                            try {
+                              await navigator.share({
+                                title: packageTitle,
+                                text: `Check out ${packageTitle} on Travelzada`,
+                                url: packageUrl,
+                              })
+                            } catch (err) {
+                              // User cancelled or error occurred
+                              if ((err as Error).name !== 'AbortError') {
+                                console.error('Error sharing:', err)
+                              }
+                            }
+                          } else {
+                            // Fallback: open Twitter share in new tab
+                            window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
+                          }
+                        }}
+                        className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
+                      >
+                        Share
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div className="space-y-2 text-sm">
+                    <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
+                    <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      +919929962350
+                    </a>
+                    <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      info@travelzada.com
+                    </a>
+                  </div>
+                  <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
+                    <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
+                    {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0
+                      ? packageData.Why_Book_With_Us
+                      : WHY_BOOK_WITH_US).map((item, idx) => (
+                        <div key={idx} className="flex gap-3 text-sm text-gray-600">
+                          <span className="text-primary">✓</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{item.label}</p>
+                            <p>{item.description}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
 
-            <SectionCard title="Travel Concierge">
+                {/* <SectionCard title="Travel Concierge">
               <p className="text-gray-600 mb-3">
                 Need help customising this journey? Speak to our specialist for curated stays,
                 private experiences and visa assistance.
@@ -1012,54 +1086,54 @@ export default function PackageDetailPage({ params }: PageProps) {
                 </svg>
                 Call +919929962350 →
               </Link>
-            </SectionCard>
+            </SectionCard> */}
 
-            <SectionCard title="Why Travelers Love Us">
+                {/* <SectionCard title="Why Travelers Love Us">
               <ul className="space-y-3 text-gray-600">
                 <li>98% positive reviews across honeymoon packages</li>
                 <li>Partners with luxury resorts in Kuta, Ubud and Nusa Dua</li>
                 <li>Assistance with forex, insurance and travel SIM</li>
               </ul>
-            </SectionCard>
+            </SectionCard> */}
 
-            <SectionCard title="Need a Custom Quote?">
-              <p className="text-gray-600 mb-3">
-                Email us at{' '}
-                <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
-                  info@travelzada.com
-                </a>{' '}
-                or call us at{' '}
-                <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
-                  +919929962350
-                </a>{' '}
-                with your travel dates and preferences.
-              </p>
-            </SectionCard>
-          </aside>
+                <SectionCard title="Need a Custom Quote?">
+                  <p className="text-gray-600 mb-3">
+                    Email us at{' '}
+                    <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
+                      info@travelzada.com
+                    </a>{' '}
+                    or call us at{' '}
+                    <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
+                      +919929962350
+                    </a>{' '}
+                    with your travel dates and preferences.
+                  </p>
+                </SectionCard>
+              </aside>
+            </div>
+          </section>
         </div>
-      </section>
-      </div>
 
-      <Footer />
+        <Footer />
 
-      {!showLeadForm && (
-        <div className="md:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => setShowLeadForm(true)}
-            className="pointer-events-auto w-full bg-primary text-white py-3.5 rounded-full font-semibold shadow-xl shadow-primary/30 hover:bg-primary-dark transition"
-          >
-            Enquire Now
-          </button>
-        </div>
-      )}
+        {!showLeadForm && (
+          <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
+            <button
+              type="button"
+              onClick={() => setShowLeadForm(true)}
+              className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              Enquire Now
+            </button>
+          </div>
+        )}
 
-      <LeadForm
-        isOpen={showLeadForm}
-        onClose={() => setShowLeadForm(false)}
-        sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        packageName={packageData.Destination_Name}
-      />
+        <LeadForm
+          isOpen={showLeadForm}
+          onClose={() => setShowLeadForm(false)}
+          sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          packageName={packageData.Destination_Name}
+        />
       </main>
     </>
   )
@@ -1067,10 +1141,10 @@ export default function PackageDetailPage({ params }: PageProps) {
 
 function SectionCard({ title, children, intro }: { title: string; children: ReactNode; intro?: string }) {
   return (
-    <section className="bg-white rounded-[5px] shadow-sm p-6 md:p-8 space-y-4">
+    <section className="bg-white rounded-lg sm:rounded-[5px] shadow-sm p-5 sm:p-6 md:p-8 space-y-3 sm:space-y-4">
       <div>
-        <h2 className="text-2xl font-serif text-[#1e1d2f]">{title}</h2>
-        {intro && <p className="text-gray-600 mt-2">{intro}</p>}
+        <h2 className="text-xl sm:text-2xl font-serif text-[#1e1d2f] leading-tight">{title}</h2>
+        {intro && <p className="text-sm sm:text-base text-gray-600 mt-2 leading-relaxed">{intro}</p>}
       </div>
       {children}
     </section>
@@ -1079,20 +1153,20 @@ function SectionCard({ title, children, intro }: { title: string; children: Reac
 
 function StatBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4">
-      <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="text-base font-semibold text-[#1e1d2f]">{value}</p>
+    <div className="rounded-lg sm:rounded-[5px] border border-gray-100 bg-gray-50 p-3 sm:p-4">
+      <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</p>
+      <p className="text-sm sm:text-base font-semibold text-[#1e1d2f] leading-tight break-words">{value}</p>
     </div>
   )
 }
 
 function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: string; iconClass: string }) {
   return (
-    <ul className="space-y-3 text-gray-600">
+    <ul className="space-y-2.5 sm:space-y-3 text-sm sm:text-base text-gray-600">
       {items.map((item) => (
-        <li key={item} className="flex items-start gap-3">
-          <span className={`font-semibold ${iconClass}`}>{icon}</span>
-          <span>{item}</span>
+        <li key={item} className="flex items-start gap-2.5 sm:gap-3">
+          <span className={`font-semibold ${iconClass} text-base sm:text-lg flex-shrink-0 mt-0.5`}>{icon}</span>
+          <span className="leading-relaxed">{item}</span>
         </li>
       ))}
     </ul>
@@ -1101,12 +1175,12 @@ function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: strin
 
 function PolicyCard({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-[5px] border border-gray-200 bg-white p-5">
-      <h3 className="text-lg font-semibold text-[#1e1d2f] mb-3">{title}</h3>
-      <ul className="space-y-2 text-sm text-gray-600">
+    <div className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 hover:shadow-md transition-shadow">
+      <h3 className="text-base sm:text-lg font-semibold text-[#1e1d2f] mb-2.5 sm:mb-3">{title}</h3>
+      <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-600">
         {items.map((item) => (
-          <li key={item} className="flex items-start gap-2">
-            <span className="text-primary">•</span>
+          <li key={item} className="flex items-start gap-2 leading-relaxed">
+            <span className="text-primary flex-shrink-0 mt-0.5">•</span>
             <span>{item}</span>
           </li>
         ))}

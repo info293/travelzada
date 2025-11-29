@@ -270,8 +270,12 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   <Link
                     key={pkg.id || packageId}
                     href={`/destinations/${encodeURIComponent(destination?.slug || destination?.name || destinationName)}/${packageId}`}
-                    className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col"
+                    className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col relative group"
                   >
+                    {/* Shine Effect Overlay */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                    </div>
                     <div className="relative h-44 overflow-hidden">
                       <img
                         src={imageUrl}
