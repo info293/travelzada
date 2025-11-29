@@ -249,10 +249,21 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [destinationHotelOptions, setDestinationHotelOptions] = useState<Array<{ label: string; value: string }>>([])
   const [destinationTravelTypeOptions, setDestinationTravelTypeOptions] = useState<Array<{ label: string; value: string }>>([])
   const [selectedMonthForCalendar, setSelectedMonthForCalendar] = useState<number | null>(null)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
+  const [imageAnalysisResult, setImageAnalysisResult] = useState<{
+    detectedLocation: string | null
+    rawDetectedLocation: string | null
+    confidence: 'high' | 'medium' | 'low'
+    similarLocations?: string[]
+    description?: string
+    landmarks?: string[]
+  } | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
   const dateInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const todayISO = useMemo(() => formatISODate(new Date()), [])
   const initialPromptSentRef = useRef(false)
 
@@ -564,6 +575,115 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     },
     [appendMessage, destinations]
   )
+
+  const handleImageUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file')
+      return
+    }
+
+    setIsAnalyzingImage(true)
+    setImageAnalysisResult(null)
+    setUploadedImage(null)
+
+    try {
+      // Convert image to base64
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64String = reader.result as string
+        
+        // Store image for preview
+        setUploadedImage(base64String)
+
+        // Get available destinations
+        const availableDestinations = destinations.length > 0 
+          ? destinations.map(d => d.name)
+          : []
+
+        // Call image analysis API
+        const response = await fetch('/api/ai-planner/analyze-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: base64String,
+            availableDestinations,
+          }),
+        })
+
+        const analysisData = await response.json()
+        setImageAnalysisResult(analysisData)
+
+        // Add user message with image
+        appendMessage({
+          role: 'user',
+          content: 'I uploaded an image. Can you identify the location?',
+        })
+
+        // Handle the result
+        if (analysisData.detectedLocation) {
+          // Exact match found - set destination and show packages
+          const matchedDestination = analysisData.detectedLocation
+          setTripInfo(prev => ({ ...prev, destination: matchedDestination }))
+          
+          const locationName = analysisData.rawDetectedLocation || matchedDestination
+          appendMessage({
+            role: 'assistant',
+            content: `Great! I've identified this image as ${locationName}. This matches ${matchedDestination} in our database! Let me show you the available packages for this destination!`,
+          })
+
+          // Set destination and move to next question
+          setCurrentQuestion('date')
+          setProgress((1 / TOTAL_STEPS) * 100)
+          setCompletedSteps(1)
+        } else if (analysisData.rawDetectedLocation || (analysisData.similarLocations && analysisData.similarLocations.length > 0)) {
+          // No exact match, but we detected a location
+          const detectedLocationName = analysisData.rawDetectedLocation || 'this location'
+          const landmarksText = analysisData.landmarks && analysisData.landmarks.length > 0 
+            ? ` I can see ${analysisData.landmarks.join(' and ')} in the image.` 
+            : ''
+          
+          if (analysisData.similarLocations && analysisData.similarLocations.length > 0) {
+            const similarList = analysisData.similarLocations.join(', ')
+            appendMessage({
+              role: 'assistant',
+              content: `I've identified this image as ${detectedLocationName}.${landmarksText} Unfortunately, we don't have packages for ${detectedLocationName} in our database right now. However, we have similar destinations available: ${similarList}. Would you like to explore packages for any of these locations?`,
+            })
+          } else {
+            appendMessage({
+              role: 'assistant',
+              content: `I've identified this image as ${detectedLocationName}.${landmarksText} Unfortunately, we don't have packages for this location in our database. Could you tell me which destination you'd like to visit? We have: ${availableDestinations.join(', ')}`,
+            })
+          }
+        } else {
+          // No location detected at all
+          appendMessage({
+            role: 'assistant',
+            content: `I couldn't identify this location in the image. Could you tell me which destination you'd like to visit? We have: ${availableDestinations.join(', ')}`,
+          })
+        }
+      }
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error('Error analyzing image:', error)
+      appendMessage({
+        role: 'assistant',
+        content: 'Sorry, I encountered an error analyzing the image. Please try again or tell me which destination you\'d like to visit.',
+      })
+    } finally {
+      setIsAnalyzingImage(false)
+    }
+  }, [destinations, appendMessage])
+
+  const handleImageInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleImageUpload(file)
+    }
+    // Reset input so same file can be selected again
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
+    }
+  }, [handleImageUpload])
 
   useEffect(() => {
     // Wait for destinations to load before sending initial prompt
@@ -2622,9 +2742,164 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         </div>
       )}
 
+      {/* Image Analysis Result Display */}
+      {imageAnalysisResult && (
+        <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
+          {uploadedImage && (
+            <div className="mb-4">
+              <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
+              <img 
+                src={uploadedImage} 
+                alt="Uploaded location" 
+                className="max-w-full max-h-48 rounded-lg border border-gray-200 shadow-sm object-cover"
+              />
+            </div>
+          )}
+          {imageAnalysisResult.detectedLocation ? (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 md:p-5">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1">
+                  {imageAnalysisResult.rawDetectedLocation && imageAnalysisResult.rawDetectedLocation !== imageAnalysisResult.detectedLocation && (
+                    <p className="text-xs md:text-sm text-green-800 mb-2">
+                      <span className="font-semibold">Location Identified:</span> {imageAnalysisResult.rawDetectedLocation}
+                    </p>
+                  )}
+                  <p className="text-sm md:text-base font-semibold text-green-900 mb-1">
+                    ✓ Perfect Match: {imageAnalysisResult.detectedLocation}
+                  </p>
+                  {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                    <p className="text-xs md:text-sm text-green-700 mb-2">
+                      I can see: {imageAnalysisResult.landmarks.join(', ')}
+                    </p>
+                  )}
+                  {imageAnalysisResult.description && (
+                    <p className="text-xs md:text-sm text-green-700 mb-3">{imageAnalysisResult.description}</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      setTripInfo(prev => ({ ...prev, destination: imageAnalysisResult.detectedLocation! }))
+                      setCurrentQuestion('date')
+                      setProgress((1 / TOTAL_STEPS) * 100)
+                      setCompletedSteps(1)
+                      setImageAnalysisResult(null)
+                      setUploadedImage(null)
+                    }}
+                    className="text-xs md:text-sm font-semibold text-green-700 hover:text-green-900 underline"
+                  >
+                    Show packages for {imageAnalysisResult.detectedLocation} →
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : imageAnalysisResult.rawDetectedLocation || (imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0) ? (
+            <div className="space-y-4">
+              {/* Show detected location first */}
+              {imageAnalysisResult.rawDetectedLocation && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
+                        Location Identified: {imageAnalysisResult.rawDetectedLocation}
+                      </p>
+                      {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                        <p className="text-xs md:text-sm text-blue-700 mb-2">
+                          I can see: {imageAnalysisResult.landmarks.join(', ')}
+                        </p>
+                      )}
+                      {imageAnalysisResult.description && (
+                        <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
+                      )}
+                      <p className="text-xs md:text-sm text-blue-800 font-medium">
+                        Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Show similar locations if available */}
+              {imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 md:p-5">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm md:text-base font-semibold text-yellow-900 mb-2">
+                        Similar Destinations We Offer
+                      </p>
+                      <p className="text-xs md:text-sm text-yellow-800 mb-3">
+                        Here are similar destinations from our available packages:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {imageAnalysisResult.similarLocations.map((loc, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setTripInfo(prev => ({ ...prev, destination: loc }))
+                              setCurrentQuestion('date')
+                              setProgress((1 / TOTAL_STEPS) * 100)
+                              setCompletedSteps(1)
+                              setImageAnalysisResult(null)
+                              setUploadedImage(null)
+                            }}
+                            className="px-3 py-1.5 text-xs md:text-sm font-semibold bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
+                          >
+                            {loc}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
+              <p className="text-sm md:text-base font-semibold text-gray-900 mb-2">
+                Location Not Found
+              </p>
+              <p className="text-xs md:text-sm text-gray-600">
+                We couldn't identify this location in our database. Please tell us which destination you'd like to visit.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Input */}
       <div className="border-t border-gray-200 bg-gray-50/50 p-3 md:p-4 relative z-10">
         <div className="flex gap-2 md:gap-3">
+          <input
+            type="file"
+            ref={imageInputRef}
+            accept="image/*"
+            onChange={handleImageInputChange}
+            className="hidden"
+            id="image-upload-input"
+          />
+          <label
+            htmlFor="image-upload-input"
+            className={`flex items-center justify-center px-3 md:px-4 py-2.5 md:py-3.5 rounded-xl border-2 border-gray-200 bg-white shadow-sm transition-all cursor-pointer hover:bg-gray-50 hover:border-purple-300 flex-shrink-0 ${isAnalyzingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title="Upload image to detect location"
+          >
+            {isAnalyzingImage ? (
+              <svg className="w-4 h-4 md:w-5 md:h-5 animate-spin text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4 md:w-5 md:h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            )}
+          </label>
           <input
             type="text"
             value={input}
@@ -2632,7 +2907,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             onKeyPress={handleKeyPress}
             placeholder={
               !tripInfo.destination
-                ? "Tell me where you want to travel..."
+                ? "Tell me where you want to travel or upload an image..."
                 : currentQuestion === 'date'
                 ? "When are you traveling? (e.g., March 2024 or 15/03/2024)"
                 : currentQuestion === 'days'
@@ -2663,6 +2938,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             )}
           </button>
         </div>
+        {isAnalyzingImage && (
+          <p className="text-xs text-gray-500 mt-2 text-center">Analyzing image to detect location...</p>
+        )}
       </div>
       <style jsx>{`
         @keyframes shimmer {
