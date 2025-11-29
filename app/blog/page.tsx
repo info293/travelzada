@@ -22,6 +22,7 @@ interface BlogPost {
   sectionOrder?: number
   likes?: number
   comments?: number
+  views?: number
   shares?: number
   featured?: boolean
   published?: boolean
@@ -42,7 +43,7 @@ export default function BlogPage() {
   const fetchBlogs = async () => {
     try {
       if (typeof window === 'undefined' || !db) return
-      
+
       // Try to fetch with published filter and orderBy
       let querySnapshot
       try {
@@ -67,9 +68,9 @@ export default function BlogPage() {
           querySnapshot = await getDocs(collection(db, 'blogs'))
         }
       }
-      
+
       const blogsData: BlogPost[] = []
-      
+
       querySnapshot.forEach((doc) => {
         const data = doc.data() as BlogPost
         // Filter client-side if needed (in case where clause failed)
@@ -98,7 +99,7 @@ export default function BlogPage() {
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
     const emailValue = email.trim().toLowerCase()
-    
+
     if (!emailValue) {
       setSubscribeMessage('Please enter a valid email address.')
       return
@@ -141,7 +142,7 @@ export default function BlogPage() {
 
       setSubscribeMessage('Thank you for subscribing!')
       setEmail('')
-      
+
       // Clear message after 3 seconds
       setTimeout(() => {
         setSubscribeMessage('')
@@ -214,10 +215,24 @@ export default function BlogPage() {
     })
   })
 
+  // Sort posts by views (for Top posts section)
+  const topPosts = [...allPosts].sort((a, b) => {
+    const aViews = a.views || 0
+    const bViews = b.views || 0
+    return bViews - aViews
+  }).slice(0, 5) // Top 5 posts by views
+
+  // Sort posts by date (for Recent posts section)
+  const recentPosts = [...allPosts].sort((a, b) => {
+    const aDate = (a as any).createdAt || a.date || ''
+    const bDate = (b as any).createdAt || b.date || ''
+    return bDate.localeCompare(aDate)
+  }).slice(0, 4) // Latest 4 posts
+
   return (
     <main className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Main Content Area */}
       <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
@@ -267,7 +282,7 @@ export default function BlogPage() {
                               }}
                             />
                           </div>
-                          
+
                           {/* Featured Post Content */}
                           <div className="space-y-3">
                             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight">
@@ -309,7 +324,7 @@ export default function BlogPage() {
                                     }}
                                   />
                                 </div>
-                                
+
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
                                   <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight line-clamp-2">
@@ -338,7 +353,7 @@ export default function BlogPage() {
                             <p className="text-sm text-gray-600 mb-4">
                               Essays and analysis about travel, destinations, tips, and all the other things we care about.
                             </p>
-                            
+
                             <form onSubmit={handleSubscribe} className="space-y-3">
                               <input
                                 type="email"
@@ -360,11 +375,10 @@ export default function BlogPage() {
                                 {subscribing ? 'Subscribing...' : 'Subscribe'}
                               </button>
                               {subscribeMessage && (
-                                <p className={`text-xs text-center ${
-                                  subscribeMessage.includes('Thank you') 
-                                    ? 'text-green-600' 
+                                <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
+                                    ? 'text-green-600'
                                     : 'text-red-600'
-                                }`}>
+                                  }`}>
                                   {subscribeMessage}
                                 </p>
                               )}
@@ -445,11 +459,10 @@ export default function BlogPage() {
                         {subscribing ? 'Subscribing...' : 'Subscribe'}
                       </button>
                       {subscribeMessage && (
-                        <p className={`text-xs text-center ${
-                          subscribeMessage.includes('Thank you') 
-                            ? 'text-green-600' 
+                        <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
+                            ? 'text-green-600'
                             : 'text-red-600'
-                        }`}>
+                          }`}>
                           {subscribeMessage}
                         </p>
                       )}
@@ -458,6 +471,157 @@ export default function BlogPage() {
                 </div>
               </div>
             )}
+
+            {/* New Three Column Section: Top Posts, Recent Posts, Newsletter */}
+            <div className="pt-16 border-t border-gray-200 mt-16">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+                {/* Left Column - Top Posts */}
+                <div className="lg:col-span-1">
+                  <div className="mb-6">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Top posts</h2>
+                  </div>
+                  <div className="space-y-6">
+                    {topPosts.map((post) => (
+                      <Link
+                        key={post.id || post.title}
+                        href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="group block"
+                      >
+                        <div className="flex gap-4">
+                          {/* Thumbnail Image */}
+                          <div className="flex-shrink-0 w-24 h-24">
+                            <img
+                              src={post.image}
+                              alt={post.title}
+                              className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
+                              }}
+                            />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                              {post.title}
+                            </h3>
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
+                              <span>{post.date}</span>
+                              <span>•</span>
+                              <span className="truncate">{post.category || post.author.toUpperCase()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                    {topPosts.length === 0 && (
+                      <p className="text-sm text-gray-500">No posts yet</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Middle Column - Recent Posts */}
+                <div className="lg:col-span-1">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Recent posts</h2>
+                    <Link
+                      href="/blog#all-posts"
+                      className="text-sm font-medium text-gray-600 hover:text-primary transition-colors flex items-center gap-1"
+                    >
+                      VIEW ALL
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </Link>
+                  </div>
+                  <div className="space-y-6">
+                    {recentPosts.map((post) => (
+                      <Link
+                        key={post.id || post.title}
+                        href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="group block"
+                      >
+                        <div className="flex gap-4">
+                          {/* Thumbnail Image */}
+                          <div className="flex-shrink-0 w-24 h-24">
+                            <img
+                              src={post.image}
+                              alt={post.title}
+                              className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
+                              }}
+                            />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                              {post.title}
+                            </h3>
+                            {post.subtitle && (
+                              <p className="text-xs text-gray-600 mb-2 line-clamp-2">
+                                {post.subtitle}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
+                              <span>{post.date}</span>
+                              <span>•</span>
+                              <span className="truncate">{post.category || post.author.toUpperCase()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                    {recentPosts.length === 0 && (
+                      <p className="text-sm text-gray-500">No posts yet</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column - Newsletter */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-24">
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Essays and analysis about travel, destinations, tips, and all the other things we care about.
+                      </p>
+
+                      <form onSubmit={handleSubscribe} className="space-y-3">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => {
+                            setEmail(e.target.value)
+                            setSubscribeMessage('')
+                          }}
+                          placeholder="Type your email..."
+                          disabled={subscribing}
+                          className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={subscribing}
+                          className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {subscribing ? 'Subscribing...' : 'Subscribe'}
+                        </button>
+                        {subscribeMessage && (
+                          <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                            }`}>
+                            {subscribeMessage}
+                          </p>
+                        )}
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

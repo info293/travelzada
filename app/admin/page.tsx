@@ -123,6 +123,7 @@ interface BlogPost {
   sectionOrder?: number // Order within the section
   readTime?: string
   likes?: number
+  views?: number
   comments?: number
   shares?: number
   featured?: boolean
@@ -365,12 +366,12 @@ export default function AdminDashboard() {
         console.log('OrderBy failed, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'users'))
       }
-      
+
       const usersData: User[] = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
-        usersData.push({ 
-          id: doc.id, 
+        usersData.push({
+          id: doc.id,
           email: data.email || '',
           displayName: data.displayName || '',
           photoURL: data.photoURL || '',
@@ -380,14 +381,14 @@ export default function AdminDashboard() {
           isActive: data.isActive !== undefined ? data.isActive : true,
         } as User)
       })
-      
+
       // Sort manually if needed
       usersData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime()
         const dateB = new Date(b.createdAt).getTime()
         return dateB - dateA
       })
-      
+
       setUsers(usersData)
       console.log('Fetched users:', usersData.length)
     } catch (error) {
@@ -407,7 +408,7 @@ export default function AdminDashboard() {
         console.log('OrderBy failed for subscribers, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'newsletter_subscribers'))
       }
-      
+
       const subscribersData: Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }> = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
@@ -419,14 +420,14 @@ export default function AdminDashboard() {
           source: data.source || 'unknown',
         })
       })
-      
+
       // Sort manually if needed
       subscribersData.sort((a, b) => {
         const dateA = new Date(a.subscribedAt).getTime()
         const dateB = new Date(b.subscribedAt).getTime()
         return dateB - dateA
       })
-      
+
       setSubscribers(subscribersData)
       console.log('Fetched subscribers:', subscribersData.length)
     } catch (error) {
@@ -445,7 +446,7 @@ export default function AdminDashboard() {
         console.log('OrderBy failed for contact messages, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'contact_messages'))
       }
-      
+
       const messagesData: Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }> = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
@@ -461,14 +462,14 @@ export default function AdminDashboard() {
           read: data.read || false,
         })
       })
-      
+
       // Sort manually if needed
       messagesData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime()
         const dateB = new Date(b.createdAt).getTime()
         return dateB - dateA
       })
-      
+
       setContactMessages(messagesData)
       console.log('Fetched contact messages:', messagesData.length)
     } catch (error) {
@@ -487,7 +488,7 @@ export default function AdminDashboard() {
         console.log('OrderBy failed for leads, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'leads'))
       }
-      
+
       const leadsData: Lead[] = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
@@ -495,13 +496,13 @@ export default function AdminDashboard() {
           typeof data.travelersCount === 'number'
             ? data.travelersCount
             : parseInt(
-                data.travelersCount ||
-                  data.members ||
-                  data.totalGuests ||
-                  data.peopleCount ||
-                  '',
-                10
-              )
+              data.travelersCount ||
+              data.members ||
+              data.totalGuests ||
+              data.peopleCount ||
+              '',
+              10
+            )
         leadsData.push({
           id: doc.id,
           name: data.name || '',
@@ -520,13 +521,13 @@ export default function AdminDashboard() {
           notes: data.notes || data.message || '',
         })
       })
-      
+
       leadsData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime()
         const dateB = new Date(b.createdAt).getTime()
         return dateB - dateA
       })
-      
+
       setLeads(leadsData)
       console.log('Fetched leads:', leadsData.length)
     } catch (error) {
@@ -545,7 +546,7 @@ export default function AdminDashboard() {
         console.log('OrderBy failed for job applications, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'job_applications'))
       }
-      
+
       const applicationsData: Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }> = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
@@ -562,14 +563,14 @@ export default function AdminDashboard() {
           read: data.read || false,
         })
       })
-      
+
       // Sort manually if needed
       applicationsData.sort((a, b) => {
         const dateA = new Date(a.createdAt).getTime()
         const dateB = new Date(b.createdAt).getTime()
         return dateB - dateA
       })
-      
+
       setJobApplications(applicationsData)
       console.log('Fetched job applications:', applicationsData.length)
     } catch (error) {
@@ -588,7 +589,7 @@ export default function AdminDashboard() {
         console.log('OrderBy failed for testimonials, fetching without order:', orderError)
         querySnapshot = await getDocs(collection(dbInstance, 'testimonials'))
       }
-      
+
       const testimonialsData: Testimonial[] = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
@@ -602,7 +603,7 @@ export default function AdminDashboard() {
           updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
         })
       })
-      
+
       setTestimonials(testimonialsData)
     } catch (error) {
       console.error('Error fetching testimonials:', error)
@@ -629,7 +630,7 @@ export default function AdminDashboard() {
       budget: lead.budget || '',
       notes: lead.notes || '',
     })
-  setLeadDetailsModalOpen(true)
+    setLeadDetailsModalOpen(true)
   }
 
   const handleLeadDetailsChange = (
@@ -654,7 +655,7 @@ export default function AdminDashboard() {
       budget: '',
       notes: '',
     })
-  setLeadDetailsModalOpen(false)
+    setLeadDetailsModalOpen(false)
   }
 
   const handleLeadDetailsSubmit = async (e: React.FormEvent) => {
@@ -811,10 +812,10 @@ export default function AdminDashboard() {
   const handlePackageSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-    if (!formData.Destination_ID || !formData.Destination_Name) {
-      alert('Please provide both Destination ID and Destination Name before saving.')
-      return
-    }
+      if (!formData.Destination_ID || !formData.Destination_Name) {
+        alert('Please provide both Destination ID and Destination Name before saving.')
+        return
+      }
 
       // Build package data, excluding undefined values
       const packageData: any = {
@@ -884,7 +885,7 @@ export default function AdminDashboard() {
       // Parse blogStructure if it's a string
       let blogStructure: BlogSection[] | undefined = undefined
       const blogStructureValue = blogFormData.blogStructure
-      
+
       if (blogStructureValue) {
         if (typeof blogStructureValue === 'string') {
           const trimmed = blogStructureValue.trim()
@@ -939,7 +940,7 @@ export default function AdminDashboard() {
       if (blogStructure) {
         blogData.blogStructure = blogStructure
       }
-      
+
       if (blogFormData.authorImage) {
         blogData.authorImage = blogFormData.authorImage
       }
@@ -948,19 +949,19 @@ export default function AdminDashboard() {
       if (blogFormData.metaTitle && blogFormData.metaTitle.trim()) {
         blogData.metaTitle = blogFormData.metaTitle.trim()
       }
-      
+
       if (blogFormData.metaDescription && blogFormData.metaDescription.trim()) {
         blogData.metaDescription = blogFormData.metaDescription.trim()
       }
-      
+
       if (blogFormData.keywords && Array.isArray(blogFormData.keywords) && blogFormData.keywords.length > 0) {
         blogData.keywords = blogFormData.keywords.filter(k => k && k.trim())
       }
-      
+
       if (blogFormData.canonicalUrl && blogFormData.canonicalUrl.trim()) {
         blogData.canonicalUrl = blogFormData.canonicalUrl.trim()
       }
-      
+
       if (blogFormData.ogImage && blogFormData.ogImage.trim()) {
         blogData.ogImage = blogFormData.ogImage.trim()
       }
@@ -1015,7 +1016,7 @@ export default function AdminDashboard() {
     const formattedData: Partial<DestinationPackage> = {
       ...pkg,
       // Convert number fields from string to number if needed
-      Price_Min_INR: pkg.Price_Min_INR !== undefined && pkg.Price_Min_INR !== null 
+      Price_Min_INR: pkg.Price_Min_INR !== undefined && pkg.Price_Min_INR !== null
         ? (typeof pkg.Price_Min_INR === 'string' ? Number(pkg.Price_Min_INR) : pkg.Price_Min_INR)
         : undefined,
       Price_Max_INR: pkg.Price_Max_INR !== undefined && pkg.Price_Max_INR !== null
@@ -1118,7 +1119,7 @@ export default function AdminDashboard() {
       // Process packages one by one
       for (let i = 0; i < packagesData.length; i++) {
         const pkg = packagesData[i]
-        
+
         try {
           // Validate required fields
           if (!pkg.Destination_ID || !pkg.Destination_Name) {
@@ -1229,7 +1230,7 @@ export default function AdminDashboard() {
       // Process blogs one by one
       for (let i = 0; i < blogsData.length; i++) {
         const blog = blogsData[i]
-        
+
         try {
           // Validate required fields
           if (!blog.title || !blog.description || !blog.content || !blog.image || !blog.author || !blog.category) {
@@ -1591,7 +1592,7 @@ export default function AdminDashboard() {
 
       // Refresh users list
       await fetchUsers()
-      
+
       // If updating own role, show special message
       if (userId === currentUser?.uid) {
         alert(`Your role has been updated to ${newRole}. Please refresh the page or sign out and sign back in for the changes to take effect.`)
@@ -1690,7 +1691,7 @@ export default function AdminDashboard() {
   return (
     <main className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <div className="max-w-7xl mx-auto px-4 md:px-12 py-8">
         {/* Header */}
         <div className="mb-12">
@@ -1783,15 +1784,13 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'dashboard'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'dashboard'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
@@ -1805,15 +1804,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('packages')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'packages'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'packages'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
@@ -1828,15 +1825,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('blogs')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'blogs'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'blogs'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
@@ -1851,15 +1846,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('destinations')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'destinations'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'destinations'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1875,15 +1868,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('users')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'users'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'users'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'users' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'users' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
@@ -1898,15 +1889,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('leads')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'leads'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'leads'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -1921,15 +1910,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('contacts')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'contacts'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'contacts'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -1944,15 +1931,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('subscribers')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'subscribers'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'subscribers'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
@@ -1967,15 +1952,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('careers')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'careers'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'careers'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-5.196 0-8.07-.745-9-1.745M21 13.255v-2.51A23.931 23.931 0 0112 8c-5.196 0-8.07.745-9 1.745m18 0v6.51A23.931 23.931 0 0112 21c-5.196 0-8.07-.745-9-1.745m0 0v-6.51M3 13.255A23.931 23.931 0 0112 15c5.196 0 8.07-.745 9-1.745" />
                 </svg>
@@ -1990,15 +1973,13 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => setActiveTab('testimonials')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                activeTab === 'testimonials'
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'testimonials'
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-              }`}
+                }`}
             >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-              }`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                }`}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
@@ -2563,7 +2544,7 @@ export default function AdminDashboard() {
                         Enter JSON array of sections. Types: intro, paragraph, heading, subheading, image, quote, list, cta, divider, faq, toc, related
                       </p>
                     </div>
-                    
+
                     {/* SEO Section */}
                     <div className="md:col-span-2 border-t border-gray-200 pt-6 mt-6">
                       <h3 className="text-lg font-bold text-gray-900 mb-4">SEO Optimization</h3>
@@ -2667,7 +2648,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-6 flex-wrap">
                       <label className="flex items-center gap-2">
                         <input
@@ -2759,6 +2740,7 @@ export default function AdminDashboard() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Views</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
@@ -2773,10 +2755,12 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4 text-sm text-gray-900">{blog.category}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">{blog.author}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">{blog.date}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            <span className="font-semibold">{blog.views || 0}</span>
+                          </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              blog.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${blog.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
                               {blog.published ? 'Published' : 'Draft'}
                             </span>
                           </td>
@@ -3335,7 +3319,7 @@ export default function AdminDashboard() {
                           alert('Please log in first to sync your user data.')
                           return
                         }
-                        
+
                         // Create/update current user's document
                         const dbInstance = getDbInstance()
                         const { doc, setDoc, serverTimestamp } = await import('firebase/firestore')
@@ -3349,7 +3333,7 @@ export default function AdminDashboard() {
                           lastLogin: serverTimestamp(),
                           isActive: true,
                         }, { merge: true })
-                        
+
                         alert('User document created/updated! Refreshing...')
                         fetchUsers()
                       } catch (error: any) {
@@ -3364,100 +3348,97 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {user.photoURL ? (
-                            <img src={user.photoURL} alt={user.email} className="w-10 h-10 rounded-full" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                              <span className="text-primary font-semibold">
-                                {user.email?.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-medium text-gray-900">{user.displayName || 'User'}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={user.role}
-                            onChange={(e) => {
-                              const newRole = e.target.value as 'user' | 'admin'
-                              handleUpdateUserRole(user.id!, newRole, user.role)
-                            }}
-                            className={`text-xs px-3 py-1.5 border rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${
-                              user.role === 'admin' 
-                                ? 'bg-purple-100 text-purple-800 border-purple-300' 
-                                : 'bg-gray-100 text-gray-800 border-gray-300'
-                            }`}
-                          >
-                            <option value="user">User</option>
-                            <option value="admin">Admin</option>
-                          </select>
-                          {user.id === currentUser?.uid && (
-                            <span className="text-xs text-gray-500 italic">(You)</span>
-                          )}
-                        </div>
-                      </td>
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              {users.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-gray-500 mb-4">No users found in Firestore</div>
-                  <div className="text-sm text-gray-400 mb-4">
-                    Users are automatically created when they sign up. If you don't see any users:
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {user.photoURL ? (
+                              <img src={user.photoURL} alt={user.email} className="w-10 h-10 rounded-full" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <span className="text-primary font-semibold">
+                                  {user.email?.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-medium text-gray-900">{user.displayName || 'User'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                            {user.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {new Date(user.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={user.role}
+                              onChange={(e) => {
+                                const newRole = e.target.value as 'user' | 'admin'
+                                handleUpdateUserRole(user.id!, newRole, user.role)
+                              }}
+                              className={`text-xs px-3 py-1.5 border rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${user.role === 'admin'
+                                  ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                  : 'bg-gray-100 text-gray-800 border-gray-300'
+                                }`}
+                            >
+                              <option value="user">User</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            {user.id === currentUser?.uid && (
+                              <span className="text-xs text-gray-500 italic">(You)</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {users.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-gray-500 mb-4">No users found in Firestore</div>
+                    <div className="text-sm text-gray-400 mb-4">
+                      Users are automatically created when they sign up. If you don't see any users:
+                    </div>
+                    <div className="text-sm text-gray-400 space-y-1">
+                      <p>1. Make sure users have signed up after the user creation feature was added</p>
+                      <p>2. Click "Sync Current User" to create your own user document</p>
+                      <p>3. Check the browser console for any errors</p>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-400 space-y-1">
-                    <p>1. Make sure users have signed up after the user creation feature was added</p>
-                    <p>2. Click "Sync Current User" to create your own user document</p>
-                    <p>3. Check the browser console for any errors</p>
-                  </div>
-                </div>
-              )}
+                )}
               </div>
             </div>
-            
+
             {/* Info Box */}
             <div className="space-y-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -3471,7 +3452,7 @@ export default function AdminDashboard() {
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800 font-semibold mb-2">💡 Note:</p>
                 <p className="text-xs text-yellow-700">
-                  User documents are created automatically when users sign up. If you signed up before this feature was added, 
+                  User documents are created automatically when users sign up. If you signed up before this feature was added,
                   click "Sync Current User" to create your user document. You can also check the browser console (F12) for any errors.
                 </p>
               </div>
@@ -3510,11 +3491,10 @@ export default function AdminDashboard() {
                           <div className="font-medium text-gray-900">{subscriber.email}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            subscriber.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${subscriber.status === 'active'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}>
+                            }`}>
                             {subscriber.status}
                           </span>
                         </td>
@@ -3522,14 +3502,14 @@ export default function AdminDashboard() {
                           {subscriber.source || 'Unknown'}
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {subscriber.subscribedAt 
+                          {subscriber.subscribedAt
                             ? new Date(subscriber.subscribedAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
                             : 'N/A'}
                         </td>
                         <td className="px-6 py-4">
@@ -3598,8 +3578,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {contactMessages.map((message) => (
-                      <tr 
-                        key={message.id} 
+                      <tr
+                        key={message.id}
                         className={`hover:bg-gray-50 transition-colors ${!message.read ? 'bg-blue-50/50' : ''}`}
                       >
                         <td className="px-6 py-4">
@@ -3617,25 +3597,24 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            message.status === 'new' 
-                              ? 'bg-blue-100 text-blue-800' 
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${message.status === 'new'
+                              ? 'bg-blue-100 text-blue-800'
                               : message.status === 'read'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}>
                             {message.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {message.createdAt 
+                          {message.createdAt
                             ? new Date(message.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
                             : 'N/A'}
                         </td>
                         <td className="px-6 py-4">
@@ -3676,7 +3655,7 @@ export default function AdminDashboard() {
                                     </div>
                                   ),
                                 })
-                                
+
                                 // Mark as read
                                 if (message.id && !message.read) {
                                   const dbInstance = getDbInstance()
@@ -3760,8 +3739,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {leads.map((lead) => (
-                      <tr 
-                        key={lead.id} 
+                      <tr
+                        key={lead.id}
                         className={`hover:bg-gray-50 ${!lead.read ? 'bg-blue-50' : ''}`}
                       >
                         <td className="px-6 py-4">
@@ -3774,9 +3753,9 @@ export default function AdminDashboard() {
                           <div className="text-sm text-gray-900">{lead.packageName || 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <a 
-                            href={lead.sourceUrl} 
-                            target="_blank" 
+                          <a
+                            href={lead.sourceUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:text-blue-800 text-sm font-semibold truncate max-w-xs block"
                             title={lead.sourceUrl}
@@ -3785,12 +3764,11 @@ export default function AdminDashboard() {
                           </a>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            lead.status === 'new' ? 'bg-green-100 text-green-800' :
-                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                            lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${lead.status === 'new' ? 'bg-green-100 text-green-800' :
+                              lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                                lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-gray-100 text-gray-800'
+                            }`}>
                             {lead.status}
                           </span>
                         </td>
@@ -3829,12 +3807,11 @@ export default function AdminDashboard() {
                                         </div>
                                         <div>
                                           <p className="text-sm font-semibold text-gray-500 mb-1">Status</p>
-                                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${
-                                            lead.status === 'new' ? 'bg-green-100 text-green-800' :
-                                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                                            lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                                            'bg-gray-100 text-gray-800'
-                                          }`}>
+                                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${lead.status === 'new' ? 'bg-green-100 text-green-800' :
+                                              lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                                                lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                                                  'bg-gray-100 text-gray-800'
+                                            }`}>
                                             {lead.status}
                                           </span>
                                         </div>
@@ -3852,7 +3829,7 @@ export default function AdminDashboard() {
                                     </div>
                                   ),
                                 })
-                                
+
                                 // Mark as read
                                 if (lead.id && !lead.read) {
                                   const dbInstance = getDbInstance()
@@ -3956,8 +3933,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {jobApplications.map((application) => (
-                      <tr 
-                        key={application.id} 
+                      <tr
+                        key={application.id}
                         className={`hover:bg-gray-50 ${!application.read ? 'bg-blue-50' : ''}`}
                       >
                         <td className="px-6 py-4">
@@ -3974,9 +3951,9 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           {application.linkedin ? (
-                            <a 
-                              href={application.linkedin} 
-                              target="_blank" 
+                            <a
+                              href={application.linkedin}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
                             >
@@ -3987,27 +3964,26 @@ export default function AdminDashboard() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            application.status === 'new' 
-                              ? 'bg-blue-100 text-blue-800' 
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${application.status === 'new'
+                              ? 'bg-blue-100 text-blue-800'
                               : application.status === 'read'
-                              ? 'bg-gray-100 text-gray-800'
-                              : application.status === 'reviewed'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
+                                ? 'bg-gray-100 text-gray-800'
+                                : application.status === 'reviewed'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-green-100 text-green-800'
+                            }`}>
                             {application.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {application.createdAt 
+                          {application.createdAt
                             ? new Date(application.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
                             : 'N/A'}
                         </td>
                         <td className="px-6 py-4">
@@ -4056,7 +4032,7 @@ export default function AdminDashboard() {
                                     </div>
                                   ),
                                 })
-                                
+
                                 // Mark as read
                                 if (application.id && !application.read) {
                                   const dbInstance = getDbInstance()
@@ -4232,9 +4208,8 @@ export default function AdminDashboard() {
                             <div className="text-sm text-gray-900 max-w-md truncate">{testimonial.quote}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              testimonial.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${testimonial.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
                               {testimonial.featured ? 'Featured' : 'Regular'}
                             </span>
                           </td>
