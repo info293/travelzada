@@ -528,11 +528,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }, 2000) // Change message every 2 seconds
       
       try {
-        // Get available destinations (only Bali for now, or from database)
+        // Get available destinations from database
         const destinationsToSend = availableDestinationsForContext || 
           (destinations.length > 0 
-            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-            : ['Bali']) // Only Bali is supported
+            ? destinations.map(d => d.name)
+            : [])
 
         const response = await fetch('/api/ai-planner/chat', {
           method: 'POST',
@@ -566,13 +566,16 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   )
 
   useEffect(() => {
-    if (initialPromptSentRef.current) return
+    // Wait for destinations to load before sending initial prompt
+    if (initialPromptSentRef.current || destinationsLoading) return
+    
+    // Only send if we have destinations loaded
+    if (destinations.length === 0) return
+    
     initialPromptSentRef.current = true
     
-    // Get available destinations (only Bali for now)
-    const availableDests = destinations.length > 0
-      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-      : ['Bali']
+    // Get available destinations from database
+    const availableDests = destinations.map(d => d.name)
     
     sendAssistantPrompt(
       withStyle(
@@ -582,7 +585,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       {},
       availableDests
     )
-  }, [sendAssistantPrompt, destinations])
+  }, [sendAssistantPrompt, destinations, destinationsLoading])
 
   const scrollToBottom = () => {
     if (messagesContainerRef.current) {
@@ -1242,8 +1245,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     // Get available destinations for context
     const availableDests = destinations.length > 0
-      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-      : ['Bali']
+      ? destinations.map(d => d.name)
+      : []
 
     await sendAssistantPrompt(prompt, { packageMatch: bestMatch }, availableDests)
     
@@ -1265,8 +1268,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (!currentInfo.destination) {
       // Get available destinations (only Bali for now)
       const availableDests = destinations.length > 0
-        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-        : ['Bali']
+        ? destinations.map(d => d.name)
+        : []
       
       questionPrompt = withStyle(
         `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
@@ -1343,8 +1346,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     // Get available destinations for context
     const availableDests = destinations.length > 0
-      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-      : ['Bali']
+      ? destinations.map(d => d.name)
+      : []
     
     await sendAssistantPrompt(questionPrompt, {}, availableDests)
   },
@@ -1445,11 +1448,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // If user mentions honeymoon but no destination, ask for confirmation
     if (mentionsHoneymoon && !latestInfo.destination && currentQuestion === 'destination') {
       const availableDests = destinations.length > 0
-        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-        : ['Bali']
+        ? destinations.map(d => d.name)
+        : []
       
       const prompt = withStyle(
-        `Perfect! Bali is an amazing honeymoon destination with romantic beaches and stunning sunsets. Would you like to plan your honeymoon in ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`,
+        availableDests.length > 0
+          ? `Perfect! ${availableDests[0]} is an amazing honeymoon destination. Would you like to plan your honeymoon in ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`
+          : `Perfect! I'd love to help you plan your honeymoon. Which destination would you like to explore?`,
         35
       )
       await sendAssistantPrompt(prompt, {}, availableDests)
@@ -1471,13 +1476,15 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         await askNextQuestion(nextInfo)
         return
       } else {
-        // No Bali mentioned, ask for confirmation
+        // No destination mentioned, ask for confirmation
         const availableDests = destinations.length > 0
-          ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-          : ['Bali']
+          ? destinations.map(d => d.name)
+          : []
         
         const prompt = withStyle(
-          `Great! I'd love to help you plan your trip to ${availableDests[0]}. Can you confirm you want to proceed with ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`,
+          availableDests.length > 0
+            ? `Great! I'd love to help you plan your trip. Which destination would you like to explore? Available destinations: ${availableDests.join(', ')}.`
+            : `Great! I'd love to help you plan your trip. Which destination would you like to explore?`,
           35
         )
         await sendAssistantPrompt(prompt, {}, availableDests)
@@ -1522,22 +1529,23 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           const destLower = normalizedDest.toLowerCase()
           
           // Check if destination is Bali - only Bali is supported for now
-          if (destLower !== 'bali') {
-            // Let AI generate a natural response about other destinations being under construction
-            const availableDests = destinations.length > 0
-              ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-              : ['Bali']
-            
+          const availableDests = destinations.length > 0
+            ? destinations.map(d => d.name)
+            : []
+          
+          if (!availableDests.some(d => d.toLowerCase() === destLower)) {
+            // Destination not in available list
             const prompt = withStyle(
-              'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
+              `I'm sorry, but ${extractedData.destination} is not currently available in our database. Currently available destinations are: ${availableDests.join(', ')}. Would you like to explore one of these instead?`,
               50
             )
             await sendAssistantPrompt(prompt, {}, availableDests)
             return
           }
           
-          // Normalize to "Bali" (capitalize first letter)
-          updates.destination = 'Bali'
+          // Find the exact destination name from available destinations (for proper capitalization)
+          const exactDest = availableDests.find(d => d.toLowerCase() === destLower) || normalizedDest
+          updates.destination = exactDest
           hasUpdates = true
           console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
         }
@@ -1647,8 +1655,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // Handle case where user wants packages but we don't have destination yet
     if (wantsPackages && !latestInfo.destination) {
       const availableDests = destinations.length > 0
-        ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-        : ['Bali']
+        ? destinations.map(d => d.name)
+        : []
       
       const prompt = withStyle(
         `I'd love to show you packages! To get started, can you confirm you want to explore ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" and I'll show you amazing packages!`,
@@ -1664,23 +1672,21 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       const dest = extractDestination(userInput)
       if (dest) {
         // Check if destination is Bali - only Bali is supported for now
-        if (dest.toLowerCase() !== 'bali') {
-          const availableDests = destinations.length > 0
-            ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-            : ['Bali']
-          
+        const availableDests = destinations.length > 0
+          ? destinations.map(d => d.name)
+          : []
+        
+        if (!availableDests.some(d => d.toLowerCase() === dest.toLowerCase())) {
           const prompt = withStyle(
-            'Politely inform them that other destinations are currently under construction. Let them know that Bali is fully ready with sun, sand, and complete itineraries. Encourage them to explore Bali with you while you work on unlocking other destinations. Be friendly and conversational.',
+            `I'm sorry, but ${dest} is not currently available in our database. Currently available destinations are: ${availableDests.join(', ')}. Would you like to explore one of these instead?`,
             50
           )
           await sendAssistantPrompt(prompt, {}, availableDests)
           return
         }
-        updateTripInfo({ destination: dest })
-        
-        const availableDests = destinations.length > 0
-          ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-          : ['Bali']
+        // Find the exact destination name from available destinations (for proper capitalization)
+        const exactDest = availableDests.find(d => d.toLowerCase() === dest.toLowerCase()) || dest
+        updateTripInfo({ destination: exactDest })
         
         const prompt = withStyle(
           `Great choice! When do you plan to travel—any specific month or date in mind?`,
@@ -1785,8 +1791,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     // Get available destinations for context
     const availableDests = destinations.length > 0
-      ? destinations.filter(d => d.name.toLowerCase() === 'bali').map(d => d.name)
-      : ['Bali']
+      ? destinations.map(d => d.name)
+      : []
 
     const fallbackMap: Record<string, string> = {
       destination:
