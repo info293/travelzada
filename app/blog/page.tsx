@@ -17,6 +17,9 @@ interface BlogPost {
   authorImage?: string
   date: string
   category?: string
+  sectionHeader?: string
+  isFeatured?: boolean
+  sectionOrder?: number
   likes?: number
   comments?: number
   shares?: number
@@ -187,144 +190,274 @@ export default function BlogPage() {
     )
   }
 
+  // Group posts by section
+  const groupedPosts = allPosts.reduce((acc, post) => {
+    const section = post.sectionHeader || 'General'
+    if (!acc[section]) {
+      acc[section] = []
+    }
+    acc[section].push(post)
+    return acc
+  }, {} as Record<string, BlogPost[]>)
+
+  // Sort sections and posts within sections
+  const sortedSections = Object.keys(groupedPosts).sort()
+  sortedSections.forEach(section => {
+    groupedPosts[section].sort((a, b) => {
+      // Featured posts first
+      if (a.isFeatured && !b.isFeatured) return -1
+      if (!a.isFeatured && b.isFeatured) return 1
+      // Then by sectionOrder
+      const aOrder = a.sectionOrder ?? 999
+      const bOrder = b.sectionOrder ?? 999
+      return aOrder - bOrder
+    })
+  })
+
   return (
     <main className="min-h-screen bg-white">
       <Header />
       
       {/* Main Content Area */}
       <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header with Tabs and Search */}
-          {/* <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
-            <div className="flex items-center gap-6">
-              <button
-                onClick={() => setActiveTab('latest')}
-                className={`text-sm font-medium transition-colors ${
-                  activeTab === 'latest'
-                    ? 'text-gray-900 bg-gray-100 px-3 py-1.5 rounded'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Latest
-              </button>
-              <button
-                onClick={() => setActiveTab('top')}
-                className={`text-sm font-medium transition-colors ${
-                  activeTab === 'top'
-                    ? 'text-gray-900 bg-gray-100 px-3 py-1.5 rounded'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Top
-              </button>
-              <button
-                onClick={() => setActiveTab('discussions')}
-                className={`text-sm font-medium transition-colors ${
-                  activeTab === 'discussions'
-                    ? 'text-gray-900 bg-gray-100 px-3 py-1.5 rounded'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Discussions
-              </button>
-            </div>
-            <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-              <div className="w-8 h-8 rounded bg-gradient-to-br from-primary to-primary-dark"></div>
-            </div>
-          </div> */}
+        <div className="max-w-7xl mx-auto">
+          {/* Blog Sections */}
+          <div className="space-y-16 py-12">
+            {sortedSections.map((sectionName) => {
+              const sectionPosts = groupedPosts[sectionName]
+              let featuredPost = sectionPosts.find(p => p.isFeatured)
+              // If no featured post, use the first post as featured
+              if (!featuredPost && sectionPosts.length > 0) {
+                featuredPost = sectionPosts[0]
+              }
+              const relatedPosts = sectionPosts.filter(p => p.id !== featuredPost?.id).slice(0, 4)
 
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 py-20">
-            {/* Left Column - Article Listings */}
-            <div className="lg:col-span-2 space-y-6">
-              {allPosts.map((post) => (
-                <Link
-                  key={post.id || post.title}
-                  href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="block group"
-                >
-                  <div className="flex gap-4">
-                    {/* Thumbnail Image */}
-                    <div className="flex-shrink-0 w-24 h-24 md:w-32 md:h-32">
-                      <img
-                        src={post.image}
-                        alt={post.title}
-                        className="w-full h-full object-cover rounded"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
-                        }}
-                      />
-                    </div>
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight">
-                        {post.title}
-                      </h3>
-                      <p className="text-sm md:text-base text-gray-600 mb-2 line-clamp-2">
-                        {post.subtitle || post.description}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
-                        <span>{post.date}</span>
-                        <span>•</span>
-                        <span>{post.author.toUpperCase()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Right Column - Newsletter Subscription */}
-            <div className="lg:col-span-1">
-              <div className="sticky top-20">
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded bg-gradient-to-br from-primary to-primary-dark"></div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Travelzada's Newsletter</h3>
-                      <p className="text-xs text-gray-500">curated curiosities.</p>
-                    </div>
-                  </div>
-                  
-                  <form onSubmit={handleSubscribe} className="space-y-3">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value)
-                        setSubscribeMessage('')
-                      }}
-                      placeholder="Type your email..."
-                      disabled={subscribing}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      required
-                    />
-                    <button
-                      type="submit"
-                      disabled={subscribing}
-                      className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {subscribing ? 'Subscribing...' : 'Subscribe'}
-                    </button>
-                    {subscribeMessage && (
-                      <p className={`text-xs text-center ${
-                        subscribeMessage.includes('Thank you') 
-                          ? 'text-green-600' 
-                          : 'text-red-600'
-                      }`}>
-                        {subscribeMessage}
-                      </p>
+              return (
+                <div key={sectionName} className="space-y-6">
+                  {/* Section Header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                    {sectionPosts.length > 5 && (
+                      <Link
+                        href={`/blog?section=${encodeURIComponent(sectionName)}`}
+                        className="text-sm font-medium text-gray-600 hover:text-primary transition-colors"
+                      >
+                        VIEW ALL
+                      </Link>
                     )}
-                  </form>
+                  </div>
+
+                  {/* Section Content */}
+                  <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 lg:gap-12">
+                    {/* Left Column - Featured Post */}
+                    {featuredPost && (
+                      <Link
+                        href={`/blog/${featuredPost.id || featuredPost.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="group block"
+                      >
+                        <div className="space-y-4">
+                          {/* Large Featured Image */}
+                          <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden rounded-lg shadow-lg">
+                            <img
+                              src={featuredPost.image}
+                              alt={featuredPost.title}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+                              }}
+                            />
+                          </div>
+                          
+                          {/* Featured Post Content */}
+                          <div className="space-y-3">
+                            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight">
+                              {featuredPost.title}
+                            </h3>
+                            <p className="text-base md:text-lg text-gray-600 leading-relaxed line-clamp-3">
+                              {featuredPost.subtitle || featuredPost.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-sm text-gray-500 uppercase tracking-wide">
+                              <span>{featuredPost.date}</span>
+                              <span>•</span>
+                              <span>{featuredPost.author.toUpperCase()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+
+                    {/* Right Column - Related Posts & Newsletter */}
+                    <div className="space-y-8">
+                      {/* Related Posts */}
+                      {relatedPosts.length > 0 && (
+                        <div className="space-y-6">
+                          {relatedPosts.map((post) => (
+                            <Link
+                              key={post.id || post.title}
+                              href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                              className="group block"
+                            >
+                              <div className="flex gap-4">
+                                {/* Thumbnail Image */}
+                                <div className="flex-shrink-0 w-24 h-24 md:w-28 md:h-28">
+                                  <img
+                                    src={post.image}
+                                    alt={post.title}
+                                    className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
+                                    }}
+                                  />
+                                </div>
+                                
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                                    {post.title}
+                                  </h3>
+                                  <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                                    {post.subtitle || post.description}
+                                  </p>
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
+                                    <span>{post.date}</span>
+                                    <span>•</span>
+                                    <span>{post.author.toUpperCase()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Newsletter Subscription - Sticky - Only show once per page */}
+                      {sectionName === sortedSections[0] && (
+                        <div className="sticky top-24">
+                          <div className="bg-white border border-gray-200 rounded-lg p-6">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                              Essays and analysis about travel, destinations, tips, and all the other things we care about.
+                            </p>
+                            
+                            <form onSubmit={handleSubscribe} className="space-y-3">
+                              <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => {
+                                  setEmail(e.target.value)
+                                  setSubscribeMessage('')
+                                }}
+                                placeholder="Type your email..."
+                                disabled={subscribing}
+                                className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                required
+                              />
+                              <button
+                                type="submit"
+                                disabled={subscribing}
+                                className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {subscribing ? 'Subscribing...' : 'Subscribe'}
+                              </button>
+                              {subscribeMessage && (
+                                <p className={`text-xs text-center ${
+                                  subscribeMessage.includes('Thank you') 
+                                    ? 'text-green-600' 
+                                    : 'text-red-600'
+                                }`}>
+                                  {subscribeMessage}
+                                </p>
+                              )}
+                            </form>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* If no sections, show all posts in default layout */}
+            {sortedSections.length === 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 lg:gap-12">
+                <div className="space-y-6">
+                  {allPosts.map((post) => (
+                    <Link
+                      key={post.id || post.title}
+                      href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      className="block group"
+                    >
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0 w-32 h-32">
+                          <img
+                            src={post.image}
+                            alt={post.title}
+                            className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                            {post.subtitle || post.description}
+                          </p>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
+                            <span>{post.date}</span>
+                            <span>•</span>
+                            <span>{post.author.toUpperCase()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Newsletter Sidebar */}
+                <div className="sticky top-24">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Essays and analysis about travel, destinations, tips, and all the other things we care about.
+                    </p>
+                    <form onSubmit={handleSubscribe} className="space-y-3">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value)
+                          setSubscribeMessage('')
+                        }}
+                        placeholder="Type your email..."
+                        disabled={subscribing}
+                        className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        required
+                      />
+                      <button
+                        type="submit"
+                        disabled={subscribing}
+                        className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {subscribing ? 'Subscribing...' : 'Subscribe'}
+                      </button>
+                      {subscribeMessage && (
+                        <p className={`text-xs text-center ${
+                          subscribeMessage.includes('Thank you') 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}>
+                          {subscribeMessage}
+                        </p>
+                      )}
+                    </form>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>

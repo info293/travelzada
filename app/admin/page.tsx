@@ -118,6 +118,9 @@ interface BlogPost {
   authorImage?: string
   date: string
   category: string
+  sectionHeader?: string // Section title like "Politics", "Sports", "SBSQ"
+  isFeatured?: boolean // Featured post for the section (shown on left with large image)
+  sectionOrder?: number // Order within the section
   readTime?: string
   likes?: number
   comments?: number
@@ -245,6 +248,19 @@ export default function AdminDashboard() {
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [bulkImportJson, setBulkImportJson] = useState('')
   const [bulkImportStatus, setBulkImportStatus] = useState<{
+    loading: boolean
+    success: number
+    errors: string[]
+    processing: boolean
+  }>({
+    loading: false,
+    success: 0,
+    errors: [],
+    processing: false,
+  })
+  const [showBlogBulkImport, setShowBlogBulkImport] = useState(false)
+  const [blogBulkImportJson, setBlogBulkImportJson] = useState('')
+  const [blogBulkImportStatus, setBlogBulkImportStatus] = useState<{
     loading: boolean
     success: number
     errors: string[]
@@ -905,6 +921,9 @@ export default function AdminDashboard() {
         author: blogFormData.author || currentUser?.email?.split('@')[0] || 'Admin',
         date: blogFormData.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase(),
         category: blogFormData.category || 'Travel Tips',
+        sectionHeader: blogFormData.sectionHeader || '',
+        isFeatured: blogFormData.isFeatured || false,
+        sectionOrder: blogFormData.sectionOrder !== undefined ? blogFormData.sectionOrder : 999,
         readTime: blogFormData.readTime || '5 min read',
         likes: blogFormData.likes || 0,
         comments: blogFormData.comments || 0,
@@ -1151,6 +1170,402 @@ export default function AdminDashboard() {
       errors: [],
       processing: false,
     })
+  }
+
+  const handleBlogBulkImport = async () => {
+    if (!blogBulkImportJson.trim()) {
+      alert('Please paste JSON data before importing.')
+      return
+    }
+
+    setBlogBulkImportStatus({
+      loading: true,
+      success: 0,
+      errors: [],
+      processing: true,
+    })
+
+    try {
+      // Parse JSON
+      let blogsData: BlogPost[]
+      try {
+        blogsData = JSON.parse(blogBulkImportJson)
+      } catch (parseError) {
+        setBlogBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: [`Invalid JSON format: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`],
+          processing: false,
+        })
+        return
+      }
+
+      // Validate it's an array
+      if (!Array.isArray(blogsData)) {
+        setBlogBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: ['JSON must be an array of blog post objects'],
+          processing: false,
+        })
+        return
+      }
+
+      if (blogsData.length === 0) {
+        setBlogBulkImportStatus({
+          loading: false,
+          success: 0,
+          errors: ['JSON array is empty'],
+          processing: false,
+        })
+        return
+      }
+
+      const dbInstance = getDbInstance()
+      const errors: string[] = []
+      let successCount = 0
+      const now = new Date().toISOString()
+
+      // Process blogs one by one
+      for (let i = 0; i < blogsData.length; i++) {
+        const blog = blogsData[i]
+        
+        try {
+          // Validate required fields
+          if (!blog.title || !blog.description || !blog.content || !blog.image || !blog.author || !blog.category) {
+            errors.push(`Blog ${i + 1}: Missing required fields (title, description, content, image, author, or category)`)
+            continue
+          }
+
+          // Prepare blog data
+          const blogData: any = {
+            title: blog.title,
+            subtitle: blog.subtitle || '',
+            description: blog.description,
+            content: blog.content,
+            image: blog.image,
+            author: blog.author,
+            authorImage: blog.authorImage || '',
+            date: blog.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase(),
+            category: blog.category,
+            sectionHeader: blog.sectionHeader || '',
+            isFeatured: blog.isFeatured || false,
+            sectionOrder: blog.sectionOrder !== undefined ? blog.sectionOrder : 999,
+            readTime: blog.readTime || '5 min read',
+            likes: blog.likes || 0,
+            comments: blog.comments || 0,
+            shares: blog.shares || 0,
+            featured: blog.featured || false,
+            published: blog.published !== undefined ? blog.published : true,
+            createdAt: now,
+            updatedAt: now,
+            schemaType: blog.schemaType || 'BlogPosting',
+          }
+
+          // Include optional fields if they exist
+          if (blog.blogStructure) {
+            blogData.blogStructure = blog.blogStructure
+          }
+          if (blog.metaTitle) blogData.metaTitle = blog.metaTitle
+          if (blog.metaDescription) blogData.metaDescription = blog.metaDescription
+          if (blog.keywords) blogData.keywords = blog.keywords
+          if (blog.canonicalUrl) blogData.canonicalUrl = blog.canonicalUrl
+          if (blog.ogImage) blogData.ogImage = blog.ogImage
+
+          // Add to Firestore
+          await addDoc(collection(dbInstance, 'blogs'), blogData)
+          successCount++
+        } catch (error) {
+          errors.push(`Blog ${i + 1} (${blog.title || 'Unknown'}): ${error instanceof Error ? error.message : 'Unknown error'}`)
+        }
+      }
+
+      setBlogBulkImportStatus({
+        loading: false,
+        success: successCount,
+        errors,
+        processing: false,
+      })
+
+      if (successCount > 0) {
+        fetchBlogs()
+        setBlogBulkImportJson('')
+      }
+    } catch (error) {
+      setBlogBulkImportStatus({
+        loading: false,
+        success: 0,
+        errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+        processing: false,
+      })
+    }
+  }
+
+  const handleBlogBulkImportCancel = () => {
+    setShowBlogBulkImport(false)
+    setBlogBulkImportJson('')
+    setBlogBulkImportStatus({
+      loading: false,
+      success: 0,
+      errors: [],
+      processing: false,
+    })
+  }
+
+  const loadBlogSampleTemplate = () => {
+    const sample = [
+      {
+        "title": "10 Best Travel Destinations for 2025",
+        "subtitle": "Discover the most amazing places to visit this year",
+        "description": "From tropical paradises to cultural hubs, here are the top destinations you should add to your travel bucket list.",
+        "content": "Travel is one of life's greatest pleasures. In this comprehensive guide, we explore the top destinations that should be on every traveler's radar for 2025.",
+        "image": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80",
+        "author": "Travel Expert",
+        "date": "NOV 15",
+        "category": "Travel Tips",
+        "sectionHeader": "Travel Guides",
+        "isFeatured": true,
+        "sectionOrder": 1,
+        "readTime": "5 min read",
+        "published": true,
+        "blogStructure": [
+          {
+            "type": "intro",
+            "text": "As we step into 2025, the world of travel continues to evolve with new destinations emerging and classic favorites reinventing themselves. Whether you're seeking adventure, relaxation, or cultural immersion, this curated list has something for every type of traveler."
+          },
+          {
+            "type": "heading",
+            "text": "Top Destinations for 2025"
+          },
+          {
+            "type": "paragraph",
+            "text": "The travel landscape is constantly changing, and 2025 brings exciting new opportunities for exploration. From hidden gems to popular destinations with fresh perspectives, these locations offer unforgettable experiences."
+          },
+          {
+            "type": "image",
+            "imageUrl": "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80",
+            "imageAlt": "Beautiful travel destination"
+          },
+          {
+            "type": "subheading",
+            "text": "1. Bali, Indonesia"
+          },
+          {
+            "type": "paragraph",
+            "text": "Bali continues to be a top destination for travelers seeking a perfect blend of culture, nature, and relaxation. With its stunning beaches, ancient temples, and vibrant arts scene, Bali offers something for everyone."
+          },
+          {
+            "type": "subheading",
+            "text": "2. Santorini, Greece"
+          },
+          {
+            "type": "paragraph",
+            "text": "The iconic white-washed buildings and breathtaking sunsets make Santorini a dream destination. Perfect for romantic getaways and photography enthusiasts."
+          },
+          {
+            "type": "list",
+            "items": [
+              "Book accommodations in advance during peak season",
+              "Explore beyond the main tourist areas",
+              "Try local cuisine at family-run restaurants",
+              "Respect local customs and traditions",
+              "Pack appropriate clothing for cultural sites"
+            ]
+          },
+          {
+            "type": "quote",
+            "text": "Travel is the only thing you buy that makes you richer.",
+            "author": "Anonymous"
+          },
+          {
+            "type": "heading",
+            "text": "Planning Your 2025 Adventure"
+          },
+          {
+            "type": "paragraph",
+            "text": "When planning your travels for 2025, consider factors like weather, local events, and travel restrictions. Early planning can help you secure better deals and ensure availability at popular destinations."
+          },
+          {
+            "type": "divider"
+          },
+          {
+            "type": "faq",
+            "faqs": [
+              {
+                "question": "What is the best time to visit these destinations?",
+                "answer": "The best time varies by destination. Generally, shoulder seasons (spring and fall) offer good weather with fewer crowds and better prices."
+              },
+              {
+                "question": "Do I need travel insurance?",
+                "answer": "Yes, travel insurance is highly recommended, especially for international trips. It provides coverage for medical emergencies, trip cancellations, and lost luggage."
+              }
+            ]
+          },
+          {
+            "type": "cta",
+            "text": "Ready to explore these amazing destinations? Browse our curated travel packages and start planning your 2025 adventure today.",
+            "link": "/destinations",
+            "linkText": "Explore Packages"
+          }
+        ]
+      },
+      {
+        "title": "How to Plan the Perfect Honeymoon",
+        "subtitle": "A complete guide to planning your dream romantic getaway",
+        "description": "Everything you need to know about planning a memorable honeymoon that you and your partner will cherish forever.",
+        "content": "Planning a honeymoon can be overwhelming, but with the right guidance, you can create the perfect romantic escape.",
+        "image": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+        "author": "Romance Travel",
+        "date": "NOV 12",
+        "category": "Honeymoon",
+        "sectionHeader": "Travel Guides",
+        "isFeatured": false,
+        "sectionOrder": 2,
+        "readTime": "7 min read",
+        "published": true,
+        "blogStructure": [
+          {
+            "type": "intro",
+            "text": "Your honeymoon is one of the most special trips you'll ever take. It's a time to celebrate your new life together and create memories that will last a lifetime. With careful planning, you can ensure it's everything you've dreamed of."
+          },
+          {
+            "type": "heading",
+            "text": "Setting Your Honeymoon Budget"
+          },
+          {
+            "type": "paragraph",
+            "text": "Before diving into destination research, establish a realistic budget. Consider all expenses including flights, accommodations, meals, activities, and a buffer for unexpected costs."
+          },
+          {
+            "type": "image",
+            "imageUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+            "imageAlt": "Romantic honeymoon destination"
+          },
+          {
+            "type": "subheading",
+            "text": "Choosing the Perfect Destination"
+          },
+          {
+            "type": "paragraph",
+            "text": "Select a destination that matches both your interests and travel style. Whether you prefer beach relaxation, mountain adventures, or cultural exploration, there's a perfect honeymoon spot for every couple."
+          },
+          {
+            "type": "list",
+            "items": [
+              "Discuss your dream destinations together",
+              "Consider the time of year and weather",
+              "Think about your travel style (relaxation vs. adventure)",
+              "Research visa requirements",
+              "Check travel advisories"
+            ]
+          },
+          {
+            "type": "quote",
+            "text": "A successful marriage requires falling in love many times, always with the same person.",
+            "author": "Mignon McLaughlin"
+          },
+          {
+            "type": "heading",
+            "text": "Honeymoon Planning Timeline"
+          },
+          {
+            "type": "paragraph",
+            "text": "Start planning your honeymoon 6-12 months in advance, especially if you're traveling during peak season or to popular destinations. This gives you time to research, compare prices, and make reservations."
+          },
+          {
+            "type": "cta",
+            "text": "Let us help you plan the perfect honeymoon. Explore our romantic travel packages designed specifically for couples.",
+            "link": "/destinations",
+            "linkText": "View Honeymoon Packages"
+          }
+        ]
+      },
+      {
+        "title": "Budget Travel Tips for Backpackers",
+        "subtitle": "Travel the world without breaking the bank",
+        "description": "Learn how to explore amazing destinations on a budget with these proven money-saving strategies.",
+        "content": "Traveling on a budget doesn't mean sacrificing experiences. Here are practical tips to help you see the world affordably.",
+        "image": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80",
+        "author": "Budget Traveler",
+        "date": "NOV 10",
+        "category": "Budget Travel",
+        "sectionHeader": "Travel Tips",
+        "isFeatured": true,
+        "sectionOrder": 1,
+        "readTime": "6 min read",
+        "published": true,
+        "blogStructure": [
+          {
+            "type": "intro",
+            "text": "Traveling on a budget doesn't mean you have to compromise on experiences. With smart planning and a few insider tips, you can explore the world without emptying your wallet."
+          },
+          {
+            "type": "heading",
+            "text": "Money-Saving Travel Strategies"
+          },
+          {
+            "type": "paragraph",
+            "text": "The key to budget travel is being flexible and resourceful. From finding affordable accommodations to eating like a local, there are countless ways to stretch your travel budget."
+          },
+          {
+            "type": "image",
+            "imageUrl": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80",
+            "imageAlt": "Budget backpacker traveling"
+          },
+          {
+            "type": "subheading",
+            "text": "Accommodation Hacks"
+          },
+          {
+            "type": "paragraph",
+            "text": "Skip expensive hotels and opt for hostels, guesthouses, or homestays. Many offer private rooms at a fraction of hotel prices while providing authentic local experiences."
+          },
+          {
+            "type": "subheading",
+            "text": "Eating on a Budget"
+          },
+          {
+            "type": "paragraph",
+            "text": "Avoid tourist restaurants and eat where locals eat. Street food, local markets, and family-run establishments offer delicious meals at much lower prices."
+          },
+          {
+            "type": "list",
+            "items": [
+              "Travel during off-peak seasons",
+              "Book flights in advance or use last-minute deals",
+              "Use public transportation",
+              "Cook your own meals when possible",
+              "Look for free walking tours and activities",
+              "Travel with a group to split costs",
+              "Use travel reward credit cards"
+            ]
+          },
+          {
+            "type": "divider"
+          },
+          {
+            "type": "faq",
+            "faqs": [
+              {
+                "question": "How can I find cheap flights?",
+                "answer": "Use flight comparison websites, be flexible with dates, consider nearby airports, and sign up for airline newsletters for special deals."
+              },
+              {
+                "question": "Is it safe to stay in hostels?",
+                "answer": "Yes, most hostels are safe and well-maintained. Read reviews, choose hostels with lockers, and trust your instincts when selecting accommodations."
+              }
+            ]
+          },
+          {
+            "type": "cta",
+            "text": "Ready to start your budget adventure? Check out our affordable travel packages designed for budget-conscious travelers.",
+            "link": "/destinations",
+            "linkText": "Browse Budget Packages"
+          }
+        ]
+      }
+    ]
+    setBlogBulkImportJson(JSON.stringify(sample, null, 2))
   }
 
   const handleUpdateUserRole = async (userId: string, newRole: 'user' | 'admin', currentRole: 'user' | 'admin') => {
@@ -1951,6 +2366,35 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Section Header</label>
+                      <input
+                        type="text"
+                        name="sectionHeader"
+                        value={blogFormData.sectionHeader || ''}
+                        onChange={handleBlogInputChange}
+                        placeholder="Politics, Sports, SBSQ, etc."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Group posts by section (e.g., "Politics", "Sports")</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Section Order</label>
+                      <input
+                        type="number"
+                        name="sectionOrder"
+                        value={blogFormData.sectionOrder || ''}
+                        onChange={(e) => {
+                          setBlogFormData((prev) => ({
+                            ...prev,
+                            sectionOrder: e.target.value ? parseInt(e.target.value) : undefined,
+                          }))
+                        }}
+                        placeholder="1, 2, 3..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Order within the section (lower numbers appear first)</p>
+                    </div>
+                    <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Author *</label>
                       <input
                         type="text"
@@ -2224,7 +2668,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-6 flex-wrap">
                       <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
@@ -2233,7 +2677,22 @@ export default function AdminDashboard() {
                           onChange={handleBlogInputChange}
                           className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                         />
-                        <span className="text-sm font-semibold text-gray-700">Featured</span>
+                        <span className="text-sm font-semibold text-gray-700">Featured (Legacy)</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name="isFeatured"
+                          checked={blogFormData.isFeatured || false}
+                          onChange={(e) => {
+                            setBlogFormData((prev) => ({
+                              ...prev,
+                              isFeatured: e.target.checked,
+                            }))
+                          }}
+                          className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                        />
+                        <span className="text-sm font-semibold text-gray-700">Featured in Section (Large Image on Left)</span>
                       </label>
                       <label className="flex items-center gap-2">
                         <input
@@ -2270,16 +2729,27 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {!showBlogForm && (
+            {!showBlogForm && !showBlogBulkImport && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                   <h2 className="text-xl font-bold text-gray-900">All Blog Posts</h2>
-                  <button
-                    onClick={handleNewBlog}
-                    className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
-                  >
-                    + Add New
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowBlogBulkImport(true)}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Bulk Import JSON
+                    </button>
+                    <button
+                      onClick={handleNewBlog}
+                      className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
+                    >
+                      + Add New
+                    </button>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -2331,6 +2801,140 @@ export default function AdminDashboard() {
                   {blogs.length === 0 && (
                     <div className="text-center py-12 text-gray-500">No blog posts found</div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Blog Bulk Import Section */}
+            {showBlogBulkImport && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Bulk Import Blog Posts (JSON)</h2>
+                  <button
+                    onClick={handleBlogBulkImportCancel}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Paste JSON Array of Blog Posts
+                      </label>
+                      <button
+                        type="button"
+                        onClick={loadBlogSampleTemplate}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Load Sample Template
+                      </button>
+                    </div>
+                    <textarea
+                      value={blogBulkImportJson}
+                      onChange={(e) => setBlogBulkImportJson(e.target.value)}
+                      placeholder={`[\n  {\n    "title": "Blog Post Title",\n    "subtitle": "Optional subtitle",\n    "description": "Brief description",\n    "content": "Full blog content...",\n    "image": "https://example.com/image.jpg",\n    "author": "Author Name",\n    "date": "NOV 15",\n    "category": "Travel Tips",\n    "sectionHeader": "Travel Guides",\n    "isFeatured": true,\n    "sectionOrder": 1,\n    "readTime": "5 min read",\n    "published": true\n  },\n  ...\n]`}
+                      rows={15}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                    />
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-blue-900 mb-2">Required Fields:</h3>
+                    <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                      <li><strong>title</strong> - Blog post title</li>
+                      <li><strong>description</strong> - Brief description/summary</li>
+                      <li><strong>content</strong> - Full blog content</li>
+                      <li><strong>image</strong> - Main image URL</li>
+                      <li><strong>author</strong> - Author name</li>
+                      <li><strong>category</strong> - Blog category</li>
+                    </ul>
+                    <h3 className="text-sm font-semibold text-blue-900 mt-3 mb-2">Optional Fields:</h3>
+                    <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                      <li><strong>subtitle</strong> - Optional subtitle</li>
+                      <li><strong>date</strong> - Publication date (defaults to current date)</li>
+                      <li><strong>sectionHeader</strong> - Section header</li>
+                      <li><strong>isFeatured</strong> - Boolean (default: false)</li>
+                      <li><strong>sectionOrder</strong> - Number for ordering (default: 999)</li>
+                      <li><strong>readTime</strong> - Reading time estimate (default: "5 min read")</li>
+                      <li><strong>published</strong> - Boolean (default: true)</li>
+                      <li><strong>authorImage</strong> - Author profile image URL</li>
+                      <li><strong>blogStructure</strong> - Array of blog sections</li>
+                      <li><strong>metaTitle</strong> - SEO meta title</li>
+                      <li><strong>metaDescription</strong> - SEO meta description</li>
+                      <li><strong>keywords</strong> - SEO keywords</li>
+                    </ul>
+                  </div>
+
+                  {blogBulkImportStatus.processing && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <svg className="animate-spin h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm font-semibold text-yellow-800">Processing import...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {blogBulkImportStatus.success > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <p className="text-sm font-semibold text-green-800">
+                        ✓ Successfully imported {blogBulkImportStatus.success} blog post{blogBulkImportStatus.success !== 1 ? 's' : ''}!
+                      </p>
+                    </div>
+                  )}
+
+                  {blogBulkImportStatus.errors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-red-800 mb-2">Errors ({blogBulkImportStatus.errors.length}):</h3>
+                      <ul className="text-sm text-red-700 space-y-1 list-disc list-inside max-h-40 overflow-y-auto">
+                        {blogBulkImportStatus.errors.map((error, idx) => (
+                          <li key={idx}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleBlogBulkImport}
+                      disabled={blogBulkImportStatus.processing || !blogBulkImportJson.trim()}
+                      className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {blogBulkImportStatus.processing ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Import Blogs
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleBlogBulkImportCancel}
+                      disabled={blogBulkImportStatus.processing}
+                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
