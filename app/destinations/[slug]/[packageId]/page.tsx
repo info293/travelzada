@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import type { ReactNode } from 'react'
 import Image from 'next/image'
+import Head from 'next/head'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -343,375 +344,507 @@ export default function PackageDetailPage({ params }: PageProps) {
   )
 
   const handleDownloadItinerary = async () => {
-    if (!contentRef.current || isGeneratingPDF) return
+    if (isGeneratingPDF) return
 
     try {
       setIsGeneratingPDF(true)
 
-      // Dynamically import client-side only libraries
-      const [jsPDFModule, html2canvasModule] = await Promise.all([
-        import('jspdf'),
-        import('html2canvas')
-      ])
+      // Dynamically import jspdf
+      const jsPDFModule = await import('jspdf')
       const jsPDF = jsPDFModule.default || jsPDFModule
-      const html2canvas = html2canvasModule.default || html2canvasModule
 
-      // Store original states
-      const detailsElements = contentRef.current.querySelectorAll('details')
-      const originalStates: boolean[] = []
-      detailsElements.forEach((detail, index) => {
-        originalStates[index] = (detail as HTMLDetailsElement).open
-          ; (detail as HTMLDetailsElement).open = true
-      })
-
-      // Wait for content to render and images to load
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Convert Next.js Image components to regular img tags for PDF capture
-      const nextImages = contentRef.current.querySelectorAll('img[srcset], img[data-next-image], img[data-pdf-image], span[data-pdf-image]')
-      const imageConversionPromises: Promise<void>[] = []
-
-      nextImages.forEach((element) => {
-        const imgElement = element as HTMLElement
-
-        // Get the actual image source
-        let actualSrc = ''
-
-        // Check if it has data-pdf-image attribute (our custom attribute)
-        if (imgElement.hasAttribute('data-pdf-image')) {
-          actualSrc = imgElement.getAttribute('data-pdf-image') || ''
-        } else if (imgElement.tagName === 'IMG') {
-          const img = imgElement as HTMLImageElement
-          actualSrc = img.src
-
-          // If it's a Next.js optimized image, try to get the original src
-          if (img.srcset) {
-            // Extract the largest image from srcset
-            const srcsetMatch = img.srcset.match(/(https?:\/\/[^\s,]+)/g)
-            if (srcsetMatch && srcsetMatch.length > 0) {
-              actualSrc = srcsetMatch[srcsetMatch.length - 1] // Get the largest one
-            }
-          }
-
-          // If src contains Next.js image optimization, try to get original
-          if (actualSrc.includes('/_next/image')) {
-            try {
-              const urlParams = new URL(actualSrc)
-              const urlParam = urlParams.searchParams.get('url')
-              if (urlParam) {
-                actualSrc = decodeURIComponent(urlParam)
-              } else {
-                // Try regex fallback
-                const urlMatch = actualSrc.match(/url=([^&]+)/)
-                if (urlMatch) {
-                  actualSrc = decodeURIComponent(urlMatch[1])
-                }
-              }
-            } catch (e) {
-              // If URL parsing fails, try regex
-              const urlMatch = actualSrc.match(/url=([^&]+)/)
-              if (urlMatch) {
-                actualSrc = decodeURIComponent(urlMatch[1])
-              }
-            }
-          }
-        } else {
-          // It's a span wrapper, find the img inside
-          const innerImg = imgElement.querySelector('img')
-          if (innerImg) {
-            actualSrc = innerImg.src
-            if (innerImg.srcset) {
-              const srcsetMatch = innerImg.srcset.match(/(https?:\/\/[^\s,]+)/g)
-              if (srcsetMatch && srcsetMatch.length > 0) {
-                actualSrc = srcsetMatch[srcsetMatch.length - 1]
-              }
-            }
-          }
-        }
-
-        if (!actualSrc) return
-
-        // Find the actual img element (might be inside a span for Next.js Image)
-        let targetImg: HTMLImageElement | null = null
-        if (imgElement.tagName === 'IMG') {
-          targetImg = imgElement as HTMLImageElement
-        } else {
-          targetImg = imgElement.querySelector('img') as HTMLImageElement
-        }
-
-        if (!targetImg) return
-
-        // Get computed styles
-        const computedStyle = window.getComputedStyle(targetImg)
-        const parentStyle = targetImg.parentElement ? window.getComputedStyle(targetImg.parentElement) : null
-
-        // Create a new img element with the actual source
-        const newImg = document.createElement('img')
-        newImg.src = actualSrc
-        newImg.alt = targetImg.alt || packageTitle
-        newImg.style.cssText = `
-          position: ${computedStyle.position};
-          width: ${computedStyle.width};
-          height: ${computedStyle.height};
-          object-fit: ${computedStyle.objectFit || 'cover'};
-          display: block;
-          visibility: visible;
-          opacity: 1;
-        `
-        if (parentStyle) {
-          newImg.style.position = parentStyle.position === 'relative' ? 'absolute' : computedStyle.position
-          newImg.style.top = computedStyle.top
-          newImg.style.left = computedStyle.left
-          newImg.style.right = computedStyle.right
-          newImg.style.bottom = computedStyle.bottom
-        }
-
-        // Replace the Next.js Image with regular img
-        const promise = new Promise<void>((resolve) => {
-          newImg.onload = () => {
-            if (targetImg && targetImg.parentNode) {
-              // Replace the entire parent if it's a span wrapper
-              if (targetImg.parentElement && targetImg.parentElement.tagName === 'SPAN') {
-                targetImg.parentElement.replaceWith(newImg)
-              } else {
-                targetImg.parentNode.replaceChild(newImg, targetImg)
-              }
-            }
-            resolve()
-          }
-          newImg.onerror = () => {
-            // If image fails, try to fix the src of original
-            if (targetImg) {
-              targetImg.src = actualSrc
-              targetImg.removeAttribute('srcset')
-            }
-            resolve()
-          }
-          // Timeout after 5 seconds
-          setTimeout(resolve, 5000)
-        })
-        imageConversionPromises.push(promise)
-      })
-
-      // Wait for all image conversions
-      await Promise.all(imageConversionPromises)
-
-      // Wait for all images to load (including converted ones)
-      const allImages = contentRef.current.querySelectorAll('img')
-      const imagePromises = Array.from(allImages).map((img) => {
-        const imgElement = img as HTMLImageElement
-        if (imgElement.complete && imgElement.naturalWidth > 0) {
-          return Promise.resolve<void>(undefined)
-        }
-        return new Promise<void>((resolve) => {
-          imgElement.onload = () => resolve()
-          imgElement.onerror = () => resolve() // Continue even if image fails
-          // Timeout after 5 seconds
-          setTimeout(() => resolve(), 5000)
-        })
-      })
-      await Promise.all(imagePromises)
-
-      // Additional wait for rendering
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Hide elements that shouldn't be in PDF
-      const elementsToHide = contentRef.current.querySelectorAll('[data-pdf-hide="true"]')
-      const originalDisplays: string[] = []
-      elementsToHide.forEach((el) => {
-        originalDisplays.push((el as HTMLElement).style.display)
-          ; (el as HTMLElement).style.display = 'none'
-      })
-
-      // Hide iframes (maps) as they can't be captured properly
-      const iframes = contentRef.current.querySelectorAll('iframe')
-      const originalIframeDisplays: string[] = []
-      iframes.forEach((iframe) => {
-        originalIframeDisplays.push((iframe as HTMLElement).style.display)
-          ; (iframe as HTMLElement).style.display = 'none'
-      })
-
-      // Ensure content is visible
-      const originalOverflow = contentRef.current.style.overflow
-      contentRef.current.style.overflow = 'visible'
-      contentRef.current.style.position = 'relative'
-
-      // Scroll to top to ensure we capture from the beginning
-      const originalScrollTop = window.pageYOffset || document.documentElement.scrollTop
-      window.scrollTo(0, 0)
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Capture the content area with better options
-      const canvas = await html2canvas(contentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#f8f5f0',
-        width: contentRef.current.scrollWidth,
-        height: contentRef.current.scrollHeight,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: contentRef.current.scrollWidth,
-        windowHeight: contentRef.current.scrollHeight,
-        allowTaint: true, // Changed to true to allow external images
-        removeContainer: false,
-        imageTimeout: 20000, // Increased timeout for image loading
-        foreignObjectRendering: false, // Disable for better image support
-        proxy: undefined, // No proxy needed
-        onclone: (clonedDoc) => {
-          // Handle Next.js Image components in cloned document
-          const clonedImages = clonedDoc.querySelectorAll('img')
-          clonedImages.forEach((img) => {
-            const imgElement = img as HTMLImageElement
-            imgElement.style.display = 'block'
-            imgElement.style.visibility = 'visible'
-            imgElement.style.opacity = '1'
-            imgElement.style.maxWidth = '100%'
-            imgElement.style.height = 'auto'
-            imgElement.style.objectFit = 'cover'
-
-            // Fix Next.js optimized image URLs
-            let actualSrc = imgElement.src
-            if (actualSrc.includes('/_next/image')) {
-              // Extract original URL from Next.js image optimization URL
-              try {
-                const urlParams = new URL(actualSrc)
-                const urlParam = urlParams.searchParams.get('url')
-                if (urlParam) {
-                  actualSrc = decodeURIComponent(urlParam)
-                  imgElement.src = actualSrc
-                }
-              } catch (e) {
-                // If parsing fails, try regex
-                const urlMatch = actualSrc.match(/url=([^&]+)/)
-                if (urlMatch) {
-                  actualSrc = decodeURIComponent(urlMatch[1])
-                  imgElement.src = actualSrc
-                }
-              }
-            }
-
-            // Remove srcset as it can cause issues
-            imgElement.removeAttribute('srcset')
-            imgElement.removeAttribute('sizes')
-
-            // Ensure crossorigin for external images
-            if (actualSrc.startsWith('http')) {
-              imgElement.crossOrigin = 'anonymous'
-            }
-          })
-
-          // Ensure all text is visible
-          const allElements = clonedDoc.querySelectorAll('*')
-          allElements.forEach((el) => {
-            const element = el as HTMLElement
-            if (element.style) {
-              if (element.style.color === 'transparent' || element.style.opacity === '0') {
-                element.style.color = 'inherit'
-                element.style.opacity = '1'
-              }
-            }
-          })
-        }
-      })
-
-      // Restore scroll position
-      window.scrollTo(0, originalScrollTop)
-
-      // Restore styles
-      contentRef.current.style.overflow = originalOverflow
-
-      // Restore hidden elements
-      elementsToHide.forEach((el, index) => {
-        ; (el as HTMLElement).style.display = originalDisplays[index] || ''
-      })
-      iframes.forEach((iframe, index) => {
-        ; (iframe as HTMLElement).style.display = originalIframeDisplays[index] || ''
-      })
-
-      // Restore scroll position
-      window.scrollTo(0, originalScrollTop)
-
-      // Restore hidden elements
-      elementsToHide.forEach((el, index) => {
-        ; (el as HTMLElement).style.display = originalDisplays[index] || ''
-      })
-
-      // Check if canvas has content
-      if (!canvas || canvas.width === 0 || canvas.height === 0) {
-        throw new Error('Failed to capture page content - canvas is empty')
-      }
-
-      // Verify canvas has actual content (not just blank)
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        const imageData = ctx.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100))
-        const data = imageData.data
-        let hasContent = false
-        for (let i = 0; i < data.length; i += 4) {
-          // Check if pixel is not just background color
-          const r = data[i]
-          const g = data[i + 1]
-          const b = data[i + 2]
-          const a = data[i + 3]
-          // Background is #f8f5f0 which is rgb(248, 245, 240)
-          if (a > 0 && (Math.abs(r - 248) > 10 || Math.abs(g - 245) > 10 || Math.abs(b - 240) > 10)) {
-            hasContent = true
-            break
-          }
-        }
-        if (!hasContent) {
-          console.warn('Canvas appears to be blank, but continuing...')
-        }
-      }
-
-      const imgData = canvas.toDataURL('image/png', 1.0)
-
-      if (!imgData || imgData === 'data:,') {
-        throw new Error('Failed to generate image data from canvas')
-      }
-
-      // Calculate PDF dimensions
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
-      const pdfWidth = 210 // A4 width in mm
-      const pdfHeight = (imgHeight * pdfWidth) / imgWidth
-      const pageHeight = 297 // A4 height in mm
-
-      // Create PDF
       const pdf = new jsPDF('p', 'mm', 'a4')
-      const totalPages = Math.ceil(pdfHeight / pageHeight)
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 20
 
-      // Add pages with content
-      for (let i = 0; i < totalPages; i++) {
-        if (i > 0) {
-          pdf.addPage()
-        }
+      // Brand Colors - Matching Website UI
+      const COLOR_PRIMARY = [124, 58, 237] // #7c3aed (Purple - Primary)
+      const COLOR_PRIMARY_DARK = [109, 40, 217] // #6d28d9 (Purple Dark)
+      const COLOR_ACCENT = [212, 175, 55] // #d4af37 (Gold - Accent)
+      const COLOR_ACCENT_DARK = [183, 144, 37] // #b79025 (Gold Dark)
+      const COLOR_INK = [31, 27, 44] // #1f1b2c (Ink - Dark Text)
+      const COLOR_CREAM = [253, 249, 243] // #fdf9f3 (Cream - Background)
+      const COLOR_PRICE = [201, 152, 70] // #c99846 (Price Gold)
+      const COLOR_GRAY = [100, 100, 100]
+      const COLOR_LIGHT_BG = [253, 249, 243] // Cream background
 
-        const yPosition = -(i * pageHeight)
-
-        pdf.addImage(
-          imgData,
-          'PNG',
-          0,
-          yPosition,
-          pdfWidth,
-          pdfHeight,
-          undefined,
-          'FAST'
-        )
+      // Helper to load image
+      const loadImage = (url: string): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const img = new window.Image()
+          img.crossOrigin = 'Anonymous'
+          img.src = url
+          img.onload = () => {
+            const canvas = document.createElement('canvas')
+            canvas.width = img.width
+            canvas.height = img.height
+            const ctx = canvas.getContext('2d')
+            if (ctx) {
+              ctx.drawImage(img, 0, 0)
+              resolve(canvas.toDataURL('image/png'))
+            } else {
+              reject(new Error('Could not get canvas context'))
+            }
+          }
+          img.onerror = reject
+        })
       }
 
-      // Save the PDF
+      // Helper: Add Footer
+      const addFooter = (pageNum: number) => {
+        const footerY = pageHeight - 15
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(8)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text('Travelzada • +91 99299 62350 • info@travelzada.com', pageWidth / 2, footerY, { align: 'center' })
+
+        // CTA Link - Using Primary Purple
+        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setFont('helvetica', 'bold')
+        pdf.textWithLink('Book this Package on Travelzada', pageWidth / 2, footerY + 5, { url: window.location.href, align: 'center' })
+      }
+
+      // Helper: Add Logo
+      const addLogo = async () => {
+        try {
+          const logoUrl = '/images/logo/Travelzada Logo April (1).png'
+          const logoData = await loadImage(logoUrl)
+          // Add logo to top left
+          pdf.addImage(logoData, 'PNG', 15, 10, 40, 15, undefined, 'FAST')
+        } catch (e) {
+          console.error('Failed to load logo', e)
+        }
+      }
+
+      // Helper: Add Header Strip (Pages 2+)
+      const addHeader = async (pageNum: number) => {
+        // Primary Purple Strip - Matching website
+        pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.rect(0, 0, pageWidth, 25, 'F')
+
+        // Logo Container with rounded corners
+        pdf.setFillColor(255, 255, 255)
+        pdf.roundedRect(10, 2, 45, 21, 3, 3, 'F')
+
+        try {
+          const logoUrl = '/images/logo/Travelzada Logo April (1).png'
+          const logoData = await loadImage(logoUrl)
+          pdf.addImage(logoData, 'PNG', 12.5, 5, 40, 15, undefined, 'FAST')
+        } catch (e) {
+          console.error('Failed to load logo', e)
+        }
+
+        // Package Title (Truncated) - White text on purple
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(14)
+        pdf.setTextColor(255, 255, 255)
+        const title = packageTitle.length > 40 ? packageTitle.substring(0, 37) + '...' : packageTitle
+        pdf.text(title, pageWidth - 10, 17, { align: 'right' })
+      }
+
+      // --- PAGE 1: COVER PAGE (UNCHANGED) ---
+      try {
+        const mainImageData = await loadImage(imageUrl)
+        const imgHeight = pageHeight * 0.6
+        pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST')
+      } catch (e) {
+        console.error('Failed to load main image', e)
+      }
+
+      // Add Logo to Page 1
+      await addLogo()
+
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(32)
+      const titleY = (pageHeight * 0.6) - 40
+      pdf.text(packageTitle, pageWidth / 2, titleY, { align: 'center', maxWidth: pageWidth - 40 })
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(12)
+      const tags = [
+        packageData.Duration,
+        packageData.Star_Category || 'Luxury Stay',
+        packageData.Travel_Type || 'Custom Trip'
+      ].join('  •  ')
+      pdf.text(tags, pageWidth / 2, titleY + 15, { align: 'center' })
+
+      const contentStartY = (pageHeight * 0.6) + 15
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+
+      pdf.setFontSize(10)
+      pdf.setTextColor(100, 100, 100)
+      pdf.text('STARTING FROM', pageWidth / 2, contentStartY, { align: 'center' })
+
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(28)
+      // Using Price Gold color - matching website
+      pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
+      pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      pdf.setTextColor(150, 150, 150)
+      pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentStartY + 20, { align: 'center' })
+
+      pdf.setDrawColor(200, 200, 200)
+      pdf.line((pageWidth / 2) - 15, contentStartY + 28, (pageWidth / 2) + 15, contentStartY + 28)
+
+      pdf.setFontSize(11)
+      pdf.setTextColor(60, 60, 60)
+      const overviewText = pdf.splitTextToSize(packageData.Overview || '', pageWidth - 60)
+      pdf.text(overviewText, pageWidth / 2, contentStartY + 40, { align: 'center' })
+
+
+      // --- PAGE 2: DETAILS & HIGHLIGHTS ---
+      pdf.addPage()
+      addFooter(2)
+      await addLogo()
+      let y = margin + 10 // Increased top margin for logo
+
+      // Header Branding Line - Primary Purple
+      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+      pdf.setLineWidth(2)
+      pdf.line(margin, y, margin + 25, y)
+      y += 12
+
+      // Title - Using Ink color
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(26)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      const titleLines = pdf.splitTextToSize(packageTitle, pageWidth - (margin * 2))
+      pdf.text(titleLines, margin, y)
+      y += (titleLines.length * 10) + 5
+
+      // Subtitle
+      pdf.setFont('helvetica', 'medium')
+      pdf.setFontSize(12)
+      pdf.setTextColor(100, 100, 100)
+      pdf.text(`${packageData.Duration}  |  ${packageData.Star_Category || 'Luxury Stay'}`, margin, y)
+      y += 15
+
+      // Payment Badge - Using Primary Purple
+      pdf.setFontSize(10)
+      pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Flexible payment options available', margin, y)
+      y += 15
+
+      // Details Box - Cream background matching website
+      const boxHeight = 45
+      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+      pdf.roundedRect(margin, y, pageWidth - (margin * 2), boxHeight, 5, 5, 'F')
+
+      let boxY = y + 12
+      const col1X = margin + 10
+      const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10
+
+      // Row 1
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(10)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Duration', col1X, boxY)
+      pdf.text('Location', col2X, boxY)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(80, 80, 80)
+      pdf.text(packageData.Duration, col1X, boxY + 6)
+      pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
+
+      boxY += 18
+
+      // Row 2
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Hotel Category', col1X, boxY)
+      pdf.text('Travel Type', col2X, boxY)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(80, 80, 80)
+      pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
+      pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
+
+      y += boxHeight + 15
+
+      // Price Section (Styled) - Matching website
+      pdf.setDrawColor(230, 230, 230)
+      pdf.line(margin, y, pageWidth - margin, y)
+      y += 15
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      pdf.setTextColor(COLOR_GRAY[0], COLOR_GRAY[1], COLOR_GRAY[2])
+      pdf.text('Total Package Price', margin, y)
+
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(24)
+      // Using Price Gold color - matching website UI
+      pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
+      pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth - margin, y, { align: 'right' })
+
+      y += 8
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(9)
+      pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('Flexible payment options available', pageWidth - margin, y, { align: 'right' })
+
+      y += 20
+
+      // Highlights - Matching website style
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(20)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Highlights', margin, y)
+      y += 12
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(11)
+      pdf.setTextColor(60, 60, 60)
+      inclusions.slice(0, 6).forEach(item => {
+        // Custom bullet - Using Primary Purple
+        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('+', margin, y)
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(item, margin + 8, y)
+        y += 9
+      })
+
+
+      // --- PAGE 3: ITINERARY & INC/EXC ---
+      pdf.addPage()
+      addFooter(3)
+      await addLogo()
+      y = margin + 10
+
+      // Header Branding Line - Primary Purple
+      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+      pdf.setLineWidth(2)
+      pdf.line(margin, y, margin + 25, y)
+      y += 12
+
+      // Itinerary - Matching website style
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(20)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Day-wise Itinerary', margin, y)
+      y += 15
+
+      const itinerary = createItinerary()
+
+      // Draw vertical timeline line
+      const timelineX = margin + 6
+      const timelineStartY = y
+
+      itinerary.forEach((day, index) => {
+        if (y > pageHeight - margin) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
+
+        // Dot - Primary Purple circle
+        pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.circle(timelineX, y - 1.5, 2, 'F')
+
+        // Day Text - Primary Purple
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.text(day.day, timelineX + 10, y)
+
+        // Title - Ink color
+        pdf.setFont('helvetica', 'medium')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        const titleX = timelineX + 35
+        const titleWidth = pageWidth - margin - titleX
+        const titleLines = pdf.splitTextToSize(day.title, titleWidth)
+        pdf.text(titleLines, titleX, y)
+
+        y += (titleLines.length * 6) + 6
+      })
+
+      // Draw line connecting dots (approximate)
+      pdf.setDrawColor(220, 220, 220)
+      pdf.setLineWidth(0.5)
+      pdf.line(timelineX, timelineStartY - 2, timelineX, y - 12)
+
+      y += 10
+
+      // Inc/Exc
+      if (y > pageHeight - 100) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
+
+      const colW = (pageWidth - (margin * 3)) / 2
+      const incExcStartY = y
+
+      // Inclusions Box - Cream background
+      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+      pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F')
+
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(16)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Inclusions', margin, y)
+      y += 10
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      inclusions.forEach(item => {
+        const lines = pdf.splitTextToSize(item, colW - 10)
+        // Green checkmark - using + symbol
+        pdf.setTextColor(34, 197, 94)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('+', margin, y)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(lines, margin + 6, y)
+        y += (lines.length * 6) + 2
+      })
+
+      // Exclusions - Cream background
+      let y2 = incExcStartY
+      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+      pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F')
+      
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(16)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Exclusions', margin + colW + margin, y2)
+      y2 += 10
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      exclusions.forEach(item => {
+        const lines = pdf.splitTextToSize(item, colW - 10)
+        // Red X - using - symbol
+        pdf.setTextColor(239, 68, 68)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('-', margin + colW + margin, y2)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(lines, margin + colW + margin + 6, y2)
+        y2 += (lines.length * 6) + 2
+      })
+
+
+      // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
+      pdf.addPage()
+      addFooter(4)
+      await addLogo()
+      y = margin + 10
+
+      // Header Branding Line - Primary Purple
+      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+      pdf.setLineWidth(2)
+      pdf.line(margin, y, margin + 25, y)
+      y += 12
+
+      // Reviews - Matching website style
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(20)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Guest Reviews', margin, y)
+      y += 15
+
+      const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
+      reviews.slice(0, 2).forEach(review => {
+        // Review Card
+        pdf.setDrawColor(230, 230, 230)
+        pdf.setFillColor(255, 255, 255)
+        const cardHeight = 35 // approx
+        // pdf.roundedRect(margin, y, pageWidth - (margin * 2), cardHeight, 2, 2, 'S')
+
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(review.name, margin, y)
+
+        // Stars - Using Accent Gold - using text instead of stars
+        pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(review.rating || '5/5', pageWidth - margin, y, { align: 'right' })
+
+        y += 6
+        pdf.setFont('helvetica', 'italic')
+        pdf.setFontSize(10)
+        pdf.setTextColor(80, 80, 80)
+        const lines = pdf.splitTextToSize(`"${review.content}"`, pageWidth - (margin * 2))
+        pdf.text(lines, margin, y)
+        y += (lines.length * 6) + 4
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(9)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(review.date, margin, y)
+
+        y += 12
+      })
+      y += 10
+
+      // Booking Policies - Matching website style
+      if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addHeader(4); y = margin + 25; }
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(20)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Booking Policies', margin, y)
+      y += 12
+
+      const policyY = y
+      const policyW = (pageWidth - (margin * 2)) / 3
+
+      // Helper for policy col - Using Primary Purple for titles
+      const drawPolicyCol = (title: string, items: string[], xPos: number) => {
+        let currY = policyY
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(11)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(title, xPos, currY)
+        currY += 8
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(9)
+        pdf.setTextColor(60, 60, 60)
+        items.forEach(p => {
+          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.text('•', xPos, currY)
+          pdf.setTextColor(60, 60, 60)
+          pdf.text(` ${p}`, xPos + 3, currY)
+          currY += 6
+        })
+      }
+
+      drawPolicyCol('Booking', packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates'], margin)
+      drawPolicyCol('Payment', packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI'], margin + policyW)
+      drawPolicyCol('Cancellation', packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days'], margin + (policyW * 2))
+
+      y += 35
+
+      // FAQs - Matching website style
+      if (y > pageHeight - 60) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 20; }
+      pdf.setFont('times', 'bold')
+      pdf.setFontSize(20)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Frequently Asked Questions', margin, y)
+      y += 12
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(10)
+      ; (packageData.FAQ_Items || DEFAULT_FAQ_ITEMS).slice(0, 5).forEach(faq => {
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text(`Q: ${faq.question}`, margin, y)
+        y += 6
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(60, 60, 60)
+        const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2))
+        pdf.text(answerLines, margin, y)
+        y += (answerLines.length * 5) + 8
+      })
+
+
+
       const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
       pdf.save(fileName)
 
-      // Restore original states
-      detailsElements.forEach((detail, index) => {
-        ; (detail as HTMLDetailsElement).open = originalStates[index]
-      })
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert('Failed to generate PDF. Please try again.')
@@ -722,411 +855,458 @@ export default function PackageDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <SchemaMarkup schema={packageSchema} id="package-schema" />
-      <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema" />
-      <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
-        <Header />
+      <Head>
+        <title>{packageTitle} - Travelzada</title>
+        <meta name="description" content={packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`} />
+        <meta property="og:title" content={`${packageTitle} - Travelzada`} />
+        <meta property="og:description" content={packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`} />
+        <meta property="og:image" content={imageUrl} />
+        <meta property="og:url" content={packageUrl} />
+        <meta property="og:type" content="website" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(packageSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      </Head>
 
-        <div ref={contentRef} className="pdf-content bg-[#f8f5f0]">
-          <section className="relative h-[300px] sm:h-[380px] md:h-[420px] lg:h-[520px] w-full">
-            <Image
+      <main className="min-h-screen bg-[#f8f5f0] text-gray-900" ref={contentRef}>
+
+        {/* PDF Cover Page (hidden by default, shown in PDF generation) */}
+        <div className="pdf-cover-page hidden flex-col w-full h-[1500px] bg-[#f8f5f0] text-[#1e1d2f]">
+          <div className="relative w-full h-[60%]">
+            {/* Use standard img for PDF reliability */}
+            <img
               src={imageUrl}
               alt={packageTitle}
-              fill
-              className="object-cover"
-              priority
-              data-pdf-image={imageUrl}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-              }}
+              className="w-full h-full object-cover"
+              style={{ objectPosition: 'center' }}
+              crossOrigin="anonymous"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
-            {/* Back Button - Positioned over image */}
-            <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-20 md:left-8 z-10" data-pdf-hide="true">
-              <Link
-                href={`/destinations/${slug}`}
-                className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#f8f5f0] via-transparent to-black/40" />
+
+            {/* Logo */}
+            <div className="absolute top-16 left-16 z-20">
+              <img
+                src="/images/logo/Travelzada Logo April (1).png"
+                alt="Travelzada"
+                className="h-16 w-auto"
+                crossOrigin="anonymous"
+              />
             </div>
-          </section>
 
-          <section className="relative -mt-24 sm:-mt-28 md:-mt-36 lg:-mt-40 px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-20">
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 md:gap-8 items-start">
-              <div className="space-y-6 md:space-y-8">
-                <article className="bg-white rounded-lg sm:rounded-[5px] shadow-lg p-5 sm:p-6 md:p-8 space-y-4 sm:space-y-5 md:space-y-6">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-primary font-semibold uppercase tracking-wide">
-                    <span className="px-2.5 sm:px-3 py-1 bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">{packageData.Destination_Name}</span>
-                    <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Duration}</span>
-                    <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Star_Category || 'Hotel'}</span>
-                  </div>
-                  <div className="flex flex-col gap-2 sm:gap-3">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif text-[#1e1d2f] leading-tight">{packageTitle}</h1>
-                    <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
-                      <span className="text-lg">💳</span>
-                      Flexible payment options available
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-                    <StatBlock label="Duration" value={packageData.Duration} />
-                    <StatBlock label="Location" value={packageData.Destination_Name || 'Bali, Indonesia'} />
-                    <StatBlock label="Hotel" value={packageData.Star_Category || 'Hotel'} />
-                    <StatBlock label="Travel Type" value={packageData.Travel_Type || '—'} />
-                  </div>
-                </article>
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              <h1 className="text-7xl font-serif text-[#1e1d2f] mb-4 leading-tight drop-shadow-sm text-center">{packageTitle}</h1>
+              <div className="flex flex-wrap justify-center gap-4 text-xl font-medium">
+                <span className="bg-white/90 backdrop-blur-md px-6 py-1 rounded-full shadow-sm text-gray-800">{packageData.Duration}</span>
+                <span className="bg-white/90 backdrop-blur-md px-6 py-1 rounded-full shadow-sm text-gray-800">{packageData.Star_Category || 'Luxury Stay'}</span>
+                <span className="bg-white/90 backdrop-blur-md px-6 py-1 rounded-full shadow-sm text-gray-800">{packageData.Travel_Type || 'Custom Trip'}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+            <div className="space-y-2">
+              <p className="text-2xl text-gray-500 uppercase tracking-[0.2em]">Starting From</p>
+              <div className="inline-block text-black font-semibold px-10 py-4 rounded-lg shadow-lg">
+                <div className="text-5xl font-serif">INR {packageData.Price_Range_INR}</div>
+              </div>
+              <p className="text-lg text-gray-400 mt-4">Quoted on {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            </div>
+            <div className="w-32 h-1.5 bg-gray-200 rounded-full" />
+            <p className="text-2xl text-gray-600 max-w-4xl leading-relaxed">{packageData.Overview}</p>
+          </div>
+        </div>
 
-                {/* Mobile Price Section - Static Part */}
-                <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
-                  <div>
-                    <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
-                    <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
-                  </div>
-                  <div className="flex flex-col gap-2.5 sm:gap-3">
-                    <button
-                      onClick={() => setShowLeadForm(true)}
-                      className="w-full text-center bg-primary text-white py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-primary/90 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      Enquire Now
-                    </button>
-                  </div>
+        <section className="web-hero relative h-[300px] sm:h-[380px] md:h-[420px] lg:h-[520px] w-full">
+          <Image
+            src={imageUrl}
+            alt={packageTitle}
+            fill
+            className="object-cover"
+            priority
+            data-pdf-image={imageUrl}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
+          {/* Back Button - Positioned over image */}
+          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-20 md:left-8 z-10" data-pdf-hide="true">
+            <Link
+              href={`/destinations/${slug}`}
+              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
+            >
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          </div>
+        </section>
+
+        <section className="relative -mt-24 sm:-mt-28 md:-mt-36 lg:-mt-40 px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-20">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 md:gap-8 items-start">
+            <div className="space-y-6 md:space-y-8">
+              <article className="bg-white rounded-lg sm:rounded-[5px] shadow-lg p-5 sm:p-6 md:p-8 space-y-4 sm:space-y-5 md:space-y-6">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-primary font-semibold uppercase tracking-wide">
+                  <span className="px-2.5 sm:px-3 py-1 bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">{packageData.Destination_Name}</span>
+                  <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Duration}</span>
+                  <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Star_Category || 'Hotel'}</span>
                 </div>
+                <div className="flex flex-col gap-2 sm:gap-3">
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif text-[#1e1d2f] leading-tight">{packageTitle}</h1>
+                  <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
+                    <span className="text-lg">💳</span>
+                    Flexible payment options available
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
+                  <StatBlock label="Duration" value={packageData.Duration} />
+                  <StatBlock label="Location" value={packageData.Destination_Name || 'Bali, Indonesia'} />
+                  <StatBlock label="Hotel" value={packageData.Star_Category || 'Hotel'} />
+                  <StatBlock label="Travel Type" value={packageData.Travel_Type || '—'} />
+                </div>
+              </article>
 
-                {/* Mobile Download Button - Sticky Part */}
-                <div className="lg:hidden sticky top-24 z-20">
+              {/* Mobile Price Section - Static Part */}
+              <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+                <div>
+                  <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                </div>
+                <div className="flex flex-col gap-2.5 sm:gap-3">
+                  <button
+                    onClick={() => setShowLeadForm(true)}
+                    className="w-full text-center bg-primary text-white py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-primary/90 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Enquire Now
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Download Button - Sticky Part */}
+              <div className="lg:hidden sticky top-24 z-20">
+                <button
+                  onClick={handleDownloadItinerary}
+                  disabled={isGeneratingPDF}
+                  className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-xl"
+                >
+                  {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
+                </button>
+              </div>
+
+              <SectionCard title="Highlights">
+                <ul className="space-y-2.5 sm:space-y-3 text-base sm:text-lg text-[#1e1d2f]">
+                  {inclusions.slice(0, 5).map((inclusion, idx) => (
+                    <li key={idx} className="flex items-start gap-3 sm:gap-4">
+                      <span className="mt-0.5 sm:mt-1 text-primary text-lg sm:text-xl flex-shrink-0">✔</span>
+                      <p className="leading-relaxed">{inclusion}</p>
+                    </li>
+                  ))}
+                </ul>
+              </SectionCard>
+
+              <SectionCard title="Day-wise Itinerary">
+                <div className="space-y-3 sm:space-y-4">
+                  {createItinerary().map((day, index) => (
+                    <details
+                      key={day.day}
+                      className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30 [&[open]_summary_svg]:rotate-180"
+                    >
+                      <summary className="flex items-center justify-between cursor-pointer list-none gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg font-medium flex-1 min-w-0">
+                          <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
+                            {index + 1}
+                          </span>
+                          <span className="truncate sm:whitespace-normal">
+                            <span className="hidden sm:inline">{day.day}: </span>
+                            <span className="sm:font-normal">{day.title}</span>
+                          </span>
+                        </div>
+                        <svg
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-transform duration-200 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <div className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600 space-y-2 sm:space-y-3">
+                        <p className="leading-relaxed">{day.description}</p>
+                        <ul className="list-disc pl-5 sm:pl-6 space-y-1">
+                          {day.details.map((detail, idx) => (
+                            <li key={idx} className="leading-relaxed">{detail}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              </SectionCard>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <SectionCard title="Inclusions">
+                  <ListWithIcon items={inclusions} icon="✓" iconClass="text-green-600" />
+                </SectionCard>
+                <SectionCard title="Exclusions">
+                  <ListWithIcon items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']} icon="✕" iconClass="text-red-500" />
+                </SectionCard>
+              </div>
+
+              <SectionCard title="Guest Reviews">
+                <div className="space-y-4 sm:space-y-5 md:space-y-6">
+                  {(() => {
+                    const allReviews = packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0
+                      ? packageData.Guest_Reviews
+                      : DEFAULT_GUEST_REVIEWS
+                    const displayedReviews = showAllReviews ? allReviews : allReviews.slice(0, 3)
+
+                    return (
+                      <>
+                        {displayedReviews.map((review, idx) => (
+                          <div key={idx} className="rounded-lg sm:rounded-[5px] border border-gray-200 p-4 sm:p-5 bg-white hover:shadow-md transition-shadow">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
+                              <p className="font-semibold text-sm sm:text-base">{review.name}</p>
+                              <p className="text-yellow-500 text-sm sm:text-base">{review.rating || '★★★★★'}</p>
+                            </div>
+                            <p className="text-sm sm:text-base text-gray-600 mb-2 leading-relaxed">{review.content}</p>
+                            <p className="text-xs sm:text-sm text-gray-500">{review.date}</p>
+                          </div>
+                        ))}
+                        {allReviews.length > 3 && !showAllReviews && (
+                          <button
+                            onClick={() => setShowAllReviews(true)}
+                            className="w-full py-3 text-center border-2 border-primary text-primary font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-primary hover:text-white transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            View All Reviews ({allReviews.length})
+                          </button>
+                        )}
+                        {showAllReviews && allReviews.length > 3 && (
+                          <button
+                            onClick={() => setShowAllReviews(false)}
+                            className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-gray-100 transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            Show Less
+                          </button>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Booking Policies">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
+                  <PolicyCard
+                    title="Booking"
+                    items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']}
+                  />
+                  <PolicyCard
+                    title="Payment"
+                    items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']}
+                  />
+                  <PolicyCard
+                    title="Cancellation"
+                    items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']}
+                  />
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Frequently Asked Questions">
+                <div className="space-y-4">
+                  {(() => {
+                    const allFAQs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0
+                      ? packageData.FAQ_Items
+                      : DEFAULT_FAQ_ITEMS
+                    const displayedFAQs = showAllFAQs ? allFAQs : allFAQs.slice(0, 5)
+
+                    return (
+                      <>
+                        {displayedFAQs.map((faq, idx) => (
+                          <details
+                            key={idx}
+                            className="rounded-[5px] border border-gray-200 bg-white p-4 md:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30"
+                          >
+                            <summary className="cursor-pointer text-base md:text-lg font-medium text-[#1e1d2f] leading-relaxed">
+                              {faq.question}
+                            </summary>
+                            <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">{faq.answer}</p>
+                          </details>
+                        ))}
+                        {allFAQs.length > 5 && !showAllFAQs && (
+                          <button
+                            onClick={() => setShowAllFAQs(true)}
+                            className="w-full py-3 text-center border-2 border-primary text-primary font-semibold rounded-[5px] hover:bg-primary hover:text-white transition-colors"
+                          >
+                            View All FAQs ({allFAQs.length})
+                          </button>
+                        )}
+                        {showAllFAQs && allFAQs.length > 5 && (
+                          <button
+                            onClick={() => setShowAllFAQs(false)}
+                            className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold rounded-[5px] hover:bg-gray-100 transition-colors"
+                          >
+                            Show Less
+                          </button>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              </SectionCard>
+
+
+            </div>
+
+            <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
+              <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
+                <div>
+                  <p className="text-sm text-gray-500">Starting from</p>
+                  <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                  {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
+                </div>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setShowLeadForm(true)}
+                    className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
+                  >
+                    Enquire Now
+                  </button>
                   <button
                     onClick={handleDownloadItinerary}
                     disabled={isGeneratingPDF}
-                    className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-xl"
+                    className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
                   </button>
                 </div>
-
-                <SectionCard title="Highlights">
-                  <ul className="space-y-2.5 sm:space-y-3 text-base sm:text-lg text-[#1e1d2f]">
-                    {inclusions.slice(0, 5).map((inclusion, idx) => (
-                      <li key={idx} className="flex items-start gap-3 sm:gap-4">
-                        <span className="mt-0.5 sm:mt-1 text-primary text-lg sm:text-xl flex-shrink-0">✔</span>
-                        <p className="leading-relaxed">{inclusion}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </SectionCard>
-
-                <SectionCard title="Day-wise Itinerary">
-                  <div className="space-y-3 sm:space-y-4">
-                    {createItinerary().map((day, index) => (
-                      <details
-                        key={day.day}
-                        className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30 [&[open]_summary_svg]:rotate-180"
-                      >
-                        <summary className="flex items-center justify-between cursor-pointer list-none gap-3">
-                          <div className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg font-medium flex-1 min-w-0">
-                            <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
-                              {index + 1}
-                            </span>
-                            <span className="truncate sm:whitespace-normal">
-                              <span className="hidden sm:inline">{day.day}: </span>
-                              <span className="sm:font-normal">{day.title}</span>
-                            </span>
-                          </div>
-                          <svg
-                            className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-transform duration-200 flex-shrink-0"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </summary>
-                        <div className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600 space-y-2 sm:space-y-3">
-                          <p className="leading-relaxed">{day.description}</p>
-                          <ul className="list-disc pl-5 sm:pl-6 space-y-1">
-                            {day.details.map((detail, idx) => (
-                              <li key={idx} className="leading-relaxed">{detail}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </details>
-                    ))}
+                <div className="pt-4 border-t border-gray-100 space-y-3">
+                  <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
+                  <div className="flex gap-3">
+                    <a
+                      href={whatsappShare}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
+                    >
+                      WhatsApp
+                    </a>
+                    <button
+                      onClick={async () => {
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: packageTitle,
+                              text: `Check out ${packageTitle} on Travelzada`,
+                              url: packageUrl,
+                            })
+                          } catch (err) {
+                            // User cancelled or error occurred
+                            if ((err as Error).name !== 'AbortError') {
+                              console.error('Error sharing:', err)
+                            }
+                          }
+                        } else {
+                          // Fallback: open Twitter share in new tab
+                          window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
+                        }
+                      }}
+                      className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
+                    >
+                      Share
+                    </button>
                   </div>
-                </SectionCard>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  <SectionCard title="Inclusions">
-                    <ListWithIcon items={inclusions} icon="✓" iconClass="text-green-600" />
-                  </SectionCard>
-                  <SectionCard title="Exclusions">
-                    <ListWithIcon items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']} icon="✕" iconClass="text-red-500" />
-                  </SectionCard>
                 </div>
-
-                <SectionCard title="Guest Reviews">
-                  <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                    {(() => {
-                      const allReviews = packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0
-                        ? packageData.Guest_Reviews
-                        : DEFAULT_GUEST_REVIEWS
-                      const displayedReviews = showAllReviews ? allReviews : allReviews.slice(0, 3)
-
-                      return (
-                        <>
-                          {displayedReviews.map((review, idx) => (
-                            <div key={idx} className="rounded-lg sm:rounded-[5px] border border-gray-200 p-4 sm:p-5 bg-white hover:shadow-md transition-shadow">
-                              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
-                                <p className="font-semibold text-sm sm:text-base">{review.name}</p>
-                                <p className="text-yellow-500 text-sm sm:text-base">{review.rating || '★★★★★'}</p>
-                              </div>
-                              <p className="text-sm sm:text-base text-gray-600 mb-2 leading-relaxed">{review.content}</p>
-                              <p className="text-xs sm:text-sm text-gray-500">{review.date}</p>
-                            </div>
-                          ))}
-                          {allReviews.length > 3 && !showAllReviews && (
-                            <button
-                              onClick={() => setShowAllReviews(true)}
-                              className="w-full py-3 text-center border-2 border-primary text-primary font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-primary hover:text-white transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
-                            >
-                              View All Reviews ({allReviews.length})
-                            </button>
-                          )}
-                          {showAllReviews && allReviews.length > 3 && (
-                            <button
-                              onClick={() => setShowAllReviews(false)}
-                              className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-gray-100 transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
-                            >
-                              Show Less
-                            </button>
-                          )}
-                        </>
-                      )
-                    })()}
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Booking Policies">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
-                    <PolicyCard
-                      title="Booking"
-                      items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']}
-                    />
-                    <PolicyCard
-                      title="Payment"
-                      items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']}
-                    />
-                    <PolicyCard
-                      title="Cancellation"
-                      items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']}
-                    />
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Frequently Asked Questions">
-                  <div className="space-y-4">
-                    {(() => {
-                      const allFAQs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0
-                        ? packageData.FAQ_Items
-                        : DEFAULT_FAQ_ITEMS
-                      const displayedFAQs = showAllFAQs ? allFAQs : allFAQs.slice(0, 5)
-
-                      return (
-                        <>
-                          {displayedFAQs.map((faq, idx) => (
-                            <details
-                              key={idx}
-                              className="rounded-[5px] border border-gray-200 bg-white p-4 md:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30"
-                            >
-                              <summary className="cursor-pointer text-base md:text-lg font-medium text-[#1e1d2f] leading-relaxed">
-                                {faq.question}
-                              </summary>
-                              <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">{faq.answer}</p>
-                            </details>
-                          ))}
-                          {allFAQs.length > 5 && !showAllFAQs && (
-                            <button
-                              onClick={() => setShowAllFAQs(true)}
-                              className="w-full py-3 text-center border-2 border-primary text-primary font-semibold rounded-[5px] hover:bg-primary hover:text-white transition-colors"
-                            >
-                              View All FAQs ({allFAQs.length})
-                            </button>
-                          )}
-                          {showAllFAQs && allFAQs.length > 5 && (
-                            <button
-                              onClick={() => setShowAllFAQs(false)}
-                              className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold rounded-[5px] hover:bg-gray-100 transition-colors"
-                            >
-                              Show Less
-                            </button>
-                          )}
-                        </>
-                      )
-                    })()}
-                  </div>
-                </SectionCard>
-
-                <SectionCard title="Location Map">
-                  <div className="aspect-[16/9] rounded-lg sm:rounded-[5px] overflow-hidden border border-gray-200 shadow-sm">
-                    <iframe
-                      title={`Map of ${packageData.Destination_Name || 'Bali'}`}
-                      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d252111.25858393507!2d114.79136011672423!3d-8.4543220429647!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd239dc54737811%3A0x3030bfbca7cb180!2sBali%2C%20Indonesia!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin"
-                      width="600"
-                      height="450"
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      className="w-full h-full"
-                    ></iframe>
-                  </div>
-                </SectionCard>
+                <div className="space-y-2 text-sm">
+                  <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
+                  <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    +919929962350
+                  </a>
+                  <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    info@travelzada.com
+                  </a>
+                </div>
+                <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
+                  <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
+                  {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0
+                    ? packageData.Why_Book_With_Us
+                    : WHY_BOOK_WITH_US).map((item, idx) => (
+                      <div key={idx} className="flex gap-3 text-sm text-gray-600">
+                        <span className="text-primary">✓</span>
+                        <div>
+                          <p className="font-medium text-gray-900">{item.label}</p>
+                          <p>{item.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
               </div>
 
-              <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
-                <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
-                  <div>
-                    <p className="text-sm text-gray-500">Starting from</p>
-                    <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
-                    {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => setShowLeadForm(true)}
-                      className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
-                    >
-                      Enquire Now
-                    </button>
-                    <button
-                      onClick={handleDownloadItinerary}
-                      disabled={isGeneratingPDF}
-                      className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
-                    </button>
-                  </div>
-                  <div className="pt-4 border-t border-gray-100 space-y-3">
-                    <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
-                    <div className="flex gap-3">
-                      <a
-                        href={whatsappShare}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
-                      >
-                        WhatsApp
-                      </a>
-                      <button
-                        onClick={async () => {
-                          if (navigator.share) {
-                            try {
-                              await navigator.share({
-                                title: packageTitle,
-                                text: `Check out ${packageTitle} on Travelzada`,
-                                url: packageUrl,
-                              })
-                            } catch (err) {
-                              // User cancelled or error occurred
-                              if ((err as Error).name !== 'AbortError') {
-                                console.error('Error sharing:', err)
-                              }
-                            }
-                          } else {
-                            // Fallback: open Twitter share in new tab
-                            window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
-                          }
-                        }}
-                        className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
-                      >
-                        Share
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2 text-sm">
-                    <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
-                    <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                      +919929962350
-                    </a>
-                    <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                      info@travelzada.com
-                    </a>
-                  </div>
-                  <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
-                    <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
-                    {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0
-                      ? packageData.Why_Book_With_Us
-                      : WHY_BOOK_WITH_US).map((item, idx) => (
-                        <div key={idx} className="flex gap-3 text-sm text-gray-600">
-                          <span className="text-primary">✓</span>
-                          <div>
-                            <p className="font-medium text-gray-900">{item.label}</p>
-                            <p>{item.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
+              {/* <SectionCard title="Travel Concierge">
+          <p className="text-gray-600 mb-3">
+            Need help customising this journey? Speak to our specialist for curated stays,
+            private experiences and visa assistance.
+          </p>
+          <Link
+            href="tel:+919929962350"
+            className="inline-flex items-center gap-3 text-primary font-semibold hover:text-primary-dark transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            Call +919929962350 →
+          </Link>
+        </SectionCard> */}
 
-                {/* <SectionCard title="Travel Concierge">
-              <p className="text-gray-600 mb-3">
-                Need help customising this journey? Speak to our specialist for curated stays,
-                private experiences and visa assistance.
-              </p>
-              <Link
-                href="tel:+919929962350"
-                className="inline-flex items-center gap-3 text-primary font-semibold hover:text-primary-dark transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                Call +919929962350 →
-              </Link>
-            </SectionCard> */}
+              {/* <SectionCard title="Why Travelers Love Us">
+          <ul className="space-y-3 text-gray-600">
+            <li>98% positive reviews across honeymoon packages</li>
+            <li>Partners with luxury resorts in Kuta, Ubud and Nusa Dua</li>
+            <li>Assistance with forex, insurance and travel SIM</li>
+          </ul>
+        </SectionCard> */}
 
-                {/* <SectionCard title="Why Travelers Love Us">
-              <ul className="space-y-3 text-gray-600">
-                <li>98% positive reviews across honeymoon packages</li>
-                <li>Partners with luxury resorts in Kuta, Ubud and Nusa Dua</li>
-                <li>Assistance with forex, insurance and travel SIM</li>
-              </ul>
-            </SectionCard> */}
-
-                <SectionCard title="Need a Custom Quote?">
-                  <p className="text-gray-600 mb-3">
-                    Email us at{' '}
-                    <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
-                      info@travelzada.com
-                    </a>{' '}
-                    or call us at{' '}
-                    <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
-                      +919929962350
-                    </a>{' '}
-                    with your travel dates and preferences.
-                  </p>
-                </SectionCard>
-              </aside>
-            </div>
-          </section>
-        </div>
+              <SectionCard title="Need a Custom Quote?">
+                <p className="text-gray-600 mb-3">
+                  Email us at{' '}
+                  <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
+                    info@travelzada.com
+                  </a>{' '}
+                  or call us at{' '}
+                  <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
+                    +919929962350
+                  </a>{' '}
+                  with your travel dates and preferences.
+                </p>
+              </SectionCard>
+            </aside>
+          </div>
+        </section>
 
         <Footer />
 
-        {!showLeadForm && (
-          <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
-            <button
-              type="button"
-              onClick={() => setShowLeadForm(true)}
-              className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Enquire Now
-            </button>
-          </div>
-        )}
+        {
+          !showLeadForm && (
+            <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
+              <button
+                type="button"
+                onClick={() => setShowLeadForm(true)}
+                className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Enquire Now
+              </button>
+            </div>
+          )
+        }
 
         <LeadForm
           isOpen={showLeadForm}
@@ -1136,40 +1316,6 @@ export default function PackageDetailPage({ params }: PageProps) {
         />
       </main>
     </>
-  )
-}
-
-function SectionCard({ title, children, intro }: { title: string; children: ReactNode; intro?: string }) {
-  return (
-    <section className="bg-white rounded-lg sm:rounded-[5px] shadow-sm p-5 sm:p-6 md:p-8 space-y-3 sm:space-y-4">
-      <div>
-        <h2 className="text-xl sm:text-2xl font-serif text-[#1e1d2f] leading-tight">{title}</h2>
-        {intro && <p className="text-sm sm:text-base text-gray-600 mt-2 leading-relaxed">{intro}</p>}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg sm:rounded-[5px] border border-gray-100 bg-gray-50 p-3 sm:p-4">
-      <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</p>
-      <p className="text-sm sm:text-base font-semibold text-[#1e1d2f] leading-tight break-words">{value}</p>
-    </div>
-  )
-}
-
-function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: string; iconClass: string }) {
-  return (
-    <ul className="space-y-2.5 sm:space-y-3 text-sm sm:text-base text-gray-600">
-      {items.map((item) => (
-        <li key={item} className="flex items-start gap-2.5 sm:gap-3">
-          <span className={`font-semibold ${iconClass} text-base sm:text-lg flex-shrink-0 mt-0.5`}>{icon}</span>
-          <span className="leading-relaxed">{item}</span>
-        </li>
-      ))}
-    </ul>
   )
 }
 
@@ -1198,3 +1344,36 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
+function StatBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg sm:rounded-[5px] border border-gray-100 bg-gray-50 p-3 sm:p-4">
+      <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</p>
+      <p className="text-sm sm:text-base font-semibold text-[#1e1d2f] leading-tight break-words">{value}</p>
+    </div>
+  )
+}
+
+function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: string; iconClass: string }) {
+  return (
+    <ul className="space-y-2.5 sm:space-y-3 text-sm sm:text-base text-gray-600">
+      {items.map((item) => (
+        <li key={item} className="flex items-start gap-2.5 sm:gap-3">
+          <span className={`font-semibold ${iconClass} text-base sm:text-lg flex-shrink-0 mt-0.5`}>{icon}</span>
+          <span className="leading-relaxed">{item}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function SectionCard({ title, children, intro }: { title: string; children: ReactNode; intro?: string }) {
+  return (
+    <section className="bg-white rounded-lg sm:rounded-[5px] shadow-sm p-5 sm:p-6 md:p-8 space-y-3 sm:space-y-4">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-serif text-[#1e1d2f] leading-tight">{title}</h2>
+        {intro && <p className="text-sm sm:text-base text-gray-600 mt-2 leading-relaxed">{intro}</p>}
+      </div>
+      {children}
+    </section>
+  )
+}
