@@ -246,6 +246,7 @@ export default function AdminDashboard() {
   const [editingBlog, setEditingBlog] = useState<BlogPost | null>(null)
   const [formData, setFormData] = useState<Partial<DestinationPackage>>({})
   const [blogFormData, setBlogFormData] = useState<Partial<BlogPost> & { blogStructure?: BlogSection[] | string }>({})
+  const [keywordsInput, setKeywordsInput] = useState<string>('')
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [bulkImportJson, setBulkImportJson] = useState('')
   const [bulkImportStatus, setBulkImportStatus] = useState<{
@@ -1045,6 +1046,7 @@ export default function AdminDashboard() {
   const handleEditBlog = (blog: BlogPost) => {
     setEditingBlog(blog)
     setBlogFormData(blog)
+    setKeywordsInput(blog.keywords ? blog.keywords.join(', ') : '')
     setShowBlogForm(true)
     setActiveTab('blogs')
   }
@@ -1059,6 +1061,7 @@ export default function AdminDashboard() {
   const handleNewBlog = () => {
     setEditingBlog(null)
     setBlogFormData({})
+    setKeywordsInput('')
     setShowBlogForm(true)
     setActiveTab('blogs')
   }
@@ -1785,8 +1788,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'dashboard'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1805,8 +1808,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('packages')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'packages'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1826,8 +1829,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('blogs')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'blogs'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1847,8 +1850,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('destinations')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'destinations'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1869,8 +1872,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('users')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'users'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'users' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1890,8 +1893,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('leads')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'leads'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1911,8 +1914,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('contacts')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'contacts'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1932,8 +1935,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('subscribers')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'subscribers'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1953,8 +1956,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('careers')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'careers'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -1974,8 +1977,8 @@ export default function AdminDashboard() {
             <button
               onClick={() => setActiveTab('testimonials')}
               className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'testimonials'
-                  ? 'border-primary bg-primary/5 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
                 }`}
             >
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
@@ -2590,8 +2593,9 @@ export default function AdminDashboard() {
                           <input
                             type="text"
                             name="keywords"
-                            value={Array.isArray(blogFormData.keywords) ? blogFormData.keywords.join(', ') : (typeof blogFormData.keywords === 'string' ? blogFormData.keywords : '')}
+                            value={keywordsInput}
                             onChange={(e) => {
+                              setKeywordsInput(e.target.value)
                               const keywords = e.target.value.split(',').map(k => k.trim()).filter(k => k)
                               setBlogFormData((prev) => ({
                                 ...prev,
@@ -3407,8 +3411,8 @@ export default function AdminDashboard() {
                                 handleUpdateUserRole(user.id!, newRole, user.role)
                               }}
                               className={`text-xs px-3 py-1.5 border rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${user.role === 'admin'
-                                  ? 'bg-purple-100 text-purple-800 border-purple-300'
-                                  : 'bg-gray-100 text-gray-800 border-gray-300'
+                                ? 'bg-purple-100 text-purple-800 border-purple-300'
+                                : 'bg-gray-100 text-gray-800 border-gray-300'
                                 }`}
                             >
                               <option value="user">User</option>
@@ -3492,8 +3496,8 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${subscriber.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
                             }`}>
                             {subscriber.status}
                           </span>
@@ -3598,10 +3602,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${message.status === 'new'
-                              ? 'bg-blue-100 text-blue-800'
-                              : message.status === 'read'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-green-100 text-green-800'
+                            ? 'bg-blue-100 text-blue-800'
+                            : message.status === 'read'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-green-100 text-green-800'
                             }`}>
                             {message.status}
                           </span>
@@ -3765,9 +3769,9 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${lead.status === 'new' ? 'bg-green-100 text-green-800' :
-                              lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                                lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-800'
+                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                              lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
                             }`}>
                             {lead.status}
                           </span>
@@ -3808,9 +3812,9 @@ export default function AdminDashboard() {
                                         <div>
                                           <p className="text-sm font-semibold text-gray-500 mb-1">Status</p>
                                           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${lead.status === 'new' ? 'bg-green-100 text-green-800' :
-                                              lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                                                lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
-                                                  'bg-gray-100 text-gray-800'
+                                            lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                                              lead.status === 'converted' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-gray-100 text-gray-800'
                                             }`}>
                                             {lead.status}
                                           </span>
@@ -3965,12 +3969,12 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${application.status === 'new'
-                              ? 'bg-blue-100 text-blue-800'
-                              : application.status === 'read'
-                                ? 'bg-gray-100 text-gray-800'
-                                : application.status === 'reviewed'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-green-100 text-green-800'
+                            ? 'bg-blue-100 text-blue-800'
+                            : application.status === 'read'
+                              ? 'bg-gray-100 text-gray-800'
+                              : application.status === 'reviewed'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
                             }`}>
                             {application.status}
                           </span>
