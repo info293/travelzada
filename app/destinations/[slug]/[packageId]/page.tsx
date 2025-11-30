@@ -705,7 +705,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       let y2 = incExcStartY
       pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
       pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F')
-      
+
       pdf.setFont('times', 'bold')
       pdf.setFontSize(16)
       pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
@@ -828,17 +828,17 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(10)
-      ; (packageData.FAQ_Items || DEFAULT_FAQ_ITEMS).slice(0, 5).forEach(faq => {
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(`Q: ${faq.question}`, margin, y)
-        y += 6
-        pdf.setFont('helvetica', 'normal')
-        pdf.setTextColor(60, 60, 60)
-        const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2))
-        pdf.text(answerLines, margin, y)
-        y += (answerLines.length * 5) + 8
-      })
+        ; (packageData.FAQ_Items || DEFAULT_FAQ_ITEMS).slice(0, 5).forEach(faq => {
+          pdf.setFont('helvetica', 'bold')
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          pdf.text(`Q: ${faq.question}`, margin, y)
+          y += 6
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(60, 60, 60)
+          const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2))
+          pdf.text(answerLines, margin, y)
+          y += (answerLines.length * 5) + 8
+        })
 
 
 
@@ -986,12 +986,12 @@ export default function PackageDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Mobile Download Button - Sticky Part */}
-              <div className="lg:hidden sticky top-24 z-20">
+              {/* Mobile Download Button - Static */}
+              <div className="lg:hidden mt-4">
                 <button
                   onClick={handleDownloadItinerary}
                   disabled={isGeneratingPDF}
-                  className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-xl"
+                  className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-sm"
                 >
                   {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
                 </button>
