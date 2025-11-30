@@ -16,30 +16,25 @@ const firebaseConfig = {
   measurementId: "G-5JQNQ4BRCJ"
 }
 
-// Initialize Firebase - only on client side
-let app: FirebaseApp | undefined
+// Initialize Firebase
+let app: FirebaseApp
 let analytics: Analytics | null = null
-let auth: Auth | undefined
-let db: Firestore | undefined
+let auth: Auth
+let db: Firestore
 
-if (typeof window !== 'undefined') {
-  // Only initialize on client side
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig)
-    auth = getAuth(app)
-    db = getFirestore(app)
-    
-    // Initialize Analytics only in browser
-    if (typeof window !== 'undefined') {
-      analytics = getAnalytics(app)
-    }
-  } else {
-    app = getApps()[0]
-    auth = getAuth(app)
-    db = getFirestore(app)
-  }
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig)
+} else {
+  app = getApps()[0]
 }
 
-// Export with proper types - these will be undefined on server side
+auth = getAuth(app)
+db = getFirestore(app)
+
+// Initialize Analytics only in browser
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app)
+}
+
 export { app, analytics, auth, db }
 
