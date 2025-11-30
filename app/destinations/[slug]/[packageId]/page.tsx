@@ -590,6 +590,34 @@ export default function PackageDetailPage({ params }: PageProps) {
       pdf.setFont('helvetica', 'bold')
       pdf.text('Flexible payment options available', pageWidth - margin, y, { align: 'right' })
 
+      y += 10
+
+      // Contact Buttons (WhatsApp & Call)
+      const btnWidth = 35
+      const btnHeight = 10
+      const btnGap = 5
+      // Align to right to match price section
+      const startX = pageWidth - margin - (btnWidth * 2) - btnGap
+
+      // WhatsApp Button
+      pdf.setFillColor(37, 211, 102) // WhatsApp Green
+      pdf.roundedRect(startX, y, btnWidth, btnHeight, 3, 3, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('WhatsApp', startX + (btnWidth / 2), y + 6.5, { align: 'center' })
+      // Link to WhatsApp
+      pdf.link(startX, y, btnWidth, btnHeight, { url: `https://wa.me/919929962350?text=I'm interested in ${encodeURIComponent(packageTitle)}` })
+
+      // Call Button
+      const callX = startX + btnWidth + btnGap
+      pdf.setFillColor(59, 130, 246) // Blue
+      pdf.roundedRect(callX, y, btnWidth, btnHeight, 3, 3, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.text('Call Us', callX + (btnWidth / 2), y + 6.5, { align: 'center' })
+      // Link to Phone
+      pdf.link(callX, y, btnWidth, btnHeight, { url: 'tel:+919929962350' })
+
       y += 20
 
       // Highlights - Matching website style
@@ -671,13 +699,19 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       y += 10
 
-      // Inc/Exc
-      if (y > pageHeight - 100) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
+      // --- INCLUSIONS & EXCLUSIONS ---
+      // Check if we have enough space for Inc/Exc section (approx 150mm needed)
+      if (y > pageHeight - 150) {
+        pdf.addPage()
+        addFooter(3)
+        await addLogo()
+        y = margin + 20
+      }
 
-      const colW = (pageWidth - (margin * 3)) / 2
       const incExcStartY = y
+      const colW = (pageWidth - (margin * 3)) / 2
 
-      // Inclusions Box - Cream background
+      // Inclusions - Cream background
       pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
       pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F')
 
@@ -691,8 +725,8 @@ export default function PackageDetailPage({ params }: PageProps) {
       pdf.setFontSize(10)
       inclusions.forEach(item => {
         const lines = pdf.splitTextToSize(item, colW - 10)
-        // Green checkmark - using + symbol
-        pdf.setTextColor(34, 197, 94)
+        // Green Check
+        pdf.setTextColor(22, 163, 74)
         pdf.setFont('helvetica', 'bold')
         pdf.text('+', margin, y)
         pdf.setFont('helvetica', 'normal')
@@ -716,7 +750,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       pdf.setFontSize(10)
       exclusions.forEach(item => {
         const lines = pdf.splitTextToSize(item, colW - 10)
-        // Red X - using - symbol
+        // Red X
         pdf.setTextColor(239, 68, 68)
         pdf.setFont('helvetica', 'bold')
         pdf.text('-', margin + colW + margin, y2)
@@ -726,20 +760,19 @@ export default function PackageDetailPage({ params }: PageProps) {
         y2 += (lines.length * 6) + 2
       })
 
-
       // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
       pdf.addPage()
       addFooter(4)
       await addLogo()
       y = margin + 10
 
-      // Header Branding Line - Primary Purple
+      // Header Branding Line
       pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
       pdf.setLineWidth(2)
       pdf.line(margin, y, margin + 25, y)
       y += 12
 
-      // Reviews - Matching website style
+      // Reviews
       pdf.setFont('times', 'bold')
       pdf.setFontSize(20)
       pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
@@ -748,18 +781,14 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
       reviews.slice(0, 2).forEach(review => {
-        // Review Card
         pdf.setDrawColor(230, 230, 230)
         pdf.setFillColor(255, 255, 255)
-        const cardHeight = 35 // approx
-        // pdf.roundedRect(margin, y, pageWidth - (margin * 2), cardHeight, 2, 2, 'S')
 
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(11)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text(review.name, margin, y)
 
-        // Stars - Using Accent Gold - using text instead of stars
         pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
         pdf.setFont('helvetica', 'bold')
         pdf.text(review.rating || '5/5', pageWidth - margin, y, { align: 'right' })
@@ -781,8 +810,8 @@ export default function PackageDetailPage({ params }: PageProps) {
       })
       y += 10
 
-      // Booking Policies - Matching website style
-      if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addHeader(4); y = margin + 25; }
+      // Booking Policies
+      if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 25; }
       pdf.setFont('times', 'bold')
       pdf.setFontSize(20)
       pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
@@ -792,7 +821,6 @@ export default function PackageDetailPage({ params }: PageProps) {
       const policyY = y
       const policyW = (pageWidth - (margin * 2)) / 3
 
-      // Helper for policy col - Using Primary Purple for titles
       const drawPolicyCol = (title: string, items: string[], xPos: number) => {
         let currY = policyY
         pdf.setFont('helvetica', 'bold')
@@ -818,7 +846,7 @@ export default function PackageDetailPage({ params }: PageProps) {
 
       y += 35
 
-      // FAQs - Matching website style
+      // FAQs
       if (y > pageHeight - 60) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 20; }
       pdf.setFont('times', 'bold')
       pdf.setFontSize(20)
@@ -839,8 +867,6 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.text(answerLines, margin, y)
           y += (answerLines.length * 5) + 8
         })
-
-
 
       const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
       pdf.save(fileName)
@@ -874,11 +900,11 @@ export default function PackageDetailPage({ params }: PageProps) {
       </Head>
 
       <main className="min-h-screen bg-[#f8f5f0] text-gray-900" ref={contentRef}>
+        <Header />
 
         {/* PDF Cover Page (hidden by default, shown in PDF generation) */}
         <div className="pdf-cover-page hidden flex-col w-full h-[1500px] bg-[#f8f5f0] text-[#1e1d2f]">
           <div className="relative w-full h-[60%]">
-            {/* Use standard img for PDF reliability */}
             <img
               src={imageUrl}
               alt={packageTitle}
@@ -1314,7 +1340,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
           packageName={packageData.Destination_Name}
         />
-      </main>
+      </main >
     </>
   )
 }
