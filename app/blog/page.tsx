@@ -26,6 +26,7 @@ interface BlogPost {
   shares?: number
   featured?: boolean
   published?: boolean
+  slug?: string
 }
 
 export default function BlogPage() {
@@ -229,6 +230,12 @@ export default function BlogPage() {
     return bDate.localeCompare(aDate)
   }).slice(0, 4) // Latest 4 posts
 
+  const getBlogUrl = (post: BlogPost) => {
+    const category = post.category ? post.category.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') : 'general'
+    const slug = post.slug || post.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    return `/blog/${category}/${slug}`
+  }
+
   return (
     <main className="min-h-screen bg-white">
       <Header />
@@ -267,7 +274,7 @@ export default function BlogPage() {
                     {/* Left Column - Featured Post */}
                     {featuredPost && (
                       <Link
-                        href={`/blog/${featuredPost.id || featuredPost.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        href={getBlogUrl(featuredPost)}
                         className="group block"
                       >
                         <div className="space-y-4">
@@ -309,7 +316,7 @@ export default function BlogPage() {
                           {relatedPosts.map((post) => (
                             <Link
                               key={post.id || post.title}
-                              href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                              href={getBlogUrl(post)}
                               className="group block"
                             >
                               <div className="flex gap-4">
@@ -376,8 +383,8 @@ export default function BlogPage() {
                               </button>
                               {subscribeMessage && (
                                 <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                                    ? 'text-green-600'
-                                    : 'text-red-600'
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
                                   }`}>
                                   {subscribeMessage}
                                 </p>
@@ -399,7 +406,7 @@ export default function BlogPage() {
                   {allPosts.map((post) => (
                     <Link
                       key={post.id || post.title}
-                      href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      href={getBlogUrl(post)}
                       className="block group"
                     >
                       <div className="flex gap-4">
@@ -460,8 +467,8 @@ export default function BlogPage() {
                       </button>
                       {subscribeMessage && (
                         <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                            ? 'text-green-600'
-                            : 'text-red-600'
+                          ? 'text-green-600'
+                          : 'text-red-600'
                           }`}>
                           {subscribeMessage}
                         </p>
@@ -484,7 +491,7 @@ export default function BlogPage() {
                     {topPosts.map((post) => (
                       <Link
                         key={post.id || post.title}
-                        href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        href={getBlogUrl(post)}
                         className="group block"
                       >
                         <div className="flex gap-4">
@@ -538,7 +545,7 @@ export default function BlogPage() {
                     {recentPosts.map((post) => (
                       <Link
                         key={post.id || post.title}
-                        href={`/blog/${post.id || post.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        href={getBlogUrl(post)}
                         className="group block"
                       >
                         <div className="flex gap-4">
@@ -610,8 +617,8 @@ export default function BlogPage() {
                         </button>
                         {subscribeMessage && (
                           <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                              ? 'text-green-600'
-                              : 'text-red-600'
+                            ? 'text-green-600'
+                            : 'text-red-600'
                             }`}>
                             {subscribeMessage}
                           </p>
