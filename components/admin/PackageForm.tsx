@@ -142,7 +142,6 @@ export default function PackageForm({
               name="Overview"
               value={formData.Overview || ''}
               onChange={handleInputChange}
-              required
               rows={3}
               placeholder="Romantic island escape with beaches, temples, and luxury villas."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -155,7 +154,6 @@ export default function PackageForm({
               name="Duration"
               value={formData.Duration || ''}
               onChange={handleInputChange}
-              required
               placeholder="5 Nights / 6 Days"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -167,7 +165,6 @@ export default function PackageForm({
               name="Duration_Nights"
               value={formData.Duration_Nights !== undefined && formData.Duration_Nights !== null ? formData.Duration_Nights : ''}
               onChange={handleInputChange}
-              required
               placeholder="5"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -179,7 +176,6 @@ export default function PackageForm({
               name="Duration_Days"
               value={formData.Duration_Days !== undefined && formData.Duration_Days !== null ? formData.Duration_Days : ''}
               onChange={handleInputChange}
-              required
               placeholder="6"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -191,7 +187,6 @@ export default function PackageForm({
               name="Slug"
               value={formData.Slug || ''}
               onChange={handleInputChange}
-              required
               placeholder="bali-romantic-island-escape"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -209,7 +204,6 @@ export default function PackageForm({
               name="Mood"
               value={formData.Mood || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Mood</option>
@@ -230,7 +224,6 @@ export default function PackageForm({
               name="Occasion"
               value={formData.Occasion || ''}
               onChange={handleInputChange}
-              required
               placeholder="Honeymoon, Family Vacation, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -241,7 +234,6 @@ export default function PackageForm({
               name="Travel_Type"
               value={formData.Travel_Type || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Type</option>
@@ -264,7 +256,6 @@ export default function PackageForm({
               name="Theme"
               value={formData.Theme || ''}
               onChange={handleInputChange}
-              required
               placeholder="Beach / Culture / Relax"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -275,7 +266,6 @@ export default function PackageForm({
               name="Adventure_Level"
               value={formData.Adventure_Level || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Level</option>
@@ -294,7 +284,6 @@ export default function PackageForm({
               name="Group_Size"
               value={formData.Group_Size || ''}
               onChange={handleInputChange}
-              required
               placeholder="2 Adults, 2 Adults + 1 Child, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -305,7 +294,6 @@ export default function PackageForm({
               name="Child_Friendly"
               value={formData.Child_Friendly || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select</option>
@@ -319,7 +307,6 @@ export default function PackageForm({
               name="Elderly_Friendly"
               value={formData.Elderly_Friendly || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select</option>
@@ -334,7 +321,6 @@ export default function PackageForm({
               name="Language_Preference"
               value={formData.Language_Preference || ''}
               onChange={handleInputChange}
-              required
               placeholder="English"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -346,7 +332,6 @@ export default function PackageForm({
               name="Seasonality"
               value={formData.Seasonality || ''}
               onChange={handleInputChange}
-              required
               placeholder="April–October, All Year, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -357,7 +342,6 @@ export default function PackageForm({
               name="Ideal_Traveler_Persona"
               value={formData.Ideal_Traveler_Persona || ''}
               onChange={handleInputChange}
-              required
               rows={2}
               placeholder="Couples aged 25–35 seeking a private romantic escape"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -376,7 +360,6 @@ export default function PackageForm({
               name="Budget_Category"
               value={formData.Budget_Category || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Category</option>
@@ -396,7 +379,6 @@ export default function PackageForm({
               name="Price_Range_INR"
               value={formData.Price_Range_INR || ''}
               onChange={handleInputChange}
-              required
               placeholder="₹95,000 – ₹1,10,000 per couple"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -436,7 +418,6 @@ export default function PackageForm({
               name="Star_Category"
               value={formData.Star_Category || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Category</option>
@@ -455,7 +436,6 @@ export default function PackageForm({
               name="Stay_Type"
               value={formData.Stay_Type || ''}
               onChange={handleInputChange}
-              required
               placeholder="Resort, Hotel, Villa, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -467,7 +447,6 @@ export default function PackageForm({
               name="Meal_Plan"
               value={formData.Meal_Plan || ''}
               onChange={handleInputChange}
-              required
               placeholder="Breakfast Only, Half Board, Full Board"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -479,7 +458,6 @@ export default function PackageForm({
               name="Hotel_Examples"
               value={formData.Hotel_Examples || ''}
               onChange={handleInputChange}
-              required
               placeholder="The Anvaya Beach Resort, Amadea Resort Seminyak"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -491,7 +469,6 @@ export default function PackageForm({
               name="Location_Breakup"
               value={formData.Location_Breakup || ''}
               onChange={handleInputChange}
-              required
               placeholder="3N Seminyak + 2N Ubud"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -509,7 +486,6 @@ export default function PackageForm({
               name="Day_Wise_Itinerary"
               value={formData.Day_Wise_Itinerary || ''}
               onChange={handleInputChange}
-              required
               rows={4}
               placeholder="Day 1: Arrive & relax | Day 2: Ubud Tour | Day 3: Watersports..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -521,7 +497,6 @@ export default function PackageForm({
               name="Inclusions"
               value={formData.Inclusions || ''}
               onChange={handleInputChange}
-              required
               rows={3}
               placeholder="4★ stay with breakfast, private transfers, Ubud & Nusa Dua tours..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -545,7 +520,6 @@ export default function PackageForm({
               name="Rating"
               value={formData.Rating || ''}
               onChange={handleInputChange}
-              required
               placeholder="4.8/5"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -564,7 +538,6 @@ export default function PackageForm({
               name="Airport_Code"
               value={formData.Airport_Code || ''}
               onChange={handleInputChange}
-              required
               placeholder="DPS, SIN, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -575,7 +548,6 @@ export default function PackageForm({
               name="Transfer_Type"
               value={formData.Transfer_Type || ''}
               onChange={handleInputChange}
-              required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Select Type</option>
@@ -590,7 +562,6 @@ export default function PackageForm({
               name="Currency"
               value={formData.Currency || ''}
               onChange={handleInputChange}
-              required
               placeholder="IDR, SGD, INR, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -602,7 +573,6 @@ export default function PackageForm({
               name="Climate_Type"
               value={formData.Climate_Type || ''}
               onChange={handleInputChange}
-              required
               placeholder="Tropical, Temperate, etc."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -614,7 +584,6 @@ export default function PackageForm({
               name="Safety_Score"
               value={formData.Safety_Score || ''}
               onChange={handleInputChange}
-              required
               placeholder="8.5/10"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -626,7 +595,6 @@ export default function PackageForm({
               name="Sustainability_Score"
               value={formData.Sustainability_Score || ''}
               onChange={handleInputChange}
-              required
               placeholder="7/10"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -645,7 +613,6 @@ export default function PackageForm({
               name="Primary_Image_URL"
               value={formData.Primary_Image_URL || ''}
               onChange={handleInputChange}
-              required
               placeholder="https://images.unsplash.com/..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -657,7 +624,6 @@ export default function PackageForm({
               name="Meta_Image_URL"
               value={formData.Meta_Image_URL || ''}
               onChange={handleInputChange}
-              required
               placeholder="https://images.unsplash.com/..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -669,7 +635,6 @@ export default function PackageForm({
               name="Booking_URL"
               value={formData.Booking_URL || ''}
               onChange={handleInputChange}
-              required
               placeholder="https://travelzada.com/packages/DEST_001_BALI"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -681,7 +646,6 @@ export default function PackageForm({
               name="SEO_Title"
               value={formData.SEO_Title || ''}
               onChange={handleInputChange}
-              required
               placeholder="Romantic Bali Island Escape | Luxury 5-Night Honeymoon Package"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -692,7 +656,6 @@ export default function PackageForm({
               name="SEO_Description"
               value={formData.SEO_Description || ''}
               onChange={handleInputChange}
-              required
               rows={3}
               placeholder="Celebrate love in Bali with a 5-night luxury getaway..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -705,7 +668,6 @@ export default function PackageForm({
               name="SEO_Keywords"
               value={formData.SEO_Keywords || ''}
               onChange={handleInputChange}
-              required
               placeholder="Bali honeymoon package, romantic Bali holiday, Ubud tour..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
