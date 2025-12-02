@@ -86,7 +86,28 @@ export default function PackageForm({
   onCancel,
 }: PackageFormProps) {
   return (
-    <form onSubmit={onSubmit} className="space-y-8">
+    <form onSubmit={onSubmit} className="space-y-8 relative">
+      {/* Sticky Action Bar */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6 flex justify-between items-center shadow-sm -mx-6 px-6 rounded-t-xl">
+        <h3 className="text-lg font-bold text-gray-900">
+          {editingPackage ? 'Edit Package' : 'Create Package'}
+        </h3>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm shadow-sm"
+          >
+            {editingPackage ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </div>
       {/* Basic Information Section */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Basic Information</h3>
@@ -695,7 +716,7 @@ export default function PackageForm({
       {/* Guest Reviews, Policies & FAQ Section */}
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Guest Reviews, Policies & FAQ</h3>
-        
+
         {/* Guest Reviews */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-gray-700 mb-2">Guest Reviews (JSON Array)</label>

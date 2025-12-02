@@ -1047,7 +1047,13 @@ export default function AdminDashboard() {
   const handleEditBlog = (blog: BlogPost) => {
     setEditingBlog(blog)
     setBlogFormData(blog)
-    setKeywordsInput(blog.keywords ? blog.keywords.join(', ') : '')
+    setKeywordsInput(
+      Array.isArray(blog.keywords)
+        ? blog.keywords.join(', ')
+        : typeof blog.keywords === 'string'
+          ? blog.keywords
+          : ''
+    )
     setShowBlogForm(true)
     setActiveTab('blogs')
   }
@@ -1237,8 +1243,40 @@ export default function AdminDashboard() {
 
         try {
           // Validate required fields
-          if (!blog.title || !blog.description || !blog.content || !blog.image || !blog.author || !blog.category) {
-            errors.push(`Blog ${i + 1}: Missing required fields (title, description, content, image, author, or category)`)
+          const requiredFields: (keyof BlogPost)[] = ['title', 'description', 'content', 'image', 'author', 'category']
+          const missingFields = requiredFields.filter(field => !blog[field])
+          if (missingFields.length > 0) {
+            errors.push(`Blog ${i + 1}: Missing required fields: ${missingFields.join(', ')}`)
+            continue
+          }
+
+          // Validate field types
+          if (typeof blog.title !== 'string') {
+            errors.push(`Blog ${i + 1}: 'title' must be a string`)
+            continue
+          }
+          if (typeof blog.description !== 'string') {
+            errors.push(`Blog ${i + 1}: 'description' must be a string`)
+            continue
+          }
+          if (typeof blog.content !== 'string') {
+            errors.push(`Blog ${i + 1}: 'content' must be a string`)
+            continue
+          }
+          if (typeof blog.image !== 'string') {
+            errors.push(`Blog ${i + 1}: 'image' must be a string`)
+            continue
+          }
+
+          // Validate blogStructure if present
+          if (blog.blogStructure && !Array.isArray(blog.blogStructure)) {
+            errors.push(`Blog ${i + 1}: 'blogStructure' must be an array`)
+            continue
+          }
+
+          // Validate keywords if present
+          if (blog.keywords && !Array.isArray(blog.keywords) && typeof blog.keywords !== 'string') {
+            errors.push(`Blog ${i + 1}: 'keywords' must be an array of strings or a comma-separated string`)
             continue
           }
 
@@ -1273,7 +1311,14 @@ export default function AdminDashboard() {
           }
           if (blog.metaTitle) blogData.metaTitle = blog.metaTitle
           if (blog.metaDescription) blogData.metaDescription = blog.metaDescription
-          if (blog.keywords) blogData.keywords = blog.keywords
+          if (blog.keywords) {
+            if (Array.isArray(blog.keywords)) {
+              blogData.keywords = blog.keywords
+            } else if (typeof blog.keywords === 'string') {
+              // Convert string "a, b, c" to array ["a", "b", "c"]
+              blogData.keywords = (blog.keywords as string).split(',').map(k => k.trim()).filter(k => k)
+            }
+          }
           if (blog.canonicalUrl) blogData.canonicalUrl = blog.canonicalUrl
           if (blog.ogImage) blogData.ogImage = blog.ogImage
 
@@ -2101,9 +2146,7 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {showForm && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {editingPackage ? 'Edit Package' : 'Create New Package'}
-                </h2>
+                {/* Title removed as it is now in the sticky header */}
                 <PackageForm
                   formData={formData}
                   handleInputChange={handleInputChange}
@@ -2312,10 +2355,33 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {showBlogForm && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                  {editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
-                </h2>
-                <form onSubmit={handleBlogSubmit} className="space-y-6">
+                {/* Title removed as it is now in the sticky header */}
+                <form onSubmit={handleBlogSubmit} className="space-y-6 relative">
+                  {/* Sticky Action Bar */}
+                  <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6 flex justify-between items-center shadow-sm -mx-6 px-6 rounded-t-xl">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {editingBlog ? 'Edit Blog Post' : 'Create New Blog Post'}
+                    </h3>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBlogForm(false)
+                          setEditingBlog(null)
+                          setBlogFormData({})
+                        }}
+                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm shadow-sm"
+                      >
+                        {editingBlog ? 'Update' : 'Create'}
+                      </button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Title *</label>
@@ -4135,10 +4201,33 @@ export default function AdminDashboard() {
             <div className="space-y-6">
               {showTestimonialForm && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    {editingTestimonial ? 'Edit Testimonial' : 'Create New Testimonial'}
-                  </h2>
-                  <form onSubmit={handleTestimonialSubmit} className="space-y-6">
+                  {/* Title removed as it is now in the sticky header */}
+                  <form onSubmit={handleTestimonialSubmit} className="space-y-6 relative">
+                    {/* Sticky Action Bar */}
+                    <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6 flex justify-between items-center shadow-sm -mx-6 px-6 rounded-t-xl">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {editingTestimonial ? 'Edit Testimonial' : 'Create New Testimonial'}
+                      </h3>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowTestimonialForm(false)
+                            setEditingTestimonial(null)
+                            setTestimonialFormData({})
+                          }}
+                          className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm shadow-sm"
+                        >
+                          {editingTestimonial ? 'Update' : 'Create'}
+                        </button>
+                      </div>
+                    </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Name *</label>
                       <input
@@ -4387,7 +4476,7 @@ export default function AdminDashboard() {
               placeholder="Add requirements shared during call, hotel category, preferred airline..."
             />
           </div>
-          <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
+          <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-6 -mb-6 flex flex-col-reverse md:flex-row md:justify-end gap-3 mt-4 z-10">
             <button
               type="button"
               onClick={cancelLeadDetailsEdit}
