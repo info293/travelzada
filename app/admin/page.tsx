@@ -1161,6 +1161,11 @@ export default function AdminDashboard() {
 
       if (successCount > 0) {
         fetchPackages()
+        // Auto-close on success after a short delay to show status
+        setTimeout(() => {
+          setShowBulkImport(false)
+          setBulkImportStatus({ loading: false, success: 0, errors: [], processing: false })
+        }, 1500)
       }
     } catch (error) {
       setBulkImportStatus({
@@ -1340,6 +1345,11 @@ export default function AdminDashboard() {
       if (successCount > 0) {
         fetchBlogs()
         setBlogBulkImportJson('')
+        // Auto-close on success after a short delay to show status
+        setTimeout(() => {
+          setShowBlogBulkImport(false)
+          setBlogBulkImportStatus({ loading: false, success: 0, errors: [], processing: false })
+        }, 1500)
       }
     } catch (error) {
       setBlogBulkImportStatus({
@@ -2777,25 +2787,7 @@ export default function AdminDashboard() {
                       </label>
                     </div>
                   </div>
-                  <div className="flex gap-4">
-                    <button
-                      type="submit"
-                      className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-                    >
-                      {editingBlog ? 'Update Blog' : 'Create Blog'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowBlogForm(false)
-                        setEditingBlog(null)
-                        setBlogFormData({})
-                      }}
-                      className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  {/* Bottom buttons removed as they are now in the sticky header */}
                 </form >
               </div >
             )
@@ -4276,7 +4268,8 @@ export default function AdminDashboard() {
                       />
                       <label className="text-sm font-semibold text-gray-700">Featured</label>
                     </div>
-                    <div className="flex gap-4">
+                    {/* Bottom Action Bar */}
+                    <div className="flex gap-4 pt-4 border-t border-gray-200 mt-8">
                       <button
                         type="submit"
                         className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"

@@ -818,7 +818,8 @@ export default function PackageForm({
         </div>
       </div>
 
-      <div className="flex gap-4 pt-4">
+      {/* Bottom Action Bar */}
+      <div className="flex gap-4 pt-4 border-t border-gray-200 mt-8">
         <button
           type="submit"
           className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
