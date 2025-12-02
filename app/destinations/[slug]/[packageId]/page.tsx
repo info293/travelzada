@@ -536,6 +536,42 @@ export default function PackageDetailPage({ params }: PageProps) {
       pdf.line(margin, y, margin + 25, y)
       y += 12
 
+      // Details Box - Cream background matching website
+      const boxHeight = 45
+      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+      pdf.roundedRect(margin, y, pageWidth - (margin * 2), boxHeight, 5, 5, 'F')
+
+      let boxY = y + 12
+      const col1X = margin + 10
+      const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10
+
+      // Row 1
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(10)
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Duration', col1X, boxY)
+      pdf.text('Location', col2X, boxY)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(80, 80, 80)
+      pdf.text(packageData.Duration, col1X, boxY + 6)
+      pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
+
+      boxY += 18
+
+      // Row 2
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+      pdf.text('Hotel Category', col1X, boxY)
+      pdf.text('Travel Type', col2X, boxY)
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(80, 80, 80)
+      pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
+      pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
+
+      y += boxHeight + 15
+
       // Highlights - Matching website style
 
 
@@ -680,16 +716,23 @@ export default function PackageDetailPage({ params }: PageProps) {
       })
 
       // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
-      pdf.addPage()
-      addFooter(4)
-      await addLogo()
-      y = margin + 10
+      // Check if we need a new page for Reviews
+      if (y > pageHeight - 100) {
+        pdf.addPage()
+        addFooter(4)
+        await addLogo()
+        y = margin + 10
+      } else {
+        y += 15 // Add some spacing if continuing on same page
+      }
 
-      // Header Branding Line
-      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-      pdf.setLineWidth(2)
-      pdf.line(margin, y, margin + 25, y)
-      y += 12
+      // Header Branding Line (only if new page or enough space)
+      if (y === margin + 10) {
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(margin, y, margin + 25, y)
+        y += 12
+      }
 
       // Reviews
       pdf.setFont('times', 'bold')
@@ -699,7 +742,15 @@ export default function PackageDetailPage({ params }: PageProps) {
       y += 15
 
       const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
-      reviews.slice(0, 2).forEach(review => {
+      for (const review of reviews.slice(0, 3)) {
+        // Check for page break inside reviews loop
+        if (y > pageHeight - 40) {
+          pdf.addPage()
+          addFooter(4)
+          await addLogo()
+          y = margin + 25
+        }
+
         pdf.setDrawColor(230, 230, 230)
         pdf.setFillColor(255, 255, 255)
 
@@ -726,7 +777,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.text(review.date, margin, y)
 
         y += 12
-      })
+      }
       y += 10
 
       // Booking Policies
