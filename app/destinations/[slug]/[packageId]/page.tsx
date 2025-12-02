@@ -405,13 +405,31 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.textWithLink('Book this Package on Travelzada', pageWidth / 2, footerY + 5, { url: window.location.href, align: 'center' })
       }
 
+      // Helper to get image properties (width/height)
+      const getImageProperties = (url: string): Promise<{ width: number; height: number }> => {
+        return new Promise((resolve, reject) => {
+          const img = new window.Image()
+          img.onload = () => {
+            resolve({ width: img.width, height: img.height })
+          }
+          img.onerror = reject
+          img.src = url
+        })
+      }
+
       // Helper: Add Logo
       const addLogo = async () => {
         try {
           const logoUrl = '/images/logo/Travelzada Logo April (1).png'
           const logoData = await loadImage(logoUrl)
+
+          // Calculate aspect ratio to prevent distortion
+          const imgProps = await getImageProperties(logoUrl)
+          const targetHeight = 15
+          const targetWidth = (imgProps.width / imgProps.height) * targetHeight
+
           // Add logo to top left
-          pdf.addImage(logoData, 'PNG', 15, 10, 40, 15, undefined, 'FAST')
+          pdf.addImage(logoData, 'PNG', 15, 10, targetWidth, targetHeight, undefined, 'FAST')
         } catch (e) {
           console.error('Failed to load logo', e)
         }
@@ -430,7 +448,16 @@ export default function PackageDetailPage({ params }: PageProps) {
         try {
           const logoUrl = '/images/logo/Travelzada Logo April (1).png'
           const logoData = await loadImage(logoUrl)
-          pdf.addImage(logoData, 'PNG', 12.5, 5, 40, 15, undefined, 'FAST')
+
+          // Calculate aspect ratio
+          const imgProps = await getImageProperties(logoUrl)
+          const targetHeight = 15
+          const targetWidth = (imgProps.width / imgProps.height) * targetHeight
+
+          // Center logo in the white box (approx width 45)
+          const xPos = 10 + (45 - targetWidth) / 2
+
+          pdf.addImage(logoData, 'PNG', xPos, 5, targetWidth, targetHeight, undefined, 'FAST')
         } catch (e) {
           console.error('Failed to load logo', e)
         }
@@ -509,116 +536,8 @@ export default function PackageDetailPage({ params }: PageProps) {
       pdf.line(margin, y, margin + 25, y)
       y += 12
 
-      // Title - Using Ink color
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(26)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      const titleLines = pdf.splitTextToSize(packageTitle, pageWidth - (margin * 2))
-      pdf.text(titleLines, margin, y)
-      y += (titleLines.length * 10) + 5
+      // Highlights - Matching website style
 
-      // Subtitle
-      pdf.setFont('helvetica', 'medium')
-      pdf.setFontSize(12)
-      pdf.setTextColor(100, 100, 100)
-      pdf.text(`${packageData.Duration}  |  ${packageData.Star_Category || 'Luxury Stay'}`, margin, y)
-      y += 15
-
-      // Payment Badge - Using Primary Purple
-      pdf.setFontSize(10)
-      pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('Flexible payment options available', margin, y)
-      y += 15
-
-      // Details Box - Cream background matching website
-      const boxHeight = 45
-      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-      pdf.roundedRect(margin, y, pageWidth - (margin * 2), boxHeight, 5, 5, 'F')
-
-      let boxY = y + 12
-      const col1X = margin + 10
-      const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10
-
-      // Row 1
-      pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(10)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Duration', col1X, boxY)
-      pdf.text('Location', col2X, boxY)
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(80, 80, 80)
-      pdf.text(packageData.Duration, col1X, boxY + 6)
-      pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
-
-      boxY += 18
-
-      // Row 2
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Hotel Category', col1X, boxY)
-      pdf.text('Travel Type', col2X, boxY)
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(80, 80, 80)
-      pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
-      pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
-
-      y += boxHeight + 15
-
-      // Price Section (Styled) - Matching website
-      pdf.setDrawColor(230, 230, 230)
-      pdf.line(margin, y, pageWidth - margin, y)
-      y += 15
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(10)
-      pdf.setTextColor(COLOR_GRAY[0], COLOR_GRAY[1], COLOR_GRAY[2])
-      pdf.text('Total Package Price', margin, y)
-
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(24)
-      // Using Price Gold color - matching website UI
-      pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
-      pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth - margin, y, { align: 'right' })
-
-      y += 8
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(9)
-      pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('Flexible payment options available', pageWidth - margin, y, { align: 'right' })
-
-      y += 10
-
-      // Contact Buttons (WhatsApp & Call)
-      const btnWidth = 35
-      const btnHeight = 10
-      const btnGap = 5
-      // Align to right to match price section
-      const startX = pageWidth - margin - (btnWidth * 2) - btnGap
-
-      // WhatsApp Button
-      pdf.setFillColor(37, 211, 102) // WhatsApp Green
-      pdf.roundedRect(startX, y, btnWidth, btnHeight, 3, 3, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(9)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('WhatsApp', startX + (btnWidth / 2), y + 6.5, { align: 'center' })
-      // Link to WhatsApp
-      pdf.link(startX, y, btnWidth, btnHeight, { url: `https://wa.me/919929962350?text=I'm interested in ${encodeURIComponent(packageTitle)}` })
-
-      // Call Button
-      const callX = startX + btnWidth + btnGap
-      pdf.setFillColor(59, 130, 246) // Blue
-      pdf.roundedRect(callX, y, btnWidth, btnHeight, 3, 3, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.text('Call Us', callX + (btnWidth / 2), y + 6.5, { align: 'center' })
-      // Link to Phone
-      pdf.link(callX, y, btnWidth, btnHeight, { url: 'tel:+919929962350' })
-
-      y += 20
 
       // Highlights - Matching website style
       pdf.setFont('times', 'bold')
@@ -867,6 +786,32 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.text(answerLines, margin, y)
           y += (answerLines.length * 5) + 8
         })
+
+      // --- FINAL PAGE CTA ---
+      y += 15
+      if (y > pageHeight - 40) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
+
+      // Add CTA Buttons at the end
+      const btnW = 50
+      const btnH = 12
+      const gap = 10
+      const startX = (pageWidth - (btnW * 2 + gap)) / 2
+
+      // WhatsApp Button
+      pdf.setFillColor(37, 211, 102) // WhatsApp Green
+      pdf.roundedRect(startX, y, btnW, btnH, 3, 3, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(11)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('WhatsApp Us', startX + (btnW / 2), y + 8, { align: 'center' })
+      pdf.link(startX, y, btnW, btnH, { url: whatsappShare })
+
+      // Call Button
+      pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]) // Dark
+      pdf.roundedRect(startX + btnW + gap, y, btnW, btnH, 3, 3, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.text('Call Us', startX + btnW + gap + (btnW / 2), y + 8, { align: 'center' })
+      pdf.link(startX + btnW + gap, y, btnW, btnH, { url: 'tel:+919929962350' })
 
       const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
       pdf.save(fileName)
