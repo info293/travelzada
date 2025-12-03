@@ -11,6 +11,7 @@ import LeadForm from '@/components/LeadForm'
 import SchemaMarkup, { generateTravelPackageSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import AiLoader from '@/components/ui/AiLoader'
 
 interface DestinationPackage {
   id?: string
@@ -349,523 +350,532 @@ export default function PackageDetailPage({ params }: PageProps) {
     try {
       setIsGeneratingPDF(true)
 
-      // Dynamically import jspdf
-      const jsPDFModule = await import('jspdf')
-      const jsPDF = jsPDFModule.default || jsPDFModule
+      // Minimum loader duration promise (3 seconds)
+      const minDurationPromise = new Promise(resolve => setTimeout(resolve, 3000))
 
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 20
+      // PDF Generation Logic wrapped in a function
+      const generatePdfPromise = (async () => {
+        // Dynamically import jspdf
+        const jsPDFModule = await import('jspdf')
+        const jsPDF = jsPDFModule.default || jsPDFModule
 
-      // Brand Colors - Matching Website UI
-      const COLOR_PRIMARY = [124, 58, 237] // #7c3aed (Purple - Primary)
-      const COLOR_PRIMARY_DARK = [109, 40, 217] // #6d28d9 (Purple Dark)
-      const COLOR_ACCENT = [212, 175, 55] // #d4af37 (Gold - Accent)
-      const COLOR_ACCENT_DARK = [183, 144, 37] // #b79025 (Gold Dark)
-      const COLOR_INK = [31, 27, 44] // #1f1b2c (Ink - Dark Text)
-      const COLOR_CREAM = [253, 249, 243] // #fdf9f3 (Cream - Background)
-      const COLOR_PRICE = [201, 152, 70] // #c99846 (Price Gold)
-      const COLOR_GRAY = [100, 100, 100]
-      const COLOR_LIGHT_BG = [253, 249, 243] // Cream background
+        const pdf = new jsPDF('p', 'mm', 'a4')
+        const pageWidth = pdf.internal.pageSize.getWidth()
+        const pageHeight = pdf.internal.pageSize.getHeight()
+        const margin = 20
 
-      // Helper to load image
-      const loadImage = (url: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const img = new window.Image()
-          img.crossOrigin = 'Anonymous'
-          img.src = url
-          img.onload = () => {
-            const canvas = document.createElement('canvas')
-            canvas.width = img.width
-            canvas.height = img.height
-            const ctx = canvas.getContext('2d')
-            if (ctx) {
-              ctx.drawImage(img, 0, 0)
-              resolve(canvas.toDataURL('image/png'))
-            } else {
-              reject(new Error('Could not get canvas context'))
+        // Brand Colors - Matching Website UI
+        const COLOR_PRIMARY = [124, 58, 237] // #7c3aed (Purple - Primary)
+        const COLOR_PRIMARY_DARK = [109, 40, 217] // #6d28d9 (Purple Dark)
+        const COLOR_ACCENT = [212, 175, 55] // #d4af37 (Gold - Accent)
+        const COLOR_ACCENT_DARK = [183, 144, 37] // #b79025 (Gold Dark)
+        const COLOR_INK = [31, 27, 44] // #1f1b2c (Ink - Dark Text)
+        const COLOR_CREAM = [253, 249, 243] // #fdf9f3 (Cream - Background)
+        const COLOR_PRICE = [201, 152, 70] // #c99846 (Price Gold)
+        const COLOR_GRAY = [100, 100, 100]
+        const COLOR_LIGHT_BG = [253, 249, 243] // Cream background
+
+        // Helper to load image
+        const loadImage = (url: string): Promise<string> => {
+          return new Promise((resolve, reject) => {
+            const img = new window.Image()
+            img.crossOrigin = 'Anonymous'
+            img.src = url
+            img.onload = () => {
+              const canvas = document.createElement('canvas')
+              canvas.width = img.width
+              canvas.height = img.height
+              const ctx = canvas.getContext('2d')
+              if (ctx) {
+                ctx.drawImage(img, 0, 0)
+                resolve(canvas.toDataURL('image/png'))
+              } else {
+                reject(new Error('Could not get canvas context'))
+              }
             }
-          }
-          img.onerror = reject
-        })
-      }
-
-      // Helper: Add Footer
-      const addFooter = (pageNum: number) => {
-        const footerY = pageHeight - 15
-        pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(8)
-        pdf.setTextColor(150, 150, 150)
-        pdf.text('Travelzada • +91 99299 62350 • info@travelzada.com', pageWidth / 2, footerY, { align: 'center' })
-
-        // CTA Link - Using Primary Purple
-        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setFont('helvetica', 'bold')
-        pdf.textWithLink('Book this Package on Travelzada', pageWidth / 2, footerY + 5, { url: window.location.href, align: 'center' })
-      }
-
-      // Helper to get image properties (width/height)
-      const getImageProperties = (url: string): Promise<{ width: number; height: number }> => {
-        return new Promise((resolve, reject) => {
-          const img = new window.Image()
-          img.onload = () => {
-            resolve({ width: img.width, height: img.height })
-          }
-          img.onerror = reject
-          img.src = url
-        })
-      }
-
-      // Helper: Add Logo
-      const addLogo = async () => {
-        try {
-          const logoUrl = '/images/logo/Travelzada Logo April (1).png'
-          const logoData = await loadImage(logoUrl)
-
-          // Calculate aspect ratio to prevent distortion
-          const imgProps = await getImageProperties(logoUrl)
-          const targetHeight = 15
-          const targetWidth = (imgProps.width / imgProps.height) * targetHeight
-
-          // Add logo to top left
-          pdf.addImage(logoData, 'PNG', 15, 10, targetWidth, targetHeight, undefined, 'FAST')
-        } catch (e) {
-          console.error('Failed to load logo', e)
-        }
-      }
-
-      // Helper: Add Header Strip (Pages 2+)
-      const addHeader = async (pageNum: number) => {
-        // Primary Purple Strip - Matching website
-        pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.rect(0, 0, pageWidth, 25, 'F')
-
-        // Logo Container with rounded corners
-        pdf.setFillColor(255, 255, 255)
-        pdf.roundedRect(10, 2, 45, 21, 3, 3, 'F')
-
-        try {
-          const logoUrl = '/images/logo/Travelzada Logo April (1).png'
-          const logoData = await loadImage(logoUrl)
-
-          // Calculate aspect ratio
-          const imgProps = await getImageProperties(logoUrl)
-          const targetHeight = 15
-          const targetWidth = (imgProps.width / imgProps.height) * targetHeight
-
-          // Center logo in the white box (approx width 45)
-          const xPos = 10 + (45 - targetWidth) / 2
-
-          pdf.addImage(logoData, 'PNG', xPos, 5, targetWidth, targetHeight, undefined, 'FAST')
-        } catch (e) {
-          console.error('Failed to load logo', e)
+            img.onerror = reject
+          })
         }
 
-        // Package Title (Truncated) - White text on purple
-        pdf.setFont('times', 'bold')
-        pdf.setFontSize(14)
+        // Helper: Add Footer
+        const addFooter = (pageNum: number) => {
+          const footerY = pageHeight - 15
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(8)
+          pdf.setTextColor(150, 150, 150)
+          pdf.text('Travelzada • +91 99299 62350 • info@travelzada.com', pageWidth / 2, footerY, { align: 'center' })
+
+          // CTA Link - Using Primary Purple
+          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.setFont('helvetica', 'bold')
+          pdf.textWithLink('Book this Package on Travelzada', pageWidth / 2, footerY + 5, { url: window.location.href, align: 'center' })
+        }
+
+        // Helper to get image properties (width/height)
+        const getImageProperties = (url: string): Promise<{ width: number; height: number }> => {
+          return new Promise((resolve, reject) => {
+            const img = new window.Image()
+            img.onload = () => {
+              resolve({ width: img.width, height: img.height })
+            }
+            img.onerror = reject
+            img.src = url
+          })
+        }
+
+        // Helper: Add Logo
+        const addLogo = async () => {
+          try {
+            const logoUrl = '/images/logo/Travelzada Logo April (1).png'
+            const logoData = await loadImage(logoUrl)
+
+            // Calculate aspect ratio to prevent distortion
+            const imgProps = await getImageProperties(logoUrl)
+            const targetHeight = 15
+            const targetWidth = (imgProps.width / imgProps.height) * targetHeight
+
+            // Add logo to top left
+            pdf.addImage(logoData, 'PNG', 15, 10, targetWidth, targetHeight, undefined, 'FAST')
+          } catch (e) {
+            console.error('Failed to load logo', e)
+          }
+        }
+
+        // Helper: Add Header Strip (Pages 2+)
+        const addHeader = async (pageNum: number) => {
+          // Primary Purple Strip - Matching website
+          pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.rect(0, 0, pageWidth, 25, 'F')
+
+          // Logo Container with rounded corners
+          pdf.setFillColor(255, 255, 255)
+          pdf.roundedRect(10, 2, 45, 21, 3, 3, 'F')
+
+          try {
+            const logoUrl = '/images/logo/Travelzada Logo April (1).png'
+            const logoData = await loadImage(logoUrl)
+
+            // Calculate aspect ratio
+            const imgProps = await getImageProperties(logoUrl)
+            const targetHeight = 15
+            const targetWidth = (imgProps.width / imgProps.height) * targetHeight
+
+            // Center logo in the white box (approx width 45)
+            const xPos = 10 + (45 - targetWidth) / 2
+
+            pdf.addImage(logoData, 'PNG', xPos, 5, targetWidth, targetHeight, undefined, 'FAST')
+          } catch (e) {
+            console.error('Failed to load logo', e)
+          }
+
+          // Package Title (Truncated) - White text on purple
+          pdf.setFont('times', 'bold')
+          pdf.setFontSize(14)
+          pdf.setTextColor(255, 255, 255)
+          const title = packageTitle.length > 40 ? packageTitle.substring(0, 37) + '...' : packageTitle
+          pdf.text(title, pageWidth - 10, 17, { align: 'right' })
+        }
+
+        // --- PAGE 1: COVER PAGE (UNCHANGED) ---
+        try {
+          const mainImageData = await loadImage(imageUrl)
+          const imgHeight = pageHeight * 0.6
+          pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST')
+        } catch (e) {
+          console.error('Failed to load main image', e)
+        }
+
+        // Add Logo to Page 1
+        await addLogo()
+
         pdf.setTextColor(255, 255, 255)
-        const title = packageTitle.length > 40 ? packageTitle.substring(0, 37) + '...' : packageTitle
-        pdf.text(title, pageWidth - 10, 17, { align: 'right' })
-      }
-
-      // --- PAGE 1: COVER PAGE (UNCHANGED) ---
-      try {
-        const mainImageData = await loadImage(imageUrl)
-        const imgHeight = pageHeight * 0.6
-        pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST')
-      } catch (e) {
-        console.error('Failed to load main image', e)
-      }
-
-      // Add Logo to Page 1
-      await addLogo()
-
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(32)
-      const titleY = (pageHeight * 0.6) - 40
-      pdf.text(packageTitle, pageWidth / 2, titleY, { align: 'center', maxWidth: pageWidth - 40 })
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(12)
-      const tags = [
-        packageData.Duration,
-        packageData.Star_Category || 'Luxury Stay',
-        packageData.Travel_Type || 'Custom Trip'
-      ].join('  •  ')
-      pdf.text(tags, pageWidth / 2, titleY + 15, { align: 'center' })
-
-      const contentStartY = (pageHeight * 0.6) + 15
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-
-      pdf.setFontSize(10)
-      pdf.setTextColor(100, 100, 100)
-      pdf.text('STARTING FROM', pageWidth / 2, contentStartY, { align: 'center' })
-
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(28)
-      // Using Price Gold color - matching website
-      pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
-      pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(10)
-      pdf.setTextColor(150, 150, 150)
-      pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentStartY + 20, { align: 'center' })
-
-      pdf.setDrawColor(200, 200, 200)
-      pdf.line((pageWidth / 2) - 15, contentStartY + 28, (pageWidth / 2) + 15, contentStartY + 28)
-
-      pdf.setFontSize(11)
-      pdf.setTextColor(60, 60, 60)
-      const overviewText = pdf.splitTextToSize(packageData.Overview || '', pageWidth - 60)
-      pdf.text(overviewText, pageWidth / 2, contentStartY + 40, { align: 'center' })
-
-
-      // --- PAGE 2: DETAILS & HIGHLIGHTS ---
-      pdf.addPage()
-      addFooter(2)
-      await addLogo()
-      let y = margin + 10 // Increased top margin for logo
-
-      // Header Branding Line - Primary Purple
-      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-      pdf.setLineWidth(2)
-      pdf.line(margin, y, margin + 25, y)
-      y += 12
-
-      // Details Box - Cream background matching website
-      const boxHeight = 45
-      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-      pdf.roundedRect(margin, y, pageWidth - (margin * 2), boxHeight, 5, 5, 'F')
-
-      let boxY = y + 12
-      const col1X = margin + 10
-      const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10
-
-      // Row 1
-      pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(10)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Duration', col1X, boxY)
-      pdf.text('Location', col2X, boxY)
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(80, 80, 80)
-      pdf.text(packageData.Duration, col1X, boxY + 6)
-      pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
-
-      boxY += 18
-
-      // Row 2
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Hotel Category', col1X, boxY)
-      pdf.text('Travel Type', col2X, boxY)
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(80, 80, 80)
-      pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
-      pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
-
-      y += boxHeight + 15
-
-      // Highlights - Matching website style
-
-
-      // Highlights - Matching website style
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(20)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Highlights', margin, y)
-      y += 12
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(11)
-      pdf.setTextColor(60, 60, 60)
-      inclusions.slice(0, 6).forEach(item => {
-        // Custom bullet - Using Primary Purple
-        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setFont('helvetica', 'bold')
-        pdf.text('+', margin, y)
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(32)
+        const titleY = (pageHeight * 0.6) - 40
+        pdf.text(packageTitle, pageWidth / 2, titleY, { align: 'center', maxWidth: pageWidth - 40 })
 
         pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(12)
+        const tags = [
+          packageData.Duration,
+          packageData.Star_Category || 'Luxury Stay',
+          packageData.Travel_Type || 'Custom Trip'
+        ].join('  •  ')
+        pdf.text(tags, pageWidth / 2, titleY + 15, { align: 'center' })
+
+        const contentStartY = (pageHeight * 0.6) + 15
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(item, margin + 8, y)
-        y += 9
-      })
 
+        pdf.setFontSize(10)
+        pdf.setTextColor(100, 100, 100)
+        pdf.text('STARTING FROM', pageWidth / 2, contentStartY, { align: 'center' })
 
-      // --- PAGE 3: ITINERARY & INC/EXC ---
-      pdf.addPage()
-      addFooter(3)
-      await addLogo()
-      y = margin + 10
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(28)
+        // Using Price Gold color - matching website
+        pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
+        pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
 
-      // Header Branding Line - Primary Purple
-      pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-      pdf.setLineWidth(2)
-      pdf.line(margin, y, margin + 25, y)
-      y += 12
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(10)
+        pdf.setTextColor(150, 150, 150)
+        pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentStartY + 20, { align: 'center' })
 
-      // Itinerary - Matching website style
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(20)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Day-wise Itinerary', margin, y)
-      y += 15
+        pdf.setDrawColor(200, 200, 200)
+        pdf.line((pageWidth / 2) - 15, contentStartY + 28, (pageWidth / 2) + 15, contentStartY + 28)
 
-      const itinerary = createItinerary()
-
-      // Draw vertical timeline line
-      const timelineX = margin + 6
-      const timelineStartY = y
-
-      itinerary.forEach((day, index) => {
-        if (y > pageHeight - margin) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
-
-        // Dot - Primary Purple circle
-        pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.circle(timelineX, y - 1.5, 2, 'F')
-
-        // Day Text - Primary Purple
-        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(11)
-        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.text(day.day, timelineX + 10, y)
+        pdf.setTextColor(60, 60, 60)
+        const overviewText = pdf.splitTextToSize(packageData.Overview || '', pageWidth - 60)
+        pdf.text(overviewText, pageWidth / 2, contentStartY + 40, { align: 'center' })
 
-        // Title - Ink color
-        pdf.setFont('helvetica', 'medium')
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        const titleX = timelineX + 35
-        const titleWidth = pageWidth - margin - titleX
-        const titleLines = pdf.splitTextToSize(day.title, titleWidth)
-        pdf.text(titleLines, titleX, y)
 
-        y += (titleLines.length * 6) + 6
-      })
-
-      // Draw line connecting dots (approximate)
-      pdf.setDrawColor(220, 220, 220)
-      pdf.setLineWidth(0.5)
-      pdf.line(timelineX, timelineStartY - 2, timelineX, y - 12)
-
-      y += 10
-
-      // --- INCLUSIONS & EXCLUSIONS ---
-      // Check if we have enough space for Inc/Exc section (approx 150mm needed)
-      if (y > pageHeight - 150) {
+        // --- PAGE 2: DETAILS & HIGHLIGHTS ---
         pdf.addPage()
-        addFooter(3)
+        addFooter(2)
         await addLogo()
-        y = margin + 20
-      }
+        let y = margin + 10 // Increased top margin for logo
 
-      const incExcStartY = y
-      const colW = (pageWidth - (margin * 3)) / 2
-
-      // Inclusions - Cream background
-      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-      pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F')
-
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(16)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Inclusions', margin, y)
-      y += 10
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(10)
-      inclusions.forEach(item => {
-        const lines = pdf.splitTextToSize(item, colW - 10)
-        // Green Check
-        pdf.setTextColor(22, 163, 74)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text('+', margin, y)
-        pdf.setFont('helvetica', 'normal')
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(lines, margin + 6, y)
-        y += (lines.length * 6) + 2
-      })
-
-      // Exclusions - Cream background
-      let y2 = incExcStartY
-      pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-      pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F')
-
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(16)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Exclusions', margin + colW + margin, y2)
-      y2 += 10
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(10)
-      exclusions.forEach(item => {
-        const lines = pdf.splitTextToSize(item, colW - 10)
-        // Red X
-        pdf.setTextColor(239, 68, 68)
-        pdf.setFont('helvetica', 'bold')
-        pdf.text('-', margin + colW + margin, y2)
-        pdf.setFont('helvetica', 'normal')
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(lines, margin + colW + margin + 6, y2)
-        y2 += (lines.length * 6) + 2
-      })
-
-      // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
-      // Check if we need a new page for Reviews
-      if (y > pageHeight - 100) {
-        pdf.addPage()
-        addFooter(4)
-        await addLogo()
-        y = margin + 10
-      } else {
-        y += 15 // Add some spacing if continuing on same page
-      }
-
-      // Header Branding Line (only if new page or enough space)
-      if (y === margin + 10) {
+        // Header Branding Line - Primary Purple
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
         pdf.line(margin, y, margin + 25, y)
         y += 12
-      }
 
-      // Reviews
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(20)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Guest Reviews', margin, y)
-      y += 15
+        // Details Box - Cream background matching website
+        const boxHeight = 45
+        pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+        pdf.roundedRect(margin, y, pageWidth - (margin * 2), boxHeight, 5, 5, 'F')
 
-      const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
-      for (const review of reviews.slice(0, 3)) {
-        // Check for page break inside reviews loop
-        if (y > pageHeight - 40) {
+        let boxY = y + 12
+        const col1X = margin + 10
+        const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10
+
+        // Row 1
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(10)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Duration', col1X, boxY)
+        pdf.text('Location', col2X, boxY)
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(80, 80, 80)
+        pdf.text(packageData.Duration, col1X, boxY + 6)
+        pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
+
+        boxY += 18
+
+        // Row 2
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Hotel Category', col1X, boxY)
+        pdf.text('Travel Type', col2X, boxY)
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(80, 80, 80)
+        pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
+        pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
+
+        y += boxHeight + 15
+
+        // Highlights - Matching website style
+
+
+        // Highlights - Matching website style
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(20)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Highlights', margin, y)
+        y += 12
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(11)
+        pdf.setTextColor(60, 60, 60)
+        inclusions.slice(0, 6).forEach(item => {
+          // Custom bullet - Using Primary Purple
+          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('+', margin, y)
+
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          pdf.text(item, margin + 8, y)
+          y += 9
+        })
+
+
+        // --- PAGE 3: ITINERARY & INC/EXC ---
+        pdf.addPage()
+        addFooter(3)
+        await addLogo()
+        y = margin + 10
+
+        // Header Branding Line - Primary Purple
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(margin, y, margin + 25, y)
+        y += 12
+
+        // Itinerary - Matching website style
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(20)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Day-wise Itinerary', margin, y)
+        y += 15
+
+        const itinerary = createItinerary()
+
+        // Draw vertical timeline line
+        const timelineX = margin + 6
+        const timelineStartY = y
+
+        itinerary.forEach((day, index) => {
+          if (y > pageHeight - margin) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
+
+          // Dot - Primary Purple circle
+          pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.circle(timelineX, y - 1.5, 2, 'F')
+
+          // Day Text - Primary Purple
+          pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(11)
+          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.text(day.day, timelineX + 10, y)
+
+          // Title - Ink color
+          pdf.setFont('helvetica', 'medium')
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          const titleX = timelineX + 35
+          const titleWidth = pageWidth - margin - titleX
+          const titleLines = pdf.splitTextToSize(day.title, titleWidth)
+          pdf.text(titleLines, titleX, y)
+
+          y += (titleLines.length * 6) + 6
+        })
+
+        // Draw line connecting dots (approximate)
+        pdf.setDrawColor(220, 220, 220)
+        pdf.setLineWidth(0.5)
+        pdf.line(timelineX, timelineStartY - 2, timelineX, y - 12)
+
+        y += 10
+
+        // --- INCLUSIONS & EXCLUSIONS ---
+        // Check if we have enough space for Inc/Exc section (approx 150mm needed)
+        if (y > pageHeight - 150) {
+          pdf.addPage()
+          addFooter(3)
+          await addLogo()
+          y = margin + 20
+        }
+
+        const incExcStartY = y
+        const colW = (pageWidth - (margin * 3)) / 2
+
+        // Inclusions - Cream background
+        pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+        pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F')
+
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(16)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Inclusions', margin, y)
+        y += 10
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(10)
+        inclusions.forEach(item => {
+          const lines = pdf.splitTextToSize(item, colW - 10)
+          // Green Check
+          pdf.setTextColor(22, 163, 74)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('+', margin, y)
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          pdf.text(lines, margin + 6, y)
+          y += (lines.length * 6) + 2
+        })
+
+        // Exclusions - Cream background
+        let y2 = incExcStartY
+        pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+        pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F')
+
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(16)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Exclusions', margin + colW + margin, y2)
+        y2 += 10
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(10)
+        exclusions.forEach(item => {
+          const lines = pdf.splitTextToSize(item, colW - 10)
+          // Red X
+          pdf.setTextColor(239, 68, 68)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('-', margin + colW + margin, y2)
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          pdf.text(lines, margin + colW + margin + 6, y2)
+          y2 += (lines.length * 6) + 2
+        })
+
+        // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
+        // Check if we need a new page for Reviews
+        if (y > pageHeight - 100) {
           pdf.addPage()
           addFooter(4)
           await addLogo()
-          y = margin + 25
+          y = margin + 10
+        } else {
+          y += 15 // Add some spacing if continuing on same page
         }
 
-        pdf.setDrawColor(230, 230, 230)
-        pdf.setFillColor(255, 255, 255)
+        // Header Branding Line (only if new page or enough space)
+        if (y === margin + 10) {
+          pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+          pdf.setLineWidth(2)
+          pdf.line(margin, y, margin + 25, y)
+          y += 12
+        }
 
-        pdf.setFont('helvetica', 'bold')
-        pdf.setFontSize(11)
+        // Reviews
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(review.name, margin, y)
+        pdf.text('Guest Reviews', margin, y)
+        y += 15
 
-        pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
-        pdf.setFont('helvetica', 'bold')
-        pdf.text(review.rating || '5/5', pageWidth - margin, y, { align: 'right' })
+        const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
+        for (const review of reviews.slice(0, 3)) {
+          // Check for page break inside reviews loop
+          if (y > pageHeight - 40) {
+            pdf.addPage()
+            addFooter(4)
+            await addLogo()
+            y = margin + 25
+          }
 
-        y += 6
-        pdf.setFont('helvetica', 'italic')
-        pdf.setFontSize(10)
-        pdf.setTextColor(80, 80, 80)
-        const lines = pdf.splitTextToSize(`"${review.content}"`, pageWidth - (margin * 2))
-        pdf.text(lines, margin, y)
-        y += (lines.length * 6) + 4
+          pdf.setDrawColor(230, 230, 230)
+          pdf.setFillColor(255, 255, 255)
 
-        pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(9)
-        pdf.setTextColor(150, 150, 150)
-        pdf.text(review.date, margin, y)
-
-        y += 12
-      }
-      y += 10
-
-      // Booking Policies
-      if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 25; }
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(20)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Booking Policies', margin, y)
-      y += 12
-
-      const policyY = y
-      const policyW = (pageWidth - (margin * 2)) / 3
-
-      const drawPolicyCol = (title: string, items: string[], xPos: number) => {
-        let currY = policyY
-        pdf.setFont('helvetica', 'bold')
-        pdf.setFontSize(11)
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text(title, xPos, currY)
-        currY += 8
-        pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(9)
-        pdf.setTextColor(60, 60, 60)
-        items.forEach(p => {
-          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-          pdf.text('•', xPos, currY)
-          pdf.setTextColor(60, 60, 60)
-          pdf.text(` ${p}`, xPos + 3, currY)
-          currY += 6
-        })
-      }
-
-      drawPolicyCol('Booking', packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates'], margin)
-      drawPolicyCol('Payment', packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI'], margin + policyW)
-      drawPolicyCol('Cancellation', packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days'], margin + (policyW * 2))
-
-      y += 35
-
-      // FAQs
-      if (y > pageHeight - 60) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 20; }
-      pdf.setFont('times', 'bold')
-      pdf.setFontSize(20)
-      pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-      pdf.text('Frequently Asked Questions', margin, y)
-      y += 12
-
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(10)
-        ; (packageData.FAQ_Items || DEFAULT_FAQ_ITEMS).slice(0, 5).forEach(faq => {
           pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(11)
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(`Q: ${faq.question}`, margin, y)
+          pdf.text(review.name, margin, y)
+
+          pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
+          pdf.setFont('helvetica', 'bold')
+          pdf.text(review.rating || '5/5', pageWidth - margin, y, { align: 'right' })
+
           y += 6
+          pdf.setFont('helvetica', 'italic')
+          pdf.setFontSize(10)
+          pdf.setTextColor(80, 80, 80)
+          const lines = pdf.splitTextToSize(`"${review.content}"`, pageWidth - (margin * 2))
+          pdf.text(lines, margin, y)
+          y += (lines.length * 6) + 4
+
           pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(9)
+          pdf.setTextColor(150, 150, 150)
+          pdf.text(review.date, margin, y)
+
+          y += 12
+        }
+        y += 10
+
+        // Booking Policies
+        if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 25; }
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(20)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Booking Policies', margin, y)
+        y += 12
+
+        const policyY = y
+        const policyW = (pageWidth - (margin * 2)) / 3
+
+        const drawPolicyCol = (title: string, items: string[], xPos: number) => {
+          let currY = policyY
+          pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(11)
+          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+          pdf.text(title, xPos, currY)
+          currY += 8
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(9)
           pdf.setTextColor(60, 60, 60)
-          const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2))
-          pdf.text(answerLines, margin, y)
-          y += (answerLines.length * 5) + 8
-        })
+          items.forEach(p => {
+            pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+            pdf.text('•', xPos, currY)
+            pdf.setTextColor(60, 60, 60)
+            pdf.text(` ${p}`, xPos + 3, currY)
+            currY += 6
+          })
+        }
 
-      // --- FINAL PAGE CTA ---
-      y += 15
-      if (y > pageHeight - 40) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
+        drawPolicyCol('Booking', packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates'], margin)
+        drawPolicyCol('Payment', packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI'], margin + policyW)
+        drawPolicyCol('Cancellation', packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days'], margin + (policyW * 2))
 
-      // Add CTA Buttons at the end
-      const btnW = 50
-      const btnH = 12
-      const gap = 10
-      const startX = (pageWidth - (btnW * 2 + gap)) / 2
+        y += 35
 
-      // WhatsApp Button
-      pdf.setFillColor(37, 211, 102) // WhatsApp Green
-      pdf.roundedRect(startX, y, btnW, btnH, 3, 3, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(11)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text('WhatsApp Us', startX + (btnW / 2), y + 8, { align: 'center' })
-      pdf.link(startX, y, btnW, btnH, { url: whatsappShare })
+        // FAQs
+        if (y > pageHeight - 60) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 20; }
+        pdf.setFont('times', 'bold')
+        pdf.setFontSize(20)
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        pdf.text('Frequently Asked Questions', margin, y)
+        y += 12
 
-      // Call Button
-      pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]) // Dark
-      pdf.roundedRect(startX + btnW + gap, y, btnW, btnH, 3, 3, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.text('Call Us', startX + btnW + gap + (btnW / 2), y + 8, { align: 'center' })
-      pdf.link(startX + btnW + gap, y, btnW, btnH, { url: 'tel:+919929962350' })
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(10)
+          ; (packageData.FAQ_Items || DEFAULT_FAQ_ITEMS).slice(0, 5).forEach(faq => {
+            pdf.setFont('helvetica', 'bold')
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+            pdf.text(`Q: ${faq.question}`, margin, y)
+            y += 6
+            pdf.setFont('helvetica', 'normal')
+            pdf.setTextColor(60, 60, 60)
+            const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2))
+            pdf.text(answerLines, margin, y)
+            y += (answerLines.length * 5) + 8
+          })
 
-      const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
-      pdf.save(fileName)
+        // --- FINAL PAGE CTA ---
+        y += 15
+        if (y > pageHeight - 40) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
+
+        // Add CTA Buttons at the end
+        const btnW = 50
+        const btnH = 12
+        const gap = 10
+        const startX = (pageWidth - (btnW * 2 + gap)) / 2
+
+        // WhatsApp Button
+        pdf.setFillColor(37, 211, 102) // WhatsApp Green
+        pdf.roundedRect(startX, y, btnW, btnH, 3, 3, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.setFontSize(11)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text('WhatsApp Us', startX + (btnW / 2), y + 8, { align: 'center' })
+        pdf.link(startX, y, btnW, btnH, { url: whatsappShare })
+
+        // Call Button
+        pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]) // Dark
+        pdf.roundedRect(startX + btnW + gap, y, btnW, btnH, 3, 3, 'F')
+        pdf.setTextColor(255, 255, 255)
+        pdf.text('Call Us', startX + btnW + gap + (btnW / 2), y + 8, { align: 'center' })
+        pdf.link(startX + btnW + gap, y, btnW, btnH, { url: 'tel:+919929962350' })
+
+        const fileName = `${packageTitle.replace(/[^a-z0-9]/gi, '_')}_Itinerary.pdf`
+        pdf.save(fileName)
+      })()
+
+      // Wait for both to complete
+      await Promise.all([minDurationPromise, generatePdfPromise])
 
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -896,6 +906,7 @@ export default function PackageDetailPage({ params }: PageProps) {
       </Head>
 
       <main className="min-h-screen bg-[#f8f5f0] text-gray-900" ref={contentRef}>
+        {isGeneratingPDF && <AiLoader />}
         <Header />
 
         {/* PDF Cover Page (hidden by default, shown in PDF generation) */}
