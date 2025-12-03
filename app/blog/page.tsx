@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { collection, getDocs, query, orderBy, where, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
@@ -36,6 +37,7 @@ export default function BlogPage() {
   const [email, setEmail] = useState('')
   const [subscribing, setSubscribing] = useState(false)
   const [subscribeMessage, setSubscribeMessage] = useState('')
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchBlogs()
@@ -202,8 +204,19 @@ export default function BlogPage() {
     return acc
   }, {} as Record<string, BlogPost[]>)
 
+  // Get selected section from URL
+  const selectedSection = searchParams.get('section')
+
   // Sort sections and posts within sections
-  const sortedSections = Object.keys(groupedPosts).sort()
+  let sortedSections = Object.keys(groupedPosts).sort()
+
+  // Filter sections if a specific section is selected
+  if (selectedSection) {
+    sortedSections = sortedSections.filter(section =>
+      section.toLowerCase() === selectedSection.toLowerCase()
+    )
+  }
+
   sortedSections.forEach(section => {
     groupedPosts[section].sort((a, b) => {
       // Featured posts first
@@ -245,8 +258,79 @@ export default function BlogPage() {
         <div className="max-w-7xl mx-auto">
           {/* Blog Sections */}
           <div className="space-y-16 py-12">
+            {selectedSection && (
+              <div className="mb-8">
+                <Link
+                  href="/blog"
+                  className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-primary transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to all posts
+                </Link>
+              </div>
+            )}
             {sortedSections.map((sectionName) => {
               const sectionPosts = groupedPosts[sectionName]
+
+              // If a section is selected, show ALL posts in a grid
+              if (selectedSection) {
+                return (
+                  <div key={sectionName} className="space-y-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="text-4xl md:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {sectionPosts.map((post) => (
+                        <Link
+                          key={post.id || post.title}
+                          href={getBlogUrl(post)}
+                          className="group block h-full"
+                        >
+                          <div className="flex flex-col h-full bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+                            {/* Image */}
+                            <div className="relative w-full h-48 overflow-hidden">
+                              <img
+                                src={post.image}
+                                alt={post.title}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=600&q=80'
+                                }}
+                              />
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex flex-col flex-grow p-5">
+                              <div className="flex items-center gap-2 text-xs text-gray-500 uppercase tracking-wide mb-3">
+                                <span>{post.date}</span>
+                                <span>•</span>
+                                <span>{post.author}</span>
+                              </div>
+
+                              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary transition-colors leading-tight">
+                                {post.title}
+                              </h3>
+
+                              <p className="text-sm text-gray-600 line-clamp-3 mb-4 flex-grow">
+                                {post.subtitle || post.description}
+                              </p>
+
+                              <span className="text-sm font-medium text-primary group-hover:text-primary-dark transition-colors mt-auto">
+                                Read Article →
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
+              // Default View (Featured + Sidebar)
               let featuredPost = sectionPosts.find(p => p.isFeatured)
               // If no featured post, use the first post as featured
               if (!featuredPost && sectionPosts.length > 0) {
@@ -259,7 +343,7 @@ export default function BlogPage() {
                   {/* Section Header */}
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-4xl md:text-5xl font-bold text-gray-900">{sectionName}</h2>
-                    {sectionPosts.length > 5 && (
+                    {sectionPosts.length > 5 && !selectedSection && (
                       <Link
                         href={`/blog?section=${encodeURIComponent(sectionName)}`}
                         className="text-sm font-medium text-gray-600 hover:text-primary transition-colors"
