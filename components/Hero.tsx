@@ -58,14 +58,55 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="relative">
-            <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
+          <div className="relative group">
+            {/* Glow effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
+
+            <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
               <img
                 src="/images/home/homepage.jpg"
                 alt="Beach resort"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+
+              {/* Shine effect */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out"></div>
+
+              {/* Star Flow Effect */}
+              <div className="absolute top-10 left-10 w-4 h-4 bg-yellow-300 rounded-full blur-[2px] animate-twinkle shadow-[0_0_10px_rgba(253,224,71,0.8)]"></div>
+              <div className="absolute top-20 right-20 w-3 h-3 bg-white rounded-full blur-[1px] animate-twinkle delay-700 shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+              <div className="absolute bottom-32 left-1/4 w-2 h-2 bg-yellow-200 rounded-full blur-[1px] animate-twinkle delay-1000 shadow-[0_0_6px_rgba(254,240,138,0.8)]"></div>
+
+              {/* Floating Stars */}
+              <div className="absolute -top-6 -right-6 text-yellow-400 animate-float delay-500">
+                <svg className="w-12 h-12 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+              <div className="absolute top-1/2 -left-8 text-purple-400 animate-float delay-1000 duration-[8s]">
+                <svg className="w-8 h-8 drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+              </div>
+
+              {/* Snow Flow Effect */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute bg-white rounded-full opacity-0 animate-snow-fall"
+                    style={{
+                      top: `-${Math.random() * 20}%`,
+                      left: `${Math.random() * 100}%`,
+                      width: `${Math.random() * 4 + 2}px`,
+                      height: `${Math.random() * 4 + 2}px`,
+                      animationDelay: `${Math.random() * 5}s`,
+                      animationDuration: `${Math.random() * 5 + 5}s`
+                    }}
+                  ></div>
+                ))}
+              </div>
             </div>
             <div className="absolute -bottom-8 -left-8 bg-gradient-to-br from-white to-purple-50/30 shadow-2xl rounded-2xl px-8 py-6 border border-purple-100">
               <div className="flex items-center gap-3">
