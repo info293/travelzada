@@ -6,7 +6,7 @@ export default function Hero() {
       {/* Decorative elements */}
       <div className="absolute top-20 right-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl"></div>
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
-      
+
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
@@ -23,7 +23,7 @@ export default function Hero() {
               </span>
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed max-w-xl">
-             Travelzada- with your better half 💞
+              Travelzada- with your better half 💞
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
@@ -61,7 +61,7 @@ export default function Hero() {
           <div className="relative">
             <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group">
               <img
-                src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80"
+                src="/images/home/homepage.jpg"
                 alt="Beach resort"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
