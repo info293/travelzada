@@ -44,8 +44,8 @@ export default function DestinationDetailPage({ params }: PageProps) {
       if (typeof window === 'undefined' || !db) {
         // Fallback to JSON
         const foundDestination = travelData.destinations.find(
-          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
-                     d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+            d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
         )
         setDestination(foundDestination)
         setLoading(false)
@@ -55,50 +55,50 @@ export default function DestinationDetailPage({ params }: PageProps) {
       try {
         setLoading(true)
         const normalizedDestination = destinationName.toLowerCase()
-        
+
         // First, try to fetch destination from Firestore
         const destinationsRef = collection(db, 'destinations')
         const destinationsSnapshot = await getDocs(destinationsRef)
         let foundDestination: any = null
-        
+
         destinationsSnapshot.forEach((doc) => {
           const data = doc.data()
           const destSlug = data.slug?.toLowerCase() || ''
           const destName = data.name?.toLowerCase() || ''
-          
-          if (destSlug === normalizedDestination || 
-              destName === normalizedDestination ||
-              destSlug.includes(normalizedDestination) ||
-              normalizedDestination.includes(destSlug)) {
+
+          if (destSlug === normalizedDestination ||
+            destName === normalizedDestination ||
+            destSlug.includes(normalizedDestination) ||
+            normalizedDestination.includes(destSlug)) {
             foundDestination = { id: doc.id, ...data }
           }
         })
-        
+
         // If not found in Firestore, fallback to JSON
         if (!foundDestination) {
           foundDestination = travelData.destinations.find(
-            (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
-                       d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+            (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+              d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
           )
         }
-        
+
         setDestination(foundDestination)
-        
+
         // Fetch packages from Firestore
         const packagesRef = collection(db, 'packages')
         const allPackagesSnapshot = await getDocs(packagesRef)
         const packagesData: DestinationPackage[] = []
-        
+
         // Get linked package IDs from destination if available
         const linkedPackageIds = foundDestination?.packageIds || []
         const hasLinkedPackages = Array.isArray(linkedPackageIds) && linkedPackageIds.length > 0
-        
+
         allPackagesSnapshot.forEach((doc) => {
           const data = doc.data() as DestinationPackage
           const pkgId = data.Destination_ID || ''
-          
+
           let shouldInclude = false
-          
+
           // First priority: Check if package ID is in the linked packageIds array
           if (hasLinkedPackages) {
             shouldInclude = linkedPackageIds.includes(pkgId)
@@ -106,27 +106,27 @@ export default function DestinationDetailPage({ params }: PageProps) {
             // Fallback: Match by destination name if no linked packages
             const pkgName = data.Destination_Name?.toLowerCase() || ''
             const normalizedPkgId = pkgId.toLowerCase()
-            
+
             // Match if package name or Destination_ID contains destination or vice versa
-            shouldInclude = pkgName.includes(normalizedDestination) || 
+            shouldInclude = pkgName.includes(normalizedDestination) ||
               normalizedDestination.includes(pkgName) ||
               pkgName === normalizedDestination ||
               normalizedPkgId.includes(normalizedDestination) ||
               normalizedDestination.includes(normalizedPkgId)
           }
-          
+
           if (shouldInclude) {
             packagesData.push({ id: doc.id, ...data })
           }
         })
-        
+
         setDestinationPackages(packagesData)
       } catch (error) {
         console.error('Error fetching destination:', error)
         // Fallback to JSON
         const foundDestination = travelData.destinations.find(
-          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() || 
-                     d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
+          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+            d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
         )
         setDestination(foundDestination)
       } finally {
@@ -161,7 +161,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
   const getDestinationImage = (dest: any) => {
     // Use image from Firestore if available
     if (dest?.image) return dest.image
-    
+
     // Fallback to image map
     const imageMap: { [key: string]: string } = {
       'Bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=80',
@@ -181,7 +181,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
   return (
     <main className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Hero Image Section */}
       <section className="relative h-[350px] md:h-[400px] overflow-hidden">
         <div
@@ -223,7 +223,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
           </div>
         </div>
       </section>
-      
+
       {/* Packages Section */}
       {loading ? (
         <section className="py-12 md:py-16 px-4 md:px-12 bg-gray-50 border-b border-gray-200">
@@ -255,17 +255,17 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 </svg>
               </Link>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {destinationPackages.map((pkg) => {
                 // Extract image URL from Primary_Image_URL (handle markdown format)
                 const imageUrl = pkg.Primary_Image_URL
                   ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
                   : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                
+
                 // Generate package ID from Destination_ID or use Firestore doc id
                 const packageId = pkg.Destination_ID || pkg.id || 'package'
-                
+
                 return (
                   <Link
                     key={pkg.id || packageId}
@@ -301,7 +301,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                           <span>{pkg.Duration || 'Duration not specified'}</span>
                         </div>
                       </div>
-                      
+
                       {/* Package Details - Compact */}
                       <div className="flex-1 space-y-2">
                         {/* Key Features as Small Badges */}
@@ -333,22 +333,22 @@ export default function DestinationDetailPage({ params }: PageProps) {
                           )}
                         </div>
 
-                        {/* Inclusions - Compact */}
-                        {pkg.Inclusions && (
+                        {/* Overview - Compact */}
+                        {pkg.Overview && (
                           <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
                             <p className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
                               <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              Inclusions
+                              Overview
                             </p>
                             <div className="space-y-1">
-                              {pkg.Inclusions.split(',').slice(0, 3).map((inclusion: string, idx: number) => (
+                              {pkg.Overview.split('. ').filter((point: string) => point.trim().length > 0).slice(0, 3).map((point: string, idx: number) => (
                                 <div key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-700 min-w-0">
-                                  <svg className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  <svg className="w-3 h-3 text-primary/70 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                   </svg>
-                                  <span className="leading-snug truncate flex-1 min-w-0">{inclusion.trim()}</span>
+                                  <span className="leading-snug line-clamp-2 flex-1 min-w-0">{point.trim()}{point.trim().endsWith('.') ? '' : '.'}</span>
                                 </div>
                               ))}
                             </div>
