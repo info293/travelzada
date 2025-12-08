@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import emailjs from '@emailjs/browser'
 
 interface LeadFormProps {
   isOpen: boolean
@@ -76,6 +77,29 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
         read: false,
       })
 
+      // Send email notification via EmailJS
+      const templateParams = {
+        name: formData.name.trim(),
+        mobile: cleanMobile,
+        sourceUrl: pageUrl,
+        packageName: packageName || 'General Enquiry',
+      }
+
+      // TODO: Replace YOUR_SERVICE_ID and YOUR_TEMPLATE_ID with actual values from EmailJS
+      // Public Key: gIP99fUwF6iBneHVb
+      try {
+        await emailjs.send(
+          'YOUR_SERVICE_ID',
+          'YOUR_TEMPLATE_ID',
+          templateParams,
+          'gIP99fUwF6iBneHVb'
+        )
+        console.log('Email sent successfully')
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError)
+        // We don't block the success state if email fails, but we log it
+      }
+
       setIsSubmitting(false)
       setSubmitted(true)
 
@@ -101,18 +125,18 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
   }
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
       onClick={handleBackdropClick}
     >
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 relative overflow-hidden animate-in fade-in zoom-in duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Decorative gradient background */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-primary/5 to-indigo-500/10 rounded-full blur-3xl -ml-24 -mb-24"></div>
-        
+
         <div className="relative z-10">
           {/* Header */}
           <div className="bg-gradient-to-r from-primary to-primary-dark px-6 py-5 rounded-t-2xl">

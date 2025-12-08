@@ -45,11 +45,11 @@ export default function Hero() {
             <div className="flex items-center gap-8 pt-4">
               <div>
                 <p className="text-2xl font-semibold text-ink">5,00+</p>
-                <p className="text-sm text-gray-600">Happy Travelers</p>
+                <p className="text-sm text-gray-600">Happy Couple</p>
               </div>
               <div>
                 <p className="text-2xl font-semibold text-ink">5★</p>
-                <p className="text-sm text-gray-600">Average Rating</p>
+                <p className="text-sm text-gray-600">Couple Rating</p>
               </div>
               <div>
                 <p className="text-2xl font-semibold text-ink">25+</p>
