@@ -32,7 +32,7 @@ export default function DestinationsPage() {
     const fetchDestinations = async () => {
       if (typeof window === 'undefined' || !db) {
         // Fallback to JSON data
-        const allDestinations = travelData.destinations.filter((d: any) => 
+        const allDestinations = travelData.destinations.filter((d: any) =>
           d.name.toLowerCase() === 'bali'
         )
         setDestinations(allDestinations)
@@ -44,14 +44,14 @@ export default function DestinationsPage() {
         const destinationsRef = collection(db, 'destinations')
         const querySnapshot = await getDocs(destinationsRef)
         const destinationsData: Destination[] = []
-        
+
         querySnapshot.forEach((doc) => {
           destinationsData.push({ id: doc.id, ...doc.data() } as Destination)
         })
-        
+
         // If no destinations in Firestore, fallback to JSON
         if (destinationsData.length === 0) {
-          const allDestinations = travelData.destinations.filter((d: any) => 
+          const allDestinations = travelData.destinations.filter((d: any) =>
             d.name.toLowerCase() === 'bali'
           )
           setDestinations(allDestinations)
@@ -61,7 +61,7 @@ export default function DestinationsPage() {
       } catch (error) {
         console.error('Error fetching destinations:', error)
         // Fallback to JSON data
-        const allDestinations = travelData.destinations.filter((d: any) => 
+        const allDestinations = travelData.destinations.filter((d: any) =>
           d.name.toLowerCase() === 'bali'
         )
         setDestinations(allDestinations)
@@ -79,8 +79,8 @@ export default function DestinationsPage() {
   // Filter destinations
   const filteredDestinations = destinations.filter((destination) => {
     const matchesSearch = destination.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         destination.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         destination.country.toLowerCase().includes(searchQuery.toLowerCase())
+      destination.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      destination.country.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCountry = filterCountry === 'all' || destination.country === filterCountry
     return matchesSearch && matchesCountry
   })
@@ -88,9 +88,9 @@ export default function DestinationsPage() {
   return (
     <main className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Hero Section */}
-      <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
+      <section className="py-8 md:py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-6xl mx-auto">
           <div className="mb-0 mt-8">
             <Link
@@ -115,22 +115,32 @@ export default function DestinationsPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search Bar */}
-            <div className="flex-1">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
               <input
                 type="text"
                 placeholder="Search destinations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-[5px] focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
               />
             </div>
-            
+
             {/* Country Filter */}
-            <div className="md:w-64">
+            <div className="md:w-64 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
               <select
                 value={filterCountry}
                 onChange={(e) => setFilterCountry(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-[5px] focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white transition-all shadow-sm"
               >
                 {countries.map((country) => (
                   <option key={country} value={country}>
@@ -138,9 +148,14 @@ export default function DestinationsPage() {
                   </option>
                 ))}
               </select>
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
           </div>
-          
+
           {/* Results Count */}
           <div className="mt-4 text-sm text-gray-600">
             Showing {filteredDestinations.length} of {destinations.length} destinations
@@ -149,7 +164,7 @@ export default function DestinationsPage() {
       </section>
 
       {/* Destinations Grid */}
-      <section className="py-16 px-4 md:px-12">
+      <section className="py-8 md:py-16 px-4 md:px-12">
         <div className="max-w-6xl mx-auto">
           {loading ? (
             <div className="text-center py-16">

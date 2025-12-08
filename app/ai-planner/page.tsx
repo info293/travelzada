@@ -33,7 +33,7 @@ function AIPlannerContent() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 relative overflow-hidden">
       <Header />
-      
+
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
@@ -43,7 +43,7 @@ function AIPlannerContent() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative z-10 py-16 md:py-16 px-4 md:px-10" style={{marginTop: '10px'}}>
+      <section className="relative z-10 py-8 md:py-16 px-4 md:px-10" style={{ marginTop: '10px' }}>
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8">
             {/* Badge */}
@@ -53,13 +53,13 @@ function AIPlannerContent() {
             </div>
 
             {/* Main Heading */}
-            <h1 className="text-4xl md:text-6xl text-gray-900 mb-4 leading-tight">
+            <h1 className="text-3xl md:text-6xl text-gray-900 mb-4 leading-tight">
               Tell us your vibe.
               <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
                 AI will plan your trip.
               </span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-gray-600 mb-2">
               Takes just 30 seconds
             </p>
@@ -69,30 +69,30 @@ function AIPlannerContent() {
           </div>
 
           {/* Feature Pills */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
-              <span className="text-sm text-gray-700">✨ Personalized</span>
+          <div className="flex flex-nowrap items-center justify-center gap-1.5 md:gap-3 mb-4 md:mb-8">
+            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">✨ Personalized</span>
             </div>
-            <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
-              <span className="text-sm text-gray-700">⚡ Instant Results</span>
+            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">⚡ Instant Results</span>
             </div>
-            <div className="px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm">
-              <span className="text-sm text-gray-700">🎯 Tailored to You</span>
+            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">🎯 Tailored to You</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* Conversation Agent */}
-      <section className="relative z-10 py-6 px-4 md:px-12">
+      <section className="relative z-10 py-2 md:py-6 px-4 md:px-12">
         <div className="max-w-4xl mx-auto w-full overflow-hidden">
           <div className="bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden w-full max-w-full">
             {/* Decorative Elements */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-100/30 to-indigo-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-purple-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
-            
+
             <div className="relative z-10">
-              <ConversationAgent 
+              <ConversationAgent
                 formData={formData}
                 setFormData={setFormData}
                 onTripDetailsRequest={handleTripDetailsRequest}
@@ -110,9 +110,9 @@ function AIPlannerContent() {
               {/* Decorative Elements */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-100/30 to-purple-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-indigo-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
-              
+
               <div className="relative z-10">
-                <TripForm 
+                <TripForm
                   formData={formData}
                   setFormData={setFormData}
                 />
@@ -138,7 +138,7 @@ function AIPlannerContent() {
       </section>
 
       <Footer />
-      
+
       <style jsx>{`
         @keyframes blob {
           0%, 100% {

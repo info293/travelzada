@@ -279,7 +279,7 @@ export default function BlogPage() {
                 return (
                   <div key={sectionName} className="space-y-6">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-4xl md:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">{sectionName}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -342,7 +342,7 @@ export default function BlogPage() {
                 <div key={sectionName} className="space-y-6">
                   {/* Section Header */}
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">{sectionName}</h2>
                     {sectionPosts.length > 5 && !selectedSection && (
                       <Link
                         href={`/blog?section=${encodeURIComponent(sectionName)}`}
@@ -363,7 +363,7 @@ export default function BlogPage() {
                       >
                         <div className="space-y-4">
                           {/* Large Featured Image */}
-                          <div className="relative w-full h-[400px] md:h-[500px] overflow-hidden rounded-lg shadow-lg">
+                          <div className="relative w-full h-[250px] sm:h-[350px] md:h-[500px] overflow-hidden rounded-lg shadow-lg">
                             <img
                               src={featuredPost.image}
                               alt={featuredPost.title}
@@ -376,7 +376,7 @@ export default function BlogPage() {
 
                           {/* Featured Post Content */}
                           <div className="space-y-3">
-                            <h3 className="text-2xl md:text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight">
+                            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight">
                               {featuredPost.title}
                             </h3>
                             <p className="text-base md:text-lg text-gray-600 leading-relaxed line-clamp-3">
