@@ -20,11 +20,19 @@ function AIPlannerContent() {
 
   // Check for destination parameter from URL
   useEffect(() => {
+    // Set page SEO
+    document.title = 'AI Trip Planner | Travelzada - Plan Your Perfect Trip in Seconds'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Use our AI-powered trip planner to create personalized travel itineraries in seconds. Just tell us your vibe and get instant, tailored travel plans.')
+    }
+
     const destinationParam = searchParams.get('destination')
     if (destinationParam) {
       setFormData((prev) => ({ ...prev, destination: destinationParam }))
     }
   }, [searchParams])
+
 
   const handleTripDetailsRequest = useCallback(() => {
     setIsTripDetailsVisible(false)

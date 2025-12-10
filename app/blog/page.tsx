@@ -40,8 +40,16 @@ export default function BlogPage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
+    // Set page SEO
+    document.title = 'Travel Blog | Travelzada - Tips, Guides & Destination Insights'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Read the latest travel tips, destination guides, and travel insights from Travelzada. Get expert advice for your next trip.')
+    }
+
     fetchBlogs()
   }, [])
+
 
   const fetchBlogs = async () => {
     try {

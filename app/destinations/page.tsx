@@ -29,6 +29,13 @@ export default function DestinationsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Set page SEO
+    document.title = 'Explore Destinations | Travelzada - Travel Packages Worldwide'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Discover amazing travel destinations worldwide. Browse Bali, Thailand, Maldives, Europe and more. Find curated travel packages and itineraries.')
+    }
+
     const fetchDestinations = async () => {
       if (typeof window === 'undefined' || !db) {
         // Fallback to JSON data
@@ -72,6 +79,7 @@ export default function DestinationsPage() {
 
     fetchDestinations()
   }, [])
+
 
   const countrySet = new Set<string>(destinations.map((d) => d.country))
   const countries: string[] = ['all', ...Array.from(countrySet)]

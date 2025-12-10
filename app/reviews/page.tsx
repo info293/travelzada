@@ -28,7 +28,15 @@ export default function ReviewsPage() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating'>('newest')
 
   useEffect(() => {
+    // Set page SEO
+    document.title = 'Customer Reviews | Travelzada - Traveler Testimonials'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Read authentic reviews from travelers who used Travelzada. See ratings, testimonials, and experiences from real customers planning their perfect trips.')
+    }
+
     const fetchTestimonials = async () => {
+
       if (typeof window === 'undefined' || !db) {
         // Fallback to hardcoded testimonials
         setTestimonials([

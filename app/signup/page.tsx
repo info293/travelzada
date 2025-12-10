@@ -21,10 +21,18 @@ export default function SignupPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // Set page SEO
+    document.title = 'Sign Up | Travelzada - Create Your Account'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Create your free Travelzada account to access AI-powered travel planning, exclusive deals, and personalized travel recommendations.')
+    }
+
     if (currentUser) {
       router.push('/')
     }
   }, [currentUser, router])
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target

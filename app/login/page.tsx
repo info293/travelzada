@@ -19,10 +19,18 @@ export default function LoginPage() {
   const router = useRouter()
 
   useEffect(() => {
+    // Set page SEO
+    document.title = 'Login | Travelzada - Sign In to Your Account'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Sign in to your Travelzada account for personalized travel recommendations, saved itineraries, and exclusive deals on travel packages.')
+    }
+
     if (currentUser) {
       router.push('/')
     }
   }, [currentUser, router])
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -54,19 +62,19 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validate()) {
       return
     }
 
     setIsSubmitting(true)
-    
+
     try {
       await login(formData.email, formData.password)
       router.push('/')
     } catch (error: any) {
-      setErrors({ 
-        submit: error.message || 'Failed to sign in. Please check your credentials.' 
+      setErrors({
+        submit: error.message || 'Failed to sign in. Please check your credentials.'
       })
     } finally {
       setIsSubmitting(false)
@@ -78,8 +86,8 @@ export default function LoginPage() {
       await loginWithGoogle()
       router.push('/')
     } catch (error: any) {
-      setErrors({ 
-        submit: error.message || 'Failed to sign in with Google.' 
+      setErrors({
+        submit: error.message || 'Failed to sign in with Google.'
       })
     }
   }
@@ -87,17 +95,17 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 relative overflow-hidden">
       <Header />
-      
+
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Gradient Orbs */}
         <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
         <div className="absolute top-0 -right-40 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
         <div className="absolute -bottom-40 left-1/2 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000"></div>
-        
+
         {/* Grid Pattern Overlay */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] opacity-20"></div>
-        
+
         {/* Shimmer Effect */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 animate-shimmer"></div>
       </div>
@@ -123,7 +131,7 @@ export default function LoginPage() {
                 Sign in to continue planning extraordinary adventures.
               </p>
             </div>
-            
+
             {/* Feature Cards */}
             <div className="grid grid-cols-2 gap-3 mt-8">
               <div className="p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all duration-300">
@@ -153,7 +161,7 @@ export default function LoginPage() {
               {/* Decorative Elements */}
               <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl -mr-24 -mt-24"></div>
               <div className="absolute bottom-0 left-0 w-36 h-36 bg-gradient-to-tr from-indigo-400/20 to-purple-400/20 rounded-full blur-3xl -ml-18 -mb-18"></div>
-              
+
               <div className="relative z-10">
                 {/* Header */}
                 <div className="text-center mb-6">
@@ -183,11 +191,10 @@ export default function LoginPage() {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-300 text-gray-900 ${
-                          errors.email
+                        className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-300 text-gray-900 ${errors.email
                             ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-red-50'
                             : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 bg-white hover:border-gray-300'
-                        }`}
+                          }`}
                         placeholder="you@example.com"
                       />
                     </div>
@@ -220,11 +227,10 @@ export default function LoginPage() {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-300 text-gray-900 ${
-                          errors.password
+                        className={`w-full pl-11 pr-4 py-3 border-2 rounded-xl focus:outline-none transition-all duration-300 text-gray-900 ${errors.password
                             ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-red-50'
                             : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 bg-white hover:border-gray-300'
-                        }`}
+                          }`}
                         placeholder="Enter your password"
                       />
                     </div>
@@ -328,7 +334,7 @@ export default function LoginPage() {
       </section>
 
       <Footer />
-      
+
       <style jsx>{`
         @keyframes blob {
           0%, 100% {

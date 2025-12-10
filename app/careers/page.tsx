@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
@@ -12,7 +12,7 @@ export default function CareersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -21,6 +21,16 @@ export default function CareersPage() {
     position: '',
     coverLetter: '',
   })
+
+  // Set page title and meta description
+  useEffect(() => {
+    document.title = 'Careers at Travelzada | Join Our Team'
+    const metaDescription = document.querySelector('meta[name="description"]')
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Join the Travelzada team! Explore exciting career opportunities in travel planning, AI/ML engineering, customer success, and more. Work remotely, travel benefits included.')
+    }
+  }, [])
+
 
   const openPositions = [
     {
@@ -80,7 +90,7 @@ export default function CareersPage() {
     e.preventDefault()
     setIsSubmitting(true)
     setError('')
-    
+
     try {
       if (typeof window === 'undefined' || !db) {
         throw new Error('Database is not available. Please try again later.')
@@ -117,7 +127,7 @@ export default function CareersPage() {
 
       setIsSubmitting(false)
       setSubmitted(true)
-      
+
       // Reset form after 3 seconds
       setTimeout(() => {
         setSubmitted(false)
@@ -142,7 +152,7 @@ export default function CareersPage() {
   return (
     <main className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Application Form Modal/Overlay */}
       {showApplicationForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -161,7 +171,7 @@ export default function CareersPage() {
                 </svg>
               </button>
             </div>
-            
+
             <div className="p-6">
               {submitted ? (
                 <div className="text-center py-12">
@@ -209,7 +219,7 @@ export default function CareersPage() {
                         placeholder="John Doe"
                       />
                     </div>
-                    
+
                     <div>
                       <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
                         Email Address *
@@ -242,7 +252,7 @@ export default function CareersPage() {
                         placeholder="+91 123 456 7890"
                       />
                     </div>
-                    
+
                     <div>
                       <label htmlFor="linkedin" className="block text-sm font-semibold text-gray-700 mb-2">
                         LinkedIn Profile URL
@@ -307,7 +317,7 @@ export default function CareersPage() {
           </div>
         </div>
       )}
-      
+
       {/* Hero Section */}
       <section className="py-20 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -385,7 +395,7 @@ export default function CareersPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Don't See a Match?</h2>
           <p className="text-gray-600 mb-8 text-lg">
-            We're always looking for talented individuals to join our team. Even if you don't see a position 
+            We're always looking for talented individuals to join our team. Even if you don't see a position
             that matches your skills, we'd love to hear from you!
           </p>
           <button

@@ -1,6 +1,18 @@
+import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'Press & Media | Travelzada - Latest News and Updates',
+  description: 'Stay updated with Travelzada news, press releases, and media resources. Get the latest announcements about our AI-powered travel planning platform.',
+  keywords: 'Travelzada press, media kit, news, press releases, travel startup',
+  openGraph: {
+    title: 'Press & Media | Travelzada',
+    description: 'Latest news, press releases, and media resources from Travelzada.',
+    type: 'website',
+  },
+}
 
 export default function PressPage() {
   const pressReleases = [
@@ -31,7 +43,7 @@ export default function PressPage() {
   return (
     <main className="min-h-screen bg-white">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -121,13 +133,13 @@ export default function PressPage() {
           <h2 className="text-3xl font-bold text-gray-900 mb-8">About Travelzada</h2>
           <div className="prose prose-lg max-w-none">
             <p className="text-gray-700 leading-relaxed mb-4">
-              Travelzada is a leading AI-powered travel planning platform that helps travelers create 
-              personalized, premium itineraries in seconds. Founded in 2023, we combine cutting-edge 
+              Travelzada is a leading AI-powered travel planning platform that helps travelers create
+              personalized, premium itineraries in seconds. Founded in 2023, we combine cutting-edge
               artificial intelligence with deep travel expertise to revolutionize how people plan their journeys.
             </p>
             <p className="text-gray-700 leading-relaxed mb-4">
-              Our platform serves travelers across 50+ destinations worldwide, offering everything from 
-              quick weekend getaways to comprehensive multi-week adventures. We're committed to making 
+              Our platform serves travelers across 50+ destinations worldwide, offering everything from
+              quick weekend getaways to comprehensive multi-week adventures. We're committed to making
               premium travel planning accessible, efficient, and enjoyable for everyone.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
