@@ -216,7 +216,7 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([])
   const [destinations, setDestinations] = useState<Destination[]>([])
   const [subscribers, setSubscribers] = useState<Array<{ id?: string; email: string; subscribedAt: any; status: string; source?: string }>>([])
-  const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }>>([])
+  const [contactMessages, setContactMessages] = useState<Array<{ id?: string; name: string; email: string; phone: string; destination: string; message: string; status: string; createdAt: any; read: boolean }>>([])
   const [leads, setLeads] = useState<Lead[]>([])
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
   const [isLeadDetailsModalOpen, setLeadDetailsModalOpen] = useState(false)
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
         querySnapshot = await getDocs(collection(dbInstance, 'contact_messages'))
       }
 
-      const messagesData: Array<{ id?: string; name: string; email: string; phone: string; subject: string; message: string; status: string; createdAt: any; read: boolean }> = []
+      const messagesData: Array<{ id?: string; name: string; email: string; phone: string; destination: string; message: string; status: string; createdAt: any; read: boolean }> = []
       querySnapshot.forEach((doc) => {
         const data = doc.data()
         messagesData.push({
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
           name: data.name || '',
           email: data.email || '',
           phone: data.phone || '',
-          subject: data.subject || '',
+          destination: data.destination || data.subject || '',
           message: data.message || '',
           status: data.status || 'new',
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
@@ -3681,7 +3681,7 @@ export default function AdminDashboard() {
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Subject</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Destination</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
@@ -3703,8 +3703,8 @@ export default function AdminDashboard() {
                             {message.phone || 'N/A'}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 max-w-xs truncate" title={message.subject}>
-                              {message.subject}
+                            <div className="text-sm text-gray-900 max-w-xs truncate" title={message.destination}>
+                              {message.destination}
                             </div>
                           </td>
                           <td className="px-6 py-4">
@@ -3756,8 +3756,8 @@ export default function AdminDashboard() {
                                           </div>
                                         </div>
                                         <div>
-                                          <p className="text-sm font-semibold text-gray-500 mb-1">Subject</p>
-                                          <p className="text-gray-900 font-medium">{message.subject}</p>
+                                          <p className="text-sm font-semibold text-gray-500 mb-1">Destination</p>
+                                          <p className="text-gray-900 font-medium">{message.destination}</p>
                                         </div>
                                         <div>
                                           <p className="text-sm font-semibold text-gray-500 mb-1">Message</p>

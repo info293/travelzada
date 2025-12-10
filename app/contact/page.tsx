@@ -3,28 +3,72 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+
+interface Destination {
+  id?: string
+  name: string
+  slug: string
+  country: string
+}
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    subject: '',
+    destination: '',
     message: '',
   })
+  const [destinations, setDestinations] = useState<Destination[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const [loadingDestinations, setLoadingDestinations] = useState(true)
 
-  // Set page title and meta description
+
+  // Set page title, meta description, and fetch destinations
   useEffect(() => {
     document.title = 'Contact Us | Travelzada - Get in Touch'
     const metaDescription = document.querySelector('meta[name="description"]')
     if (metaDescription) {
       metaDescription.setAttribute('content', 'Have questions about your trip? Contact Travelzada for booking inquiries, customer support, and travel planning assistance. We respond within 24 hours.')
     }
+
+    // Fetch destinations from database
+    const fetchDestinations = async () => {
+      if (typeof window === 'undefined' || !db) {
+        setLoadingDestinations(false)
+        return
+      }
+
+      try {
+        const destinationsRef = collection(db, 'destinations')
+        const querySnapshot = await getDocs(destinationsRef)
+        const destinationsData: Destination[] = []
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data()
+          destinationsData.push({
+            id: doc.id,
+            name: data.name || '',
+            slug: data.slug || '',
+            country: data.country || '',
+          })
+        })
+
+        // Sort destinations alphabetically by name
+        destinationsData.sort((a, b) => a.name.localeCompare(b.name))
+        setDestinations(destinationsData)
+      } catch (error) {
+        console.error('Error fetching destinations:', error)
+      } finally {
+        setLoadingDestinations(false)
+      }
+    }
+
+    fetchDestinations()
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -49,7 +93,7 @@ export default function ContactPage() {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         phone: formData.phone.trim() || '',
-        subject: formData.subject,
+        destination: formData.destination,
         message: formData.message.trim(),
         status: 'new',
         createdAt: serverTimestamp(),
@@ -66,7 +110,7 @@ export default function ContactPage() {
           name: '',
           email: '',
           phone: '',
-          subject: '',
+          destination: '',
           message: '',
         })
       }, 3000)
@@ -273,13 +317,12 @@ export default function ContactPage() {
 
                       <div>
                         <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Email Address *
+                          Email Address
                         </label>
                         <input
                           type="email"
                           id="email"
                           name="email"
-                          required
                           value={formData.email}
                           onChange={handleChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -291,12 +334,13 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Phone Number
+                          Phone Number *
                         </label>
                         <input
                           type="tel"
                           id="phone"
                           name="phone"
+                          required
                           value={formData.phone}
                           onChange={handleChange}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
@@ -305,35 +349,38 @@ export default function ContactPage() {
                       </div>
 
                       <div>
-                        <label htmlFor="subject" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Subject *
+                        <label htmlFor="destination" className="block text-sm font-semibold text-gray-700 mb-2">
+                          Destination *
                         </label>
                         <select
-                          id="subject"
-                          name="subject"
+                          id="destination"
+                          name="destination"
                           required
-                          value={formData.subject}
+                          value={formData.destination}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          disabled={loadingDestinations}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100"
                         >
-                          <option value="">Select a subject</option>
-                          <option value="general">General Inquiry</option>
-                          <option value="booking">Booking Question</option>
-                          <option value="itinerary">Itinerary Help</option>
-                          <option value="support">Customer Support</option>
-                          <option value="other">Other</option>
+                          <option value="">
+                            {loadingDestinations ? 'Loading destinations...' : 'Select a destination'}
+                          </option>
+                          {destinations.map((destination) => (
+                            <option key={destination.id || destination.slug} value={destination.name}>
+                              {destination.name}{destination.country ? `, ${destination.country}` : ''}
+                            </option>
+                          ))}
+                          <option value="Other">Other / Not Listed</option>
                         </select>
                       </div>
                     </div>
 
                     <div>
                       <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Message *
+                        Message
                       </label>
                       <textarea
                         id="message"
                         name="message"
-                        required
                         rows={6}
                         value={formData.message}
                         onChange={handleChange}
