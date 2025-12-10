@@ -938,6 +938,11 @@ export default function AdminDashboard() {
         schemaType: blogFormData.schemaType || 'BlogPosting',
       }
 
+      // Add slug if provided
+      if (blogFormData.slug && blogFormData.slug.trim()) {
+        blogData.slug = blogFormData.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      }
+
       // Only include optional fields if they have values
       if (blogStructure) {
         blogData.blogStructure = blogStructure
@@ -2403,6 +2408,18 @@ export default function AdminDashboard() {
                         required
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">URL Slug</label>
+                      <input
+                        type="text"
+                        name="slug"
+                        value={blogFormData.slug || ''}
+                        onChange={handleBlogInputChange}
+                        placeholder="my-custom-blog-url"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Custom URL slug (e.g., why-visit-bali-2025). Leave empty to auto-generate from title.</p>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Subtitle</label>

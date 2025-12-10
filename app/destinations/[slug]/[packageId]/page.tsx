@@ -155,9 +155,25 @@ export default function PackageDetailPage({ params }: PageProps) {
           return
         }
 
-        // If not found by document ID, try to find by Destination_ID
+        // If not found by document ID, try to find by Slug first (for SEO-friendly URLs)
         const { collection, getDocs, query, where } = await import('firebase/firestore')
         const packagesRef = collection(db, 'packages')
+
+        try {
+          // Try to find by Slug first (for custom SEO-friendly URLs)
+          const slugQuery = query(packagesRef, where('Slug', '==', packageId))
+          const slugSnapshot = await getDocs(slugQuery)
+
+          if (!slugSnapshot.empty) {
+            const doc = slugSnapshot.docs[0]
+            const data = doc.data() as DestinationPackage
+            setPackageData({ id: doc.id, ...data })
+            setLoading(false)
+            return
+          }
+        } catch (slugError) {
+          console.log('Query by Slug failed, trying Destination_ID:', slugError)
+        }
 
         try {
           const q = query(packagesRef, where('Destination_ID', '==', packageId))
@@ -176,13 +192,13 @@ export default function PackageDetailPage({ params }: PageProps) {
           console.log('Query by Destination_ID failed, trying fallback:', queryError)
         }
 
-        // If still not found, try searching all packages by ID match only
+        // If still not found, try searching all packages by ID or Slug match
         console.log(`Searching all packages for packageId: ${packageId}`)
         const allPackagesSnapshot = await getDocs(packagesRef)
         for (const doc of allPackagesSnapshot.docs) {
           const data = doc.data() as DestinationPackage
-          // Match by Destination_ID or document ID only (ignore destination slug)
-          const matchesId = data.Destination_ID === packageId || doc.id === packageId
+          // Match by Slug, Destination_ID, or document ID
+          const matchesId = data.Slug === packageId || data.Destination_ID === packageId || doc.id === packageId
 
           if (matchesId) {
             console.log(`Found package: ${doc.id}`)
@@ -193,6 +209,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         }
 
         console.log(`Package not found: ${packageId}`)
+
         setNotFound(true)
       } catch (error) {
         console.error('Error fetching package:', error)

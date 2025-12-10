@@ -263,13 +263,14 @@ export default function DestinationDetailPage({ params }: PageProps) {
                   ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
                   : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
 
-                // Generate package ID from Destination_ID or use Firestore doc id
-                const packageId = pkg.Destination_ID || pkg.id || 'package'
+                // Use Slug if available, otherwise fall back to Destination_ID or doc id
+                const packageSlug = (pkg as any).Slug || pkg.Destination_ID || pkg.id || 'package'
 
                 return (
                   <Link
-                    key={pkg.id || packageId}
-                    href={`/destinations/${encodeURIComponent(destination?.slug || destination?.name || destinationName)}/${packageId}`}
+                    key={pkg.id || packageSlug}
+                    href={`/destinations/${encodeURIComponent(destination?.slug || destination?.name || destinationName)}/${packageSlug}`}
+
                     className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col relative group"
                   >
                     {/* Shine Effect Overlay */}
