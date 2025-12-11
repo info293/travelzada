@@ -28,24 +28,20 @@ function AIPlannerContent() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Lock body scroll when mobile chat mode is active
+
+  // Lock body scroll when mobile chat mode is active (simplified to work with mobile keyboard)
   useEffect(() => {
     if (isMobileChatMode) {
+      // Only hide overflow, don't use position:fixed as it breaks mobile keyboard
       document.body.style.overflow = 'hidden'
-      document.body.style.position = 'fixed'
-      document.body.style.width = '100%'
-      document.body.style.height = '100%'
+      document.body.style.touchAction = 'none'
     } else {
       document.body.style.overflow = ''
-      document.body.style.position = ''
-      document.body.style.width = ''
-      document.body.style.height = ''
+      document.body.style.touchAction = ''
     }
     return () => {
       document.body.style.overflow = ''
-      document.body.style.position = ''
-      document.body.style.width = ''
-      document.body.style.height = ''
+      document.body.style.touchAction = ''
     }
   }, [isMobileChatMode])
 

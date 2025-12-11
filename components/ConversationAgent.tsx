@@ -2065,9 +2065,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   return (
     <div
       className={`bg-white overflow-hidden relative w-full max-w-full ${isMobileChatMode
-        ? 'fixed inset-0 z-50 flex flex-col rounded-none h-screen'
+        ? 'fixed inset-0 z-50 flex flex-col rounded-none'
         : 'rounded-3xl shadow-xl border border-gray-200/50 cursor-pointer'
         }`}
+      style={isMobileChatMode ? { height: '100dvh', maxHeight: '-webkit-fill-available' } : undefined}
       onClick={() => {
         // Open mobile chat mode when clicking anywhere on the chat area (only when not in mobile chat mode)
         if (!isMobileChatMode && onOpenMobileChat) {
