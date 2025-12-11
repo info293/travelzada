@@ -17,6 +17,37 @@ function AIPlannerContent() {
     hotelType: '',
   })
   const [isTripDetailsVisible, setIsTripDetailsVisible] = useState(false)
+  const [isMobileChatMode, setIsMobileChatMode] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Lock body scroll when mobile chat mode is active
+  useEffect(() => {
+    if (isMobileChatMode) {
+      document.body.style.overflow = 'hidden'
+      document.body.style.position = 'fixed'
+      document.body.style.width = '100%'
+      document.body.style.height = '100%'
+    } else {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.height = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.body.style.position = ''
+      document.body.style.width = ''
+      document.body.style.height = ''
+    }
+  }, [isMobileChatMode])
 
   // Check for destination parameter from URL
   useEffect(() => {
@@ -38,138 +69,166 @@ function AIPlannerContent() {
     setIsTripDetailsVisible(false)
   }, [])
 
+  const handleOpenMobileChat = useCallback(() => {
+    if (isMobile) {
+      setIsMobileChatMode(true)
+    }
+  }, [isMobile])
+
+  const handleCloseMobileChat = useCallback(() => {
+    setIsMobileChatMode(false)
+  }, [])
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 relative overflow-hidden">
-      <Header />
+    <>
+      {/* Full Screen Mobile Chat Mode - Renders as overlay covering everything */}
+      {isMobileChatMode && (
+        <ConversationAgent
+          formData={formData}
+          setFormData={setFormData}
+          onTripDetailsRequest={handleTripDetailsRequest}
+          isMobileChatMode={true}
+          onCloseMobileChat={handleCloseMobileChat}
+          onOpenMobileChat={handleOpenMobileChat}
+        />
+      )}
 
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 -right-40 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-40 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      </div>
+      {/* Normal Page Content - Hidden when mobile chat mode is active */}
+      <main className={`min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 relative overflow-hidden ${isMobileChatMode ? 'hidden' : ''}`}>
+        <Header />
 
-      {/* Hero Section */}
-      <section className="relative z-10 py-8 md:py-16 px-4 md:px-10" style={{ marginTop: '10px' }}>
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 mb-4 md:mb-6 shadow-sm mx-auto justify-center">
-              <span className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm flex-shrink-0"></span>
-              <span className="text-xs md:text-sm text-purple-700 font-medium whitespace-nowrap">Powered by AI</span>
-            </div>
-
-            {/* Main Heading */}
-            <h1 className="text-3xl md:text-6xl text-gray-900 mb-4 leading-tight">
-              Tell us your vibe.
-              <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
-                AI will plan your trip.
-              </span>
-            </h1>
-
-            <p className="text-lg md:text-xl text-gray-600 mb-2">
-              Takes just 30 seconds
-            </p>
-            <p className="text-sm text-gray-500">
-              Our AI assistant will create a personalized itinerary just for you
-            </p>
-          </div>
-
-          {/* Feature Pills */}
-          <div className="flex flex-nowrap items-center justify-center gap-1.5 md:gap-3 mb-4 md:mb-8">
-            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
-              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">✨ Personalized</span>
-            </div>
-            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
-              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">⚡ Instant Results</span>
-            </div>
-            <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
-              <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">🎯 Tailored to You</span>
-            </div>
-          </div>
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+          <div className="absolute top-0 -right-40 w-96 h-96 bg-indigo-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-40 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         </div>
-      </section>
 
-      {/* Conversation Agent */}
-      <section className="relative z-10 py-2 md:py-6 px-4 md:px-12">
-        <div className="max-w-4xl mx-auto w-full overflow-hidden">
-          <div className="bg-white/90 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden w-full max-w-full">
-            {/* Decorative Elements */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-100/30 to-indigo-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-purple-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
+        {/* Hero Section */}
+        <section className="relative z-10 py-8 md:py-16 px-4 md:px-10" style={{ marginTop: '10px' }}>
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-8">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 mb-4 md:mb-6 shadow-sm mx-auto justify-center">
+                <span className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm flex-shrink-0"></span>
+                <span className="text-xs md:text-sm text-purple-700 font-medium whitespace-nowrap">Powered by AI</span>
+              </div>
 
-            <div className="relative z-10">
-              <ConversationAgent
-                formData={formData}
-                setFormData={setFormData}
-                onTripDetailsRequest={handleTripDetailsRequest}
-              />
+              {/* Main Heading */}
+              <h1 className="text-3xl md:text-6xl text-gray-900 mb-4 leading-tight">
+                Tell us your vibe.
+                <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
+                  AI will plan your trip.
+                </span>
+              </h1>
+
+              <p className="text-lg md:text-xl text-gray-600 mb-2">
+                Takes just 30 seconds
+              </p>
+              <p className="text-sm text-gray-500">
+                Our AI assistant will create a personalized itinerary just for you
+              </p>
+            </div>
+
+            {/* Feature Pills */}
+            <div className="flex flex-nowrap items-center justify-center gap-1.5 md:gap-3 mb-4 md:mb-8">
+              <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+                <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">✨ Personalized</span>
+              </div>
+              <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+                <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">⚡ Instant Results</span>
+              </div>
+              <div className="flex-shrink-1 min-w-0 px-2.5 py-1.5 md:px-4 md:py-2 bg-white/80 backdrop-blur-sm rounded-full border border-gray-200 shadow-sm whitespace-nowrap">
+                <span className="text-[10px] sm:text-xs md:text-sm text-gray-700">🎯 Tailored to You</span>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Trip Form */}
-      {isTripDetailsVisible && (
-        <section id="trip-details" className="relative z-10 py-6 px-4 md:px-12">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-6 md:p-8 relative overflow-hidden">
+        {/* Conversation Agent - Normal inline mode */}
+        <section className="relative z-10 py-2 md:py-6 px-4 md:px-12">
+          <div className="max-w-4xl mx-auto w-full overflow-hidden">
+            <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden w-full max-w-full">
               {/* Decorative Elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-100/30 to-purple-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-indigo-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-100/30 to-indigo-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-purple-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
 
               <div className="relative z-10">
-                <TripForm
+                <ConversationAgent
                   formData={formData}
                   setFormData={setFormData}
+                  onTripDetailsRequest={handleTripDetailsRequest}
+                  isMobileChatMode={false}
+                  onCloseMobileChat={handleCloseMobileChat}
+                  onOpenMobileChat={handleOpenMobileChat}
                 />
               </div>
             </div>
           </div>
         </section>
-      )}
 
-      {/* Planner Packages Section */}
-      <section className="relative z-10 py-12 md:py-16 px-4 md:px-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl text-gray-900 mb-3">
-              Not sure where to go?
-            </h2>
-            <p className="text-lg text-gray-600">
-              Curated straight from our packages collection with smart fallback data.
-            </p>
+        {/* Trip Form */}
+        {isTripDetailsVisible && (
+          <section id="trip-details" className="relative z-10 py-6 px-4 md:px-12">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-6 md:p-8 relative overflow-hidden">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-100/30 to-purple-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-pink-100/30 to-indigo-100/30 rounded-full blur-3xl -ml-24 -mb-24"></div>
+
+                <div className="relative z-10">
+                  <TripForm
+                    formData={formData}
+                    setFormData={setFormData}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Planner Packages Section */}
+        <section className="relative z-10 py-12 md:py-16 px-4 md:px-12">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl md:text-4xl text-gray-900 mb-3">
+                Not sure where to go?
+              </h2>
+              <p className="text-lg text-gray-600">
+                Curated straight from our packages collection with smart fallback data.
+              </p>
+            </div>
+            <PlannerPackages />
           </div>
-          <PlannerPackages />
-        </div>
-      </section>
+        </section>
 
-      <Footer />
+        <Footer />
 
-      <style jsx>{`
-        @keyframes blob {
-          0%, 100% {
-            transform: translate(0, 0) scale(1);
+        <style jsx>{`
+          @keyframes blob {
+            0%, 100% {
+              transform: translate(0, 0) scale(1);
+            }
+            33% {
+              transform: translate(30px, -50px) scale(1.1);
+            }
+            66% {
+              transform: translate(-20px, 20px) scale(0.9);
+            }
           }
-          33% {
-            transform: translate(30px, -50px) scale(1.1);
+          .animate-blob {
+            animation: blob 7s infinite;
           }
-          66% {
-            transform: translate(-20px, 20px) scale(0.9);
+          .animation-delay-2000 {
+            animation-delay: 2s;
           }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
-    </main>
+          .animation-delay-4000 {
+            animation-delay: 4s;
+          }
+        `}</style>
+      </main>
+    </>
   )
 }
 

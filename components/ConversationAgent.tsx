@@ -94,11 +94,11 @@ const travelerOptions = [
 const isTripInfoComplete = (info: TripInfo) =>
   Boolean(
     info.destination &&
-      info.travelDate &&
-      info.days &&
-      info.budget &&
-      info.hotelType &&
-      info.travelType
+    info.travelDate &&
+    info.days &&
+    info.budget &&
+    info.hotelType &&
+    info.travelType
   )
 
 const formatISODate = (date: Date) => {
@@ -199,6 +199,9 @@ interface ConversationAgentProps {
   formData: any
   setFormData: any
   onTripDetailsRequest?: () => void
+  isMobileChatMode?: boolean
+  onCloseMobileChat?: () => void
+  onOpenMobileChat?: () => void
 }
 
 interface TripInfo {
@@ -211,7 +214,7 @@ interface TripInfo {
   travelType: string // solo, family, couple, friends
 }
 
-export default function ConversationAgent({ formData, setFormData, onTripDetailsRequest }: ConversationAgentProps) {
+export default function ConversationAgent({ formData, setFormData, onTripDetailsRequest, isMobileChatMode, onCloseMobileChat, onOpenMobileChat }: ConversationAgentProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -284,18 +287,18 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const destinationsRef = collection(db, 'destinations')
         const querySnapshot = await getDocs(destinationsRef)
         const destinationsData: Array<{ id?: string; name: string; slug?: string }> = []
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data()
           if (data.name) {
-            destinationsData.push({ 
-              id: doc.id, 
+            destinationsData.push({
+              id: doc.id,
               name: data.name,
               slug: data.slug || data.name.toLowerCase().replace(/\s+/g, '-')
             })
           }
         })
-        
+
         setDestinations(destinationsData)
         console.log(`✅ Loaded ${destinationsData.length} destinations from Firestore`)
       } catch (error) {
@@ -321,12 +324,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const packagesRef = collection(db, 'packages')
         const querySnapshot = await getDocs(packagesRef)
         const packagesData: DestinationPackage[] = []
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data()
           packagesData.push({ ...data, id: doc.id } as DestinationPackage)
         })
-        
+
         setFirestorePackages(packagesData)
         console.log(`✅ Loaded ${packagesData.length} packages from Firestore`)
       } catch (error) {
@@ -411,7 +414,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       const starNum = parseInt(star, 10)
       let label = ''
       let value = `${star} Star` // Store as "3 Star", "4 Star", "5 Star" to match Star_Category
-      
+
       if (starNum === 3) {
         label = '3★ Comfort'
       } else if (starNum === 4) {
@@ -421,7 +424,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       } else {
         label = `${star}★`
       }
-      
+
       return { label, value }
     })
 
@@ -444,7 +447,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       const pkgAny = pkg as any
       if (pkgAny.Travel_Type) {
         const travelType = pkgAny.Travel_Type.toLowerCase().trim()
-        
+
         // Map various travel type formats to standard values
         if (travelType.includes('solo') || travelType.includes('single')) {
           travelTypeMap.set('solo', 'Solo')
@@ -456,7 +459,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           travelTypeMap.set('friends', 'Friends')
         }
       }
-      
+
       // Also check Group_Size field if available
       if (pkgAny.Group_Size) {
         const groupSize = pkgAny.Group_Size.toLowerCase().trim()
@@ -496,7 +499,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const allPackages = useMemo(() => {
     const combined: DestinationPackage[] = []
     const seenIds = new Set<string>()
-    
+
     // First, add Firestore packages (priority)
     firestorePackages.forEach((pkg: DestinationPackage) => {
       const pkgAny = pkg as any
@@ -506,7 +509,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         combined.push(pkg)
       }
     })
-    
+
     // Then, add JSON packages that don't exist in Firestore
     destinationPackages.forEach((pkg: DestinationPackage) => {
       const pkgAny = pkg as any
@@ -516,7 +519,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         combined.push(pkg)
       }
     })
-    
+
     return combined
   }, [firestorePackages])
 
@@ -532,16 +535,16 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     async (prompt: string, extra: Partial<Message> = {}, availableDestinationsForContext?: string[]) => {
       setIsTyping(true)
       setThinkingMessage(0)
-      
+
       // Start rotating thinking messages
       const messageInterval = setInterval(() => {
         setThinkingMessage((prev) => (prev + 1) % thinkingMessages.length)
       }, 2000) // Change message every 2 seconds
-      
+
       try {
         // Get available destinations from database
-        const destinationsToSend = availableDestinationsForContext || 
-          (destinations.length > 0 
+        const destinationsToSend = availableDestinationsForContext ||
+          (destinations.length > 0
             ? destinations.map(d => d.name)
             : [])
 
@@ -591,12 +594,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       const reader = new FileReader()
       reader.onloadend = async () => {
         const base64String = reader.result as string
-        
+
         // Store image for preview
         setUploadedImage(base64String)
 
         // Get available destinations
-        const availableDestinations = destinations.length > 0 
+        const availableDestinations = destinations.length > 0
           ? destinations.map(d => d.name)
           : []
 
@@ -624,7 +627,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           // Exact match found - set destination and show packages
           const matchedDestination = analysisData.detectedLocation
           setTripInfo(prev => ({ ...prev, destination: matchedDestination }))
-          
+
           const locationName = analysisData.rawDetectedLocation || matchedDestination
           appendMessage({
             role: 'assistant',
@@ -638,10 +641,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         } else if (analysisData.rawDetectedLocation || (analysisData.similarLocations && analysisData.similarLocations.length > 0)) {
           // No exact match, but we detected a location
           const detectedLocationName = analysisData.rawDetectedLocation || 'this location'
-          const landmarksText = analysisData.landmarks && analysisData.landmarks.length > 0 
-            ? ` I can see ${analysisData.landmarks.join(' and ')} in the image.` 
+          const landmarksText = analysisData.landmarks && analysisData.landmarks.length > 0
+            ? ` I can see ${analysisData.landmarks.join(' and ')} in the image.`
             : ''
-          
+
           if (analysisData.similarLocations && analysisData.similarLocations.length > 0) {
             const similarList = analysisData.similarLocations.join(', ')
             appendMessage({
@@ -688,15 +691,15 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   useEffect(() => {
     // Wait for destinations to load before sending initial prompt
     if (initialPromptSentRef.current || destinationsLoading) return
-    
+
     // Only send if we have destinations loaded
     if (destinations.length === 0) return
-    
+
     initialPromptSentRef.current = true
-    
+
     // Get available destinations from database
     const availableDests = destinations.map(d => d.name)
-    
+
     sendAssistantPrompt(
       withStyle(
         `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
@@ -730,7 +733,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (tripInfo.travelType) completed++
     setProgress((completed / TOTAL_STEPS) * 100)
     setCompletedSteps(completed)
-    
+
     // Update form data
     setFormData({
       destination: tripInfo.destination,
@@ -774,7 +777,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (budgetMatch) {
       return budgetMatch[1].replace(/,/g, '')
     }
-    
+
     // Check for budget keywords
     if (lowerText.includes('budget') || lowerText.includes('cheap') || lowerText.includes('affordable')) {
       return '30000'
@@ -785,20 +788,20 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (lowerText.includes('luxury') || lowerText.includes('premium') || lowerText.includes('expensive')) {
       return '100000'
     }
-    
+
     return null
   }
 
   // Extract hotel type - returns star rating format to match Star_Category
   const extractHotelType = (text: string): string | null => {
     const lowerText = text.toLowerCase().trim()
-    
+
     // Check for star ratings first (e.g., "3 star", "4 star", "5 star")
     const starMatch = lowerText.match(/(\d+)\s*(?:star|★)/i)
     if (starMatch) {
       return `${starMatch[1]} Star`
     }
-    
+
     // Check for numeric values
     if (lowerText === '3' || lowerText.includes('three')) {
       return '3 Star'
@@ -809,7 +812,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (lowerText === '5' || lowerText.includes('five')) {
       return '5 Star'
     }
-    
+
     // Map budget/luxury terms to star ratings
     if (lowerText === 'budget' || lowerText === '1' || lowerText.includes('budget') || lowerText.includes('cheap') || lowerText.includes('hostel') || lowerText.includes('economy')) {
       return '3 Star'
@@ -820,7 +823,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (lowerText === 'luxury' || lowerText.includes('luxury') || lowerText.includes('premium')) {
       return '5 Star'
     }
-    
+
     return null
   }
 
@@ -921,36 +924,36 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const fuzzyMatch = (word: string, text: string, threshold: number = 0.7): boolean => {
     const wordLower = word.toLowerCase()
     const textLower = text.toLowerCase()
-    
+
     // Exact match
     if (textLower.includes(wordLower)) return true
-    
+
     // Fuzzy match: check if any word in text is similar to the search word
     const textWords = textLower.split(/\s+/)
     for (const textWord of textWords) {
       if (textWord.length < 3) continue // Skip very short words
-      
+
       const maxLen = Math.max(wordLower.length, textWord.length)
       if (maxLen === 0) continue
-      
+
       const distance = levenshteinDistance(wordLower, textWord)
       const similarity = 1 - (distance / maxLen)
-      
+
       if (similarity >= threshold) {
         return true
       }
     }
-    
+
     return false
   }
 
   // Enhanced search packages based on feedback keywords with fuzzy matching and synonym support
   const searchPackageByFeedback = (pkg: DestinationPackage, feedback: string): number => {
     if (!feedback || feedback.trim() === '') return 0
-    
+
     const feedbackLower = feedback.toLowerCase().trim()
     const pkgAny = pkg as any
-    
+
     // Comprehensive search across all package fields
     const searchFields = [
       pkgAny.Overview || '',
@@ -964,10 +967,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       pkgAny.Destination_Name || '',
       pkgAny.Description || '',
     ]
-    
+
     // Combine all searchable text
     const allText = searchFields.join(' ').toLowerCase()
-    
+
     // Activity synonyms mapping - helps match user intent even with different word choices
     const activitySynonyms: Record<string, string[]> = {
       'spa': ['spa', 'massage', 'wellness', 'relaxation', 'therapy', 'treatment', 'rejuvenation', 'pampering', 'beauty', 'salon'],
@@ -984,24 +987,24 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       'romantic': ['romantic', 'romance', 'honeymoon', 'couple', 'intimate', 'private'],
       'family': ['family', 'kids', 'children', 'child', 'kid-friendly', 'family-friendly'],
     }
-    
+
     // Extract keywords from feedback (filter out common words and short words)
     const commonWords = ['the', 'and', 'or', 'for', 'with', 'like', 'want', 'need', 'have', 'get', 'do', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'a', 'an', 'to', 'of', 'in', 'on', 'at', 'by', 'from', 'as', 'it', 'this', 'that', 'these', 'those', 'i', 'me', 'my', 'we', 'our', 'you', 'your']
     const keywords = feedbackLower
       .split(/[\s,\.!?]+/)
       .map(k => k.trim().replace(/[^\w]/g, ''))
       .filter(k => k.length > 2 && !commonWords.includes(k))
-    
+
     if (keywords.length === 0) return 0
-    
+
     let exactMatchCount = 0
     let fuzzyMatchCount = 0
     let synonymMatchCount = 0
     let totalScore = 0
-    
+
     keywords.forEach(keyword => {
       let matched = false
-      
+
       // Check for exact match first (highest priority)
       if (allText.includes(keyword)) {
         exactMatchCount++
@@ -1030,7 +1033,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             }
           }
         }
-        
+
         // Try fuzzy matching for typos/spelling mistakes (if not already matched)
         if (!matched && fuzzyMatch(keyword, allText, 0.65)) {
           fuzzyMatchCount++
@@ -1039,10 +1042,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         }
       }
     })
-    
+
     // Calculate final score
     if (exactMatchCount === 0 && fuzzyMatchCount === 0 && synonymMatchCount === 0) return 0
-    
+
     // Bonus for matching all keywords
     const totalMatches = exactMatchCount + fuzzyMatchCount + synonymMatchCount
     if (totalMatches === keywords.length) {
@@ -1050,7 +1053,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     } else if (totalMatches >= keywords.length * 0.7) {
       totalScore += 15 // Partial bonus if most keywords match
     }
-    
+
     // Normalize score (max around 80-100 for perfect match with all bonuses)
     return Math.min(totalScore, 100)
   }
@@ -1058,7 +1061,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const scorePackage = (pkg: DestinationPackage, info: TripInfo) => {
     let score = 0
     const pkgAny = pkg as any
-    
+
     // Base score for destination match (required)
     if (info.destination) {
       const target = normalize(info.destination)
@@ -1071,12 +1074,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         return 0 // Must match destination
       }
     }
-    
+
     // Feedback matching - HIGH PRIORITY: prioritize packages that match user's activity preferences
     // This works even with spelling mistakes thanks to fuzzy matching and synonym support
     if (userFeedback && userFeedback.trim() !== '') {
       const feedbackScore = searchPackageByFeedback(pkg, userFeedback)
-      
+
       if (feedbackScore > 0) {
         // Check if package matches basic criteria (duration and travel type)
         const requestedDays = parseInt(info.days, 10)
@@ -1087,10 +1090,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           pkgDays = extractDaysFromDuration(pkgAny.Duration || '')
         }
         const daysMatch = !isNaN(requestedDays) && pkgDays && Math.abs(pkgDays - requestedDays) <= 2
-        const travelMatch = info.travelType && pkgAny.Travel_Type && 
-          (pkgAny.Travel_Type.toLowerCase().includes(info.travelType.toLowerCase()) || 
-           info.travelType.toLowerCase().includes(pkgAny.Travel_Type.toLowerCase().split(' / ')[0]))
-        
+        const travelMatch = info.travelType && pkgAny.Travel_Type &&
+          (pkgAny.Travel_Type.toLowerCase().includes(info.travelType.toLowerCase()) ||
+            info.travelType.toLowerCase().includes(pkgAny.Travel_Type.toLowerCase().split(' / ')[0]))
+
         // VERY HIGH priority boost if package matches feedback AND basic criteria
         if (daysMatch && travelMatch) {
           score += feedbackScore * 5.5 // Very high boost for perfect matches (user's activity preference is important!)
@@ -1104,12 +1107,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         }
       }
     }
-    
+
     // Travel type matching (high priority)
     if (info.travelType && pkgAny.Travel_Type) {
       const pkgTravelType = pkgAny.Travel_Type.toLowerCase()
       const userTravelType = info.travelType.toLowerCase()
-      
+
       // Exact match
       if (pkgTravelType === userTravelType) {
         score += 12 // High priority for exact match
@@ -1129,18 +1132,18 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         score -= 8 // Penalize packages that don't match travel type
       }
     }
-    
+
     // Duration matching (high priority - use Duration_Days if available)
     const requestedDays = parseInt(info.days, 10)
     let pkgDays = null
-    
+
     // Try to use Duration_Days field first (more accurate)
     if (pkgAny.Duration_Days) {
       pkgDays = pkgAny.Duration_Days
     } else {
       pkgDays = extractDaysFromDuration(pkgAny.Duration || '')
     }
-    
+
     if (!isNaN(requestedDays) && pkgDays) {
       const diff = Math.abs(pkgDays - requestedDays)
       if (diff === 0) {
@@ -1154,22 +1157,22 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       }
       // No points for diff > 3 - too far off
     }
-    
+
     // Hotel type matching (high priority) - now using Star_Category format directly
     if (info.hotelType && pkgAny.Star_Category) {
       // Extract star number from hotelType (e.g., "3 Star" -> "3")
       const userStarMatch = info.hotelType.match(/(\d+)/)
       const userStar = userStarMatch ? userStarMatch[1] : null
-      
+
       if (userStar) {
         // Extract star number from package
         const pkgStarMatch = pkgAny.Star_Category.match(/(\d+)/)
         const pkgStar = pkgStarMatch ? pkgStarMatch[1] : null
-        
+
         if (pkgStar) {
           const userStarNum = parseInt(userStar, 10)
           const pkgStarNum = parseInt(pkgStar, 10)
-          
+
           // Exact match gets high score
           if (userStarNum === pkgStarNum) {
             score += 50 // Exact hotel type match - very high priority
@@ -1192,7 +1195,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         }
       }
     }
-    
+
     return score
   }
 
@@ -1206,7 +1209,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const rankedPackages = useMemo(() => {
     if (!tripInfo.destination || destinationSpecificPackages.length === 0) return []
-    
+
     const scored = destinationSpecificPackages
       .map((pkg: DestinationPackage) => ({ pkg, score: scorePackage(pkg, tripInfo) }))
       .filter(({ score }) => score > 0)
@@ -1218,69 +1221,69 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const bDays = !isNaN(requestedDays) ? (bPkgAny.Duration_Days || extractDaysFromDuration(bPkgAny.Duration || '') || 0) : 0
         const aDiff = !isNaN(requestedDays) ? Math.abs(aDays - requestedDays) : 999
         const bDiff = !isNaN(requestedDays) ? Math.abs(bDays - requestedDays) : 999
-        
+
         // FIRST: Prioritize exact hotel/star rating matches (HIGHEST PRIORITY)
         // If user selected a star rating, show matching packages first
         if (tripInfo.hotelType) {
           const userStarMatch = tripInfo.hotelType.match(/(\d+)/)
           const userStar = userStarMatch ? userStarMatch[1] : null
-          
+
           if (userStar) {
             const aStarMatch = aPkgAny.Star_Category?.match(/(\d+)/)
             const bStarMatch = bPkgAny.Star_Category?.match(/(\d+)/)
             const aStar = aStarMatch ? aStarMatch[1] : null
             const bStar = bStarMatch ? bStarMatch[1] : null
-            
+
             // Exact match vs non-match
             if (aStar === userStar && bStar !== userStar) return -1 // a matches exactly, b doesn't
             if (bStar === userStar && aStar !== userStar) return 1  // b matches exactly, a doesn't
-            
+
             // Both match or both don't match - continue to next criteria
           }
         }
-        
+
         // SECOND: Prioritize exact duration/days matches (HIGHEST PRIORITY after star rating)
         if (aDiff === 0 && bDiff !== 0) return -1 // a is exact match, b is not
         if (bDiff === 0 && aDiff !== 0) return 1  // b is exact match, a is not
-        
+
         // If both are close, prefer the closer one
         if (aDiff !== bDiff && aDiff <= 2 && bDiff <= 2) {
           return aDiff - bDiff // Closer match first
         }
-        
+
         // THIRD: Prioritize feedback/activity matches (HIGH PRIORITY - user explicitly asked for this!)
         // If user provided feedback about activities, prioritize packages that match
         if (userFeedback && userFeedback.trim() !== '') {
           const aFeedbackScore = searchPackageByFeedback(a.pkg, userFeedback)
           const bFeedbackScore = searchPackageByFeedback(b.pkg, userFeedback)
-          
+
           // If one package matches feedback and the other doesn't, prioritize the match
           if (aFeedbackScore > 0 && bFeedbackScore === 0) return -1
           if (bFeedbackScore > 0 && aFeedbackScore === 0) return 1
-          
+
           // If both match, prioritize the one with higher feedback score
           if (aFeedbackScore !== bFeedbackScore && aFeedbackScore > 0 && bFeedbackScore > 0) {
             return bFeedbackScore - aFeedbackScore
           }
         }
-        
+
         // FOURTH: Sort by total score (includes all factors including feedback boost)
         if (b.score !== a.score) {
           return b.score - a.score
         }
-        
+
         // FIFTH: Prefer packages that match travel type exactly
         const userTravelType = tripInfo.travelType?.toLowerCase()
         const aTravelMatch = userTravelType && aPkgAny.Travel_Type?.toLowerCase() === userTravelType
         const bTravelMatch = userTravelType && bPkgAny.Travel_Type?.toLowerCase() === userTravelType
-        
+
         if (aTravelMatch !== bTravelMatch) {
           return aTravelMatch ? -1 : 1
         }
-        
+
         return 0
       })
-    
+
     // Debug logging
     console.log('📊 Package Ranking for:', {
       destination: tripInfo.destination,
@@ -1307,7 +1310,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         }
       })
     })
-    
+
     return scored
   }, [destinationSpecificPackages, tripInfo, userFeedback])
 
@@ -1369,10 +1372,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       : []
 
     await sendAssistantPrompt(prompt, { packageMatch: bestMatch }, availableDests)
-    
+
     // Mark AI response as complete after the message is sent
     setAiResponseComplete(true)
-    
+
     if (!tripDetailsAutoOpenedRef.current) {
       tripDetailsAutoOpenedRef.current = true
       onTripDetailsRequest?.()
@@ -1383,95 +1386,95 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     async (infoOverride?: TripInfo) => {
       if (currentQuestion === 'complete') return
       const currentInfo = infoOverride ?? tripInfoRef.current
-    let questionPrompt = ''
+      let questionPrompt = ''
 
-    if (!currentInfo.destination) {
-      // Get available destinations (only Bali for now)
-      const availableDests = destinations.length > 0
-        ? destinations.map(d => d.name)
-        : []
-      
-      questionPrompt = withStyle(
-        `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
-        30
-      )
-      setCurrentQuestion('destination')
-    } else if (!currentInfo.travelDate) {
-      questionPrompt = withStyle(
-        `Thank them for choosing ${currentInfo.destination} and ask when they plan to travel. Mention they can share a month or exact date.`,
-        32
-      )
-      setCurrentQuestion('date')
-    } else if (!currentInfo.days) {
-      questionPrompt = withStyle(
-        `Acknowledge their travel date and ask how many days they want in ${currentInfo.destination}. Mention they can tap a quick option.`,
-        30
-      )
-      setCurrentQuestion('days')
-    } else if (!currentInfo.hotelType) {
-      questionPrompt = withStyle(
-        'Thank them and ask which stay style they prefer: 3-star, 4-star, or 5-star.',
-        25
-      )
-      setCurrentQuestion('hotel')
-    } else if (!currentInfo.travelType) {
-      // Check if there are multiple travel type options available
-      // If only one option exists, auto-select it and skip the question
-      const availableOptions = destinationTravelTypeOptions.length > 0 
-        ? destinationTravelTypeOptions 
-        : travelerOptions
-      
-      if (availableOptions.length === 1) {
-        // Only one option available - auto-select it and skip to next question
-        const autoSelectedType = availableOptions[0].value
-        updateTripInfo({ travelType: autoSelectedType })
-        appendMessage({ 
-          role: 'assistant', 
-          content: `Noted! You'll be travelling as a ${availableOptions[0].label.toLowerCase()}.` 
-        })
-        // Skip to feedback question
+      if (!currentInfo.destination) {
+        // Get available destinations (only Bali for now)
+        const availableDests = destinations.length > 0
+          ? destinations.map(d => d.name)
+          : []
+
         questionPrompt = withStyle(
-          'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
-          35
+          `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
+          30
         )
-        setCurrentQuestion('feedback')
-      } else if (availableOptions.length === 0) {
-        // No specific options - skip travel type question entirely
-        updateTripInfo({ travelType: 'couple' }) // Default fallback
-        // Skip to feedback question
+        setCurrentQuestion('destination')
+      } else if (!currentInfo.travelDate) {
+        questionPrompt = withStyle(
+          `Thank them for choosing ${currentInfo.destination} and ask when they plan to travel. Mention they can share a month or exact date.`,
+          32
+        )
+        setCurrentQuestion('date')
+      } else if (!currentInfo.days) {
+        questionPrompt = withStyle(
+          `Acknowledge their travel date and ask how many days they want in ${currentInfo.destination}. Mention they can tap a quick option.`,
+          30
+        )
+        setCurrentQuestion('days')
+      } else if (!currentInfo.hotelType) {
+        questionPrompt = withStyle(
+          'Thank them and ask which stay style they prefer: 3-star, 4-star, or 5-star.',
+          25
+        )
+        setCurrentQuestion('hotel')
+      } else if (!currentInfo.travelType) {
+        // Check if there are multiple travel type options available
+        // If only one option exists, auto-select it and skip the question
+        const availableOptions = destinationTravelTypeOptions.length > 0
+          ? destinationTravelTypeOptions
+          : travelerOptions
+
+        if (availableOptions.length === 1) {
+          // Only one option available - auto-select it and skip to next question
+          const autoSelectedType = availableOptions[0].value
+          updateTripInfo({ travelType: autoSelectedType })
+          appendMessage({
+            role: 'assistant',
+            content: `Noted! You'll be travelling as a ${availableOptions[0].label.toLowerCase()}.`
+          })
+          // Skip to feedback question
+          questionPrompt = withStyle(
+            'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
+            35
+          )
+          setCurrentQuestion('feedback')
+        } else if (availableOptions.length === 0) {
+          // No specific options - skip travel type question entirely
+          updateTripInfo({ travelType: 'couple' }) // Default fallback
+          // Skip to feedback question
+          questionPrompt = withStyle(
+            'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
+            35
+          )
+          setCurrentQuestion('feedback')
+        } else {
+          // Multiple options available - show the question
+          questionPrompt = withStyle(
+            'Acknowledge their stay preference and ask who they are travelling with: solo, family, couple, or friends.',
+            26
+          )
+          setCurrentQuestion('travelType')
+        }
+      } else if (!feedbackAnswered) {
         questionPrompt = withStyle(
           'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
           35
         )
         setCurrentQuestion('feedback')
       } else {
-        // Multiple options available - show the question
-        questionPrompt = withStyle(
-          'Acknowledge their stay preference and ask who they are travelling with: solo, family, couple, or friends.',
-          26
-        )
-        setCurrentQuestion('travelType')
+        await generateRecommendation()
+        setCurrentQuestion('complete')
+        return
       }
-    } else if (!feedbackAnswered) {
-      questionPrompt = withStyle(
-        'Thank them for sharing their preferences. Ask if they have any specific questions, suggestions, or things they want to include in their trip (like spa, yoga, adventure activities, etc.). Mention they can skip if they want.',
-        35
-      )
-      setCurrentQuestion('feedback')
-    } else {
-      await generateRecommendation()
-      setCurrentQuestion('complete')
-      return
-    }
 
-    // Get available destinations for context
-    const availableDests = destinations.length > 0
-      ? destinations.map(d => d.name)
-      : []
-    
-    await sendAssistantPrompt(questionPrompt, {}, availableDests)
-  },
-  [currentQuestion, generateRecommendation, sendAssistantPrompt, destinationTravelTypeOptions, updateTripInfo, appendMessage, destinations]
+      // Get available destinations for context
+      const availableDests = destinations.length > 0
+        ? destinations.map(d => d.name)
+        : []
+
+      await sendAssistantPrompt(questionPrompt, {}, availableDests)
+    },
+    [currentQuestion, generateRecommendation, sendAssistantPrompt, destinationTravelTypeOptions, updateTripInfo, appendMessage, destinations]
   )
 
   // AI-powered data extraction function
@@ -1493,12 +1496,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // Show thinking indicator during extraction
     setIsTyping(true)
     setThinkingMessage(0)
-    
+
     // Start rotating thinking messages
     const messageInterval = setInterval(() => {
       setThinkingMessage((prev) => (prev + 1) % thinkingMessages.length)
     }, 2000)
-    
+
     try {
       // Get available destinations for context
       const availableDestinations = destinations.length > 0
@@ -1533,12 +1536,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const handleSend = useCallback(async () => {
     if (!input.trim()) return
-    
+
     // If we're on feedback question and feedback was already answered, don't process again
     if (currentQuestion === 'feedback' && feedbackAnswered) {
       return
     }
-    
+
     const userInput = input.trim()
     setInput('')
 
@@ -1548,29 +1551,29 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     // Check if user is asking for packages/inquiry form
     const userInputLower = userInput.toLowerCase()
-    const wantsPackages = userInputLower.includes('inquiry') || 
-                         userInputLower.includes('form') || 
-                         userInputLower.includes('package') && (userInputLower.includes('show') || userInputLower.includes('dikhao') || userInputLower.includes('chahiye'))
-    
+    const wantsPackages = userInputLower.includes('inquiry') ||
+      userInputLower.includes('form') ||
+      userInputLower.includes('package') && (userInputLower.includes('show') || userInputLower.includes('dikhao') || userInputLower.includes('chahiye'))
+
     // Check if user mentions honeymoon/romantic trip
-    const mentionsHoneymoon = userInputLower.includes('honeymoon') || 
-                             userInputLower.includes('romantic') ||
-                             (userInputLower.includes('package') && userInputLower.includes('honeymoon'))
-    
+    const mentionsHoneymoon = userInputLower.includes('honeymoon') ||
+      userInputLower.includes('romantic') ||
+      (userInputLower.includes('package') && userInputLower.includes('honeymoon'))
+
     // Check if user is confirming/agreeing to Bali
-    const isConfirming = userInputLower.includes('yes') || 
-                        userInputLower.includes('okay') || 
-                        userInputLower.includes('ok') ||
-                        userInputLower.includes('theek') ||
-                        userInputLower.includes('haan') ||
-                        userInputLower.includes('hmm')
+    const isConfirming = userInputLower.includes('yes') ||
+      userInputLower.includes('okay') ||
+      userInputLower.includes('ok') ||
+      userInputLower.includes('theek') ||
+      userInputLower.includes('haan') ||
+      userInputLower.includes('hmm')
 
     // If user mentions honeymoon but no destination, ask for confirmation
     if (mentionsHoneymoon && !latestInfo.destination && currentQuestion === 'destination') {
       const availableDests = destinations.length > 0
         ? destinations.map(d => d.name)
         : []
-      
+
       const prompt = withStyle(
         availableDests.length > 0
           ? `Perfect! ${availableDests[0]} is an amazing honeymoon destination. Would you like to plan your honeymoon in ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" to continue.`
@@ -1585,10 +1588,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     if (isConfirming && !latestInfo.destination && currentQuestion === 'destination') {
       // Check if Bali was mentioned in previous messages (including AI responses)
       const recentMessages = messagesRef.current.slice(-5)
-      const baliMentioned = recentMessages.some(msg => 
+      const baliMentioned = recentMessages.some(msg =>
         msg.content.toLowerCase().includes('bali')
       )
-      
+
       if (baliMentioned) {
         // User confirmed, set Bali as destination and continue
         const updates: Partial<TripInfo> = { destination: 'Bali' }
@@ -1600,7 +1603,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const availableDests = destinations.length > 0
           ? destinations.map(d => d.name)
           : []
-        
+
         const prompt = withStyle(
           availableDests.length > 0
             ? `Great! I'd love to help you plan your trip. Which destination would you like to explore? Available destinations: ${availableDests.join(', ')}.`
@@ -1636,23 +1639,23 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       if ((extractedData.destination || (isConfirming && !latestInfo.destination)) && !latestInfo.destination) {
         // If confirming, check if Bali was mentioned in conversation context
         const recentMessages = messagesRef.current.slice(-5)
-        const baliMentioned = recentMessages.some(msg => 
+        const baliMentioned = recentMessages.some(msg =>
           msg.content.toLowerCase().includes('bali')
         )
-        
+
         // If confirming and Bali was mentioned, use Bali
         const dest = extractedData.destination || (isConfirming && baliMentioned ? 'Bali' : null)
-        
+
         if (dest) {
           // Normalize destination to match database (case-insensitive)
           const normalizedDest = dest.trim()
           const destLower = normalizedDest.toLowerCase()
-          
+
           // Check if destination is Bali - only Bali is supported for now
           const availableDests = destinations.length > 0
             ? destinations.map(d => d.name)
             : []
-          
+
           if (!availableDests.some(d => d.toLowerCase() === destLower)) {
             // Destination not in available list
             const prompt = withStyle(
@@ -1662,7 +1665,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             await sendAssistantPrompt(prompt, {}, availableDests)
             return
           }
-          
+
           // Find the exact destination name from available destinations (for proper capitalization)
           const exactDest = availableDests.find(d => d.toLowerCase() === destLower) || normalizedDest
           updates.destination = exactDest
@@ -1690,10 +1693,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         updates.travelType = extractedData.travelType
         hasUpdates = true
       }
-      
+
       // Special handling: If user says "honeymoon package" or similar, extract couple travel type
       if (!latestInfo.travelType && (
-        userInputLower.includes('honeymoon') || 
+        userInputLower.includes('honeymoon') ||
         userInputLower.includes('romantic') ||
         (userInputLower.includes('package') && userInputLower.includes('honeymoon'))
       )) {
@@ -1732,7 +1735,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         console.log('[AI Extraction] Applying updates:', updates)
         const nextInfo = updateTripInfo(updates)
         console.log('[AI Extraction] Updated tripInfo:', nextInfo)
-        
+
         // If user asked for packages and we now have enough info, show packages
         if (wantsPackages && nextInfo.destination) {
           setCurrentQuestion('complete')
@@ -1742,7 +1745,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           await generateRecommendation()
           return
         }
-        
+
         // Force move to next question after updating trip info
         await askNextQuestion(nextInfo)
         return
@@ -1750,7 +1753,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         // Even if no updates, if AI understood with high confidence, acknowledge and ask next question
         // This handles cases where user confirms something
         console.log('[AI Extraction] AI understood but no updates, moving to next question')
-        
+
         // If user wants packages, show them
         if (wantsPackages && latestInfo.destination) {
           setCurrentQuestion('complete')
@@ -1760,7 +1763,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           await generateRecommendation()
           return
         }
-        
+
         await askNextQuestion()
         return
       } else {
@@ -1771,13 +1774,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         })
       }
     }
-    
+
     // Handle case where user wants packages but we don't have destination yet
     if (wantsPackages && !latestInfo.destination) {
       const availableDests = destinations.length > 0
         ? destinations.map(d => d.name)
         : []
-      
+
       const prompt = withStyle(
         `I'd love to show you packages! To get started, can you confirm you want to explore ${availableDests[0]}? Just say "yes" or type "${availableDests[0]}" and I'll show you amazing packages!`,
         35
@@ -1795,7 +1798,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const availableDests = destinations.length > 0
           ? destinations.map(d => d.name)
           : []
-        
+
         if (!availableDests.some(d => d.toLowerCase() === dest.toLowerCase())) {
           const prompt = withStyle(
             `I'm sorry, but ${dest} is not currently available in our database. Currently available destinations are: ${availableDests.join(', ')}. Would you like to explore one of these instead?`,
@@ -1807,7 +1810,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         // Find the exact destination name from available destinations (for proper capitalization)
         const exactDest = availableDests.find(d => d.toLowerCase() === dest.toLowerCase()) || dest
         updateTripInfo({ destination: exactDest })
-        
+
         const prompt = withStyle(
           `Great choice! When do you plan to travel—any specific month or date in mind?`,
           20
@@ -1929,7 +1932,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     const fallbackPrompt = withStyle(
       fallbackMap[currentQuestion] ||
-        'Acknowledge their message and let them know you are ready for the required detail.',
+      'Acknowledge their message and let them know you are ready for the required detail.',
       35
     )
     await sendAssistantPrompt(fallbackPrompt, {}, availableDests)
@@ -1979,15 +1982,15 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       setSelectedMonthForCalendar(monthIndex)
       // Set a date in that month to help the calendar navigate there
       const iso = getUpcomingDateForMonth(monthIndex)
-      
+
       // Use ref if available, otherwise query selector
       const dateInput = dateInputRef.current || (document.querySelector('input[type="date"]') as HTMLInputElement)
-      
+
       if (dateInput) {
         dateInput.value = iso
         // Scroll the input into view if needed
         dateInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-        
+
         // Try to open the calendar picker immediately (within the same user gesture)
         // This should work because we're still within the button click event
         if (dateInput.showPicker) {
@@ -2060,516 +2063,560 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-gray-200/50 overflow-hidden relative w-full max-w-full">
-      {/* Decorative gradient overlay */}
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none"></div>
-      
-      {/* Progress Bar */}
-      <div className="px-4 md:px-6 pt-4 md:pt-6 sticky top-0 z-30 bg-white/98 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 border-b border-gray-100 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs md:text-sm text-gray-900 font-semibold truncate">AI Trip Planner</p>
-              <p className="text-[10px] md:text-xs text-gray-600 font-medium whitespace-nowrap overflow-visible">
-                Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS} • {Math.round(progress)}% complete
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-gray-100 h-2.5 md:h-2.5 rounded-full overflow-hidden shadow-inner">
-          <div
-            className="bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 h-full transition-all duration-500 rounded-full relative overflow-hidden"
-            style={{ width: `${progress}%` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-          </div>
-        </div>
-      </div>
+    <div
+      className={`bg-white overflow-hidden relative w-full max-w-full ${isMobileChatMode
+        ? 'fixed inset-0 z-50 flex flex-col rounded-none h-screen'
+        : 'rounded-3xl shadow-xl border border-gray-200/50 cursor-pointer'
+        }`}
+      onClick={() => {
+        // Open mobile chat mode when clicking anywhere on the chat area (only when not in mobile chat mode)
+        if (!isMobileChatMode && onOpenMobileChat) {
+          onOpenMobileChat()
+        }
+      }}
+    >
+      {/* Decorative gradient overlay - hide in mobile chat mode */}
+      {!isMobileChatMode && (
+        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none"></div>
+      )}
 
-      {/* Messages */}
-      <div
-        ref={messagesContainerRef}
-        className="h-[400px] md:h-[500px] overflow-y-auto p-4 md:p-6 space-y-3 md:space-y-4 relative z-10"
-        style={{ scrollPaddingTop: '80px' }}
-      >
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+      {/* Mobile Chat Header - Only visible in mobile chat mode */}
+      {isMobileChatMode && (
+        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white safe-area-top">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onCloseMobileChat?.()
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors active:scale-95"
+            aria-label="Go back"
           >
-            {message.role === 'assistant' && (
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold truncate">AI Trip Planner</h2>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+              <p className="text-xs text-white/80">Online • Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS}</p>
+            </div>
+          </div>
+          {/* Progress indicator */}
+          <div className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center">
+            <span className="text-xs font-bold">{Math.round(progress)}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Bar - Only visible in non-mobile chat mode */}
+      {!isMobileChatMode && (
+        <div className="px-4 md:px-6 pt-4 md:pt-6 sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
                 <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
-            )}
-            {message.role === 'assistant' && message.packageMatch ? (
-              <div className="max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
-                <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
-              </div>
-            ) : (
-              <div
-                className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                    : 'bg-gray-50 border border-gray-100 text-gray-800'
-                }`}
-              >
-                <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
-              </div>
-            )}
-            {message.role === 'user' && (
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-            )}
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex items-start gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg animate-pulse">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl px-5 py-4 shadow-sm max-w-[85%] md:max-w-[80%]">
-              <div className="flex items-center gap-3">
-                <div className="flex space-x-1.5">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-                <p className="text-sm text-gray-600 font-medium animate-pulse">
-                  {thinkingMessages[thinkingMessage]}
+              <div className="min-w-0 flex-1">
+                <p className="text-xs md:text-sm text-gray-900 font-semibold truncate">AI Trip Planner</p>
+                <p className="text-[10px] md:text-xs text-gray-600 font-medium whitespace-nowrap overflow-visible">
+                  Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS} • {Math.round(progress)}% complete
                 </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+          <div className="bg-gray-100 h-2.5 md:h-2.5 rounded-full overflow-hidden shadow-inner">
+            <div
+              className="bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 h-full transition-all duration-500 rounded-full relative overflow-hidden"
+              style={{ width: `${progress}%` }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Quick Suggestions - Only show at start */}
-      {messages.length <= 2 && !tripInfo.destination && (
-        <div className="px-4 md:px-6 pb-4 relative z-10">
-          <p className="text-xs text-gray-500 mb-3 font-medium">Quick suggestions:</p>
-          <div className="flex flex-wrap gap-2">
-            {destinationsLoading ? (
-              <div className="text-xs text-gray-400">Loading destinations...</div>
-            ) : destinations.length > 0 ? (
-              destinations.slice(0, 6).map((dest) => (
+      {/* Scrollable Content Area - Contains messages AND all selectors */}
+      {/* This is the middle section that scrolls, like WhatsApp */}
+      <div
+        ref={messagesContainerRef}
+        className={`overflow-y-auto relative z-10 ${isMobileChatMode
+          ? 'flex-1 min-h-0'
+          : 'h-[400px] md:h-[500px]'
+          }`}
+        style={{ scrollPaddingTop: '80px' }}
+      >
+        {/* Messages */}
+        <div className="p-4 md:p-6 space-y-3 md:space-y-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+              )}
+              {message.role === 'assistant' && message.packageMatch ? (
+                <div className="max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
+                  <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                </div>
+              ) : (
+                <div
+                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                    : 'bg-gray-50 border border-gray-100 text-gray-800'
+                    }`}
+                >
+                  <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                </div>
+              )}
+              {message.role === 'user' && (
+                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex items-start gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg animate-pulse">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl px-5 py-4 shadow-sm max-w-[85%] md:max-w-[80%]">
+                <div className="flex items-center gap-3">
+                  <div className="flex space-x-1.5">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                  <p className="text-sm text-gray-600 font-medium animate-pulse">
+                    {thinkingMessages[thinkingMessage]}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Suggestions - Only show at start */}
+        {messages.length <= 2 && !tripInfo.destination && (
+          <div className="px-4 md:px-6 pb-4 relative z-10">
+            <p className="text-xs text-gray-500 mb-3 font-medium">Quick suggestions:</p>
+            <div className="flex flex-wrap gap-2">
+              {destinationsLoading ? (
+                <div className="text-xs text-gray-400">Loading destinations...</div>
+              ) : destinations.length > 0 ? (
+                destinations.slice(0, 6).map((dest) => (
+                  <button
+                    key={dest.id || dest.name}
+                    onClick={async () => {
+                      const suggestion = `I want to visit ${dest.name}`
+                      setInput(suggestion)
+                      await new Promise(resolve => setTimeout(resolve, 100))
+                      await handleSend()
+                    }}
+                    className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-xs md:text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    I want to visit {dest.name}
+                  </button>
+                ))
+              ) : (
                 <button
-                  key={dest.id || dest.name}
                   onClick={async () => {
-                    const suggestion = `I want to visit ${dest.name}`
+                    const suggestion = 'I want to visit Bali'
                     setInput(suggestion)
                     await new Promise(resolve => setTimeout(resolve, 100))
                     await handleSend()
                   }}
-                  className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-xs md:text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="px-4 py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  I want to visit {dest.name}
-                </button>
-              ))
-            ) : (
-              <button
-                onClick={async () => {
-                  const suggestion = 'I want to visit Bali'
-                  setInput(suggestion)
-                  await new Promise(resolve => setTimeout(resolve, 100))
-                  await handleSend()
-                }}
-                className="px-4 py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                I want to visit Bali
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Date Picker Helper */}
-      {currentQuestion === 'date' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <div className="space-y-4 bg-white rounded-xl p-4 md:p-6 border border-gray-200">
-            <div>
-              <label className="text-sm font-semibold text-gray-800 mb-3 block">
-                Select your travel date
-              </label>
-              <p className="text-xs text-gray-600 mb-4">
-                Choose a month first, then pick a specific date
-              </p>
-              
-              {/* Month Selector */}
-              <div className="mb-4">
-                <p className="text-xs font-medium text-gray-700 mb-2">Select Month (optional - helps navigate to the right month):</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                  {getNextSixMonths().map((month) => {
-                    const isSelected = selectedMonthForCalendar === month.index || selectedMonthIndex === month.index
-                    return (
-                      <button
-                        key={month.index}
-                        type="button"
-                        onClick={() => handleMonthSelect(month.index)}
-                        className={`rounded-lg border-2 px-3 py-2.5 text-xs md:text-sm font-medium transition-all duration-200 ${
-                          isSelected
-                            ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
-                        }`}
-                      >
-                        {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Date Picker */}
-              <div>
-                <p className="text-xs font-medium text-gray-700 mb-2">Select Specific Date:</p>
-                <div className="relative">
-                  <input
-                    ref={dateInputRef}
-                    type="date"
-                    min={todayISO}
-                    value={tripInfo.travelDate || (selectedMonthForCalendar !== null ? getUpcomingDateForMonth(selectedMonthForCalendar) : '')}
-                    onChange={handleCalendarInputChange}
-                    className="w-full rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all cursor-pointer relative z-10"
-                    style={{ cursor: 'pointer', position: 'relative', zIndex: 10 }}
-                    onClick={(e) => {
-                      // Ensure the calendar opens when clicked
-                      const input = e.target as HTMLInputElement
-                      e.stopPropagation()
-                      // Try modern showPicker API - this works because it's a direct user gesture
-                      if (input.showPicker) {
-                        try {
-                          input.showPicker()
-                        } catch (err) {
-                          // Fallback: just focus if showPicker fails
-                          input.focus()
-                        }
-                      } else {
-                        // Fallback for older browsers - just focus
-                        input.focus()
-                      }
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  {tripInfo.travelDate 
-                    ? `✅ Selected: ${new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
-                    : selectedMonthForCalendar !== null
-                    ? `💡 Click the date field above to pick a date in ${monthNames[selectedMonthForCalendar].charAt(0).toUpperCase() + monthNames[selectedMonthForCalendar].slice(1)}`
-                    : '💡 Click a month above to navigate, or click the date field to pick any date'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Day Count Selector */}
-      {currentQuestion === 'days' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <p className="text-xs md:text-sm text-gray-800 mb-4">
-            {destinationDayOptions.length > 0 
-              ? `Great choice! How many days are you planning to spend in ${tripInfo.destination}? You can tap a quick option if you'd like!`
-              : `How many days are you planning to spend in ${tripInfo.destination}?`
-            }
-          </p>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {(destinationDayOptions.length > 0 ? destinationDayOptions : dayOptions).map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() => handleDaySelect(option.label, option.value)}
-                className={`rounded-xl border-2 bg-white px-2 md:px-3 py-2.5 md:py-3 text-xs md:text-sm transition-all duration-200 shadow-sm ${
-                  destinationDayOptions.length > 0 && destinationDayOptions.some(opt => opt.value === option.value)
-                    ? 'border-purple-500 text-purple-700 hover:bg-purple-50 hover:shadow-md font-semibold'
-                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          {destinationDayOptions.length > 0 && (
-            <p className="text-xs text-gray-500 mt-3">
-              💡 These options are based on our best packages for {tripInfo.destination}
-            </p>
-          )}
-        </div>
-      )}
-
-
-      {/* Hotel Selector */}
-      {currentQuestion === 'hotel' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <p className="text-xs md:text-sm text-gray-800 mb-4">
-            {destinationHotelOptions.length > 0
-              ? `Thank you! Exciting times ahead! What stay style do you prefer for ${tripInfo.destination}?`
-              : 'What stay style do you prefer: 3-star, 4-star, or 5-star accommodation?'
-            }
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(destinationHotelOptions.length > 0 ? destinationHotelOptions : hotelOptions).map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() => handleHotelSelect(option.label, option.value)}
-                className={`rounded-2xl border-2 bg-white px-4 md:px-5 py-4 md:py-5 text-left hover:shadow-lg transition-all duration-200 shadow-sm ${
-                  destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
-                    ? 'border-purple-500 hover:border-purple-600 hover:bg-purple-50'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
-                }`}
-              >
-                <p className={`text-xs md:text-sm mb-1 ${
-                  destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
-                    ? 'text-purple-700 font-semibold'
-                    : 'text-gray-900'
-                }`}>
-                  {option.label}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {option.value === '3 Star'
-                    ? 'Cozy 3★ stays'
-                    : option.value === '4 Star'
-                    ? 'Polished 4★ hotels'
-                    : 'Luxury 5★ experience'}
-                </p>
-              </button>
-            ))}
-          </div>
-          {destinationHotelOptions.length > 0 && (
-            <p className="text-xs text-gray-500 mt-3">
-              💡 These options are based on our available packages for {tripInfo.destination}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Travel Type Selector */}
-      {currentQuestion === 'travelType' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <p className="text-xs md:text-sm text-gray-800 mb-4">
-            {destinationTravelTypeOptions.length > 0
-              ? `Excellent! A week in ${tripInfo.destination} sounds splendid. Who will you be travelling with?`
-              : 'Who are you travelling with?'
-            }
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            {(destinationTravelTypeOptions.length > 0 ? destinationTravelTypeOptions : travelerOptions).map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => handleTravelTypeSelect(option.label, option.value)}
-                className={`rounded-xl border-2 bg-white px-4 md:px-5 py-3 md:py-4 text-xs md:text-sm transition-all duration-200 shadow-sm ${
-                  destinationTravelTypeOptions.length > 0 && destinationTravelTypeOptions.some(opt => opt.value === option.value)
-                    ? 'border-purple-500 text-purple-700 hover:border-purple-600 hover:bg-purple-50 hover:shadow-md font-semibold'
-                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          {destinationTravelTypeOptions.length > 0 && (
-            <p className="text-xs text-gray-500 mt-3">
-              💡 These options are based on our available packages for {tripInfo.destination}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Feedback/Suggestions Input */}
-      {currentQuestion === 'feedback' && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
-          <p className="text-xs md:text-sm text-gray-800 mb-2">Any specific questions or suggestions?</p>
-          <p className="text-[10px] md:text-xs text-gray-500 mb-4">Tell us what you'd like to include (e.g., spa, yoga, adventure, beach activities, etc.)</p>
-          <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={async (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  if (input.trim()) {
-                    const feedback = input.trim()
-                    setUserFeedback(feedback)
-                    setFeedbackAnswered(true)
-                    setAiResponseComplete(false) // Reset before generating recommendation
-                    setCurrentQuestion('complete')
-                    appendMessage({ role: 'user', content: feedback })
-                    setInput('')
-                    // Directly generate recommendation to avoid asking question again
-                    await generateRecommendation()
-                  }
-                }
-              }}
-              placeholder="e.g., spa, yoga, adventure activities..."
-              className="flex-1 px-3 md:px-4 py-2.5 md:py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm text-sm"
-            />
-            <div className="flex gap-2 sm:gap-3">
-              <button
-                type="button"
-                onClick={async () => {
-                  setUserFeedback('')
-                  setFeedbackAnswered(true)
-                  setAiResponseComplete(false) // Reset before generating recommendation
-                  setCurrentQuestion('complete')
-                  appendMessage({ role: 'user', content: 'Skipped' })
-                  setInput('')
-                  // Directly generate recommendation instead of calling askNextQuestion
-                  await generateRecommendation()
-                }}
-                className="flex-1 sm:flex-none px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-xl text-xs md:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
-              >
-                Skip
-              </button>
-              {input.trim() && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const feedback = input.trim()
-                    setUserFeedback(feedback)
-                    setFeedbackAnswered(true)
-                    setAiResponseComplete(false) // Reset before generating recommendation
-                    setCurrentQuestion('complete')
-                    appendMessage({ role: 'user', content: feedback })
-                    setInput('')
-                    // Directly generate recommendation to avoid asking question again
-                    await generateRecommendation()
-                  }}
-                  className="flex-1 sm:flex-none px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs md:text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
-                >
-                  Submit
+                  I want to visit Bali
                 </button>
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Recommended Packages */}
-      {showPackageSuggestions && (
-        <div className="border-t border-gray-100 bg-gray-50 px-3 md:px-4 py-4 md:py-6 overflow-hidden">
-          <div className="relative mb-4">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] md:text-[10px] font-semibold px-2 md:px-3 py-0.5 rounded-b-full shadow whitespace-nowrap">
-              we have two options
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-            <div className="min-w-0">
-              <p className="text-xs md:text-sm font-semibold text-gray-800">Recommended Packages</p>
-              <p className="text-[10px] md:text-xs text-gray-500 truncate">
-                Based on your answers for {tripInfo.destination}
-              </p>
-            </div>
-            <Link
-              href={`/destinations/${tripInfo.destination}`}
-              className="text-[10px] md:text-xs text-primary font-semibold hover:underline self-start sm:self-auto flex-shrink-0"
-            >
-              View all
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full">
-            {suggestedPackages.map((pkg) => {
-              const pkgAny = pkg as any
-              // Extract image URL from Primary_Image_URL (handle markdown link format)
-              const imageUrl = pkgAny.Primary_Image_URL 
-                ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-              
-              // Generate package URL - use Destination_ID or Firestore doc id
-              const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
-              const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
-              const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
-              
-              return (
-              <div
-                key={pkgAny.Destination_ID || pkgAny.id}
-                className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all w-full min-w-0"
-              >
-                {/* Package Image */}
-                <div className="relative h-40 md:h-48 w-full overflow-hidden bg-gray-100">
-                  <img
-                    src={imageUrl}
-                    alt={pkgAny.Destination_Name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                    }}
-                  />
+        {/* Date Picker Helper */}
+        {currentQuestion === 'date' && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
+            <div className="space-y-4 bg-white rounded-xl p-4 md:p-6 border border-gray-200">
+              <div>
+                <label className="text-sm font-semibold text-gray-800 mb-3 block">
+                  Select your travel date
+                </label>
+                <p className="text-xs text-gray-600 mb-4">
+                  Choose a month first, then pick a specific date
+                </p>
+
+                {/* Month Selector */}
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-700 mb-2">Select Month (optional - helps navigate to the right month):</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                    {getNextSixMonths().map((month) => {
+                      const isSelected = selectedMonthForCalendar === month.index || selectedMonthIndex === month.index
+                      return (
+                        <button
+                          key={month.index}
+                          type="button"
+                          onClick={() => handleMonthSelect(month.index)}
+                          className={`rounded-lg border-2 px-3 py-2.5 text-xs md:text-sm font-medium transition-all duration-200 ${isSelected
+                            ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                            }`}
+                        >
+                          {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                <div className="p-4 md:p-5 space-y-3 md:space-y-4">
-                  <div className="flex items-start justify-between gap-3 md:gap-4">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 truncate">{pkgAny.Destination_Name}</h3>
-                      <p className="text-xs md:text-sm text-gray-500">{pkgAny.Duration}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-xs md:text-sm font-semibold text-primary">{pkgAny.Price_Range_INR}</p>
-                      <p className="text-[10px] md:text-xs text-gray-500">
-                        {pkgAny.Budget_Category} • {pkgAny.Star_Category}
-                      </p>
-                    </div>
+
+                {/* Date Picker */}
+                <div>
+                  <p className="text-xs font-medium text-gray-700 mb-2">Select Specific Date:</p>
+                  <div className="relative">
+                    <input
+                      ref={dateInputRef}
+                      type="date"
+                      min={todayISO}
+                      value={tripInfo.travelDate || (selectedMonthForCalendar !== null ? getUpcomingDateForMonth(selectedMonthForCalendar) : '')}
+                      onChange={handleCalendarInputChange}
+                      className="w-full rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all cursor-pointer relative z-10"
+                      style={{ cursor: 'pointer', position: 'relative', zIndex: 10 }}
+                      onClick={(e) => {
+                        // Ensure the calendar opens when clicked
+                        const input = e.target as HTMLInputElement
+                        e.stopPropagation()
+                        // Try modern showPicker API - this works because it's a direct user gesture
+                        if (input.showPicker) {
+                          try {
+                            input.showPicker()
+                          } catch (err) {
+                            // Fallback: just focus if showPicker fails
+                            input.focus()
+                          }
+                        } else {
+                          // Fallback for older browsers - just focus
+                          input.focus()
+                        }
+                      }}
+                    />
                   </div>
-                  <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
-                  <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs text-gray-600">
-                    <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                      <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Mood</p>
-                      <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Mood}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                      <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Theme</p>
-                      <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Theme}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                      <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Travel Type</p>
-                      <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Travel_Type}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                      <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Stay</p>
-                      <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Stay_Type}</p>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] md:text-xs uppercase text-gray-500 mb-2">Key Inclusions</p>
-                    <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-gray-600">
-                      {(pkgAny.Inclusions?.split(',') || []).slice(0, 4).map((item: string, idx: number) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span>{item.trim()}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <Link
-                    href={packageUrl}
-                    className="block w-full text-center rounded-xl border border-primary/40 bg-primary/5 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
-                  >
-                    View Full Details
-                  </Link>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {tripInfo.travelDate
+                      ? `✅ Selected: ${new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
+                      : selectedMonthForCalendar !== null
+                        ? `💡 Click the date field above to pick a date in ${monthNames[selectedMonthForCalendar].charAt(0).toUpperCase() + monthNames[selectedMonthForCalendar].slice(1)}`
+                        : '💡 Click a month above to navigate, or click the date field to pick any date'}
+                  </p>
                 </div>
               </div>
-              )
-            })}
+            </div>
           </div>
-          {/* <button
+        )}
+
+        {/* Day Count Selector */}
+        {currentQuestion === 'days' && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
+            <p className="text-xs md:text-sm text-gray-800 mb-4">
+              {destinationDayOptions.length > 0
+                ? `Great choice! How many days are you planning to spend in ${tripInfo.destination}? You can tap a quick option if you'd like!`
+                : `How many days are you planning to spend in ${tripInfo.destination}?`
+              }
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {(destinationDayOptions.length > 0 ? destinationDayOptions : dayOptions).map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => handleDaySelect(option.label, option.value)}
+                  className={`rounded-xl border-2 bg-white px-2 md:px-3 py-2.5 md:py-3 text-xs md:text-sm transition-all duration-200 shadow-sm ${destinationDayOptions.length > 0 && destinationDayOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 text-purple-700 hover:bg-purple-50 hover:shadow-md font-semibold'
+                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
+                    }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {destinationDayOptions.length > 0 && (
+              <p className="text-xs text-gray-500 mt-3">
+                💡 These options are based on our best packages for {tripInfo.destination}
+              </p>
+            )}
+          </div>
+        )}
+
+
+        {/* Hotel Selector */}
+        {currentQuestion === 'hotel' && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
+            <p className="text-xs md:text-sm text-gray-800 mb-4">
+              {destinationHotelOptions.length > 0
+                ? `Thank you! Exciting times ahead! What stay style do you prefer for ${tripInfo.destination}?`
+                : 'What stay style do you prefer: 3-star, 4-star, or 5-star accommodation?'
+              }
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(destinationHotelOptions.length > 0 ? destinationHotelOptions : hotelOptions).map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => handleHotelSelect(option.label, option.value)}
+                  className={`rounded-2xl border-2 bg-white px-4 md:px-5 py-4 md:py-5 text-left hover:shadow-lg transition-all duration-200 shadow-sm ${destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 hover:border-purple-600 hover:bg-purple-50'
+                    : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                >
+                  <p className={`text-xs md:text-sm mb-1 ${destinationHotelOptions.length > 0 && destinationHotelOptions.some(opt => opt.value === option.value)
+                    ? 'text-purple-700 font-semibold'
+                    : 'text-gray-900'
+                    }`}>
+                    {option.label}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {option.value === '3 Star'
+                      ? 'Cozy 3★ stays'
+                      : option.value === '4 Star'
+                        ? 'Polished 4★ hotels'
+                        : 'Luxury 5★ experience'}
+                  </p>
+                </button>
+              ))}
+            </div>
+            {destinationHotelOptions.length > 0 && (
+              <p className="text-xs text-gray-500 mt-3">
+                💡 These options are based on our available packages for {tripInfo.destination}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Travel Type Selector */}
+        {currentQuestion === 'travelType' && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
+            <p className="text-xs md:text-sm text-gray-800 mb-4">
+              {destinationTravelTypeOptions.length > 0
+                ? `Excellent! A week in ${tripInfo.destination} sounds splendid. Who will you be travelling with?`
+                : 'Who are you travelling with?'
+              }
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {(destinationTravelTypeOptions.length > 0 ? destinationTravelTypeOptions : travelerOptions).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleTravelTypeSelect(option.label, option.value)}
+                  className={`rounded-xl border-2 bg-white px-4 md:px-5 py-3 md:py-4 text-xs md:text-sm transition-all duration-200 shadow-sm ${destinationTravelTypeOptions.length > 0 && destinationTravelTypeOptions.some(opt => opt.value === option.value)
+                    ? 'border-purple-500 text-purple-700 hover:border-purple-600 hover:bg-purple-50 hover:shadow-md font-semibold'
+                    : 'border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50 hover:shadow-md'
+                    }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {destinationTravelTypeOptions.length > 0 && (
+              <p className="text-xs text-gray-500 mt-3">
+                💡 These options are based on our available packages for {tripInfo.destination}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Feedback/Suggestions Input */}
+        {currentQuestion === 'feedback' && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-purple-50/30 to-indigo-50/30 px-4 md:px-6 py-4 md:py-6 relative z-10">
+            <p className="text-xs md:text-sm text-gray-800 mb-2">Any specific questions or suggestions?</p>
+            <p className="text-[10px] md:text-xs text-gray-500 mb-4">Tell us what you'd like to include (e.g., spa, yoga, adventure, beach activities, etc.)</p>
+            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={async (e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    if (input.trim()) {
+                      const feedback = input.trim()
+                      setUserFeedback(feedback)
+                      setFeedbackAnswered(true)
+                      setAiResponseComplete(false) // Reset before generating recommendation
+                      setCurrentQuestion('complete')
+                      appendMessage({ role: 'user', content: feedback })
+                      setInput('')
+                      // Directly generate recommendation to avoid asking question again
+                      await generateRecommendation()
+                    }
+                  }
+                }}
+                placeholder="e.g., spa, yoga, adventure activities..."
+                className="flex-1 px-3 md:px-4 py-2.5 md:py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm text-sm"
+              />
+              <div className="flex gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setUserFeedback('')
+                    setFeedbackAnswered(true)
+                    setAiResponseComplete(false) // Reset before generating recommendation
+                    setCurrentQuestion('complete')
+                    appendMessage({ role: 'user', content: 'Skipped' })
+                    setInput('')
+                    // Directly generate recommendation instead of calling askNextQuestion
+                    await generateRecommendation()
+                  }}
+                  className="flex-1 sm:flex-none px-4 md:px-6 py-2.5 md:py-3 border-2 border-gray-300 rounded-xl text-xs md:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
+                >
+                  Skip
+                </button>
+                {input.trim() && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const feedback = input.trim()
+                      setUserFeedback(feedback)
+                      setFeedbackAnswered(true)
+                      setAiResponseComplete(false) // Reset before generating recommendation
+                      setCurrentQuestion('complete')
+                      appendMessage({ role: 'user', content: feedback })
+                      setInput('')
+                      // Directly generate recommendation to avoid asking question again
+                      await generateRecommendation()
+                    }}
+                    className="flex-1 sm:flex-none px-4 md:px-6 py-2.5 md:py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-xs md:text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg"
+                  >
+                    Submit
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recommended Packages */}
+        {showPackageSuggestions && (
+          <div className="border-t border-gray-100 bg-gray-50 px-3 md:px-4 py-4 md:py-6 overflow-hidden">
+            <div className="relative mb-4">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] md:text-[10px] font-semibold px-2 md:px-3 py-0.5 rounded-b-full shadow whitespace-nowrap">
+                we have two options
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+              <div className="min-w-0">
+                <p className="text-xs md:text-sm font-semibold text-gray-800">Recommended Packages</p>
+                <p className="text-[10px] md:text-xs text-gray-500 truncate">
+                  Based on your answers for {tripInfo.destination}
+                </p>
+              </div>
+              <Link
+                href={`/destinations/${tripInfo.destination}`}
+                className="text-[10px] md:text-xs text-primary font-semibold hover:underline self-start sm:self-auto flex-shrink-0"
+              >
+                View all
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full">
+              {suggestedPackages.map((pkg) => {
+                const pkgAny = pkg as any
+                // Extract image URL from Primary_Image_URL (handle markdown link format)
+                const imageUrl = pkgAny.Primary_Image_URL
+                  ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                  : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+
+                // Generate package URL - use Destination_ID or Firestore doc id
+                const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
+                const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
+                const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
+
+                return (
+                  <div
+                    key={pkgAny.Destination_ID || pkgAny.id}
+                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all w-full min-w-0"
+                  >
+                    {/* Package Image */}
+                    <div className="relative h-40 md:h-48 w-full overflow-hidden bg-gray-100">
+                      <img
+                        src={imageUrl}
+                        alt={pkgAny.Destination_Name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                        }}
+                      />
+                    </div>
+                    <div className="p-4 md:p-5 space-y-3 md:space-y-4">
+                      <div className="flex items-start justify-between gap-3 md:gap-4">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base md:text-lg font-bold text-gray-900 truncate">{pkgAny.Destination_Name}</h3>
+                          <p className="text-xs md:text-sm text-gray-500">{pkgAny.Duration}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs md:text-sm font-semibold text-primary">{pkgAny.Price_Range_INR}</p>
+                          <p className="text-[10px] md:text-xs text-gray-500">
+                            {pkgAny.Budget_Category} • {pkgAny.Star_Category}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
+                      <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs text-gray-600">
+                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Mood</p>
+                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Mood}</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Theme</p>
+                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Theme}</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Travel Type</p>
+                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Travel_Type}</p>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
+                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Stay</p>
+                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Stay_Type}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] md:text-xs uppercase text-gray-500 mb-2">Key Inclusions</p>
+                        <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-gray-600">
+                          {(pkgAny.Inclusions?.split(',') || []).slice(0, 4).map((item: string, idx: number) => (
+                            <li key={idx} className="flex items-center gap-2">
+                              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              <span>{item.trim()}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <Link
+                        href={packageUrl}
+                        className="block w-full text-center rounded-xl border border-primary/40 bg-primary/5 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                      >
+                        View Full Details
+                      </Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {/* <button
             type="button"
             onClick={() => {
               // Initialize edit form with current trip info
@@ -2580,302 +2627,304 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           >
             Edit Trip Details & Regenerate
           </button> */}
-        </div>
-      )}
-
-      {/* Edit Trip Details Form */}
-      {isEditMode && (
-        <div 
-          id="edit-trip-form"
-          className="border-t border-gray-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 px-4 md:px-6 py-4 md:py-6"
-        >
-          <div className="max-w-2xl mx-auto">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Edit Your Trip Details</h3>
-            <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200 shadow-sm space-y-3 md:space-y-4">
-              {/* Destination */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Destination</label>
-                <select
-                  value={editTripInfo.destination}
-                  onChange={(e) => setEditTripInfo({ ...editTripInfo, destination: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select destination</option>
-                  {destinations.map((dest) => (
-                    <option key={dest.id || dest.name} value={dest.name}>
-                      {dest.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Travel Date */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Date</label>
-                <input
-                  type="date"
-                  min={todayISO}
-                  value={editTripInfo.travelDate || ''}
-                  onChange={(e) => setEditTripInfo({ ...editTripInfo, travelDate: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              {/* Days */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (Days)</label>
-                <select
-                  value={editTripInfo.days}
-                  onChange={(e) => setEditTripInfo({ ...editTripInfo, days: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select days</option>
-                  {dayOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label} {opt.value === '1' ? 'day' : 'days'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Hotel Type */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Type</label>
-                <select
-                  value={editTripInfo.hotelType}
-                  onChange={(e) => setEditTripInfo({ ...editTripInfo, hotelType: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select hotel type</option>
-                  <option value="3 Star">3★ Comfort</option>
-                  <option value="4 Star">4★ Premium</option>
-                  <option value="5 Star">5★ Luxury</option>
-                </select>
-              </div>
-
-              {/* Travel Type */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Traveling With</label>
-                <select
-                  value={editTripInfo.travelType}
-                  onChange={(e) => setEditTripInfo({ ...editTripInfo, travelType: e.target.value })}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">Select travel type</option>
-                  {travelerOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditMode(false)
-                    setEditTripInfo({
-                      destination: '',
-                      travelDate: '',
-                      days: '',
-                      budget: '',
-                      hotelType: '',
-                      preferences: [],
-                      travelType: '',
-                    })
-                  }}
-                  className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    // Validate required fields
-                    if (!editTripInfo.destination || !editTripInfo.travelDate || !editTripInfo.days || !editTripInfo.hotelType || !editTripInfo.travelType) {
-                      alert('Please fill in all required fields')
-                      return
-                    }
-
-                    // Update trip info
-                    updateTripInfo(editTripInfo)
-                    
-                    // Add a message to the conversation
-                    appendMessage({
-                      role: 'assistant',
-                      content: `Great! I've updated your trip details. Let me regenerate your personalized recommendations based on your new preferences.`
-                    })
-
-                    // Reset feedback to allow new feedback
-                    setUserFeedback('')
-                    setFeedbackAnswered(false)
-
-                    // Close edit mode
-                    setIsEditMode(false)
-
-                    // Scroll to top of conversation to show the update message
-                    setTimeout(() => {
-                      messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                    }, 100)
-
-                    // Regenerate recommendations
-                    setCurrentQuestion('complete')
-                    setAiResponseComplete(false)
-                    await generateRecommendation()
-                  }}
-                  className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition"
-                >
-                  Save & Regenerate
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {!showPackageSuggestions && tripInfo.destination && tripInfo.travelType && (
-        <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-          We’re still curating ready-made packages for {tripInfo.destination}. A travel expert will
-          review your preferences and follow up with personalized options.
-        </div>
-      )}
-
-      {/* Image Analysis Result Display */}
-      {imageAnalysisResult && (
-        <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
-          {uploadedImage && (
-            <div className="mb-4">
-              <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
-              <img 
-                src={uploadedImage} 
-                alt="Uploaded location" 
-                className="max-w-full max-h-48 rounded-lg border border-gray-200 shadow-sm object-cover"
-              />
-            </div>
-          )}
-          {imageAnalysisResult.detectedLocation ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 md:p-5">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  {imageAnalysisResult.rawDetectedLocation && imageAnalysisResult.rawDetectedLocation !== imageAnalysisResult.detectedLocation && (
-                    <p className="text-xs md:text-sm text-green-800 mb-2">
-                      <span className="font-semibold">Location Identified:</span> {imageAnalysisResult.rawDetectedLocation}
-                    </p>
-                  )}
-                  <p className="text-sm md:text-base font-semibold text-green-900 mb-1">
-                    ✓ Perfect Match: {imageAnalysisResult.detectedLocation}
-                  </p>
-                  {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
-                    <p className="text-xs md:text-sm text-green-700 mb-2">
-                      I can see: {imageAnalysisResult.landmarks.join(', ')}
-                    </p>
-                  )}
-                  {imageAnalysisResult.description && (
-                    <p className="text-xs md:text-sm text-green-700 mb-3">{imageAnalysisResult.description}</p>
-                  )}
-                  <button
-                    onClick={() => {
-                      setTripInfo(prev => ({ ...prev, destination: imageAnalysisResult.detectedLocation! }))
-                      setCurrentQuestion('date')
-                      setProgress((1 / TOTAL_STEPS) * 100)
-                      setCompletedSteps(1)
-                      setImageAnalysisResult(null)
-                      setUploadedImage(null)
-                    }}
-                    className="text-xs md:text-sm font-semibold text-green-700 hover:text-green-900 underline"
+        {/* Edit Trip Details Form */}
+        {isEditMode && (
+          <div
+            id="edit-trip-form"
+            className="border-t border-gray-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 px-4 md:px-6 py-4 md:py-6"
+          >
+            <div className="max-w-2xl mx-auto">
+              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Edit Your Trip Details</h3>
+              <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200 shadow-sm space-y-3 md:space-y-4">
+                {/* Destination */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Destination</label>
+                  <select
+                    value={editTripInfo.destination}
+                    onChange={(e) => setEditTripInfo({ ...editTripInfo, destination: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    Show packages for {imageAnalysisResult.detectedLocation} →
+                    <option value="">Select destination</option>
+                    {destinations.map((dest) => (
+                      <option key={dest.id || dest.name} value={dest.name}>
+                        {dest.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Travel Date */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Date</label>
+                  <input
+                    type="date"
+                    min={todayISO}
+                    value={editTripInfo.travelDate || ''}
+                    onChange={(e) => setEditTripInfo({ ...editTripInfo, travelDate: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Days */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (Days)</label>
+                  <select
+                    value={editTripInfo.days}
+                    onChange={(e) => setEditTripInfo({ ...editTripInfo, days: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select days</option>
+                    {dayOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label} {opt.value === '1' ? 'day' : 'days'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Hotel Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Type</label>
+                  <select
+                    value={editTripInfo.hotelType}
+                    onChange={(e) => setEditTripInfo({ ...editTripInfo, hotelType: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select hotel type</option>
+                    <option value="3 Star">3★ Comfort</option>
+                    <option value="4 Star">4★ Premium</option>
+                    <option value="5 Star">5★ Luxury</option>
+                  </select>
+                </div>
+
+                {/* Travel Type */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Traveling With</label>
+                  <select
+                    value={editTripInfo.travelType}
+                    onChange={(e) => setEditTripInfo({ ...editTripInfo, travelType: e.target.value })}
+                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Select travel type</option>
+                    {travelerOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditMode(false)
+                      setEditTripInfo({
+                        destination: '',
+                        travelDate: '',
+                        days: '',
+                        budget: '',
+                        hotelType: '',
+                        preferences: [],
+                        travelType: '',
+                      })
+                    }}
+                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      // Validate required fields
+                      if (!editTripInfo.destination || !editTripInfo.travelDate || !editTripInfo.days || !editTripInfo.hotelType || !editTripInfo.travelType) {
+                        alert('Please fill in all required fields')
+                        return
+                      }
+
+                      // Update trip info
+                      updateTripInfo(editTripInfo)
+
+                      // Add a message to the conversation
+                      appendMessage({
+                        role: 'assistant',
+                        content: `Great! I've updated your trip details. Let me regenerate your personalized recommendations based on your new preferences.`
+                      })
+
+                      // Reset feedback to allow new feedback
+                      setUserFeedback('')
+                      setFeedbackAnswered(false)
+
+                      // Close edit mode
+                      setIsEditMode(false)
+
+                      // Scroll to top of conversation to show the update message
+                      setTimeout(() => {
+                        messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                      }, 100)
+
+                      // Regenerate recommendations
+                      setCurrentQuestion('complete')
+                      setAiResponseComplete(false)
+                      await generateRecommendation()
+                    }}
+                    className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition"
+                  >
+                    Save & Regenerate
                   </button>
                 </div>
               </div>
             </div>
-          ) : imageAnalysisResult.rawDetectedLocation || (imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0) ? (
-            <div className="space-y-4">
-              {/* Show detected location first */}
-              {imageAnalysisResult.rawDetectedLocation && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
-                  <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
-                        Location Identified: {imageAnalysisResult.rawDetectedLocation}
+          </div>
+        )}
+
+        {!showPackageSuggestions && tripInfo.destination && tripInfo.travelType && (
+          <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
+            We’re still curating ready-made packages for {tripInfo.destination}. A travel expert will
+            review your preferences and follow up with personalized options.
+          </div>
+        )}
+
+        {/* Image Analysis Result Display */}
+        {imageAnalysisResult && (
+          <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
+            {uploadedImage && (
+              <div className="mb-4">
+                <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
+                <img
+                  src={uploadedImage}
+                  alt="Uploaded location"
+                  className="max-w-full max-h-48 rounded-lg border border-gray-200 shadow-sm object-cover"
+                />
+              </div>
+            )}
+            {imageAnalysisResult.detectedLocation ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 md:p-5">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    {imageAnalysisResult.rawDetectedLocation && imageAnalysisResult.rawDetectedLocation !== imageAnalysisResult.detectedLocation && (
+                      <p className="text-xs md:text-sm text-green-800 mb-2">
+                        <span className="font-semibold">Location Identified:</span> {imageAnalysisResult.rawDetectedLocation}
                       </p>
-                      {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
-                        <p className="text-xs md:text-sm text-blue-700 mb-2">
-                          I can see: {imageAnalysisResult.landmarks.join(', ')}
-                        </p>
-                      )}
-                      {imageAnalysisResult.description && (
-                        <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
-                      )}
-                      <p className="text-xs md:text-sm text-blue-800 font-medium">
-                        Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
+                    )}
+                    <p className="text-sm md:text-base font-semibold text-green-900 mb-1">
+                      ✓ Perfect Match: {imageAnalysisResult.detectedLocation}
+                    </p>
+                    {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                      <p className="text-xs md:text-sm text-green-700 mb-2">
+                        I can see: {imageAnalysisResult.landmarks.join(', ')}
                       </p>
-                    </div>
+                    )}
+                    {imageAnalysisResult.description && (
+                      <p className="text-xs md:text-sm text-green-700 mb-3">{imageAnalysisResult.description}</p>
+                    )}
+                    <button
+                      onClick={() => {
+                        setTripInfo(prev => ({ ...prev, destination: imageAnalysisResult.detectedLocation! }))
+                        setCurrentQuestion('date')
+                        setProgress((1 / TOTAL_STEPS) * 100)
+                        setCompletedSteps(1)
+                        setImageAnalysisResult(null)
+                        setUploadedImage(null)
+                      }}
+                      className="text-xs md:text-sm font-semibold text-green-700 hover:text-green-900 underline"
+                    >
+                      Show packages for {imageAnalysisResult.detectedLocation} →
+                    </button>
                   </div>
                 </div>
-              )}
-              
-              {/* Show similar locations if available */}
-              {imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 md:p-5">
-                  <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm md:text-base font-semibold text-yellow-900 mb-2">
-                        Similar Destinations We Offer
-                      </p>
-                      <p className="text-xs md:text-sm text-yellow-800 mb-3">
-                        Here are similar destinations from our available packages:
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {imageAnalysisResult.similarLocations.map((loc, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              setTripInfo(prev => ({ ...prev, destination: loc }))
-                              setCurrentQuestion('date')
-                              setProgress((1 / TOTAL_STEPS) * 100)
-                              setCompletedSteps(1)
-                              setImageAnalysisResult(null)
-                              setUploadedImage(null)
-                            }}
-                            className="px-3 py-1.5 text-xs md:text-sm font-semibold bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
-                          >
-                            {loc}
-                          </button>
-                        ))}
+              </div>
+            ) : imageAnalysisResult.rawDetectedLocation || (imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0) ? (
+              <div className="space-y-4">
+                {/* Show detected location first */}
+                {imageAnalysisResult.rawDetectedLocation && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
+                          Location Identified: {imageAnalysisResult.rawDetectedLocation}
+                        </p>
+                        {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                          <p className="text-xs md:text-sm text-blue-700 mb-2">
+                            I can see: {imageAnalysisResult.landmarks.join(', ')}
+                          </p>
+                        )}
+                        {imageAnalysisResult.description && (
+                          <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
+                        )}
+                        <p className="text-xs md:text-sm text-blue-800 font-medium">
+                          Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
+                        </p>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
-              <p className="text-sm md:text-base font-semibold text-gray-900 mb-2">
-                Location Not Found
-              </p>
-              <p className="text-xs md:text-sm text-gray-600">
-                We couldn't identify this location in our database. Please tell us which destination you'd like to visit.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+                )}
 
-      {/* Input */}
-      <div className="border-t border-gray-200 bg-gray-50/50 p-3 md:p-4 relative z-10">
+                {/* Show similar locations if available */}
+                {imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 md:p-5">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-sm md:text-base font-semibold text-yellow-900 mb-2">
+                          Similar Destinations We Offer
+                        </p>
+                        <p className="text-xs md:text-sm text-yellow-800 mb-3">
+                          Here are similar destinations from our available packages:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {imageAnalysisResult.similarLocations.map((loc, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setTripInfo(prev => ({ ...prev, destination: loc }))
+                                setCurrentQuestion('date')
+                                setProgress((1 / TOTAL_STEPS) * 100)
+                                setCompletedSteps(1)
+                                setImageAnalysisResult(null)
+                                setUploadedImage(null)
+                              }}
+                              className="px-3 py-1.5 text-xs md:text-sm font-semibold bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
+                            >
+                              {loc}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
+                <p className="text-sm md:text-base font-semibold text-gray-900 mb-2">
+                  Location Not Found
+                </p>
+                <p className="text-xs md:text-sm text-gray-600">
+                  We couldn't identify this location in our database. Please tell us which destination you'd like to visit.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* End of Scrollable Content Area */}
+
+      {/* Input - Fixed at bottom (outside scrollable area) */}
+      <div className={`flex-shrink-0 border-t border-gray-200 bg-gray-50/50 p-3 md:p-4 relative z-10 ${isMobileChatMode ? 'safe-area-bottom' : ''}`}>
         <div className="flex gap-2 md:gap-3">
           <input
             type="file"
@@ -2905,20 +2954,26 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={() => {
+              // Trigger mobile chat mode when user focuses on input (app-like experience)
+              if (!isMobileChatMode && onOpenMobileChat) {
+                onOpenMobileChat()
+              }
+            }}
             placeholder={
               !tripInfo.destination
                 ? "Tell me where you want to travel or upload an image..."
                 : currentQuestion === 'date'
-                ? "When are you traveling? (e.g., March 2024 or 15/03/2024)"
-                : currentQuestion === 'days'
-                ? "How many days? (e.g., 5 days)"
-                : currentQuestion === 'hotel'
-                ? "What hotel type? (3-star, 4-star, 5-star)"
-                : currentQuestion === 'travelType'
-                ? "Who are you traveling with? (solo, family, couple, friends)"
-                : currentQuestion === 'feedback'
-                ? "Any suggestions? (e.g., spa, yoga, adventure) or type 'skip'"
-                : "Type your message..."
+                  ? "When are you traveling? (e.g., March 2024 or 15/03/2024)"
+                  : currentQuestion === 'days'
+                    ? "How many days? (e.g., 5 days)"
+                    : currentQuestion === 'hotel'
+                      ? "What hotel type? (3-star, 4-star, 5-star)"
+                      : currentQuestion === 'travelType'
+                        ? "Who are you traveling with? (solo, family, couple, friends)"
+                        : currentQuestion === 'feedback'
+                          ? "Any suggestions? (e.g., spa, yoga, adventure) or type 'skip'"
+                          : "Type your message..."
             }
             className="flex-1 px-3 md:px-4 py-2.5 md:py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm transition-all text-sm"
           />
