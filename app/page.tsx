@@ -26,7 +26,7 @@ export default function Home() {
   return (
     <>
       <SchemaMarkup schema={organizationSchema} />
-      <main className="min-h-screen bg-cream pt-24">
+      <main className="min-h-screen bg-cream pt-16 md:pt-24">
         <Header />
         <Hero />
         <HowItWorks />

@@ -42,18 +42,20 @@ export default function Hero() {
                 Explore Destinations
               </Link>
             </div>
-            <div className="flex items-center gap-8 pt-4">
-              <div>
-                <p className="text-2xl font-semibold text-ink">5,00+</p>
-                <p className="text-sm text-gray-600">Happy Couple</p>
+            <div className="flex items-center justify-center lg:justify-start gap-4 sm:gap-6 md:gap-8 pt-4">
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-semibold text-ink">5,00+</p>
+                <p className="text-xs md:text-sm text-gray-600">Happy Couple</p>
               </div>
-              <div>
-                <p className="text-2xl font-semibold text-ink">5★</p>
-                <p className="text-sm text-gray-600">Couple Rating</p>
+              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-semibold text-ink">5★</p>
+                <p className="text-xs md:text-sm text-gray-600">Couple Rating</p>
               </div>
-              <div>
-                <p className="text-2xl font-semibold text-ink">25+</p>
-                <p className="text-sm text-gray-600">Destinations</p>
+              <div className="w-px h-8 bg-gray-300"></div>
+              <div className="text-center">
+                <p className="text-xl md:text-2xl font-semibold text-ink">25+</p>
+                <p className="text-xs md:text-sm text-gray-600">Destinations</p>
               </div>
             </div>
           </div>

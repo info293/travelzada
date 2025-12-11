@@ -37,7 +37,7 @@ export default function Packages() {
           const data = doc.data() as FirestorePackage
           const destinationId = (data.Destination_ID || '').toLowerCase()
           const destinationName = (data.Destination_Name || '').toLowerCase()
-          
+
           // Check if "bali" appears in Destination_ID or Destination_Name
           if (destinationId.includes('bali') || destinationName.includes('bali')) {
             packagesData.push({ id: doc.id, ...data })
@@ -133,7 +133,7 @@ export default function Packages() {
       <div className="absolute inset-0 bg-gradient-to-br from-white via-[#fef6f1] to-white"></div>
       <div className="absolute top-0 left-0 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-pink-200/30 rounded-full blur-3xl"></div>
-      
+
       <div className="max-w-7xl mx-auto text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-orange-100 shadow-sm mb-4">
           <span className="w-3.5 h-3.5 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45"></span>
@@ -145,7 +145,7 @@ export default function Packages() {
         <p className="text-lg text-gray-600 mb-16 max-w-2xl mx-auto">
           Balanced itineraries curated for design lovers, slow travelers, and celebration seekers.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
           {packages.map((pkg) => {
             const imageUrl = getImageUrl(pkg.Primary_Image_URL)
             const destinationSlug = getDestinationSlug(pkg.Destination_Name)
@@ -157,9 +157,9 @@ export default function Packages() {
               <Link
                 key={pkg.id || packageId}
                 href={`/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageId)}`}
-                className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
+                className="bg-white/90 border border-white rounded-xl md:rounded-3xl overflow-hidden shadow-lg md:shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
               >
-                <div className="relative h-56 overflow-hidden">
+                <div className="relative h-32 sm:h-40 md:h-56 overflow-hidden">
                   <img
                     src={imageUrl}
                     alt={pkg.Destination_Name}
@@ -175,14 +175,14 @@ export default function Packages() {
                     </span>
                   )}
                 </div>
-                <div className="p-5 text-left">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-500 uppercase tracking-wide">{pkg.Duration || 'Custom'}</span>
+                <div className="p-3 md:p-5 text-left">
+                  <div className="flex items-center justify-between mb-1 md:mb-2">
+                    <span className="text-[10px] md:text-xs text-gray-500 uppercase tracking-wide">{pkg.Duration || 'Custom'}</span>
                     {/* <span className="text-sm font-semibold text-orange-500">{price}</span> */}
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-1">{pkg.Destination_Name}</h3>
-                  <p className="text-sm text-gray-600 mb-4">{destinationSlug}</p>
-                  <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent font-semibold text-sm hover:underline">
+                  <h3 className="text-sm md:text-lg font-semibold text-gray-900 mb-0.5 md:mb-1 line-clamp-1">{pkg.Destination_Name}</h3>
+                  <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-4 line-clamp-1">{destinationSlug}</p>
+                  <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent font-semibold text-xs md:text-sm hover:underline">
                     View details →
                   </span>
                 </div>
