@@ -94,23 +94,23 @@ Return your response as JSON with this structure:
 
     try {
       analysisResult = JSON.parse(responseText)
-      
+
       // Store raw detected location if not already set
       if (!analysisResult.rawDetectedLocation && analysisResult.detectedLocation) {
         analysisResult.rawDetectedLocation = analysisResult.detectedLocation
       }
-      
+
       // Normalize detected location to match available destinations
       if (analysisResult.detectedLocation || analysisResult.rawDetectedLocation) {
         const locationToMatch = analysisResult.detectedLocation || analysisResult.rawDetectedLocation
         const detectedLower = locationToMatch?.toLowerCase().trim() || ''
         const matchedDest = availableDestinations.find((d: string) => {
           const destLower = d.toLowerCase()
-          return destLower === detectedLower || 
-                 destLower.includes(detectedLower) ||
-                 detectedLower.includes(destLower)
+          return destLower === detectedLower ||
+            destLower.includes(detectedLower) ||
+            detectedLower.includes(destLower)
         })
-        
+
         if (matchedDest) {
           analysisResult.detectedLocation = matchedDest
           analysisResult.confidence = 'high'
@@ -126,14 +126,14 @@ Return your response as JSON with this structure:
       // Filter similar locations to only include available destinations
       if (analysisResult.similarLocations) {
         analysisResult.similarLocations = analysisResult.similarLocations.filter((loc: string) =>
-          availableDestinations.some((d: string) => 
-            d.toLowerCase().includes(loc.toLowerCase()) || 
+          availableDestinations.some((d: string) =>
+            d.toLowerCase().includes(loc.toLowerCase()) ||
             loc.toLowerCase().includes(d.toLowerCase())
           )
         ).map((loc: string) => {
           // Return exact destination name
           const matched = availableDestinations.find((d: string) =>
-            d.toLowerCase().includes(loc.toLowerCase()) || 
+            d.toLowerCase().includes(loc.toLowerCase()) ||
             loc.toLowerCase().includes(d.toLowerCase())
           )
           return matched || loc
@@ -150,13 +150,13 @@ Return your response as JSON with this structure:
       }
     }
 
-    console.log('[Image Analysis] Result:', analysisResult)
+    // console.log('[Image Analysis] Result:', analysisResult)
 
     return NextResponse.json(analysisResult)
   } catch (error: any) {
     console.error('Image analysis API error', error)
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to analyze image',
         detectedLocation: null,
         rawDetectedLocation: null,

@@ -88,17 +88,17 @@ Return JSON in this exact format:
 
     try {
       extractedData = JSON.parse(responseText)
-      
+
       // Normalize destination to match available destinations
       if (extractedData.destination) {
         const destLower = extractedData.destination.toLowerCase().trim()
         // Check against available destinations (case-insensitive)
-        const matchedDest = availableDestinations.find((d: string) => 
-          d.toLowerCase() === destLower || 
+        const matchedDest = availableDestinations.find((d: string) =>
+          d.toLowerCase() === destLower ||
           destLower.includes(d.toLowerCase()) ||
           d.toLowerCase().includes(destLower)
         )
-        
+
         if (matchedDest) {
           // Use the exact name from available destinations
           extractedData.destination = matchedDest
@@ -126,14 +126,14 @@ Return JSON in this exact format:
       }
     }
 
-    console.log('[AI Extraction] Input:', userInput)
-    console.log('[AI Extraction] Result:', extractedData)
+    // console.log('[AI Extraction] Input:', userInput)
+    // console.log('[AI Extraction] Result:', extractedData)
 
     return NextResponse.json(extractedData)
   } catch (error: any) {
     console.error('Extraction API error', error)
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to extract data',
         confidence: 'low',
         understood: false

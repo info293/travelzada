@@ -26,28 +26,28 @@ export async function POST(request: Request) {
 
     const history: ChatCompletionMessageParam[] = Array.isArray(conversation)
       ? conversation
-          .filter(
-            (msg: any) =>
-              typeof msg?.content === 'string' &&
-              (msg?.role === 'assistant' || msg?.role === 'user')
-          )
-          .map((msg: any) => ({
-            role: msg.role === 'assistant' ? 'assistant' : 'user',
-            content: msg.content as string,
-          }))
+        .filter(
+          (msg: any) =>
+            typeof msg?.content === 'string' &&
+            (msg?.role === 'assistant' || msg?.role === 'user')
+        )
+        .map((msg: any) => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content as string,
+        }))
       : []
 
-    console.log('\n[AI Planner] Incoming prompt:', prompt)
-    if (history.length) {
-      console.log('[AI Planner] Conversation tail:', history)
-    }
-    if (availableDestinations.length > 0) {
-      console.log('[AI Planner] Available destinations:', availableDestinations)
-    }
+    // console.log('\n[AI Planner] Incoming prompt:', prompt)
+    // if (history.length) {
+    //   console.log('[AI Planner] Conversation tail:', history)
+    // }
+    // if (availableDestinations.length > 0) {
+    //   console.log('[AI Planner] Available destinations:', availableDestinations)
+    // }
 
     // Build system prompt with available destinations context
     let systemPrompt = 'You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.'
-    
+
     // Add available destinations context if provided
     if (Array.isArray(availableDestinations) && availableDestinations.length > 0) {
       const destinationsList = availableDestinations.join(', ')
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       completion.choices[0]?.message?.content ??
       'I am here to help you plan your trip!'
 
-    console.log('[AI Planner] Response:', message)
+    // console.log('[AI Planner] Response:', message)
 
     return NextResponse.json({ message })
   } catch (error: any) {

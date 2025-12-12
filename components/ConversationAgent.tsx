@@ -1284,32 +1284,32 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         return 0
       })
 
-    // Debug logging
-    console.log('📊 Package Ranking for:', {
-      destination: tripInfo.destination,
-      days: tripInfo.days,
-      hotelType: tripInfo.hotelType,
-      travelType: tripInfo.travelType
-    })
-    scored.slice(0, 5).forEach(({ pkg, score }, idx) => {
-      const pkgAny = pkg as any
-      const pkgDays = pkgAny.Duration_Days || extractDaysFromDuration(pkgAny.Duration || '')
-      console.log(`  ${idx + 1}. ${pkgAny.Destination_Name} (${pkgAny.Duration}) - Score: ${score}`, {
-        travelType: pkgAny.Travel_Type,
-        hotelType: pkgAny.Star_Category,
-        days: pkgDays,
-        matches: {
-          travelType: tripInfo.travelType && pkgAny.Travel_Type?.toLowerCase().includes(tripInfo.travelType.toLowerCase()),
-          hotelType: (() => {
-            if (!tripInfo.hotelType || !pkgAny.Star_Category) return false
-            const userStarMatch = tripInfo.hotelType.match(/(\d+)/)
-            const userStar = userStarMatch ? userStarMatch[1] : null
-            return userStar ? pkgAny.Star_Category.includes(userStar) : false
-          })(),
-          days: tripInfo.days && Math.abs((pkgDays || 0) - parseInt(tripInfo.days, 10)) <= 2
-        }
-      })
-    })
+    // Debug logging (commented out for production)
+    // console.log('📊 Package Ranking for:', {
+    //   destination: tripInfo.destination,
+    //   days: tripInfo.days,
+    //   hotelType: tripInfo.hotelType,
+    //   travelType: tripInfo.travelType
+    // })
+    // scored.slice(0, 5).forEach(({ pkg, score }, idx) => {
+    //   const pkgAny = pkg as any
+    //   const pkgDays = pkgAny.Duration_Days || extractDaysFromDuration(pkgAny.Duration || '')
+    //   console.log(`  ${idx + 1}. ${pkgAny.Destination_Name} (${pkgAny.Duration}) - Score: ${score}`, {
+    //     travelType: pkgAny.Travel_Type,
+    //     hotelType: pkgAny.Star_Category,
+    //     days: pkgDays,
+    //     matches: {
+    //       travelType: tripInfo.travelType && pkgAny.Travel_Type?.toLowerCase().includes(tripInfo.travelType.toLowerCase()),
+    //       hotelType: (() => {
+    //         if (!tripInfo.hotelType || !pkgAny.Star_Category) return false
+    //         const userStarMatch = tripInfo.hotelType.match(/(\d+)/)
+    //         const userStar = userStarMatch ? userStarMatch[1] : null
+    //         return userStar ? pkgAny.Star_Category.includes(userStar) : false
+    //       })(),
+    //       days: tripInfo.days && Math.abs((pkgDays || 0) - parseInt(tripInfo.days, 10)) <= 2
+    //     }
+    //   })
+    // })
 
     return scored
   }, [destinationSpecificPackages, tripInfo, userFeedback])
@@ -1670,7 +1670,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           const exactDest = availableDests.find(d => d.toLowerCase() === destLower) || normalizedDest
           updates.destination = exactDest
           hasUpdates = true
-          console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
+          // console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
         }
       }
 
@@ -1732,9 +1732,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
       // If we have updates, apply them and move to next question
       if (hasUpdates) {
-        console.log('[AI Extraction] Applying updates:', updates)
+        // console.log('[AI Extraction] Applying updates:', updates)
         const nextInfo = updateTripInfo(updates)
-        console.log('[AI Extraction] Updated tripInfo:', nextInfo)
+        // console.log('[AI Extraction] Updated tripInfo:', nextInfo)
 
         // If user asked for packages and we now have enough info, show packages
         if (wantsPackages && nextInfo.destination) {
