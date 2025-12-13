@@ -280,6 +280,76 @@ export default function AdminDashboard() {
     content: null,
   })
 
+  // Sorting and Filtering State
+  type SortDirection = 'asc' | 'desc'
+  interface SortConfig {
+    key: string
+    direction: SortDirection
+  }
+
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'desc' })
+  const [filterText, setFilterText] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Reset sort and filter when tab changes
+  useEffect(() => {
+    setFilterText('')
+    setStatusFilter('all')
+    setSortConfig({ key: 'createdAt', direction: 'desc' })
+  }, [activeTab])
+
+  const handleSort = (key: string) => {
+    setSortConfig((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }))
+  }
+
+  const getSortedAndFilteredData = <T extends any>(
+    data: T[],
+    searchFields: (keyof T)[],
+    statusField?: keyof T
+  ) => {
+    return data
+      .filter((item) => {
+        // Status Filter
+        if (statusFilter !== 'all' && statusField) {
+          const itemStatus = String(item[statusField] || '').toLowerCase()
+          if (itemStatus !== statusFilter.toLowerCase()) return false
+        }
+
+        // Text Search
+        if (!filterText) return true
+        const searchText = filterText.toLowerCase()
+        return searchFields.some((field) => {
+          const value = String(item[field] || '').toLowerCase()
+          return value.includes(searchText)
+        })
+      })
+      .sort((a, b) => {
+        const aValue = a[sortConfig.key as keyof T]
+        const bValue = b[sortConfig.key as keyof T]
+
+        if (!aValue && !bValue) return 0
+        if (!aValue) return 1
+        if (!bValue) return -1
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
+        return 0
+      })
+  }
+
+  // Helper to render sort arrow
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortConfig.key !== column) return <span className="inline-block w-4" />
+    return (
+      <span className="inline-block ml-1">
+        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+      </span>
+    )
+  }
+
   useEffect(() => {
     if (!loading && (!currentUser || !isAdmin)) {
       router.push('/')
@@ -2179,8 +2249,22 @@ export default function AdminDashboard() {
 
             {!showForm && !showBulkImport && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">All Packages</h2>
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">All Packages</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search packages..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setShowBulkImport(true)}
@@ -2203,15 +2287,35 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destination</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('Destination_Name')}
+                        >
+                          Destination <SortIcon column="Destination_Name" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('Duration')}
+                        >
+                          Duration <SortIcon column="Duration" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('Price_Min_INR')}
+                        >
+                          Price <SortIcon column="Price_Min_INR" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('Travel_Type')}
+                        >
+                          Type <SortIcon column="Travel_Type" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {packages.map((pkg) => (
+                      {getSortedAndFilteredData(packages, ['Destination_Name', 'Destination_ID']).map((pkg) => (
                         <tr key={pkg.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="font-medium text-gray-900">{pkg.Destination_Name}</div>
@@ -2813,8 +2917,31 @@ export default function AdminDashboard() {
             {
               !showBlogForm && !showBlogBulkImport && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-900">All Blog Posts</h2>
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-xl font-bold text-gray-900">All Blog Posts</h2>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search blogs..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                        />
+                        <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="true">Published</option>
+                        <option value="false">Draft</option>
+                      </select>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setShowBlogBulkImport(true)}
@@ -2837,17 +2964,47 @@ export default function AdminDashboard() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Views</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('title')}
+                          >
+                            Title <SortIcon column="title" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('category')}
+                          >
+                            Category <SortIcon column="category" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('author')}
+                          >
+                            Author <SortIcon column="author" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('date')}
+                          >
+                            Date <SortIcon column="date" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('views')}
+                          >
+                            Views <SortIcon column="views" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('published')}
+                          >
+                            Status <SortIcon column="published" />
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {blogs.map((blog) => (
+                        {getSortedAndFilteredData(blogs, ['title', 'category', 'author'], statusFilter === 'all' ? undefined : 'published').map((blog) => (
                           <tr key={blog.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <div className="font-medium text-gray-900">{blog.title}</div>
@@ -3326,8 +3483,22 @@ export default function AdminDashboard() {
 
               {!showDestinationForm && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-900">All Destinations</h2>
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-xl font-bold text-gray-900">All Destinations</h2>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search destinations..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                        />
+                        <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    </div>
                     <button
                       onClick={() => {
                         setEditingDestination(null)
@@ -3344,15 +3515,30 @@ export default function AdminDashboard() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Country</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('name')}
+                          >
+                            Name <SortIcon column="name" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('country')}
+                          >
+                            Country <SortIcon column="country" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('slug')}
+                          >
+                            Slug <SortIcon column="slug" />
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packages</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {destinations.map((dest) => (
+                        {getSortedAndFilteredData(destinations, ['name', 'country', 'slug']).map((dest) => (
                           <tr key={dest.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <div className="font-medium text-gray-900">{dest.name}</div>
@@ -3410,8 +3596,31 @@ export default function AdminDashboard() {
           activeTab === 'users' && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">All Users ({users.length})</h2>
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">All Users ({users.length})</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search users..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    >
+                      <option value="all">All Roles</option>
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
                   <div className="flex gap-2">
                     <button
                       onClick={fetchUsers}
@@ -3458,17 +3667,47 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Login</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('displayName')}
+                        >
+                          User <SortIcon column="displayName" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('email')}
+                        >
+                          Email <SortIcon column="email" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('role')}
+                        >
+                          Role <SortIcon column="role" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('isActive')}
+                        >
+                          Status <SortIcon column="isActive" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Joined <SortIcon column="createdAt" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('lastLogin')}
+                        >
+                          Last Login <SortIcon column="lastLogin" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {users.map((user) => (
+                      {getSortedAndFilteredData(users, ['displayName', 'email'], statusFilter === 'all' ? undefined : 'role').map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
@@ -3573,8 +3812,31 @@ export default function AdminDashboard() {
           activeTab === 'subscribers' && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">Newsletter Subscribers ({subscribers.length})</h2>
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">Newsletter Subscribers ({subscribers.length})</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search subscribers..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="active">Active</option>
+                      <option value="unsubscribed">Unsubscribed</option>
+                    </select>
+                  </div>
                   <button
                     onClick={fetchSubscribers}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
@@ -3586,15 +3848,35 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subscribed Date</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('email')}
+                        >
+                          Email <SortIcon column="email" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status <SortIcon column="status" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('source')}
+                        >
+                          Source <SortIcon column="source" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('subscribedAt')}
+                        >
+                          Subscribed Date <SortIcon column="subscribedAt" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {subscribers.map((subscriber) => (
+                      {getSortedAndFilteredData(subscribers, ['email', 'source'], statusFilter === 'all' ? undefined : 'status').map((subscriber) => (
                         <tr key={subscriber.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="font-medium text-gray-900">{subscriber.email}</div>
@@ -3665,8 +3947,32 @@ export default function AdminDashboard() {
           activeTab === 'contacts' && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">Contact Messages ({contactMessages.length})</h2>
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">Contact Messages ({contactMessages.length})</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search messages..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="new">New</option>
+                      <option value="read">Read</option>
+                      <option value="replied">Replied</option>
+                    </select>
+                  </div>
                   <button
                     onClick={fetchContactMessages}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
@@ -3678,17 +3984,47 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Name</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Email</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Phone</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Destination</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('name')}
+                        >
+                          Name <SortIcon column="name" />
+                        </th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('email')}
+                        >
+                          Email <SortIcon column="email" />
+                        </th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('phone')}
+                        >
+                          Phone <SortIcon column="phone" />
+                        </th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('destination')}
+                        >
+                          Destination <SortIcon column="destination" />
+                        </th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status <SortIcon column="status" />
+                        </th>
+                        <th
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Date <SortIcon column="createdAt" />
+                        </th>
                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
-                      {contactMessages.map((message) => (
+                      {getSortedAndFilteredData(contactMessages, ['name', 'email', 'phone', 'destination', 'message'], statusFilter === 'all' ? undefined : 'status').map((message) => (
                         <tr
                           key={message.id}
                           className={`hover:bg-gray-50 transition-colors ${!message.read ? 'bg-blue-50/50' : ''}`}
@@ -3828,8 +4164,33 @@ export default function AdminDashboard() {
           activeTab === 'leads' && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">Leads ({leads.length})</h2>
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">Leads ({leads.length})</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search leads..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="new">New</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="converted">Converted</option>
+                      <option value="lost">Lost</option>
+                    </select>
+                  </div>
                   <button
                     onClick={fetchLeads}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
@@ -3841,17 +4202,42 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Package</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('name')}
+                        >
+                          Name <SortIcon column="name" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('mobile')}
+                        >
+                          Mobile <SortIcon column="mobile" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('packageName')}
+                        >
+                          Package <SortIcon column="packageName" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source URL</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status <SortIcon column="status" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Date <SortIcon column="createdAt" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {leads.map((lead) => (
+                      {getSortedAndFilteredData(leads, ['name', 'mobile', 'packageName', 'status'], statusFilter === 'all' ? undefined : 'status').map((lead) => (
                         <tr
                           key={lead.id}
                           className={`hover:bg-gray-50 ${!lead.read ? 'bg-blue-50' : ''}`}
@@ -4023,8 +4409,33 @@ export default function AdminDashboard() {
           activeTab === 'careers' && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-gray-900">Job Applications ({jobApplications.length})</h2>
+                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-bold text-gray-900">Job Applications ({jobApplications.length})</h2>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search applications..."
+                        value={filterText}
+                        onChange={(e) => setFilterText(e.target.value)}
+                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="new">New</option>
+                      <option value="read">Read</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="contacted">Contacted</option>
+                    </select>
+                  </div>
                   <button
                     onClick={fetchJobApplications}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
@@ -4036,18 +4447,48 @@ export default function AdminDashboard() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('name')}
+                        >
+                          Name <SortIcon column="name" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('email')}
+                        >
+                          Email <SortIcon column="email" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('position')}
+                        >
+                          Position <SortIcon column="position" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('phone')}
+                        >
+                          Phone <SortIcon column="phone" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LinkedIn</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('status')}
+                        >
+                          Status <SortIcon column="status" />
+                        </th>
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleSort('createdAt')}
+                        >
+                          Date <SortIcon column="createdAt" />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {jobApplications.map((application) => (
+                      {getSortedAndFilteredData(jobApplications, ['name', 'email', 'position', 'phone', 'status'], statusFilter === 'all' ? undefined : 'status').map((application) => (
                         <tr
                           key={application.id}
                           className={`hover:bg-gray-50 ${!application.read ? 'bg-blue-50' : ''}`}
@@ -4310,8 +4751,31 @@ export default function AdminDashboard() {
               )}
               {!showTestimonialForm && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-900">All Testimonials</h2>
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-4">
+                      <h2 className="text-xl font-bold text-gray-900">All Testimonials</h2>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search testimonials..."
+                          value={filterText}
+                          onChange={(e) => setFilterText(e.target.value)}
+                          className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
+                        />
+                        <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="true">Featured</option>
+                        <option value="false">Regular</option>
+                      </select>
+                    </div>
                     <button
                       onClick={handleNewTestimonial}
                       className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
@@ -4323,15 +4787,35 @@ export default function AdminDashboard() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rating</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quote</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Featured</th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('name')}
+                          >
+                            Name <SortIcon column="name" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('rating')}
+                          >
+                            Rating <SortIcon column="rating" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('quote')}
+                          >
+                            Quote <SortIcon column="quote" />
+                          </th>
+                          <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => handleSort('featured')}
+                          >
+                            Featured <SortIcon column="featured" />
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {testimonials.map((testimonial) => (
+                        {getSortedAndFilteredData(testimonials, ['name', 'quote'], statusFilter === 'all' ? undefined : 'featured').map((testimonial) => (
                           <tr key={testimonial.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <div className="font-medium text-gray-900">{testimonial.name}</div>
