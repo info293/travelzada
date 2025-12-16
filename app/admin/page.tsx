@@ -20,6 +20,7 @@ import {
 import { db } from '@/lib/firebase'
 import PackageForm from '@/components/admin/PackageForm'
 import ViewModal from '@/components/admin/ViewModal'
+import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
 import type { ReactNode } from 'react'
 
 interface DestinationPackage {
@@ -151,7 +152,7 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator'
 
 interface Testimonial {
   id?: string
@@ -2152,6 +2153,27 @@ export default function AdminDashboard() {
                   Testimonials
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">{testimonials.length}</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ai-generator')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'ai-generator'
+                ? 'border-purple-500 bg-purple-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-purple-400 hover:shadow-sm'
+                }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'ai-generator' ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600'
+                }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'ai-generator' ? 'text-purple-600' : 'text-gray-700'}`}>
+                  AI Generator
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">New</div>
               </div>
             </button>
           </div>
@@ -4896,6 +4918,130 @@ export default function AdminDashboard() {
             </div>
           )
         }
+
+        {/* AI Package Generator Tab */}
+        {activeTab === 'ai-generator' && (
+          <AIPackageGenerator
+            onImportPackages={async (generatedPackages) => {
+              const dbInstance = getDbInstance();
+              let successCount = 0;
+              let skippedCount = 0;
+              const errors: string[] = [];
+              const skipped: string[] = [];
+
+              // First, fetch all existing package Destination_IDs from database
+              const packagesRef = collection(dbInstance, 'packages');
+              const existingSnapshot = await getDocs(packagesRef);
+              const existingIds = new Set<string>();
+              existingSnapshot.docs.forEach(doc => {
+                const data = doc.data();
+                if (data.Destination_ID) {
+                  // Normalize: trim whitespace and convert to uppercase for comparison
+                  existingIds.add(String(data.Destination_ID).trim().toUpperCase());
+                }
+              });
+
+              console.log(`Found ${existingIds.size} existing packages in database`);
+              console.log('Existing IDs (normalized):', Array.from(existingIds));
+
+              for (const pkg of generatedPackages) {
+                // Normalize the incoming ID for comparison
+                const normalizedId = String(pkg.Destination_ID || '').trim().toUpperCase();
+
+                console.log(`Checking package: "${pkg.Destination_ID}" -> normalized: "${normalizedId}"`);
+                console.log(`Exists in database: ${existingIds.has(normalizedId)}`);
+
+                // Check if package already exists
+                if (normalizedId && existingIds.has(normalizedId)) {
+                  console.log(`>>> Skipping duplicate: ${pkg.Destination_ID}`);
+                  skipped.push(pkg.Destination_ID);
+                  skippedCount++;
+                  continue;
+                }
+
+                try {
+                  // Prepare package data for Firestore
+                  const packageData: any = {
+                    Destination_ID: pkg.Destination_ID,
+                    Destination_Name: pkg.Destination_Name,
+                    Overview: pkg.Overview || '',
+                    Duration: pkg.Duration || '',
+                    Duration_Nights: pkg.Duration_Nights || 0,
+                    Duration_Days: pkg.Duration_Days || 0,
+                    Price_Range_INR: pkg.Price_Range_INR || '',
+                    Price_Min_INR: pkg.Price_Min_INR || 0,
+                    Price_Max_INR: pkg.Price_Max_INR || 0,
+                    Travel_Type: pkg.Travel_Type || '',
+                    Mood: pkg.Mood || '',
+                    Occasion: pkg.Occasion || '',
+                    Budget_Category: pkg.Budget_Category || '',
+                    Theme: pkg.Theme || '',
+                    Adventure_Level: pkg.Adventure_Level || '',
+                    Stay_Type: pkg.Stay_Type || '',
+                    Star_Category: pkg.Star_Category || '',
+                    Meal_Plan: pkg.Meal_Plan || '',
+                    Group_Size: pkg.Group_Size || '',
+                    Child_Friendly: pkg.Child_Friendly || '',
+                    Elderly_Friendly: pkg.Elderly_Friendly || '',
+                    Language_Preference: pkg.Language_Preference || '',
+                    Seasonality: pkg.Seasonality || '',
+                    Hotel_Examples: pkg.Hotel_Examples || '',
+                    Inclusions: pkg.Inclusions || '',
+                    Exclusions: pkg.Exclusions || '',
+                    Day_Wise_Itinerary: pkg.Day_Wise_Itinerary || '',
+                    Rating: pkg.Rating || '',
+                    Location_Breakup: pkg.Location_Breakup || '',
+                    Airport_Code: pkg.Airport_Code || '',
+                    Transfer_Type: pkg.Transfer_Type || '',
+                    Currency: pkg.Currency || 'INR',
+                    Climate_Type: pkg.Climate_Type || '',
+                    Safety_Score: pkg.Safety_Score || '',
+                    Sustainability_Score: pkg.Sustainability_Score || '',
+                    Ideal_Traveler_Persona: pkg.Ideal_Traveler_Persona || '',
+                    Slug: pkg.Slug || '',
+                    Primary_Image_URL: pkg.Primary_Image_URL || '',
+                    Booking_URL: pkg.Booking_URL || '',
+                    SEO_Title: pkg.SEO_Title || '',
+                    SEO_Description: pkg.SEO_Description || '',
+                    SEO_Keywords: pkg.SEO_Keywords || '',
+                    Meta_Image_URL: pkg.Meta_Image_URL || pkg.Primary_Image_URL || '',
+                    Guest_Reviews: pkg.Guest_Reviews || [],
+                    Booking_Policies: pkg.Booking_Policies || {},
+                    FAQ_Items: pkg.FAQ_Items || [],
+                    Why_Book_With_Us: pkg.Why_Book_With_Us || [],
+                    Created_By: currentUser?.email || 'AI Generator',
+                    Last_Updated: new Date().toISOString().split('T')[0],
+                  };
+
+                  await addDoc(collection(dbInstance, 'packages'), packageData);
+                  successCount++;
+                } catch (error) {
+                  errors.push(`${pkg.Destination_ID}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+              }
+
+              // Build result message
+              let message = '';
+              if (successCount > 0) {
+                message += `✅ Successfully imported ${successCount} new packages!\n`;
+              }
+              if (skippedCount > 0) {
+                message += `⏭️ Skipped ${skippedCount} packages (already exist): ${skipped.join(', ')}\n`;
+              }
+              if (errors.length > 0) {
+                message += `❌ Errors:\n${errors.join('\n')}`;
+              }
+              if (successCount === 0 && skippedCount === 0 && errors.length === 0) {
+                message = 'No packages to import.';
+              }
+
+              if (successCount > 0) {
+                fetchPackages();
+              }
+              alert(message);
+            }}
+          />
+        )}
       </div >
 
       <Footer />

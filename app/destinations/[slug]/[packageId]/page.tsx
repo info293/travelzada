@@ -260,9 +260,15 @@ export default function PackageDetailPage({ params }: PageProps) {
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
 
-  // Parse inclusions and exclusions
-  const inclusions = packageData.Inclusions?.split(',').map((i: string) => i.trim()) || []
-  const exclusions = packageData.Exclusions?.split(',').map((e: string) => e.trim()) || []
+  // Parse inclusions and exclusions - handle both string and array types
+  const parseListField = (field: string | string[] | undefined): string[] => {
+    if (!field) return [];
+    if (Array.isArray(field)) return field.map((i: string) => String(i).trim());
+    if (typeof field === 'string') return field.split(',').map((i: string) => i.trim());
+    return [];
+  };
+  const inclusions = parseListField(packageData.Inclusions);
+  const exclusions = parseListField(packageData.Exclusions);
 
   // Extract days from Duration or Duration_Days
   const extractDays = (duration: string): number => {
