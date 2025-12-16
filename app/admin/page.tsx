@@ -1784,7 +1784,36 @@ export default function AdminDashboard() {
         "SEO_Title": "Sample Destination Package | 3-Night Family Getaway",
         "SEO_Description": "Experience a wonderful 3-night family vacation at our sample destination with resort stays and tours included.",
         "SEO_Keywords": "sample destination, family vacation, beach holiday",
-        "Meta_Image_URL": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80"
+        "Meta_Image_URL": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80",
+        "Guest_Reviews": [
+          {
+            "name": "John Doe",
+            "content": "Amazing experience! The itinerary was perfect.",
+            "date": "2024-12-01",
+            "rating": "5"
+          }
+        ],
+        "Booking_Policies": {
+          "booking": ["20% Advance to confirm", "50% 30 Days before travel", "100% 15 Days before travel"],
+          "payment": ["Bank Transfer", "Credit Card", "UPI"],
+          "cancellation": ["Free cancellation up to 30 days before travel", "50% refund up to 15 days", "No refund within 15 days"]
+        },
+        "FAQ_Items": [
+          {
+            "question": "Is breakfast included?",
+            "answer": "Yes, daily breakfast is included at all hotels."
+          }
+        ],
+        "Why_Book_With_Us": [
+          {
+            "label": "24/7 Support",
+            "description": "We are available round the clock for any assistance."
+          },
+          {
+            "label": "Best Price Guarantee",
+            "description": "We match any comparable price you find elsewhere."
+          }
+        ]
       }
     ]
     setBulkImportJson(JSON.stringify(sample, null, 2))
