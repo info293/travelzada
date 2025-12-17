@@ -21,6 +21,7 @@ import { db } from '@/lib/firebase'
 import PackageForm from '@/components/admin/PackageForm'
 import ViewModal from '@/components/admin/ViewModal'
 import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
+import ItineraryGenerator from '@/components/admin/ItineraryGenerator'
 import type { ReactNode } from 'react'
 
 interface DestinationPackage {
@@ -152,7 +153,7 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary'
 
 interface Testimonial {
   id?: string
@@ -2172,6 +2173,27 @@ export default function AdminDashboard() {
               <div className="text-center">
                 <div className={`text-sm font-semibold ${activeTab === 'ai-generator' ? 'text-purple-600' : 'text-gray-700'}`}>
                   AI Generator
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">New</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('create-itinerary')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'create-itinerary'
+                ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-indigo-400 hover:shadow-sm'
+                }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'create-itinerary' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'create-itinerary' ? 'text-indigo-600' : 'text-gray-700'}`}>
+                  Itinerary
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">New</div>
               </div>
@@ -5041,6 +5063,11 @@ export default function AdminDashboard() {
               alert(message);
             }}
           />
+        )}
+
+        {/* Create Itinerary Tab */}
+        {activeTab === 'create-itinerary' && (
+          <ItineraryGenerator />
         )}
       </div >
 
