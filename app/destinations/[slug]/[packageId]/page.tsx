@@ -373,8 +373,7 @@ export default function PackageDetailPage({ params }: PageProps) {
     try {
       setIsGeneratingPDF(true)
 
-      // Minimum loader duration promise (3 seconds)
-      const minDurationPromise = new Promise(resolve => setTimeout(resolve, 3000))
+      // PDF Generation Logic wrapped in a function
 
       // PDF Generation Logic wrapped in a function
       const generatePdfPromise = (async () => {
@@ -897,8 +896,8 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.save(fileName)
       })()
 
-      // Wait for both to complete
-      await Promise.all([minDurationPromise, generatePdfPromise])
+      // Wait for completion
+      await generatePdfPromise
 
     } catch (error) {
       console.error('Error generating PDF:', error)
