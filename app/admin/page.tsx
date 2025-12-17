@@ -22,6 +22,7 @@ import PackageForm from '@/components/admin/PackageForm'
 import ViewModal from '@/components/admin/ViewModal'
 import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
 import ItineraryGenerator from '@/components/admin/ItineraryGenerator'
+import CustomerRecordsManager from '@/components/admin/CustomerRecordsManager'
 import type { ReactNode } from 'react'
 
 interface DestinationPackage {
@@ -153,7 +154,7 @@ interface User {
   isActive: boolean
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records'
 
 interface Testimonial {
   id?: string
@@ -2196,6 +2197,27 @@ export default function AdminDashboard() {
                   Itinerary
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">New</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('customer-records')}
+              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'customer-records'
+                ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm'
+                }`}
+            >
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'customer-records' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                }`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className={`text-sm font-semibold ${activeTab === 'customer-records' ? 'text-emerald-600' : 'text-gray-700'}`}>
+                  CRM
+                </div>
+                <div className="text-xs text-gray-500 mt-0.5">Records</div>
               </div>
             </button>
           </div>
@@ -5068,6 +5090,11 @@ export default function AdminDashboard() {
         {/* Create Itinerary Tab */}
         {activeTab === 'create-itinerary' && (
           <ItineraryGenerator />
+        )}
+
+        {/* Customer Records CRM Tab */}
+        {activeTab === 'customer-records' && (
+          <CustomerRecordsManager />
         )}
       </div >
 

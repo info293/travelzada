@@ -214,4 +214,79 @@ export interface JobApplication {
     read: boolean
 }
 
-export type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard'
+export type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records'
+
+// Customer Itinerary CRM Types
+export interface FlightDetail {
+    date: string
+    airline: string
+    flightNumber: string
+    departureTime: string
+    arrivalTime: string
+    departureCity: string
+    arrivalCity: string
+}
+
+export interface HotelDetail {
+    city: string
+    hotelName: string
+    checkIn: string
+    checkOut: string
+    roomType: string
+    mealPlan: string
+}
+
+export interface DayItinerary {
+    day: number
+    title: string
+    description: string
+    activities: string[]
+}
+
+export interface HistoryEntry {
+    action: string
+    timestamp: string
+    details?: string
+    user?: string
+}
+
+export interface CustomerReview {
+    rating: number
+    comment: string
+    date: string
+}
+
+export interface CustomerItinerary {
+    id?: string
+    // Customer Info
+    clientName: string
+    clientEmail: string
+    clientPhone: string
+    // Itinerary Basics
+    packageId: string
+    packageName: string
+    destinationName: string
+    travelDate: string
+    adults: number
+    children: number
+    // Financial
+    totalCost: number
+    advancePaid: number
+    balanceDue: number
+    // Details
+    flights: FlightDetail[]
+    hotels: HotelDetail[]
+    customItinerary?: DayItinerary[]
+    notes: string
+    // Status Tracking
+    status: 'draft' | 'sent' | 'confirmed' | 'completed' | 'cancelled'
+    // History/Audit Trail
+    history: HistoryEntry[]
+    // Reviews
+    customerReview?: CustomerReview
+    // Metadata
+    createdAt: string
+    updatedAt: string
+    createdBy: string
+}
+

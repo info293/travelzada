@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import { DestinationPackage } from './types'; // Assuming types are exported or we redefine
@@ -632,6 +632,42 @@ export default function ItineraryGenerator() {
             });
 
             pdf.save(`${formData.clientName.replace(/\s+/g, '_')}_Itinerary.pdf`);
+
+            // Save customer itinerary record to Firestore for CRM
+            try {
+                const now = new Date().toISOString();
+                const customerRecord = {
+                    clientName: formData.clientName,
+                    clientEmail: formData.clientEmail,
+                    clientPhone: formData.clientPhone,
+                    packageId: selectedPackage.Destination_ID,
+                    packageName: selectedPackage.Destination_Name,
+                    destinationName: selectedPackage.Destination_Name,
+                    travelDate: formData.travelDate,
+                    adults: formData.adults,
+                    children: formData.children,
+                    totalCost: formData.totalCost,
+                    advancePaid: formData.advancePaid,
+                    balanceDue: formData.totalCost - formData.advancePaid,
+                    flights: formData.flights,
+                    hotels: formData.hotels,
+                    customItinerary: formData.customItinerary || [],
+                    notes: formData.notes,
+                    status: 'draft',
+                    history: [{
+                        action: 'Itinerary generated',
+                        timestamp: now,
+                        details: `PDF created for ${formData.clientName}`
+                    }],
+                    createdAt: now,
+                    updatedAt: now,
+                    createdBy: 'admin'
+                };
+                await addDoc(collection(db, 'customer_itineraries'), customerRecord);
+                console.log('Customer record saved to CRM');
+            } catch (saveError) {
+                console.error('Failed to save customer record:', saveError);
+            }
 
         } catch (error) {
             console.error("PDF Generation Error", error);
