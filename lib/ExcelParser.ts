@@ -36,6 +36,9 @@ export interface PackagesMasterRow {
     Sustainability_Score?: string;
     Ideal_Traveler_Persona?: string;
     Primary_Image_URL?: string;
+    Inclusions?: string;
+    Exclusions?: string;
+    Day_Wise_Itinerary?: string;
 }
 
 export interface DaywiseItineraryRow {
@@ -50,16 +53,47 @@ export interface InclusionsExclusionsRow {
     Exclusions?: string;
 }
 
+export interface GuestReviewRow {
+    Destination_ID: string;
+    Name: string;
+    Content: string;
+    Date: string;
+    Rating?: string;
+}
+
+export interface BookingPolicyRow {
+    Destination_ID: string;
+    Policy_Type: string; // 'booking', 'payment', 'cancellation'
+    Item: string;
+}
+
+export interface FAQRow {
+    Destination_ID: string;
+    Question: string;
+    Answer: string;
+}
+
+export interface WhyBookRow {
+    Destination_ID: string;
+    Label: string;
+    Description: string;
+}
+
 export interface ParsedExcelData {
     destinations: DestinationMasterRow[];
     packages: PackagesMasterRow[];
     itinerary: DaywiseItineraryRow[];
     inclusionsExclusions: InclusionsExclusionsRow[];
+    guestReviews: GuestReviewRow[];
+    bookingPolicies: BookingPolicyRow[];
+    faqs: FAQRow[];
+    whyBookWithUs: WhyBookRow[];
 }
 
 /**
  * Parse an Excel file (ArrayBuffer) and extract data from expected sheets.
- * Expected sheets: Destination_Master, Packages_Master, Daywise_Itinerary, Inclusions_Exclusions
+ * Expected sheets: Destination_Master, Packages_Master, Daywise_Itinerary, Inclusions_Exclusions,
+ *                  Guest_Reviews, Booking_Policies, FAQ_Items, Why_Book_With_Us
  */
 export function parseExcelFile(fileBuffer: ArrayBuffer): ParsedExcelData {
     const workbook = XLSX.read(fileBuffer, { type: 'array' });
@@ -85,6 +119,12 @@ export function parseExcelFile(fileBuffer: ArrayBuffer): ParsedExcelData {
     const itinerarySheet = findSheet(['daywise_itinerary', 'daywise', 'itinerary']);
     const incExcSheet = findSheet(['inclusions_exclusions', 'inclusions', 'inc_exc']);
 
+    // New Sheets
+    const reviewsSheet = findSheet(['guest_reviews', 'reviews']);
+    const policiesSheet = findSheet(['booking_policies', 'policies']);
+    const faqSheet = findSheet(['faq_items', 'faqs', 'faq']);
+    const whyBookSheet = findSheet(['why_book_with_us', 'why_book']);
+
     const destinations: DestinationMasterRow[] = destinationSheet
         ? XLSX.utils.sheet_to_json<DestinationMasterRow>(destinationSheet)
         : [];
@@ -101,11 +141,31 @@ export function parseExcelFile(fileBuffer: ArrayBuffer): ParsedExcelData {
         ? XLSX.utils.sheet_to_json<InclusionsExclusionsRow>(incExcSheet)
         : [];
 
+    const guestReviews: GuestReviewRow[] = reviewsSheet
+        ? XLSX.utils.sheet_to_json<GuestReviewRow>(reviewsSheet)
+        : [];
+
+    const bookingPolicies: BookingPolicyRow[] = policiesSheet
+        ? XLSX.utils.sheet_to_json<BookingPolicyRow>(policiesSheet)
+        : [];
+
+    const faqs: FAQRow[] = faqSheet
+        ? XLSX.utils.sheet_to_json<FAQRow>(faqSheet)
+        : [];
+
+    const whyBookWithUs: WhyBookRow[] = whyBookSheet
+        ? XLSX.utils.sheet_to_json<WhyBookRow>(whyBookSheet)
+        : [];
+
     return {
         destinations,
         packages,
         itinerary,
         inclusionsExclusions,
+        guestReviews,
+        bookingPolicies,
+        faqs,
+        whyBookWithUs
     };
 }
 

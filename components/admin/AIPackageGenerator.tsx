@@ -28,9 +28,9 @@ interface GeneratedPackage {
     Language_Preference?: string;
     Seasonality?: string;
     Hotel_Examples?: string;
-    Inclusions?: string;
-    Exclusions?: string;
-    Day_Wise_Itinerary?: string;
+    Inclusions?: string | string[];
+    Exclusions?: string | string[];
+    Day_Wise_Itinerary?: string | Array<{ day: number; description: string }>;
     Rating?: string;
     Location_Breakup?: string;
     Airport_Code?: string;
@@ -196,6 +196,53 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
             }
         }
 
+        // Create index for Guest Reviews
+        const reviewsIndex: Record<string, Array<{ name: string; content: string; date: string; rating?: string }>> = {};
+        for (const row of parsedData.guestReviews) {
+            const id = row.Destination_ID?.trim() || '';
+            if (!reviewsIndex[id]) reviewsIndex[id] = [];
+            reviewsIndex[id].push({
+                name: row.Name,
+                content: row.Content,
+                date: row.Date,
+                rating: row.Rating
+            });
+        }
+
+        // Create index for Booking Policies
+        const policiesIndex: Record<string, { booking: string[]; payment: string[]; cancellation: string[] }> = {};
+        for (const row of parsedData.bookingPolicies) {
+            const id = row.Destination_ID?.trim() || '';
+            if (!policiesIndex[id]) policiesIndex[id] = { booking: [], payment: [], cancellation: [] };
+
+            const type = row.Policy_Type?.toLowerCase();
+            if (type && policiesIndex[id][type as keyof typeof policiesIndex[typeof id]]) {
+                policiesIndex[id][type as keyof typeof policiesIndex[typeof id]].push(row.Item);
+            }
+        }
+
+        // Create index for FAQs
+        const faqIndex: Record<string, Array<{ question: string; answer: string }>> = {};
+        for (const row of parsedData.faqs) {
+            const id = row.Destination_ID?.trim() || '';
+            if (!faqIndex[id]) faqIndex[id] = [];
+            faqIndex[id].push({
+                question: row.Question,
+                answer: row.Answer
+            });
+        }
+
+        // Create index for Why Book With Us
+        const whyBookIndex: Record<string, Array<{ label: string; description: string }>> = {};
+        for (const row of parsedData.whyBookWithUs) {
+            const id = row.Destination_ID?.trim() || '';
+            if (!whyBookIndex[id]) whyBookIndex[id] = [];
+            whyBookIndex[id].push({
+                label: row.Label,
+                description: row.Description
+            });
+        }
+
         // Build package inputs - only for NEW packages (not already in database)
         return parsedData.packages
             .filter((pkg) => {
@@ -212,6 +259,10 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 const destination = destIndex[destCode] || { Destination_Name: pkgId };
                 const itinerary = (itineraryIndex[pkgId] || []).sort((a, b) => a.day - b.day);
                 const incExc = incExcIndex[pkgId] || { inclusions: [], exclusions: [] };
+                const reviews = reviewsIndex[pkgId] || [];
+                const policies = policiesIndex[pkgId] || { booking: [], payment: [], cancellation: [] };
+                const faqs = faqIndex[pkgId] || [];
+                const whyBook = whyBookIndex[pkgId] || [];
 
                 const nights = itinerary.length || parseInt(pkg.Duration?.match(/(\d+)/)?.[1] || '0') || 0;
                 const days = nights + 1;
@@ -249,9 +300,14 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                     Sustainability_Score: pkg.Sustainability_Score,
                     Ideal_Traveler_Persona: pkg.Ideal_Traveler_Persona,
                     Primary_Image_URL: pkg.Primary_Image_URL,
-                    Inclusions: incExc.inclusions,
-                    Exclusions: incExc.exclusions,
-                    Day_Wise_Itinerary: itinerary,
+                    Inclusions: incExc.inclusions.length > 0 ? incExc.inclusions.join(', ') : pkg.Inclusions, // Fallback to flat string if parsed
+                    Exclusions: incExc.exclusions.length > 0 ? incExc.exclusions.join(', ') : pkg.Exclusions,
+                    Day_Wise_Itinerary: itinerary.length > 0 ? itinerary : pkg.Day_Wise_Itinerary,
+
+                    Guest_Reviews: reviews,
+                    Booking_Policies: policies,
+                    FAQ_Items: faqs,
+                    Why_Book_With_Us: whyBook,
                 };
             });
     }, [parsedData, existingIds]);
@@ -307,6 +363,77 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
         }
     }, [generatedPackages, onImportPackages]);
 
+    const handleDownloadTemplate = async () => {
+        try {
+            const XLSX = await import('xlsx');
+            const wb = XLSX.utils.book_new();
+
+            // 1. Destination Master
+            const destHeaders = ['Destination_Code', 'Destination_Name', 'Country'];
+            const destData = [['BAL', 'Bali', 'Indonesia']]; // Sample
+            const destSheet = XLSX.utils.aoa_to_sheet([destHeaders, ...destData]);
+            XLSX.utils.book_append_sheet(wb, destSheet, 'Destination_Master');
+
+            // 2. Packages Master
+            const pkgHeaders = [
+                'Destination_ID', 'Destination_Name', 'Overview', 'Duration', 'Price_Range_INR',
+                'Travel_Type', 'Mood', 'Occasion', 'Budget_Category', 'Theme', 'Adventure_Level',
+                'Stay_Type', 'Star_Category', 'Meal_Plan', 'Group_Size', 'Child_Friendly',
+                'Elderly_Friendly', 'Language_Preference', 'Seasonality', 'Hotel_Examples',
+                'Rating', 'Location_Breakup', 'Airport_Code', 'Transfer_Type', 'Currency',
+                'Climate_Type', 'Safety_Score', 'Sustainability_Score', 'Ideal_Traveler_Persona',
+                'Primary_Image_URL', 'SEO_Title', 'SEO_Description', 'SEO_Keywords'
+            ];
+            const pkgData = [['BAL_001', 'Bali', 'A beautiful escape...', '5 Nights / 6 Days', '₹50,000 - ₹70,000', 'Family', 'Relax', 'Vacation', 'Mid', 'Beach', 'Light', 'Resort', '4-Star', 'Breakfast', '2A 1C', 'Yes', 'Yes', 'English', 'All Year', 'Sample Resort', '4.5/5', '3N Ubud', 'DPS', 'Private', 'INR', 'Tropical', '8/10', '7/10', 'Families', 'https://example.com/image.jpg', 'Bali Package', 'Desc', 'bali, beach']];
+            const pkgSheet = XLSX.utils.aoa_to_sheet([pkgHeaders, ...pkgData]);
+            XLSX.utils.book_append_sheet(wb, pkgSheet, 'Packages_Master');
+
+            // 3. Daywise Itinerary
+            const itinHeaders = ['Destination_ID', 'Day', 'Description'];
+            const itinData = [['BAL_001', 1, 'Arrival in Bali']];
+            const itinSheet = XLSX.utils.aoa_to_sheet([itinHeaders, ...itinData]);
+            XLSX.utils.book_append_sheet(wb, itinSheet, 'Daywise_Itinerary');
+
+            // 4. Inclusions Exclusions
+            const incExcHeaders = ['Destination_ID', 'Inclusions', 'Exclusions'];
+            const incExcData = [['BAL_001', 'Breakfast, Airport Transfers', 'Flights, Personal Expenses']];
+            const incExcSheet = XLSX.utils.aoa_to_sheet([incExcHeaders, ...incExcData]);
+            XLSX.utils.book_append_sheet(wb, incExcSheet, 'Inclusions_Exclusions');
+
+            // 5. Guest Reviews
+            const reviewHeaders = ['Destination_ID', 'Name', 'Content', 'Date', 'Rating'];
+            const reviewData = [['BAL_001', 'John Doe', 'Amazing trip!', '2024-01-01', '5']];
+            const reviewSheet = XLSX.utils.aoa_to_sheet([reviewHeaders, ...reviewData]);
+            XLSX.utils.book_append_sheet(wb, reviewSheet, 'Guest_Reviews');
+
+            // 6. Booking Policies
+            const policyHeaders = ['Destination_ID', 'Policy_Type', 'Item'];
+            const policyData = [
+                ['BAL_001', 'booking', '50% advance'],
+                ['BAL_001', 'cancellation', 'No refund within 15 days']
+            ];
+            const policySheet = XLSX.utils.aoa_to_sheet([policyHeaders, ...policyData]);
+            XLSX.utils.book_append_sheet(wb, policySheet, 'Booking_Policies');
+
+            // 7. FAQs
+            const faqHeaders = ['Destination_ID', 'Question', 'Answer'];
+            const faqData = [['BAL_001', 'Is breakfast included?', 'Yes']];
+            const faqSheet = XLSX.utils.aoa_to_sheet([faqHeaders, ...faqData]);
+            XLSX.utils.book_append_sheet(wb, faqSheet, 'FAQ_Items');
+
+            // 8. Why Book With Us
+            const whyHeaders = ['Destination_ID', 'Label', 'Description'];
+            const whyData = [['BAL_001', '24/7 Support', 'We are always here']];
+            const whySheet = XLSX.utils.aoa_to_sheet([whyHeaders, ...whyData]);
+            XLSX.utils.book_append_sheet(wb, whySheet, 'Why_Book_With_Us');
+
+            XLSX.writeFile(wb, 'Travelzada_Package_Template.xlsx');
+        } catch (e) {
+            console.error("Failed to generate template", e);
+            alert("Could not generate template");
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -321,6 +448,18 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                         <h2 className="text-2xl font-bold text-gray-900">AI Package Generator</h2>
                         <p className="text-gray-500">Upload an Excel file and let AI generate complete package details</p>
                     </div>
+                </div>
+
+                <div className="flex justify-end mb-4">
+                    <button
+                        onClick={handleDownloadTemplate}
+                        className="text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download Sample Template
+                    </button>
                 </div>
 
                 {/* File Upload */}

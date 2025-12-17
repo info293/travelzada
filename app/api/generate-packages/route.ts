@@ -44,6 +44,14 @@ export interface PackageInput {
     Inclusions?: string[];
     Exclusions?: string[];
     Day_Wise_Itinerary?: Array<{ day: number; description: string }>;
+    Guest_Reviews?: Array<{ name: string; content: string; date: string; rating: string }>;
+    Booking_Policies?: {
+        booking?: string[];
+        payment?: string[];
+        cancellation?: string[];
+    };
+    FAQ_Items?: Array<{ question: string; answer: string }>;
+    Why_Book_With_Us?: Array<{ label: string; description: string }>;
 }
 
 export interface GeneratedPackageData {
@@ -153,12 +161,20 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageData> {
-    const itineraryText = pkg.Day_Wise_Itinerary
-        ? pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join('\n')
-        : '';
+    let itineraryText = '';
+    if (Array.isArray(pkg.Day_Wise_Itinerary)) {
+        itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join('\n');
+    } else if (typeof pkg.Day_Wise_Itinerary === 'string') {
+        itineraryText = pkg.Day_Wise_Itinerary;
+    }
 
-    const inclusionsText = pkg.Inclusions?.join(', ') || 'Standard inclusions';
-    const exclusionsText = pkg.Exclusions?.join(', ') || 'Standard exclusions';
+    const inclusionsText = Array.isArray(pkg.Inclusions)
+        ? pkg.Inclusions.join(', ')
+        : (typeof pkg.Inclusions === 'string' ? pkg.Inclusions : 'Standard inclusions');
+
+    const exclusionsText = Array.isArray(pkg.Exclusions)
+        ? pkg.Exclusions.join(', ')
+        : (typeof pkg.Exclusions === 'string' ? pkg.Exclusions : 'Standard exclusions');
 
     const prompt = `You are a travel content expert. Generate complete travel package content for the following destination.
 
@@ -337,24 +353,30 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks, no extra text.`;
         SEO_Title: generated.SEO_Title || `${destinationName} Package | ${duration} Getaway`,
         SEO_Description: generated.SEO_Description || `Book the best ${destinationName} package with ${duration}. Includes accommodation, transfers, and tours.`,
         SEO_Keywords: generated.SEO_Keywords || `${destinationName.toLowerCase()}, travel package, vacation, holiday`,
-        Guest_Reviews: generated.Guest_Reviews || [
+        Guest_Reviews: (pkg.Guest_Reviews && pkg.Guest_Reviews.length > 0) ? pkg.Guest_Reviews : (generated.Guest_Reviews || [
             { name: 'Rahul Kumar', content: 'Amazing experience! Everything was perfectly organized.', date: '2024-11-15', rating: '5' },
             { name: 'Priya Sharma', content: 'Beautiful destination and excellent service.', date: '2024-10-20', rating: '5' }
-        ],
-        Booking_Policies: generated.Booking_Policies || {
-            booking: ['20% Advance to confirm', '50% 30 Days before travel', '100% 15 Days before travel'],
-            payment: ['Bank Transfer', 'Credit Card', 'UPI'],
-            cancellation: ['Free cancellation up to 30 days before travel', '50% refund up to 15 days', 'No refund within 15 days']
-        },
-        FAQ_Items: generated.FAQ_Items || [
+        ]),
+        Booking_Policies: (pkg.Booking_Policies && (pkg.Booking_Policies.booking?.length || pkg.Booking_Policies.payment?.length || pkg.Booking_Policies.cancellation?.length))
+            ? {
+                booking: pkg.Booking_Policies.booking || [],
+                payment: pkg.Booking_Policies.payment || [],
+                cancellation: pkg.Booking_Policies.cancellation || []
+            }
+            : (generated.Booking_Policies || {
+                booking: ['20% Advance to confirm', '50% 30 Days before travel', '100% 15 Days before travel'],
+                payment: ['Bank Transfer', 'Credit Card', 'UPI'],
+                cancellation: ['Free cancellation up to 30 days before travel', '50% refund up to 15 days', 'No refund within 15 days']
+            }),
+        FAQ_Items: (pkg.FAQ_Items && pkg.FAQ_Items.length > 0) ? pkg.FAQ_Items : (generated.FAQ_Items || [
             { question: 'Is breakfast included?', answer: 'Yes, daily breakfast is included at all hotels.' },
             { question: 'Are airport transfers included?', answer: 'Yes, private airport transfers are included in the package.' },
             { question: 'Can I customize the itinerary?', answer: 'Yes, our travel experts can customize the itinerary based on your preferences.' }
-        ],
-        Why_Book_With_Us: generated.Why_Book_With_Us || [
+        ]),
+        Why_Book_With_Us: (pkg.Why_Book_With_Us && pkg.Why_Book_With_Us.length > 0) ? pkg.Why_Book_With_Us : (generated.Why_Book_With_Us || [
             { label: '24/7 Support', description: 'We are available round the clock for any assistance.' },
             { label: 'Best Price Guarantee', description: 'We match any comparable price you find elsewhere.' }
-        ]
+        ])
     };
 
     return completePackage;
