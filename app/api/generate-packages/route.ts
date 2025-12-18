@@ -161,6 +161,18 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageData> {
+    // Calculate duration from Day_Wise_Itinerary
+    let daysCount = 0;
+    if (Array.isArray(pkg.Day_Wise_Itinerary)) {
+        daysCount = pkg.Day_Wise_Itinerary.length;
+    } else if (pkg.Duration_Days) {
+        daysCount = pkg.Duration_Days;
+    } else {
+        daysCount = 4; // default
+    }
+    const nightsCount = Math.max(1, daysCount - 1);
+    const calculatedDuration = `${nightsCount} Nights / ${daysCount} Days`;
+
     let itineraryText = '';
     if (Array.isArray(pkg.Day_Wise_Itinerary)) {
         itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join('\n');
@@ -170,99 +182,101 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
 
     const inclusionsText = Array.isArray(pkg.Inclusions)
         ? pkg.Inclusions.join(', ')
-        : (typeof pkg.Inclusions === 'string' ? pkg.Inclusions : 'Standard inclusions');
+        : (typeof pkg.Inclusions === 'string' ? pkg.Inclusions : '');
 
     const exclusionsText = Array.isArray(pkg.Exclusions)
         ? pkg.Exclusions.join(', ')
-        : (typeof pkg.Exclusions === 'string' ? pkg.Exclusions : 'Standard exclusions');
+        : (typeof pkg.Exclusions === 'string' ? pkg.Exclusions : '');
 
-    const prompt = `You are a travel content expert. Generate complete travel package content for the following destination.
+    const destinationName = pkg.Destination_Name || 'Unknown Destination';
 
-DESTINATION INFO FROM EXCEL:
+    const prompt = `You are an expert travel content writer for a luxury honeymoon and couples travel company called TravelZada.
+
+PACKAGE DETAILS:
 - Destination ID: ${pkg.Destination_ID}
-- Destination Name: ${pkg.Destination_Name}
+- Destination Name: ${destinationName}
 - Country: ${pkg.Country || 'Unknown'}
-- Duration: ${pkg.Duration || `${pkg.Duration_Nights || 3} Nights / ${pkg.Duration_Days || 4} Days`}
-- Price Range: ${pkg.Price_Range_INR || 'Not specified'}
-- Travel Type: ${pkg.Travel_Type || ''}
-- Mood: ${pkg.Mood || ''}
-- Occasion: ${pkg.Occasion || ''}
-- Theme: ${pkg.Theme || ''}
-- Stay Type: ${pkg.Stay_Type || ''}
-- Star Category: ${pkg.Star_Category || ''}
-- Meal Plan: ${pkg.Meal_Plan || ''}
-- Child Friendly: ${pkg.Child_Friendly || ''}
-- Elderly Friendly: ${pkg.Elderly_Friendly || ''}
+- Duration: ${calculatedDuration}
+- Price Range: ${pkg.Price_Range_INR || 'Premium'}
 
-EXISTING ITINERARY FROM EXCEL:
-${itineraryText || 'No detailed itinerary provided - please generate one based on duration'}
+ITINERARY:
+${itineraryText || 'Generate based on duration'}
 
-INCLUSIONS FROM EXCEL: ${inclusionsText}
-EXCLUSIONS FROM EXCEL: ${exclusionsText}
+INCLUSIONS: ${inclusionsText || 'Standard luxury inclusions'}
+EXCLUSIONS: ${exclusionsText || 'Flights, Visa, Personal Expenses'}
 
-Based on the above information, generate a COMPLETE travel package JSON with AI-generated content for missing fields.
-Fill in any empty fields with appropriate values based on the destination.
+Generate a JSON object with ONLY the following fields. Follow the rules EXACTLY:
 
-Return a JSON object with these exact fields:
 {
-  "Overview": "A compelling 2-3 sentence marketing description of this destination experience",
-  "Mood": "Appropriate mood if not provided (Relax/Adventure/Romance/Culture/etc)",
-  "Occasion": "Suitable occasion if not provided (Family Vacation/Honeymoon/Solo Trip/etc)",
-  "Travel_Type": "Type if not provided (Family/Couple/Solo/Group/etc)",
-  "Budget_Category": "Budget/Mid/Premium based on price",
-  "Theme": "Theme if not provided (Beach/Mountain/Culture/Wildlife/etc)",
-  "Adventure_Level": "Light/Moderate/High",
-  "Stay_Type": "Hotel/Resort/Villa/Homestay if not provided",
-  "Star_Category": "3-Star/4-Star/5-Star if not provided",
-  "Meal_Plan": "Breakfast Only/Half Board/Full Board if not provided",
-  "Child_Friendly": "Yes/No if not provided",
-  "Elderly_Friendly": "Yes/No if not provided",
-  "Language_Preference": "English/Hindi/Local",
-  "Seasonality": "All Year/Best in Summer/Best in Winter/Monsoon/etc",
-  "Hotel_Examples": "2-3 example hotel names for this destination",
-  "Inclusions": "Comma-separated list of inclusions as a single string",
-  "Exclusions": "Comma-separated list of exclusions as a single string",
-  "Day_Wise_Itinerary": "Day 1: ... | Day 2: ... | Day 3: ... format as single string",
-  "Rating": "4.5/5 or similar",
-  "Location_Breakup": "e.g. 2N City + 1N Beach",
-  "Airport_Code": "Nearest airport code (e.g. DEL, BOM, BLR)",
-  "Transfer_Type": "Private/Shared/Self",
-  "Climate_Type": "Tropical/Temperate/Cold/Desert/etc",
-  "Safety_Score": "X/10",
-  "Sustainability_Score": "X/10",
-  "Ideal_Traveler_Persona": "One sentence describing ideal traveler",
-  "Primary_Image_URL": "A relevant Unsplash image URL for this destination",
-  "SEO_Title": "SEO optimized title under 60 chars",
-  "SEO_Description": "SEO meta description under 160 chars",
-  "SEO_Keywords": "comma-separated keywords",
+  "Overview": "Write a compelling 2-3 LINE SUMMARY only. Focus on romantic/luxury experience. No more than 50 words.",
+  
+  "Mood": "Choose ONE from: Romantic, Relaxing, Adventure",
+  
+  "Occasion": "Choose ONE from: Honeymoon, Minimoon, Anniversary, Birthday, Wedding Ritual, Blessing, Milestones",
+  
+  "Budget_Category": "Choose ONE from: Mid, Premium, Luxury (based on price range)",
+  
+  "Adventure_Level": "Choose ONE from: Low, Med, High",
+  
+  "Stay_Type": "Choose ONE from: Resort, Hotel, Villa",
+  
+  "Star_Category": "Choose from: 3-Star, 4-Star, 5-Star based on price",
+  
+  "Rating": "Generate a random rating between 4.7 and 5.0 (format: X.X/5)",
+  
+  "Inclusions": "Format existing inclusions as comma-separated string",
+  
+  "Exclusions": "Format existing exclusions as comma-separated string",
+  
+  "Day_Wise_Itinerary": "Format as: Day 1: ... | Day 2: ... | Day 3: ...",
+  
+  "Primary_Image_URL": "Provide a relevant high-quality Unsplash image URL for ${destinationName}",
+  
+  "SEO_Title": "Format: [Destination] [Duration] Package | Honeymoon & Couples Trip - TravelZada (max 60 chars)",
+  
+  "SEO_Description": "Format: Book your dream [Destination] [Duration] honeymoon package. Includes [key inclusions]. Best prices & 24/7 support. (max 155 chars)",
+  
+  "SEO_Keywords": "Format: [destination] honeymoon package, [destination] couples trip, [destination] romantic getaway, [duration] [destination] tour, best [destination] package",
+  
   "Guest_Reviews": [
-    {"name": "Realistic Indian name", "content": "Positive review text", "date": "2024-XX-XX", "rating": "5"},
-    {"name": "Another name", "content": "Another review", "date": "2024-XX-XX", "rating": "4"}
+    {"name": "Indian couple name like 'Rahul & Priya'", "content": "Honeymoon-focused positive review about the destination", "date": "2024-XX-XX", "rating": "5"},
+    {"name": "Another Indian couple name", "content": "Another romantic review mentioning specific highlights", "date": "2024-XX-XX", "rating": "5"}
   ],
+  
   "Booking_Policies": {
-    "booking": ["20% Advance to confirm", "50% 30 Days before travel", "100% 15 Days before travel"],
-    "payment": ["Bank Transfer", "Credit Card", "UPI"],
-    "cancellation": ["Free cancellation up to 30 days before travel", "50% refund up to 15 days", "No refund within 15 days"]
+    "booking": ["50% advance to confirm booking", "Balance 15 days before travel"],
+    "payment": ["Bank Transfer", "Credit Card", "UPI", "EMI Available"],
+    "cancellation": ["Free cancellation up to 30 days before travel", "50% refund 15-30 days before", "No refund within 15 days"]
   },
+  
   "FAQ_Items": [
-    {"question": "Relevant FAQ 1?", "answer": "Answer 1"},
-    {"question": "Relevant FAQ 2?", "answer": "Answer 2"},
-    {"question": "Relevant FAQ 3?", "answer": "Answer 3"}
+    {"question": "What is included in this ${destinationName} package?", "answer": "Detailed answer about inclusions"},
+    {"question": "Is this package suitable for honeymoon couples?", "answer": "Yes, this package is specially curated for couples..."},
+    {"question": "What are the payment options?", "answer": "We accept Bank Transfer, Credit Card, UPI, and offer EMI options."},
+    {"question": "Can this itinerary be customized?", "answer": "Yes, our travel experts can customize the itinerary based on your preferences."},
+    {"question": "What is the best time to visit ${destinationName}?", "answer": "Answer based on destination's peak season"}
   ],
+  
   "Why_Book_With_Us": [
-    {"label": "Benefit 1", "description": "Description of benefit"},
-    {"label": "Benefit 2", "description": "Description of benefit"}
+    {"label": "Honeymoon Specialists", "description": "10+ years of curating romantic getaways for couples"},
+    {"label": "24/7 Support", "description": "Round-the-clock assistance during your trip"},
+    {"label": "Best Price Guarantee", "description": "We match any comparable price you find"}
   ]
 }
 
-IMPORTANT: Return ONLY valid JSON, no markdown code blocks, no extra text.`;
+IMPORTANT RULES:
+1. Return ONLY valid JSON, no markdown code blocks, no extra text
+2. Keep Overview to 2-3 lines maximum (50 words or less)
+3. Rating must be between 4.7 and 5.0
+4. All reviews should be from couples with Indian names
+5. FAQs should answer what customers actually want to know about THIS specific package`;
 
     const completion = await openai.chat.completions.create({
         model: model,
         messages: [
             {
                 role: 'system',
-                content: 'You are a professional travel content writer. Always respond with valid JSON only. Generate all requested fields.',
+                content: 'You are a luxury travel content writer specializing in honeymoon and couples packages. Always respond with valid JSON only. Be concise and romantic in tone.',
             },
             {
                 role: 'user',
@@ -298,10 +312,6 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks, no extra text.`;
         generated = {};
     }
 
-    // Ensure all required fields have values - use AI generated or provide defaults
-    const duration = pkg.Duration || `${pkg.Duration_Nights || 3} Nights / ${pkg.Duration_Days || 4} Days`;
-    const destinationName = pkg.Destination_Name || 'Unknown Destination';
-
     // Convert Day_Wise_Itinerary array to string format if needed
     let itineraryString = generated.Day_Wise_Itinerary || '';
     if (Array.isArray(pkg.Day_Wise_Itinerary)) {
@@ -322,41 +332,85 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks, no extra text.`;
         exclusionsString = pkg.Exclusions.join(', ');
     }
 
+    // Generate random rating between 4.7 and 5.0
+    const randomRating = (4.7 + Math.random() * 0.3).toFixed(1);
+
+    // Build complete package with FIXED values as per requirements
     const completePackage: GeneratedPackageData = {
-        Overview: generated.Overview || `Experience the best of ${destinationName} with our carefully curated ${duration} package. Enjoy premium accommodations, guided tours, and unforgettable memories.`,
-        Mood: generated.Mood || pkg.Mood || 'Relax',
-        Occasion: generated.Occasion || pkg.Occasion || 'Vacation',
-        Travel_Type: generated.Travel_Type || pkg.Travel_Type || 'Couple',
-        Budget_Category: generated.Budget_Category || pkg.Budget_Category || 'Mid',
-        Theme: generated.Theme || pkg.Theme || 'Culture & Leisure',
-        Adventure_Level: generated.Adventure_Level || 'Light',
-        Stay_Type: generated.Stay_Type || pkg.Stay_Type || 'Hotel',
+        // AI Generated fields
+        Overview: generated.Overview || `Experience the romance of ${destinationName} with our exclusive ${calculatedDuration} couples package.`,
+
+        // Fixed: Mood from allowed values
+        Mood: generated.Mood || 'Romantic',
+
+        // Fixed: Occasion from allowed values
+        Occasion: generated.Occasion || 'Honeymoon',
+
+        // FIXED: Travel_Type is always Couple
+        Travel_Type: 'Couple',
+
+        // Fixed: Budget_Category from allowed values
+        Budget_Category: generated.Budget_Category || 'Premium',
+
+        // BLANK: Theme
+        Theme: '',
+
+        // Fixed: Adventure_Level from allowed values
+        Adventure_Level: generated.Adventure_Level || 'Low',
+
+        // Fixed: Stay_Type from allowed values
+        Stay_Type: generated.Stay_Type || 'Resort',
+
+        // Keep from Excel or AI
         Star_Category: generated.Star_Category || pkg.Star_Category || '4-Star',
-        Meal_Plan: generated.Meal_Plan || pkg.Meal_Plan || 'Breakfast Only',
-        Child_Friendly: generated.Child_Friendly || pkg.Child_Friendly || 'Yes',
-        Elderly_Friendly: generated.Elderly_Friendly || pkg.Elderly_Friendly || 'Yes',
-        Language_Preference: generated.Language_Preference || 'English',
-        Seasonality: generated.Seasonality || 'All Year',
-        Hotel_Examples: generated.Hotel_Examples || `${destinationName} Resort, ${destinationName} Hotel`,
+
+        // FIXED: Meal_Plan is always Breakfast
+        Meal_Plan: 'Breakfast',
+
+        // BLANK fields
+        Child_Friendly: '',
+        Elderly_Friendly: '',
+        Language_Preference: '',
+        Seasonality: '',
+        Hotel_Examples: '',
+
+        // Inclusions/Exclusions from Excel or AI
         Inclusions: inclusionsString || 'Accommodation, Breakfast, Airport Transfers, Sightseeing',
         Exclusions: exclusionsString || 'Flights, Visa, Travel Insurance, Personal Expenses',
-        Day_Wise_Itinerary: itineraryString || `Day 1: Arrival & Check-in | Day 2: Sightseeing Tour | Day 3: Leisure Day | Day 4: Departure`,
-        Rating: generated.Rating || '4.5/5',
-        Location_Breakup: generated.Location_Breakup || `${pkg.Duration_Nights || 3}N ${destinationName}`,
-        Airport_Code: generated.Airport_Code || pkg.Airport_Code || 'XXX',
-        Transfer_Type: generated.Transfer_Type || pkg.Transfer_Type || 'Private',
-        Climate_Type: generated.Climate_Type || 'Tropical',
-        Safety_Score: generated.Safety_Score || '8/10',
-        Sustainability_Score: generated.Sustainability_Score || '7/10',
-        Ideal_Traveler_Persona: generated.Ideal_Traveler_Persona || `Travelers looking for a memorable ${destinationName} experience`,
+
+        // Itinerary
+        Day_Wise_Itinerary: itineraryString || `Day 1: Arrival & Check-in | Day 2: Sightseeing | Day 3: Leisure | Day 4: Departure`,
+
+        // Random rating 4.7+
+        Rating: `${randomRating}/5`,
+
+        // BLANK fields
+        Location_Breakup: '',
+        Airport_Code: '',
+
+        // FIXED: Transfer_Type is always Private
+        Transfer_Type: 'Private',
+
+        // BLANK fields
+        Climate_Type: '',
+        Safety_Score: '',
+        Sustainability_Score: '',
+        Ideal_Traveler_Persona: '',
+
+        // Image
         Primary_Image_URL: generated.Primary_Image_URL || pkg.Primary_Image_URL || `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80`,
-        SEO_Title: generated.SEO_Title || `${destinationName} Package | ${duration} Getaway`,
-        SEO_Description: generated.SEO_Description || `Book the best ${destinationName} package with ${duration}. Includes accommodation, transfers, and tours.`,
-        SEO_Keywords: generated.SEO_Keywords || `${destinationName.toLowerCase()}, travel package, vacation, holiday`,
+
+        // SEO fields with rules
+        SEO_Title: generated.SEO_Title || `${destinationName} ${calculatedDuration} Package | Honeymoon - TravelZada`,
+        SEO_Description: generated.SEO_Description || `Book your dream ${destinationName} ${calculatedDuration} honeymoon package. Includes accommodation, transfers & sightseeing. Best prices & 24/7 support.`,
+        SEO_Keywords: generated.SEO_Keywords || `${destinationName.toLowerCase()} honeymoon package, ${destinationName.toLowerCase()} couples trip, ${destinationName.toLowerCase()} romantic getaway`,
+
+        // Reviews, Policies, FAQs from AI or defaults
         Guest_Reviews: (pkg.Guest_Reviews && pkg.Guest_Reviews.length > 0) ? pkg.Guest_Reviews : (generated.Guest_Reviews || [
-            { name: 'Rahul Kumar', content: 'Amazing experience! Everything was perfectly organized.', date: '2024-11-15', rating: '5' },
-            { name: 'Priya Sharma', content: 'Beautiful destination and excellent service.', date: '2024-10-20', rating: '5' }
+            { name: 'Rahul & Priya', content: 'Our honeymoon was absolutely magical! Every detail was perfectly arranged.', date: '2024-11-15', rating: '5' },
+            { name: 'Amit & Sneha', content: 'Beautiful destination and excellent service. Highly recommend for couples!', date: '2024-10-20', rating: '5' }
         ]),
+
         Booking_Policies: (pkg.Booking_Policies && (pkg.Booking_Policies.booking?.length || pkg.Booking_Policies.payment?.length || pkg.Booking_Policies.cancellation?.length))
             ? {
                 booking: pkg.Booking_Policies.booking || [],
@@ -364,23 +418,29 @@ IMPORTANT: Return ONLY valid JSON, no markdown code blocks, no extra text.`;
                 cancellation: pkg.Booking_Policies.cancellation || []
             }
             : (generated.Booking_Policies || {
-                booking: ['20% Advance to confirm', '50% 30 Days before travel', '100% 15 Days before travel'],
-                payment: ['Bank Transfer', 'Credit Card', 'UPI'],
-                cancellation: ['Free cancellation up to 30 days before travel', '50% refund up to 15 days', 'No refund within 15 days']
+                booking: ['50% advance to confirm booking', 'Balance 15 days before travel'],
+                payment: ['Bank Transfer', 'Credit Card', 'UPI', 'EMI Available'],
+                cancellation: ['Free cancellation up to 30 days before travel', '50% refund 15-30 days before', 'No refund within 15 days']
             }),
+
         FAQ_Items: (pkg.FAQ_Items && pkg.FAQ_Items.length > 0) ? pkg.FAQ_Items : (generated.FAQ_Items || [
-            { question: 'Is breakfast included?', answer: 'Yes, daily breakfast is included at all hotels.' },
-            { question: 'Are airport transfers included?', answer: 'Yes, private airport transfers are included in the package.' },
-            { question: 'Can I customize the itinerary?', answer: 'Yes, our travel experts can customize the itinerary based on your preferences.' }
+            { question: `What is included in this ${destinationName} package?`, answer: 'This package includes accommodation, daily breakfast, airport transfers, and sightseeing as per itinerary.' },
+            { question: 'Is this package suitable for honeymoon couples?', answer: 'Yes, this package is specially curated for couples celebrating honeymoon, anniversary, or romantic getaways.' },
+            { question: 'What are the payment options?', answer: 'We accept Bank Transfer, Credit Card, UPI, and offer EMI options for your convenience.' },
+            { question: 'Can this itinerary be customized?', answer: 'Yes, our travel experts can customize the itinerary based on your preferences and requirements.' },
+            { question: `What is the best time to visit ${destinationName}?`, answer: 'Please contact our travel experts for the best time to visit based on weather and peak seasons.' }
         ]),
+
         Why_Book_With_Us: (pkg.Why_Book_With_Us && pkg.Why_Book_With_Us.length > 0) ? pkg.Why_Book_With_Us : (generated.Why_Book_With_Us || [
-            { label: '24/7 Support', description: 'We are available round the clock for any assistance.' },
-            { label: 'Best Price Guarantee', description: 'We match any comparable price you find elsewhere.' }
+            { label: 'Honeymoon Specialists', description: '10+ years of curating romantic getaways for couples' },
+            { label: '24/7 Support', description: 'Round-the-clock assistance during your trip' },
+            { label: 'Best Price Guarantee', description: 'We match any comparable price you find' }
         ])
     };
 
     return completePackage;
 }
+
 
 function slugify(text: string): string {
     return text
