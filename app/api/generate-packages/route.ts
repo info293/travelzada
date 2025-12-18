@@ -175,7 +175,7 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
 
     let itineraryText = '';
     if (Array.isArray(pkg.Day_Wise_Itinerary)) {
-        itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join('\n');
+        itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join(' | ');
     } else if (typeof pkg.Day_Wise_Itinerary === 'string') {
         itineraryText = pkg.Day_Wise_Itinerary;
     }
@@ -190,8 +190,28 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
 
     const destinationName = pkg.Destination_Name || 'Unknown Destination';
 
-    const prompt = `You are an expert travel content writer for a luxury honeymoon and couples travel company called TravelZada.
+    const prompt = `
+You are a CARE HOLIDAY PACKAGE EXPERT for a PREMIUM-FOCUSED travel brand called TravelZada.
 
+TravelZada serves:
+- 30% Economic / value-conscious travelers
+- 50% Premium honeymooners & couples (CORE FOCUS)
+- 20% Luxury travelers
+
+You specialize in:
+- Honeymoon & couples-only holiday packages
+- Premium experiential travel with value-for-money positioning
+- Smart upselling from Economic → Premium → Luxury
+- Strong SEO + AEO (Answer Engine Optimization)
+- Writing content that ranks on Google, AI Overviews, and voice search
+
+You think like:
+- A honeymoon consultant
+- A premium travel curator
+- An SEO strategist
+- A conversion-focused content writer
+
+--------------------------------------------------
 PACKAGE DETAILS:
 - Destination ID: ${pkg.Destination_ID}
 - Destination Name: ${destinationName}
@@ -199,84 +219,214 @@ PACKAGE DETAILS:
 - Duration: ${calculatedDuration}
 - Price Range: ${pkg.Price_Range_INR || 'Premium'}
 
+--------------------------------------------------
 ITINERARY:
-${itineraryText || 'Generate based on duration'}
+${itineraryText || 'Generate a realistic, balanced day-wise itinerary based on duration'}
 
-INCLUSIONS: ${inclusionsText || 'Standard luxury inclusions'}
-EXCLUSIONS: ${exclusionsText || 'Flights, Visa, Personal Expenses'}
+INCLUSIONS:
+${inclusionsText || 'Premium stays, comfortable transfers, curated couple experiences'}
 
-Generate a JSON object with ONLY the following fields. Follow the rules EXACTLY:
+EXCLUSIONS:
+${exclusionsText || 'Flights, Visa, Personal expenses'}
 
+--------------------------------------------------
+OUTPUT REQUIREMENT:
+
+Generate a SINGLE VALID JSON OBJECT with ONLY the fields listed below.
+❌ No markdown
+❌ No explanations
+❌ No extra keys
+❌ No trailing commas
+
+--------------------------------------------------
+FIELD RULES & ENUMS (FOLLOW STRICTLY):
+
+Overview:
+- 2–3 short lines only
+- Maximum 50 words
+- Emotion-driven but value-conscious
+- Focus on comfort, romance, convenience & curated planning
+- Do NOT sound ultra-luxury or budget
+
+Mood:
+Choose ONE from:
+Romantic, Relaxing, Scenic, Experiential, Adventurous, Cultural
+
+Occasion:
+Choose ONE from:
+Honeymoon, Minimoon, Anniversary, Proposal, Pre-Wedding Shoot, Birthday Getaway, Wedding Ritual, Family Blessing, Milestone Celebration
+
+Budget_Category:
+Choose ONE from:
+Economic, Premium, Luxury
+
+Budget_Category logic:
+- Economic → budget hotels, shared tours, minimal frills
+- Premium → 4* or good 5*, private transfers, curated experiences (CORE)
+- Luxury → 5* deluxe, private experiences, exclusivity
+
+Adventure_Level:
+Choose ONE from:
+Low, Medium, High
+
+Stay_Type:
+Choose ONE from:
+Resort, Hotel, Villa, Boutique Stay, Overwater Villa
+
+Star_Category:
+Choose ONE from:
+3-Star, 4-Star, 5-Star, 5-Star Deluxe
+
+Rating:
+- Random value between 4.7 and 5.0
+- Format strictly as: X.X/5
+
+--------------------------------------------------
+FORMATTING RULES:
+
+Inclusions:
+- Comma-separated string
+- No bullet points
+
+Exclusions:
+- Comma-separated string
+- No bullet points
+
+Day_Wise_Itinerary:
+- Format exactly as:
+  Day 1: ... | Day 2: ... | Day 3: ...
+- Each day must mention:
+  an experience + location OR stay/activity highlight
+
+--------------------------------------------------
+IMAGE RULE:
+
+Primary_Image_URL:
+- Use a REAL Unsplash image URL
+- Relevant to destination & couples/honeymoon theme
+- Scenic, romantic, premium-friendly
+- Format example:
+  https://images.unsplash.com/...
+
+--------------------------------------------------
+SEO & AEO RULES (VERY IMPORTANT):
+
+SEO_Title:
+- Maximum 60 characters
+- MUST start with destination name
+- MUST include duration
+- Use “Honeymoon Package” or “Couples Tour”
+- Avoid words like Luxury / Ultra
+- End with “TravelZada”
+
+Format:
+[Destination] [Duration] Honeymoon Package for Couples | TravelZada
+
+SEO_Description:
+- Maximum 155 characters
+- Conversational & answer-friendly
+- Mention:
+  destination, duration, honeymoon, premium stays, support
+- Tone: reassuring, value-driven, romantic
+
+Example style:
+"Book a romantic 6N Bali honeymoon package with premium stays, curated experiences & 24/7 support. Perfect for couples."
+
+SEO_Keywords:
+- Comma-separated
+- High-intent, India-focused searches
+- Must include:
+  destination honeymoon package,
+  destination couples tour,
+  destination honeymoon package from India,
+  destination premium honeymoon package,
+  duration destination itinerary,
+  best destination package for couples
+
+--------------------------------------------------
+GUEST REVIEWS RULES:
+
+Guest_Reviews:
+- Exactly 2 reviews
+- Indian couple names only (e.g., Rahul & Priya)
+- Honeymoon / anniversary focused
+- Mention 1–2 real highlights (hotel, activity, location)
+- Date format: 2024-MM-DD
+- Rating must be "5"
+
+--------------------------------------------------
+BOOKING POLICIES (STATIC):
+
+Booking_Policies:
 {
-  "Overview": "Write a compelling 2-3 LINE SUMMARY only. Focus on romantic/luxury experience. No more than 50 words.",
-  
-  "Mood": "Choose ONE from: Romantic, Relaxing, Adventure",
-  
-  "Occasion": "Choose ONE from: Honeymoon, Minimoon, Anniversary, Birthday, Wedding Ritual, Blessing, Milestones",
-  
-  "Budget_Category": "Choose ONE from: Mid, Premium, Luxury (based on price range)",
-  
-  "Adventure_Level": "Choose ONE from: Low, Med, High",
-  
-  "Stay_Type": "Choose ONE from: Resort, Hotel, Villa",
-  
-  "Star_Category": "Choose from: 3-Star, 4-Star, 5-Star based on price",
-  
-  "Rating": "Generate a random rating between 4.7 and 5.0 (format: X.X/5)",
-  
-  "Inclusions": "Format existing inclusions as comma-separated string",
-  
-  "Exclusions": "Format existing exclusions as comma-separated string",
-  
-  "Day_Wise_Itinerary": "Format as: Day 1: ... | Day 2: ... | Day 3: ...",
-  
-  "Primary_Image_URL": "Provide a relevant high-quality Unsplash image URL for ${destinationName}",
-  
-  "SEO_Title": "Format: [Destination] [Duration] Package | Honeymoon & Couples Trip - TravelZada (max 60 chars)",
-  
-  "SEO_Description": "Format: Book your dream [Destination] [Duration] honeymoon package. Includes [key inclusions]. Best prices & 24/7 support. (max 155 chars)",
-  
-  "SEO_Keywords": "Format: [destination] honeymoon package, [destination] couples trip, [destination] romantic getaway, [duration] [destination] tour, best [destination] package",
-  
-  "Guest_Reviews": [
-    {"name": "Indian couple name like 'Rahul & Priya'", "content": "Honeymoon-focused positive review about the destination", "date": "2024-XX-XX", "rating": "5"},
-    {"name": "Another Indian couple name", "content": "Another romantic review mentioning specific highlights", "date": "2024-XX-XX", "rating": "5"}
-  ],
-  
-  "Booking_Policies": {
-    "booking": ["50% advance to confirm booking", "Balance 15 days before travel"],
-    "payment": ["Bank Transfer", "Credit Card", "UPI", "EMI Available"],
-    "cancellation": ["Free cancellation up to 30 days before travel", "50% refund 15-30 days before", "No refund within 15 days"]
-  },
-  
-  "FAQ_Items": [
-    {"question": "What is included in this ${destinationName} package?", "answer": "Detailed answer about inclusions"},
-    {"question": "Is this package suitable for honeymoon couples?", "answer": "Yes, this package is specially curated for couples..."},
-    {"question": "What are the payment options?", "answer": "We accept Bank Transfer, Credit Card, UPI, and offer EMI options."},
-    {"question": "Can this itinerary be customized?", "answer": "Yes, our travel experts can customize the itinerary based on your preferences."},
-    {"question": "What is the best time to visit ${destinationName}?", "answer": "Answer based on destination's peak season"}
-  ],
-  
-  "Why_Book_With_Us": [
-    {"label": "Honeymoon Specialists", "description": "10+ years of curating romantic getaways for couples"},
-    {"label": "24/7 Support", "description": "Round-the-clock assistance during your trip"},
-    {"label": "Best Price Guarantee", "description": "We match any comparable price you find"}
-  ]
+  "booking": ["50% advance to confirm booking", "Balance 15 days before travel"],
+  "payment": ["Bank Transfer", "Credit Card", "UPI", "EMI Available"],
+  "cancellation": ["Free cancellation up to 30 days before travel", "50% refund 15–30 days before travel", "No refund within 15 days"]
 }
 
-IMPORTANT RULES:
-1. Return ONLY valid JSON, no markdown code blocks, no extra text
-2. Keep Overview to 2-3 lines maximum (50 words or less)
-3. Rating must be between 4.7 and 5.0
-4. All reviews should be from couples with Indian names
-5. FAQs should answer what customers actually want to know about THIS specific package`;
+--------------------------------------------------
+FAQ RULES (SEO + AEO OPTIMIZED):
+
+FAQ_Items:
+- Exactly 5 FAQs
+- Questions must mirror real Google searches
+- Start with: What / Is / Can / How / Which / When
+- Include destination name naturally
+- Cover:
+  inclusions, suitability for couples, customization, payments, best time to visit
+- Answers:
+  2–3 sentences
+  Clear, reassuring, destination-aware
+  Value-focused, not salesy
+
+--------------------------------------------------
+WHY BOOK WITH US:
+
+Why_Book_With_Us:
+- Exactly 3 items
+- Short, trust-driven labels
+- Benefit-oriented descriptions
+
+--------------------------------------------------
+FINAL OUTPUT STRUCTURE (STRICT):
+
+{
+  "Overview": "",
+  "Mood": "",
+  "Occasion": "",
+  "Budget_Category": "",
+  "Adventure_Level": "",
+  "Stay_Type": "",
+  "Star_Category": "",
+  "Rating": "",
+  "Inclusions": "",
+  "Exclusions": "",
+  "Day_Wise_Itinerary": "",
+  "Primary_Image_URL": "",
+  "SEO_Title": "",
+  "SEO_Description": "",
+  "SEO_Keywords": "",
+  "Guest_Reviews": [],
+  "Booking_Policies": {},
+  "FAQ_Items": [],
+  "Why_Book_With_Us": []
+}
+
+--------------------------------------------------
+FINAL STRICT RULES:
+1. Output ONLY valid JSON
+2. No empty values
+3. No hallucinated facts beyond destination logic
+4. Content must feel premium, romantic & trustworthy
+5. Think like a brand building long-term SEO authority
+`;
 
     const completion = await openai.chat.completions.create({
         model: model,
         messages: [
             {
                 role: 'system',
-                content: 'You are a luxury travel content writer specializing in honeymoon and couples packages. Always respond with valid JSON only. Be concise and romantic in tone.',
+                content: 'You are a premium travel content expert. Respond ONLY with valid JSON. No markdown, no commentary.',
             },
             {
                 role: 'user',
@@ -332,110 +482,55 @@ IMPORTANT RULES:
         exclusionsString = pkg.Exclusions.join(', ');
     }
 
-    // Generate random rating between 4.7 and 5.0
-    const randomRating = (4.7 + Math.random() * 0.3).toFixed(1);
-
-    // Build complete package with FIXED values as per requirements
+    // Use AI response directly where possible, falling back to safe defaults if AI fails entirely
     const completePackage: GeneratedPackageData = {
-        // AI Generated fields
-        Overview: generated.Overview || `Experience the romance of ${destinationName} with our exclusive ${calculatedDuration} couples package.`,
-
-        // Fixed: Mood from allowed values
+        Overview: generated.Overview || pkg.Destination_Name,
         Mood: generated.Mood || 'Romantic',
-
-        // Fixed: Occasion from allowed values
         Occasion: generated.Occasion || 'Honeymoon',
-
-        // FIXED: Travel_Type is always Couple
-        Travel_Type: 'Couple',
-
-        // Fixed: Budget_Category from allowed values
+        Travel_Type: 'Couple', // Fixed requirement
         Budget_Category: generated.Budget_Category || 'Premium',
-
-        // BLANK: Theme
-        Theme: '',
-
-        // Fixed: Adventure_Level from allowed values
+        Theme: '', // Explicitly blank as per verified rules
         Adventure_Level: generated.Adventure_Level || 'Low',
-
-        // Fixed: Stay_Type from allowed values
         Stay_Type: generated.Stay_Type || 'Resort',
+        Star_Category: generated.Star_Category || '4-Star',
+        Meal_Plan: 'Breakfast', // Fixed requirement
 
-        // Keep from Excel or AI
-        Star_Category: generated.Star_Category || pkg.Star_Category || '4-Star',
-
-        // FIXED: Meal_Plan is always Breakfast
-        Meal_Plan: 'Breakfast',
-
-        // BLANK fields
+        // Blank fields
         Child_Friendly: '',
         Elderly_Friendly: '',
         Language_Preference: '',
         Seasonality: '',
         Hotel_Examples: '',
-
-        // Inclusions/Exclusions from Excel or AI
-        Inclusions: inclusionsString || 'Accommodation, Breakfast, Airport Transfers, Sightseeing',
-        Exclusions: exclusionsString || 'Flights, Visa, Travel Insurance, Personal Expenses',
-
-        // Itinerary
-        Day_Wise_Itinerary: itineraryString || `Day 1: Arrival & Check-in | Day 2: Sightseeing | Day 3: Leisure | Day 4: Departure`,
-
-        // Random rating 4.7+
-        Rating: `${randomRating}/5`,
-
-        // BLANK fields
         Location_Breakup: '',
         Airport_Code: '',
-
-        // FIXED: Transfer_Type is always Private
-        Transfer_Type: 'Private',
-
-        // BLANK fields
         Climate_Type: '',
         Safety_Score: '',
         Sustainability_Score: '',
         Ideal_Traveler_Persona: '',
 
-        // Image
-        Primary_Image_URL: generated.Primary_Image_URL || pkg.Primary_Image_URL || `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=1600&q=80`,
+        // Fixed requirement
+        Transfer_Type: 'Private',
 
-        // SEO fields with rules
-        SEO_Title: generated.SEO_Title || `${destinationName} ${calculatedDuration} Package | Honeymoon - TravelZada`,
-        SEO_Description: generated.SEO_Description || `Book your dream ${destinationName} ${calculatedDuration} honeymoon package. Includes accommodation, transfers & sightseeing. Best prices & 24/7 support.`,
-        SEO_Keywords: generated.SEO_Keywords || `${destinationName.toLowerCase()} honeymoon package, ${destinationName.toLowerCase()} couples trip, ${destinationName.toLowerCase()} romantic getaway`,
+        Rating: generated.Rating || '4.8/5',
 
-        // Reviews, Policies, FAQs from AI or defaults
-        Guest_Reviews: (pkg.Guest_Reviews && pkg.Guest_Reviews.length > 0) ? pkg.Guest_Reviews : (generated.Guest_Reviews || [
-            { name: 'Rahul & Priya', content: 'Our honeymoon was absolutely magical! Every detail was perfectly arranged.', date: '2024-11-15', rating: '5' },
-            { name: 'Amit & Sneha', content: 'Beautiful destination and excellent service. Highly recommend for couples!', date: '2024-10-20', rating: '5' }
-        ]),
+        Inclusions: inclusionsString || 'Accommodation, Breakfast, Transfers',
+        Exclusions: exclusionsString || 'Flights, Visa, Personal Expenses',
+        Day_Wise_Itinerary: itineraryString || `Day 1: Arrival | Day 2: Explore | Day 3: Departure`,
 
-        Booking_Policies: (pkg.Booking_Policies && (pkg.Booking_Policies.booking?.length || pkg.Booking_Policies.payment?.length || pkg.Booking_Policies.cancellation?.length))
-            ? {
-                booking: pkg.Booking_Policies.booking || [],
-                payment: pkg.Booking_Policies.payment || [],
-                cancellation: pkg.Booking_Policies.cancellation || []
-            }
-            : (generated.Booking_Policies || {
-                booking: ['50% advance to confirm booking', 'Balance 15 days before travel'],
-                payment: ['Bank Transfer', 'Credit Card', 'UPI', 'EMI Available'],
-                cancellation: ['Free cancellation up to 30 days before travel', '50% refund 15-30 days before', 'No refund within 15 days']
-            }),
+        Primary_Image_URL: generated.Primary_Image_URL || pkg.Primary_Image_URL || '',
 
-        FAQ_Items: (pkg.FAQ_Items && pkg.FAQ_Items.length > 0) ? pkg.FAQ_Items : (generated.FAQ_Items || [
-            { question: `What is included in this ${destinationName} package?`, answer: 'This package includes accommodation, daily breakfast, airport transfers, and sightseeing as per itinerary.' },
-            { question: 'Is this package suitable for honeymoon couples?', answer: 'Yes, this package is specially curated for couples celebrating honeymoon, anniversary, or romantic getaways.' },
-            { question: 'What are the payment options?', answer: 'We accept Bank Transfer, Credit Card, UPI, and offer EMI options for your convenience.' },
-            { question: 'Can this itinerary be customized?', answer: 'Yes, our travel experts can customize the itinerary based on your preferences and requirements.' },
-            { question: `What is the best time to visit ${destinationName}?`, answer: 'Please contact our travel experts for the best time to visit based on weather and peak seasons.' }
-        ]),
+        SEO_Title: generated.SEO_Title || `${destinationName} Package | TravelZada`,
+        SEO_Description: generated.SEO_Description || `Book your ${destinationName} trip with TravelZada.`,
+        SEO_Keywords: generated.SEO_Keywords || `${destinationName} tour, honeymoon package`,
 
-        Why_Book_With_Us: (pkg.Why_Book_With_Us && pkg.Why_Book_With_Us.length > 0) ? pkg.Why_Book_With_Us : (generated.Why_Book_With_Us || [
-            { label: 'Honeymoon Specialists', description: '10+ years of curating romantic getaways for couples' },
-            { label: '24/7 Support', description: 'Round-the-clock assistance during your trip' },
-            { label: 'Best Price Guarantee', description: 'We match any comparable price you find' }
-        ])
+        Guest_Reviews: generated.Guest_Reviews || [],
+        Booking_Policies: generated.Booking_Policies || {
+            booking: [],
+            payment: [],
+            cancellation: []
+        },
+        FAQ_Items: generated.FAQ_Items || [],
+        Why_Book_With_Us: generated.Why_Book_With_Us || []
     };
 
     return completePackage;
