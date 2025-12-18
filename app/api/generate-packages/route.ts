@@ -161,18 +161,51 @@ export async function POST(request: NextRequest) {
 }
 
 async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageData> {
-    // Calculate duration from Day_Wise_Itinerary
-    let daysCount = 0;
-    if (Array.isArray(pkg.Day_Wise_Itinerary)) {
-        daysCount = pkg.Day_Wise_Itinerary.length;
-    } else if (pkg.Duration_Days) {
-        daysCount = pkg.Duration_Days;
-    } else {
-        daysCount = 4; // default
-    }
-    const nightsCount = Math.max(1, daysCount - 1);
-    const calculatedDuration = `${nightsCount} Nights / ${daysCount} Days`;
+    const destinationName = pkg.Destination_Name || 'Unknown Destination';
 
+    // ------------------------------------------------------------------
+    // 1. ROBUST DURATION LOGIC (Prioritize User Input)
+    // ------------------------------------------------------------------
+    let durationString = '';
+    let nightsCount = 0;
+    let daysCount = 0;
+
+    // Case A: Explicit Duration string provided (e.g. "5 Nights / 6 Days")
+    if (pkg.Duration && pkg.Duration.length > 3) {
+        durationString = pkg.Duration;
+        // Try to parse numbers for validation/fallback
+        const nMatch = pkg.Duration.match(/(\d+)\s*N/i);
+        const dMatch = pkg.Duration.match(/(\d+)\s*D/i);
+        if (nMatch) nightsCount = parseInt(nMatch[1]);
+        if (dMatch) daysCount = parseInt(dMatch[1]);
+    }
+    // Case B: Explicit Nights/Days provided
+    else if (pkg.Duration_Nights || pkg.Duration_Days) {
+        nightsCount = pkg.Duration_Nights || (pkg.Duration_Days ? pkg.Duration_Days - 1 : 0);
+        daysCount = pkg.Duration_Days || nightsCount + 1;
+        durationString = `${nightsCount} Nights / ${daysCount} Days`;
+    }
+    // Case C: Derive from Itinerary Length
+    else if (Array.isArray(pkg.Day_Wise_Itinerary)) {
+        daysCount = pkg.Day_Wise_Itinerary.length;
+        nightsCount = Math.max(1, daysCount - 1);
+        durationString = `${nightsCount} Nights / ${daysCount} Days`;
+    }
+    // Case D: Fallback
+    else {
+        daysCount = 6;
+        nightsCount = 5;
+        durationString = '5 Nights / 6 Days';
+    }
+
+    // Ensure we have reasonable defaults for prompt context
+    if (nightsCount === 0) nightsCount = 5;
+    if (daysCount === 0) daysCount = 6;
+
+
+    // ------------------------------------------------------------------
+    // 2. DATA PREPARATION FOR PROMPT
+    // ------------------------------------------------------------------
     let itineraryText = '';
     if (Array.isArray(pkg.Day_Wise_Itinerary)) {
         itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join(' | ');
@@ -188,245 +221,105 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
         ? pkg.Exclusions.join(', ')
         : (typeof pkg.Exclusions === 'string' ? pkg.Exclusions : '');
 
-    const destinationName = pkg.Destination_Name || 'Unknown Destination';
 
+    // ------------------------------------------------------------------
+    // 3. "BEST OF BEST" PROMPT ENGINEERING
+    // ------------------------------------------------------------------
     const prompt = `
-You are a CARE HOLIDAY PACKAGE EXPERT for a PREMIUM-FOCUSED travel brand called TravelZada.
+You are the Lead Travel Content Strategist for **TravelZada**, a premium travel brand for Indian couples and honeymooners.
+Your goal is to convert visitors into bookers with high-trust, emotion-driven, and SEO-optimized content.
 
-TravelZada serves:
-- 30% Economic / value-conscious travelers
-- 50% Premium honeymooners & couples (CORE FOCUS)
-- 20% Luxury travelers
+**TARGET AUDIENCE:**
+- Indian Honeymooners (primary) & Couples (secondary).
+- Age: 25-40.
+- Vibe: Looking for romantic, hassle-free, "Instagrammable" premium experiences.
+- Budget: Ready to spend for quality (4-star + private transfers).
 
-You specialize in:
-- Honeymoon & couples-only holiday packages
-- Premium experiential travel with value-for-money positioning
-- Smart upselling from Economic → Premium → Luxury
-- Strong SEO + AEO (Answer Engine Optimization)
-- Writing content that ranks on Google, AI Overviews, and voice search
+**INPUT DATA:**
+- **Destination:** ${destinationName} (${pkg.Country || 'International'})
+- **Duration:** ${durationString}
+- **Tone:** Romantic, Premium, Reassuring
+- **Itinerary Hint:** ${itineraryText.substring(0, 500) || 'Design a balanced mix of leisure and sightseeing.'}
 
-You think like:
-- A honeymoon consultant
-- A premium travel curator
-- An SEO strategist
-- A conversion-focused content writer
+------------------------------------------------------------------
+**TASK:**
+Generate a JSON object for this holiday package.
+Follow these field-specific instructions STRICTLY:
 
---------------------------------------------------
-PACKAGE DETAILS:
-- Destination ID: ${pkg.Destination_ID}
-- Destination Name: ${destinationName}
-- Country: ${pkg.Country || 'Unknown'}
-- Duration: ${calculatedDuration}
-- Price Range: ${pkg.Price_Range_INR || 'Premium'}
+1. **Overview**:
+   - Write a 2-line "Hook". Why is this perfect for a honeymoon?
+   - Focus on romance + convenience.
 
---------------------------------------------------
-ITINERARY:
-${itineraryText || 'Generate a realistic, balanced day-wise itinerary based on duration'}
+2. **SEO_Title** (CRITICAL):
+   - Format: "[Destination] Honeymoon Package - ${durationString} | TravelZada"
+   - Max 60 chars.
 
-INCLUSIONS:
-${inclusionsText || 'Premium stays, comfortable transfers, curated couple experiences'}
+3. **SEO_Description**:
+   - Max 160 chars.
+   - Pattern: "Book ${durationString} [Destination] honeymoon package. Includes private transfers, romantic dinners & 4-star stays. Customize your trip with TravelZada today!"
 
-EXCLUSIONS:
-${exclusionsText || 'Flights, Visa, Personal expenses'}
+4. **SEO_Keywords**:
+   - 10 high-volume keywords, comma-separated.
+   - Include variations: "honeymoon package", "couple tour", "cost from India".
 
---------------------------------------------------
-OUTPUT REQUIREMENT:
+5. **Day_Wise_Itinerary**:
+   - If input itinerary is missing, generate a realistic ${daysCount}-day plan.
+   - Format: "Day 1: [Title] - [Brief Activity] | Day 2: ..."
+   - Must match the duration.
 
-Generate a SINGLE VALID JSON OBJECT with ONLY the fields listed below.
-❌ No markdown
-❌ No explanations
-❌ No extra keys
-❌ No trailing commas
+6. **FAQ_Items**:
+   - **MANDATORY**: Generate exactly 5 FAQs.
+   - Must address: "Is it safe?", "Best time to visit?", "Vegetarian food availablity?", "Visa requirements?", "Honeymoon inclusions?".
 
---------------------------------------------------
-FIELD RULES & ENUMS (FOLLOW STRICTLY):
+7. **Guest_Reviews**:
+   - Generate 2 realistic reviews from Indian couples (e.g., "Rahul & Sneha").
+   - Mention specific hotels or experiences. Rated 5/5.
 
-Overview:
-- 2–3 short lines only
-- Maximum 50 words
-- Emotion-driven but value-conscious
-- Focus on comfort, romance, convenience & curated planning
-- Do NOT sound ultra-luxury or budget
+8. **Why_Book_With_Us**:
+   - Generate 3 strong USP points (e.g., "24/7 On-Trip Support", "Verified Premium Hotels", "No Hidden Costs").
 
-Mood:
-Choose ONE from:
-Romantic, Relaxing, Scenic, Experiential, Adventurous, Cultural
+------------------------------------------------------------------
+**STRICT VALIDATION RULES:**
+- **Output ONLY valid JSON.**
+- **NO markdown.**
+- **NO explanations.**
+- **Ensure all arrays (Guest_Reviews, FAQ_Items, Why_Book_With_Us) are populated.**
 
-Occasion:
-Choose ONE from:
-Honeymoon, Minimoon, Anniversary, Proposal, Pre-Wedding Shoot, Birthday Getaway, Wedding Ritual, Family Blessing, Milestone Celebration
-
-Budget_Category:
-Choose ONE from:
-Economic, Premium, Luxury
-
-Budget_Category logic:
-- Economic → budget hotels, shared tours, minimal frills
-- Premium → 4* or good 5*, private transfers, curated experiences (CORE)
-- Luxury → 5* deluxe, private experiences, exclusivity
-
-Adventure_Level:
-Choose ONE from:
-Low, Medium, High
-
-Stay_Type:
-Choose ONE from:
-Resort, Hotel, Villa, Boutique Stay, Overwater Villa
-
-Star_Category:
-Choose ONE from:
-3-Star, 4-Star, 5-Star, 5-Star Deluxe
-
-Rating:
-- Random value between 4.7 and 5.0
-- Format strictly as: X.X/5
-
---------------------------------------------------
-FORMATTING RULES:
-
-Inclusions:
-- Comma-separated string
-- No bullet points
-
-Exclusions:
-- Comma-separated string
-- No bullet points
-
-Day_Wise_Itinerary:
-- Format exactly as:
-  Day 1: ... | Day 2: ... | Day 3: ...
-- Each day must mention:
-  an experience + location OR stay/activity highlight
-
---------------------------------------------------
-IMAGE RULE:
-
-Primary_Image_URL:
-- Use a REAL Unsplash image URL
-- Relevant to destination & couples/honeymoon theme
-- Scenic, romantic, premium-friendly
-- Format example:
-  https://images.unsplash.com/...
-
---------------------------------------------------
-SEO & AEO RULES (VERY IMPORTANT):
-
-SEO_Title:
-- Maximum 60 characters
-- MUST start with destination name
-- MUST include duration
-- Use “Honeymoon Package” or “Couples Tour”
-- Avoid words like Luxury / Ultra
-- End with “TravelZada”
-
-Format:
-[Destination] [Duration] Honeymoon Package for Couples | TravelZada
-
-SEO_Description:
-- Maximum 155 characters
-- Conversational & answer-friendly
-- Mention:
-  destination, duration, honeymoon, premium stays, support
-- Tone: reassuring, value-driven, romantic
-
-Example style:
-"Book a romantic 6N Bali honeymoon package with premium stays, curated experiences & 24/7 support. Perfect for couples."
-
-SEO_Keywords:
-- Comma-separated
-- High-intent, India-focused searches
-- Must include:
-  destination honeymoon package,
-  destination couples tour,
-  destination honeymoon package from India,
-  destination premium honeymoon package,
-  duration destination itinerary,
-  best destination package for couples
-
---------------------------------------------------
-GUEST REVIEWS RULES:
-
-Guest_Reviews:
-- Exactly 2 reviews
-- Indian couple names only (e.g., Rahul & Priya)
-- Honeymoon / anniversary focused
-- Mention 1–2 real highlights (hotel, activity, location)
-- Date format: 2024-MM-DD
-- Rating must be "5"
-
---------------------------------------------------
-BOOKING POLICIES (STATIC):
-
-Booking_Policies:
+**JSON STRUCTURE:**
 {
-  "booking": ["50% advance to confirm booking", "Balance 15 days before travel"],
-  "payment": ["Bank Transfer", "Credit Card", "UPI", "EMI Available"],
-  "cancellation": ["Free cancellation up to 30 days before travel", "50% refund 15–30 days before travel", "No refund within 15 days"]
+  "Overview": "string",
+  "Mood": "Romantic",
+  "Occasion": "Honeymoon",
+  "Travel_Type": "Couple",
+  "Budget_Category": "Premium",
+  "Stay_Type": "Resort",
+  "Star_Category": "4-Star",
+  "Adventure_Level": "Low",
+  "Rating": "4.9/5",
+  "Inclusions": "string",
+  "Exclusions": "string",
+  "Day_Wise_Itinerary": "string",
+  "Location_Breakup": "string",
+  "Primary_Image_URL": "Unsplash URL string",
+  "SEO_Title": "string",
+  "SEO_Description": "string",
+  "SEO_Keywords": "string",
+  "Guest_Reviews": [ { "name": "string", "content": "string", "date": "2024-01-15", "rating": "5" } ],
+  "FAQ_Items": [ { "question": "string", "answer": "string" } ],
+  "Why_Book_With_Us": [ { "label": "string", "description": "string" } ],
+  "Booking_Policies": { "booking": [], "payment": [], "cancellation": [] }
 }
-
---------------------------------------------------
-FAQ RULES (SEO + AEO OPTIMIZED):
-
-FAQ_Items:
-- Exactly 5 FAQs
-- Questions must mirror real Google searches
-- Start with: What / Is / Can / How / Which / When
-- Include destination name naturally
-- Cover:
-  inclusions, suitability for couples, customization, payments, best time to visit
-- Answers:
-  2–3 sentences
-  Clear, reassuring, destination-aware
-  Value-focused, not salesy
-
---------------------------------------------------
-WHY BOOK WITH US:
-
-Why_Book_With_Us:
-- Exactly 3 items
-- Short, trust-driven labels
-- Benefit-oriented descriptions
-
---------------------------------------------------
-FINAL OUTPUT STRUCTURE (STRICT):
-
-{
-  "Overview": "",
-  "Mood": "",
-  "Occasion": "",
-  "Budget_Category": "",
-  "Adventure_Level": "",
-  "Stay_Type": "",
-  "Star_Category": "",
-  "Rating": "",
-  "Inclusions": "",
-  "Exclusions": "",
-  "Day_Wise_Itinerary": "",
-  "Primary_Image_URL": "",
-  "SEO_Title": "",
-  "SEO_Description": "",
-  "SEO_Keywords": "",
-  "Guest_Reviews": [],
-  "Booking_Policies": {},
-  "FAQ_Items": [],
-  "Why_Book_With_Us": []
-}
-
---------------------------------------------------
-FINAL STRICT RULES:
-1. Output ONLY valid JSON
-2. No empty values
-3. No hallucinated facts beyond destination logic
-4. Content must feel premium, romantic & trustworthy
-5. Think like a brand building long-term SEO authority
 `;
 
+    // ------------------------------------------------------------------
+    // 4. AI CALL
+    // ------------------------------------------------------------------
     const completion = await openai.chat.completions.create({
         model: model,
         messages: [
             {
                 role: 'system',
-                content: 'You are a premium travel content expert. Respond ONLY with valid JSON. No markdown, no commentary.',
+                content: 'You are a JSON-only API. return valid JSON. No markdown code blocks.',
             },
             {
                 role: 'user',
@@ -439,15 +332,14 @@ FINAL STRICT RULES:
     const responseText = completion.choices[0]?.message?.content || '{}';
 
     console.log('\n--- Raw AI Response ---');
-    console.log(responseText);
+    // console.log(responseText); // Uncomment for deep debugging
     console.log('--- End Raw AI Response ---\n');
 
-    // Clean up response - remove markdown code blocks if present
+    // Clean up response - remove markdown code blocks carefully
     let cleanedResponse = responseText.trim();
     if (cleanedResponse.startsWith('```json')) {
         cleanedResponse = cleanedResponse.slice(7);
-    }
-    if (cleanedResponse.startsWith('```')) {
+    } else if (cleanedResponse.startsWith('```')) {
         cleanedResponse = cleanedResponse.slice(3);
     }
     if (cleanedResponse.endsWith('```')) {
@@ -459,78 +351,90 @@ FINAL STRICT RULES:
         generated = JSON.parse(cleanedResponse.trim());
     } catch (parseError) {
         console.error('Failed to parse AI response:', parseError);
+        console.error('Text was:', cleanedResponse);
         generated = {};
     }
 
-    // Convert Day_Wise_Itinerary array to string format if needed
+    // ------------------------------------------------------------------
+    // 5. FAIL-SAFE & MERGING logic
+    // ------------------------------------------------------------------
+
+    // FAQ Fail-safe
+    const finalFAQs = (generated.FAQ_Items && generated.FAQ_Items.length > 0)
+        ? generated.FAQ_Items
+        : (pkg.FAQ_Items && pkg.FAQ_Items.length > 0 ? pkg.FAQ_Items : []);
+
+    // Why Book Fail-safe
+    const finalWhyBook = (generated.Why_Book_With_Us && generated.Why_Book_With_Us.length > 0)
+        ? generated.Why_Book_With_Us
+        : (pkg.Why_Book_With_Us || []);
+
+    // Itinerary Formatting
     let itineraryString = generated.Day_Wise_Itinerary || '';
-    if (Array.isArray(pkg.Day_Wise_Itinerary)) {
+    // If AI gave back an array, convert string
+    if (Array.isArray(itineraryString)) {
+        // @ts-ignore
+        itineraryString = itineraryString.map(d => `Day ${d.day}: ${d.description}`).join(' | ');
+    } else if (!itineraryString && Array.isArray(pkg.Day_Wise_Itinerary)) {
+        // Fallback to input if AI failed to generate it
         itineraryString = pkg.Day_Wise_Itinerary
             .map((d: any) => `Day ${d.day}: ${d.description}`)
             .join(' | ');
     }
 
-    // Convert Inclusions array to string if needed
-    let inclusionsString = generated.Inclusions || '';
-    if (Array.isArray(pkg.Inclusions)) {
-        inclusionsString = pkg.Inclusions.join(', ');
-    }
+    // Fixed Policies
+    const defaultPolicies = {
+        booking: ["50% advance to confirm", "Balance 15 days before travel"],
+        payment: ["Bank Transfer", "UPI", "Credit Card"],
+        cancellation: ["Free cancellation up to 30 days", "No refund within 15 days"]
+    };
 
-    // Convert Exclusions array to string if needed
-    let exclusionsString = generated.Exclusions || '';
-    if (Array.isArray(pkg.Exclusions)) {
-        exclusionsString = pkg.Exclusions.join(', ');
-    }
-
-    // Use AI response directly where possible, falling back to safe defaults if AI fails entirely
+    // ------------------------------------------------------------------
+    // 6. FINAL OBJECT ASSEMBLY
+    // ------------------------------------------------------------------
     const completePackage: GeneratedPackageData = {
-        Overview: generated.Overview || pkg.Destination_Name,
+        Overview: generated.Overview || `Experience the magic of ${destinationName} with this premium package.`,
         Mood: generated.Mood || 'Romantic',
         Occasion: generated.Occasion || 'Honeymoon',
-        Travel_Type: 'Couple', // Fixed requirement
+        Travel_Type: 'Couple',
         Budget_Category: generated.Budget_Category || 'Premium',
-        Theme: '', // Explicitly blank as per verified rules
+        Theme: '',
         Adventure_Level: generated.Adventure_Level || 'Low',
         Stay_Type: generated.Stay_Type || 'Resort',
         Star_Category: generated.Star_Category || '4-Star',
-        Meal_Plan: 'Breakfast', // Fixed requirement
+        Meal_Plan: 'Breakfast',
 
-        // Blank fields
+        // Explicit Blanks
         Child_Friendly: '',
         Elderly_Friendly: '',
         Language_Preference: '',
         Seasonality: '',
         Hotel_Examples: '',
-        Location_Breakup: '',
-        Airport_Code: '',
+        Location_Breakup: generated.Location_Breakup || '',
+        Airport_Code: generated.Airport_Code || '',
         Climate_Type: '',
         Safety_Score: '',
         Sustainability_Score: '',
         Ideal_Traveler_Persona: '',
 
-        // Fixed requirement
         Transfer_Type: 'Private',
-
         Rating: generated.Rating || '4.8/5',
 
-        Inclusions: inclusionsString || 'Accommodation, Breakfast, Transfers',
-        Exclusions: exclusionsString || 'Flights, Visa, Personal Expenses',
-        Day_Wise_Itinerary: itineraryString || `Day 1: Arrival | Day 2: Explore | Day 3: Departure`,
+        Inclusions: generated.Inclusions || inclusionsText || 'Accommodation, Breakfast, Private Transfers, Sightseeing',
+        Exclusions: generated.Exclusions || exclusionsText || 'Flights, Visa, Personal Expenses',
+        Day_Wise_Itinerary: itineraryString,
 
         Primary_Image_URL: generated.Primary_Image_URL || pkg.Primary_Image_URL || '',
 
-        SEO_Title: generated.SEO_Title || `${destinationName} Package | TravelZada`,
-        SEO_Description: generated.SEO_Description || `Book your ${destinationName} trip with TravelZada.`,
-        SEO_Keywords: generated.SEO_Keywords || `${destinationName} tour, honeymoon package`,
+        // SEO Fields
+        SEO_Title: generated.SEO_Title || `${destinationName} Honeymoon Package - ${durationString} | TravelZada`,
+        SEO_Description: generated.SEO_Description || `Book your ${durationString} ${destinationName} honeymoon. Best prices & premium service.`,
+        SEO_Keywords: generated.SEO_Keywords || `${destinationName} packages, honeymoon, travelzada`,
 
         Guest_Reviews: generated.Guest_Reviews || [],
-        Booking_Policies: generated.Booking_Policies || {
-            booking: [],
-            payment: [],
-            cancellation: []
-        },
-        FAQ_Items: generated.FAQ_Items || [],
-        Why_Book_With_Us: generated.Why_Book_With_Us || []
+        Booking_Policies: generated.Booking_Policies || defaultPolicies,
+        FAQ_Items: finalFAQs,
+        Why_Book_With_Us: finalWhyBook
     };
 
     return completePackage;

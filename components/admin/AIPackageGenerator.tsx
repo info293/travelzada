@@ -267,8 +267,30 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 const faqs = faqIndex[pkgId] || [];
                 const whyBook = whyBookIndex[pkgId] || [];
 
-                const nights = itinerary.length || parseInt(pkg.Duration?.match(/(\d+)/)?.[1] || '0') || 0;
-                const days = nights + 1;
+                // Fix: Itinerary length represents DAYS, not Nights.
+                let days = itinerary.length;
+                let nights = 0;
+
+                if (days > 0) {
+                    nights = days - 1;
+                } else {
+                    // Try to parse from Duration string "X Nights / Y Days"
+                    const nMatch = pkg.Duration?.match(/(\d+)\s*N/i);
+                    const dMatch = pkg.Duration?.match(/(\d+)\s*D/i);
+
+                    if (nMatch) nights = parseInt(nMatch[1]);
+                    if (dMatch) days = parseInt(dMatch[1]);
+
+                    // Fallback logic if only one is found
+                    if (days === 0 && nights > 0) days = nights + 1;
+                    if (nights === 0 && days > 0) nights = Math.max(0, days - 1);
+                }
+
+                // Final fallback if nothing found
+                if (days === 0 && nights === 0) {
+                    days = 6;
+                    nights = 5;
+                }
 
                 return {
                     Destination_ID: pkgId,
