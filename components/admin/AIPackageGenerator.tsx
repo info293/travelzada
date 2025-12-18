@@ -256,7 +256,10 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
             .map((pkg) => {
                 const pkgId = pkg.Destination_ID?.trim() || '';
                 const destCode = pkgId.substring(0, 3);
-                const destination = destIndex[destCode] || { Destination_Name: pkgId };
+                // Priority: 1. Package Sheet Name, 2. Destination Master Lookup, 3. ID Fallback
+                const destinationName = pkg.Destination_Name?.trim() || destIndex[destCode]?.Destination_Name || pkgId;
+                const destinationCountry = destIndex[destCode]?.Country;
+
                 const itinerary = (itineraryIndex[pkgId] || []).sort((a, b) => a.day - b.day);
                 const incExc = incExcIndex[pkgId] || { inclusions: [], exclusions: [] };
                 const reviews = reviewsIndex[pkgId] || [];
@@ -269,8 +272,8 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
 
                 return {
                     Destination_ID: pkgId,
-                    Destination_Name: destination.Destination_Name,
-                    Country: destination.Country,
+                    Destination_Name: destinationName,
+                    Country: destinationCountry,
                     Price_Range_INR: pkg.Price_Range_INR,
                     Duration: pkg.Duration || `${nights} Nights / ${days} Days`,
                     Duration_Nights: nights,

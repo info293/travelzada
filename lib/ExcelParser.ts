@@ -9,6 +9,7 @@ export interface DestinationMasterRow {
 
 export interface PackagesMasterRow {
     Destination_ID: string;
+    Destination_Name?: string;
     Price_Range_INR: string;
     Duration?: string;
     Travel_Type?: string;
