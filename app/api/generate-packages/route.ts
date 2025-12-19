@@ -251,16 +251,15 @@ Follow these field-specific instructions STRICTLY:
    - Focus on romance + convenience.
 
 2. **SEO_Title** (CRITICAL):
-   - Format: "[Destination] Honeymoon Package - ${durationString} | TravelZada"
+   - Format: "[Destination] [Duration] Package | Honeymoon & Couples Trip - TravelZada"
    - Max 60 chars.
 
 3. **SEO_Description**:
-   - Max 160 chars.
-   - Pattern: "Book ${durationString} [Destination] honeymoon package. Includes private transfers, romantic dinners & 4-star stays. Customize your trip with TravelZada today!"
+   - Format: "Book your dream [Destination] [Duration] honeymoon package. Includes [key inclusions]. Best prices & 24/7 support."
+   - Max 155 chars.
 
 4. **SEO_Keywords**:
-   - 10 high-volume keywords, comma-separated.
-   - Include variations: "honeymoon package", "couple tour", "cost from India".
+   - Format: "[Destination] honeymoon package, [Destination] couples trip, [Destination] romantic getaway, [Duration] [Destination] tour, best [Destination] package"
 
 5. **Day_Wise_Itinerary**:
    - If input itinerary is missing, generate a realistic ${daysCount}-day plan.
@@ -285,25 +284,36 @@ Follow these field-specific instructions STRICTLY:
 - **NO explanations.**
 - **Ensure all arrays (Guest_Reviews, FAQ_Items, Why_Book_With_Us) are populated.**
 
-**JSON STRUCTURE:**
+**JSON STRUCTURE & ENUMS:**
 {
   "Overview": "string",
-  "Mood": "Romantic",
-  "Occasion": "Honeymoon",
+  
+  "Mood": "Choose ONE from: Romantic, Relaxing, Adventure",
+  
+  "Occasion": "Choose ONE from: Honeymoon, Minimoon, Anniversary, Birthday, Wedding Ritual, Blessing, Milestones",
+  
   "Travel_Type": "Couple",
-  "Budget_Category": "Premium",
-  "Stay_Type": "Resort",
-  "Star_Category": "4-Star",
-  "Adventure_Level": "Low",
-  "Rating": "4.9/5",
+  
+  "Budget_Category": "Choose ONE from: Mid, Premium, Luxury (based on price range)",
+  
+  "Adventure_Level": "Choose ONE from: Low, Med, High",
+  
+  "Stay_Type": "Choose ONE from: Resort, Hotel, Villa",
+  
+  "Star_Category": "Choose from: 3-Star, 4-Star, 5-Star based on price",
+  
+  "Rating": "Generate a random rating between 4.7 and 5.0 (format: X.X/5)",
+  
   "Inclusions": "string",
   "Exclusions": "string",
   "Day_Wise_Itinerary": "string",
   "Location_Breakup": "string",
   "Primary_Image_URL": "Unsplash URL string",
+  
   "SEO_Title": "string",
   "SEO_Description": "string",
   "SEO_Keywords": "string",
+  
   "Guest_Reviews": [ { "name": "string", "content": "string", "date": "2024-01-15", "rating": "5" } ],
   "FAQ_Items": [ { "question": "string", "answer": "string" } ],
   "Why_Book_With_Us": [ { "label": "string", "description": "string" } ],
