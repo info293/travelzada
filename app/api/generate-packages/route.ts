@@ -6,7 +6,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
-const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+const model = 'gpt-4o';
 
 export interface PackageInput {
     Destination_ID: string;
@@ -93,6 +93,7 @@ export interface GeneratedPackageData {
     };
     FAQ_Items: Array<{ question: string; answer: string }>;
     Why_Book_With_Us: Array<{ label: string; description: string }>;
+    Slug?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -107,49 +108,49 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const generatedPackages: any[] = [];
+        const generatedPackages = await Promise.all(
+            packages.map(async (pkg) => {
+                try {
+                    console.log('\n========================================');
+                    console.log(`Generating package: ${pkg.Destination_ID} - ${pkg.Destination_Name}`);
+                    console.log('========================================');
 
-        for (const pkg of packages) {
-            try {
-                console.log('\n========================================');
-                console.log(`Generating package: ${pkg.Destination_ID} - ${pkg.Destination_Name}`);
-                console.log('========================================');
+                    const generated = await generatePackageData(pkg);
 
-                const generated = await generatePackageData(pkg);
+                    console.log('\n--- AI Generated Content ---');
+                    console.log(JSON.stringify(generated, null, 2));
+                    console.log('--- End AI Generated Content ---\n');
 
-                console.log('\n--- AI Generated Content ---');
-                console.log(JSON.stringify(generated, null, 2));
-                console.log('--- End AI Generated Content ---\n');
+                    const finalPackage = {
+                        ...pkg,
+                        ...generated,
+                        Slug: generated.Slug || slugify(pkg.Destination_Name),
+                        Booking_URL: `https://travelzada.com/packages/${generated.Slug || slugify(pkg.Destination_Name)}`,
+                        Last_Updated: new Date().toISOString().split('T')[0],
+                        Created_By: 'AI Generator',
+                    };
 
-                const finalPackage = {
-                    ...pkg,
-                    ...generated,
-                    Slug: slugify(`${pkg.Destination_Name}-${pkg.Destination_ID}`),
-                    Booking_URL: `https://travelzada.com/packages/${pkg.Destination_ID}`,
-                    Last_Updated: new Date().toISOString().split('T')[0],
-                    Created_By: 'AI Generator',
-                };
+                    console.log('\n--- Final Package Data ---');
+                    console.log(JSON.stringify(finalPackage, null, 2));
+                    console.log('--- End Final Package Data ---\n');
 
-                console.log('\n--- Final Package Data ---');
-                console.log(JSON.stringify(finalPackage, null, 2));
-                console.log('--- End Final Package Data ---\n');
-
-                generatedPackages.push(finalPackage);
-            } catch (error) {
-                console.error(`Error generating package ${pkg.Destination_ID}:`, error);
-                // Add package with error flag
-                generatedPackages.push({
-                    ...pkg,
-                    _error: error instanceof Error ? error.message : 'Generation failed',
-                });
-            }
-        }
+                    return finalPackage;
+                } catch (error) {
+                    console.error(`Error generating package ${pkg.Destination_ID}:`, error);
+                    // Add package with error flag
+                    return {
+                        ...pkg,
+                        _error: error instanceof Error ? error.message : 'Generation failed',
+                    };
+                }
+            })
+        ) as any;
 
         return NextResponse.json({
             success: true,
             packages: generatedPackages,
-            generated: generatedPackages.filter((p) => !p._error).length,
-            errors: generatedPackages.filter((p) => p._error).length,
+            generated: generatedPackages.filter((p: any) => !p._error).length,
+            errors: generatedPackages.filter((p: any) => p._error).length,
         });
     } catch (error) {
         console.error('Error in generate-packages API:', error);
@@ -226,20 +227,27 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
     // 3. "BEST OF BEST" PROMPT ENGINEERING
     // ------------------------------------------------------------------
     const prompt = `
-You are the Lead Travel Content Strategist for **TravelZada**, a premium travel brand for Indian couples and honeymooners.
-Your goal is to convert visitors into bookers with high-trust, emotion-driven, and SEO-optimized content.
+You are the Lead Travel Content Strategist for **TravelZada**, a premium travel brand for couples and honeymooners.
 
 **TARGET AUDIENCE:**
 - Indian Honeymooners (primary) & Couples (secondary).
 - Age: 25-40.
-- Vibe: Looking for romantic, hassle-free, "Instagrammable" premium experiences.
-- Budget: Ready to spend for quality (4-star + private transfers).
+- Honeymoon & couples-only holiday packages
+- Premium experiential travel with value-for-money positioning
+
+You specialize in:
+- Smart upselling from Economic → Premium → Luxury
+- Strong SEO + AEO (Answer Engine Optimization)
+- Writing content that ranks on Google, AI Overviews, and voice search
 
 **INPUT DATA:**
 - **Destination:** ${destinationName} (${pkg.Country || 'International'})
 - **Duration:** ${durationString}
 - **Tone:** Romantic, Premium, Reassuring
-- **Itinerary Hint:** ${itineraryText.substring(0, 500) || 'Design a balanced mix of leisure and sightseeing.'}
+- **Price Range:** ${pkg.Price_Range_INR || 'N/A'}
+- **Star Category:** ${pkg.Star_Category || 'N/A'}
+- **Primary Image:** ${pkg.Primary_Image_URL || 'N/A'}
+- **Full Itinerary:** ${itineraryText.substring(0, 20000) || 'Design a balanced mix of leisure and sightseeing.'}
 
 ------------------------------------------------------------------
 **TASK:**
@@ -247,19 +255,31 @@ Generate a JSON object for this holiday package.
 Follow these field-specific instructions STRICTLY:
 
 1. **Overview**:
-   - Write a 2-line "Hook". Why is this perfect for a honeymoon?
+   - Write a 2-line "Hook". Why is this perfect for a honeymoon or couple?
    - Focus on romance + convenience.
 
 2. **SEO_Title** (CRITICAL):
-   - Format: "[Destination] [Duration] Package | Honeymoon & Couples Trip - TravelZada"
-   - Max 60 chars.
+   - Max 60 characters
+   - Clean & human-readable
+   - Destination-first
+   - Duration included
+   - End with “| TravelZada”
+   - No offer names, SKUs, or gimmicks
+   - Format: [Destination] [Duration] Honeymoon Package for Couples | TravelZada
 
 3. **SEO_Description**:
+   - Max 155 characters
+   - Must answer: what’s included & who it’s for
+   - Brand name optional, max once
+   - If used, place at the END
+   - Tone: informative, reassuring, premium
    - Format: "Book your dream [Destination] [Duration] honeymoon package. Includes [key inclusions]. Best prices & 24/7 support."
-   - Max 155 chars.
 
 4. **SEO_Keywords**:
-   - Format: "[Destination] honeymoon package, [Destination] couples trip, [Destination] romantic getaway, [Duration] [Destination] tour, best [Destination] package"
+   - 5–8 keywords only
+   - High-intent only
+   - NO brand stuffing
+   - NO generic words like “packages, travel”
 
 5. **Day_Wise_Itinerary**:
    - If input itinerary is missing, generate a realistic ${daysCount}-day plan.
@@ -267,15 +287,62 @@ Follow these field-specific instructions STRICTLY:
    - Must match the duration.
 
 6. **FAQ_Items**:
-   - **MANDATORY**: Generate exactly 5 FAQs.
-   - Must address: "Is it safe?", "Best time to visit?", "Vegetarian food availablity?", "Visa requirements?", "Honeymoon inclusions?".
+   FAQ GENERATION RULES (LLM, GOOGLE SGE & REDDIT STYLE):
+   Generate 5–6 FAQs that sound like REAL questions asked by:
+   - Google users
+   - Gemini / ChatGPT users
+   - Reddit travelers planning their first or honeymoon trip
+
+   Questions must feel conversational, curious, and problem-driven — not formal FAQs.
+   
+   **QUESTION STYLE RULES:**
+   - Questions must be written in natural spoken language
+   - Allowed starters (use variety):
+     "Is it worth…", "Does this include…", "Will we get…", "How crowded…", "Can we…", "What should we expect…", "Is this too rushed…", "Is this good for first-time travelers…"
+   - Avoid formal phrases like: "What is included", "Is this package suitable"
+
+   **CONTENT RULES:**
+   - Every question must be derived from:
+     - Destination Name
+     - Day_Wise_Itinerary experiences
+   - At least 3 questions must reference specific itinerary highlights
+     (example: Nusa Penida, candlelight dinner, volcano tour, safari, cruise)
+
+   **INTENT TYPES TO COVER (ALL MUST BE REPRESENTED):**
+   1. VALUE & WORTH IT ("Is this Bali honeymoon itinerary actually worth it for the price?")
+   2. EXPERIENCE EXPECTATION ("What kind of experiences do couples actually get on this Bali trip?")
+   3. PACE & COMFORT ("Is this itinerary too hectic or relaxed for honeymoon couples?")
+   4. PRIVACY & TRANSFERS ("Are transfers and tours private or shared in this Bali package?")
+   5. CUSTOMIZATION & FLEXIBILITY ("Can we customize this itinerary if we want fewer activities?")
+   6. SEASON / WEATHER REALITY ("When is the best time to do this Bali itinerary without heavy crowds?")
+
+   **ANSWER RULES:**
+   - 2–3 sentences only
+   - Write as if answering directly on: Google AI Overview / Gemini / Reddit
+   - Honest, neutral, reassuring tone
+   - Mention specific itinerary elements naturally
+   - No sales language, no brand promotion
+
+   **STRICT ENFORCEMENT:**
+   - FAQ_Items MUST contain exactly 5 or 6 items
+   - Questions must NOT sound like website FAQs
+   - Each FAQ must answer a different user intent
+   - If an experience is not in the itinerary, DO NOT mention it
 
 7. **Guest_Reviews**:
-   - Generate 2 realistic reviews from Indian couples (e.g., "Rahul & Sneha").
-   - Mention specific hotels or experiences. Rated 5/5.
+   - Return an empty array []. Do NOT generate fake reviews.
 
 8. **Why_Book_With_Us**:
    - Generate 3 strong USP points (e.g., "24/7 On-Trip Support", "Verified Premium Hotels", "No Hidden Costs").
+
+9. **Slug**:
+   - **Slug Rules**:
+   - Lowercase only
+   - Hyphens only
+   - No stop words (and, for, the)
+   - No brand name
+   - Max 6–8 words
+   - Format Example: bali-6n-7d-honeymoon-package
 
 ------------------------------------------------------------------
 **STRICT VALIDATION RULES:**
@@ -288,9 +355,9 @@ Follow these field-specific instructions STRICTLY:
 {
   "Overview": "string",
   
-  "Mood": "Choose ONE from: Romantic, Relaxing, Adventure",
+  "Mood": "Choose ONE from: Romantic, Relaxing, Scenic, Experiential, Adventurous, Cultural",
   
-  "Occasion": "Choose ONE from: Honeymoon, Minimoon, Anniversary, Birthday, Wedding Ritual, Blessing, Milestones",
+  "Occasion": "Choose ONE from: Honeymoon, Minimoon, Anniversary, Proposal, Pre-Wedding Shoot, Birthday Getaway, Wedding Ritual, Family Blessing, Milestone Celebration",
   
   "Travel_Type": "Couple",
   
@@ -298,11 +365,13 @@ Follow these field-specific instructions STRICTLY:
   
   "Adventure_Level": "Choose ONE from: Low, Med, High",
   
-  "Stay_Type": "Choose ONE from: Resort, Hotel, Villa",
+  "Stay_Type": "Choose ONE from: Resort, Hotel, Villa, Boutique Stay, Overwater Villa",
   
-  "Star_Category": "Choose from: 3-Star, 4-Star, 5-Star based on price",
+  "Star_Category": "Choose from: 3-Star, 4-Star, 5-Star, 5-Star Deluxe based on price",
   
   "Rating": "Generate a random rating between 4.7 and 5.0 (format: X.X/5)",
+  
+  "Slug": "string",
   
   "Inclusions": "string",
   "Exclusions": "string",
@@ -314,7 +383,7 @@ Follow these field-specific instructions STRICTLY:
   "SEO_Description": "string",
   "SEO_Keywords": "string",
   
-  "Guest_Reviews": [ { "name": "string", "content": "string", "date": "2024-01-15", "rating": "5" } ],
+  "Guest_Reviews": [],
   "FAQ_Items": [ { "question": "string", "answer": "string" } ],
   "Why_Book_With_Us": [ { "label": "string", "description": "string" } ],
   "Booking_Policies": { "booking": [], "payment": [], "cancellation": [] }
@@ -326,6 +395,7 @@ Follow these field-specific instructions STRICTLY:
     // ------------------------------------------------------------------
     const completion = await openai.chat.completions.create({
         model: model,
+        response_format: { type: "json_object" },
         messages: [
             {
                 role: 'system',
@@ -342,19 +412,13 @@ Follow these field-specific instructions STRICTLY:
     const responseText = completion.choices[0]?.message?.content || '{}';
 
     console.log('\n--- Raw AI Response ---');
-    // console.log(responseText); // Uncomment for deep debugging
+    console.log(responseText); // Uncomment for deep debugging
     console.log('--- End Raw AI Response ---\n');
 
     // Clean up response - remove markdown code blocks carefully
-    let cleanedResponse = responseText.trim();
-    if (cleanedResponse.startsWith('```json')) {
-        cleanedResponse = cleanedResponse.slice(7);
-    } else if (cleanedResponse.startsWith('```')) {
-        cleanedResponse = cleanedResponse.slice(3);
-    }
-    if (cleanedResponse.endsWith('```')) {
-        cleanedResponse = cleanedResponse.slice(0, -3);
-    }
+    // Clean up response - robust JSON extraction via regex
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    let cleanedResponse = jsonMatch ? jsonMatch[0] : responseText.trim();
 
     let generated: Partial<GeneratedPackageData>;
     try {
@@ -411,7 +475,7 @@ Follow these field-specific instructions STRICTLY:
         Theme: '',
         Adventure_Level: generated.Adventure_Level || 'Low',
         Stay_Type: generated.Stay_Type || 'Resort',
-        Star_Category: generated.Star_Category || '4-Star',
+        Star_Category: pkg.Star_Category || generated.Star_Category || '4-Star',
         Meal_Plan: 'Breakfast',
 
         // Explicit Blanks
@@ -432,17 +496,23 @@ Follow these field-specific instructions STRICTLY:
 
         Inclusions: generated.Inclusions || inclusionsText || 'Accommodation, Breakfast, Private Transfers, Sightseeing',
         Exclusions: generated.Exclusions || exclusionsText || 'Flights, Visa, Personal Expenses',
+
         Day_Wise_Itinerary: itineraryString,
 
-        Primary_Image_URL: generated.Primary_Image_URL || pkg.Primary_Image_URL || '',
+        // Prioritize URL from Excel if available
+        Primary_Image_URL: pkg.Primary_Image_URL || generated.Primary_Image_URL || '',
 
         // SEO Fields
         SEO_Title: generated.SEO_Title || `${destinationName} Honeymoon Package - ${durationString} | TravelZada`,
         SEO_Description: generated.SEO_Description || `Book your ${durationString} ${destinationName} honeymoon. Best prices & premium service.`,
         SEO_Keywords: generated.SEO_Keywords || `${destinationName} packages, honeymoon, travelzada`,
 
-        Guest_Reviews: generated.Guest_Reviews || [],
-        Booking_Policies: generated.Booking_Policies || defaultPolicies,
+        Guest_Reviews: pkg.Guest_Reviews || [],
+        Booking_Policies: (generated.Booking_Policies && generated.Booking_Policies.booking && generated.Booking_Policies.booking.length > 0)
+            ? generated.Booking_Policies
+            : (pkg.Booking_Policies && pkg.Booking_Policies.booking && pkg.Booking_Policies.booking.length > 0
+                ? pkg.Booking_Policies as any
+                : defaultPolicies),
         FAQ_Items: finalFAQs,
         Why_Book_With_Us: finalWhyBook
     };
@@ -452,9 +522,24 @@ Follow these field-specific instructions STRICTLY:
 
 
 function slugify(text: string): string {
-    return text
+    const stopWords = ['and', 'for', 'the', 'travelzada', 'package', 'tour', 'trip', 'with', 'from', 'to', 'in', 'on', 'at', 'by'];
+
+    let slug = text
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
+        .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
         .trim();
+
+    // Remove stop words (need to split, filter, join)
+    slug = slug.split(/\s+/)
+        .filter(word => !stopWords.includes(word) && word.length > 0)
+        .join('-');
+
+    // Limit to max 8 words - but ensures we keep the ID if it was part of text? 
+    // The prompt says "Max 6-8 words".
+    const parts = slug.split('-');
+    if (parts.length > 8) {
+        slug = parts.slice(0, 8).join('-');
+    }
+
+    return slug;
 }
