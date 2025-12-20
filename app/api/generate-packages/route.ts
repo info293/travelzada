@@ -247,6 +247,8 @@ You specialize in:
 - **Price Range:** ${pkg.Price_Range_INR || 'N/A'}
 - **Star Category:** ${pkg.Star_Category || 'N/A'}
 - **Primary Image:** ${pkg.Primary_Image_URL || 'N/A'}
+- **Inclusions:** ${inclusionsText || 'N/A'}
+- **Exclusions:** ${exclusionsText || 'N/A'}
 - **Full Itinerary:** ${itineraryText.substring(0, 20000) || 'Design a balanced mix of leisure and sightseeing.'}
 
 ------------------------------------------------------------------
@@ -259,27 +261,41 @@ Follow these field-specific instructions STRICTLY:
    - Focus on romance + convenience.
 
 2. **SEO_Title** (CRITICAL):
-   - Max 60 characters
-   - Clean & human-readable
-   - Destination-first
-   - Duration included
-   - End with “| TravelZada”
-   - No offer names, SKUs, or gimmicks
-   - Format: [Destination] [Duration] Honeymoon Package for Couples | TravelZada
+   - Maximum 60 characters
+   - Clean, human-readable
+   - Destination name FIRST (geo only, no package names)
+   - Duration MUST be included (e.g. 6N/7D)
+   - Must include "Honeymoon Package for Couples"
+   - Must end with "| TravelZada"
+   - Do NOT include offers, SKUs, discounts, or gimmicks
+   - Format (STRICT): [Destination] [Nights]N/[Days]D Honeymoon Package for Couples | TravelZada
 
 3. **SEO_Description**:
-   - Max 155 characters
-   - Must answer: what’s included & who it’s for
-   - Brand name optional, max once
-   - If used, place at the END
-   - Tone: informative, reassuring, premium
-   - Format: "Book your dream [Destination] [Duration] honeymoon package. Includes [key inclusions]. Best prices & 24/7 support."
+   - Maximum 155 characters
+   - Must clearly answer: 1) What is included? 2) Who is this package for?
+   - Tone: informative, reassuring, premium (not salesy)
+   - Avoid words like: best, cheapest, luxury, offer
+   - Brand name optional (max once, only at the END if used)
+   - Template: "Book a romantic [Destination] [Nights]N/[Days]D honeymoon package with [Stay Adjective] stays, [Experience 1] and [Experience 2]. Perfect for couples with 24/7 support."
+   - Logic for [Stay Adjective]:
+     - If Budget_Category is Economic -> "comfortable"
+     - If Budget_Category is Premium -> "premium"
+     - If Budget_Category is Luxury -> "luxury"
+   - Logic for [Experience 1] & [Experience 2]:
+     - Pick 2 distinct, specific highlights from the Day_Wise_Itinerary (e.g. "sunset dinner", "island tour", "private pool").
+     - Do NOT use generic terms like "sightseeing".
 
 4. **SEO_Keywords**:
-   - 5–8 keywords only
-   - High-intent only
-   - NO brand stuffing
-   - NO generic words like “packages, travel”
+   - 5 to 8 keywords ONLY
+   - High-intent, commercial search terms
+   - Must include:
+     - [Destination] honeymoon package
+     - [Destination] couples honeymoon trip
+     - [Nights]N/[Days]D [Destination] honeymoon
+     - [Destination] honeymoon package from India
+   - NO brand name
+   - NO generic words like "travel", "packages"
+   - Format: Comma-separated string only
 
 5. **Day_Wise_Itinerary**:
    - If input itinerary is missing, generate a realistic ${daysCount}-day plan.
@@ -336,13 +352,14 @@ Follow these field-specific instructions STRICTLY:
    - Generate 3 strong USP points (e.g., "24/7 On-Trip Support", "Verified Premium Hotels", "No Hidden Costs").
 
 9. **Slug**:
-   - **Slug Rules**:
    - Lowercase only
    - Hyphens only
    - No stop words (and, for, the)
    - No brand name
+   - No offer words (super, saver, best, cheap)
+   - Include destination + duration + honeymoon
    - Max 6–8 words
-   - Format Example: bali-6n-7d-honeymoon-package
+   - Format (STRICT): destination-[nights]n-[days]d-honeymoon-package
 
 ------------------------------------------------------------------
 **STRICT VALIDATION RULES:**
@@ -474,7 +491,7 @@ Follow these field-specific instructions STRICTLY:
         Budget_Category: generated.Budget_Category || 'Premium',
         Theme: '',
         Adventure_Level: generated.Adventure_Level || 'Low',
-        Stay_Type: generated.Stay_Type || 'Resort',
+        Stay_Type: 'Resort/Hotel',
         Star_Category: pkg.Star_Category || generated.Star_Category || '4-Star',
         Meal_Plan: 'Breakfast',
 
@@ -494,8 +511,8 @@ Follow these field-specific instructions STRICTLY:
         Transfer_Type: 'Private',
         Rating: generated.Rating || '4.8/5',
 
-        Inclusions: generated.Inclusions || inclusionsText || 'Accommodation, Breakfast, Private Transfers, Sightseeing',
-        Exclusions: generated.Exclusions || exclusionsText || 'Flights, Visa, Personal Expenses',
+        Inclusions: inclusionsText || generated.Inclusions || 'Accommodation, Breakfast, Private Transfers, Sightseeing',
+        Exclusions: exclusionsText || generated.Exclusions || 'Flights, Visa, Personal Expenses',
 
         Day_Wise_Itinerary: itineraryString,
 
@@ -514,7 +531,8 @@ Follow these field-specific instructions STRICTLY:
                 ? pkg.Booking_Policies as any
                 : defaultPolicies),
         FAQ_Items: finalFAQs,
-        Why_Book_With_Us: finalWhyBook
+        Why_Book_With_Us: finalWhyBook,
+        Slug: generated.Slug || slugify(`${destinationName} ${nightsCount}n ${daysCount}d honeymoon package`)
     };
 
     return completePackage;
