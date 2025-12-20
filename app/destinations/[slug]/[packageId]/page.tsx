@@ -512,9 +512,16 @@ export default function PackageDetailPage({ params }: PageProps) {
 
         pdf.setTextColor(255, 255, 255)
         pdf.setFont('times', 'bold')
+        // Calculate title height dynamically to prevent overlap
+        pdf.setFont('times', 'bold')
         pdf.setFontSize(32)
-        const titleY = (pageHeight * 0.6) - 40
-        pdf.text(packageTitle, pageWidth / 2, titleY, { align: 'center', maxWidth: pageWidth - 40 })
+        const maxTitleWidth = pageWidth - 40
+        const titleLines = pdf.splitTextToSize(packageTitle, maxTitleWidth)
+
+        // Start Y position relative to image height
+        // Adjusted to ensure it leaves ~30-40mm padding from bottom of image
+        const titleStartY = (pageHeight * 0.6) - (titleLines.length * 12) - 40
+        pdf.text(titleLines, pageWidth / 2, titleStartY, { align: 'center' })
 
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(12)
@@ -523,7 +530,10 @@ export default function PackageDetailPage({ params }: PageProps) {
           packageData.Star_Category || 'Luxury Stay',
           packageData.Travel_Type || 'Custom Trip'
         ].join('  •  ')
-        pdf.text(tags, pageWidth / 2, titleY + 15, { align: 'center' })
+
+        // Position tags relative to title end
+        const tagsY = titleStartY + (titleLines.length * 12) + 12
+        pdf.text(tags, pageWidth / 2, tagsY, { align: 'center' })
 
         const contentStartY = (pageHeight * 0.6) + 15
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
@@ -683,8 +693,26 @@ export default function PackageDetailPage({ params }: PageProps) {
         y += 10
 
         // --- INCLUSIONS & EXCLUSIONS ---
-        // Check if we have enough space for Inc/Exc section (approx 150mm needed)
-        if (y > pageHeight - 150) {
+        // --- INCLUSIONS & EXCLUSIONS ---
+        // Helper to calculate height of a list
+        const getListHeight = (items: string[], width: number) => {
+          let h = 0
+          items.forEach(item => {
+            const lines = pdf.splitTextToSize(item, width - 10)
+            h += (lines.length * 6) + 2 // Matching line height + spacing used below
+          })
+          return h
+        }
+
+        const colW = (pageWidth - (margin * 3)) / 2
+
+        // Calculate required heights for both columns
+        const incHeight = getListHeight(inclusions, colW) + 20 // +20 for title spacing
+        const excHeight = getListHeight(exclusions, colW) + 20
+        const maxHeight = Math.max(incHeight, excHeight, 100) // Minimum 100 height
+
+        // Check if we have enough space for the max height
+        if (y + maxHeight > pageHeight - margin) {
           pdf.addPage()
           addFooter(3)
           await addLogo()
@@ -692,11 +720,11 @@ export default function PackageDetailPage({ params }: PageProps) {
         }
 
         const incExcStartY = y
-        const colW = (pageWidth - (margin * 3)) / 2
+        const startY = y // Snapshot starting Y for alignment
 
-        // Inclusions - Cream background
+        // Inclusions - Cream background with dynamic height
         pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-        pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F')
+        pdf.roundedRect(margin, y - 5, colW, maxHeight, 5, 5, 'F')
 
         pdf.setFont('times', 'bold')
         pdf.setFontSize(16)
@@ -718,10 +746,10 @@ export default function PackageDetailPage({ params }: PageProps) {
           y += (lines.length * 6) + 2
         })
 
-        // Exclusions - Cream background
-        let y2 = incExcStartY
+        // Exclusions - Cream background with dynamic height
+        let y2 = startY // Reset Y to start for second column
         pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
-        pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F')
+        pdf.roundedRect(margin + colW + margin, y2 - 5, colW, maxHeight, 5, 5, 'F')
 
         pdf.setFont('times', 'bold')
         pdf.setFontSize(16)
@@ -742,6 +770,9 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.text(lines, margin + colW + margin + 6, y2)
           y2 += (lines.length * 6) + 2
         })
+
+        // Update main Y to be below the tallest column
+        y = startY + maxHeight + 10
 
         // --- PAGE 4: REVIEWS, POLICIES, FAQ ---
         // Check if we need a new page for Reviews
@@ -770,46 +801,90 @@ export default function PackageDetailPage({ params }: PageProps) {
         y += 15
 
         const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
-        for (const review of reviews.slice(0, 3)) {
-          // Check for page break inside reviews loop
-          if (y > pageHeight - 40) {
-            pdf.addPage()
-            addFooter(4)
-            await addLogo()
-            y = margin + 25
+        const reviewsToShow = reviews.slice(0, 1) // Show ONLY 1 review as per request
+        // FULL WIDTH: Use entire page width minus margins
+        const reviewColW = pageWidth - (margin * 2)
+
+        // 1. Calculate Height
+        let maxContentHeight = 0
+        const processedReviews = reviewsToShow.map(review => {
+          const maxReviewLength = 300
+          let reviewContent = review.content
+          if (reviewContent.length > maxReviewLength) {
+            reviewContent = reviewContent.substring(0, maxReviewLength) + '...'
           }
 
+          pdf.setFont('helvetica', 'italic')
+          pdf.setFontSize(10)
+          const contentLines = pdf.splitTextToSize(`"${reviewContent}"`, reviewColW - 10)
+          // Height: Top pad(6) + Name(6) + Gap(4) + Content(lines*6) + Gap(4) + Date(8) + Bottom Pad(4) => Tighter spacing
+          const height = 6 + 6 + 4 + (contentLines.length * 6) + 4 + 8 + 4
+
+          if (height > maxContentHeight) maxContentHeight = height
+
+          return { ...review, contentLines, contentHeight: height }
+        })
+
+        // Reduce min height floor from 60 to 40
+        const reviewBoxHeight = Math.max(maxContentHeight, 40)
+
+        // 2. Page Break Logic - DISABLED BY REQUEST
+        // User explicitly asked to force it on the "next page" behavior being wrong and wants it on the same page.
+        /*
+        if (y + reviewBoxHeight > pageHeight - margin) {
+          pdf.addPage()
+          addFooter(4)
+          await addLogo()
+          y = margin + 25
+        }
+        */
+
+        // 3. Draw Single Review
+        processedReviews.forEach((review, index) => {
+          const xPos = margin
+          let currY = y
+
+          // Draw Box
           pdf.setDrawColor(230, 230, 230)
           pdf.setFillColor(255, 255, 255)
+          pdf.roundedRect(xPos, currY, reviewColW, reviewBoxHeight, 3, 3, 'FD')
 
+          currY += 6 // Reduced top padding
+
+          // Name
           pdf.setFont('helvetica', 'bold')
           pdf.setFontSize(11)
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(review.name, margin, y)
+          pdf.text(review.name, xPos + 5, currY)
 
+          // Rating
           pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
           pdf.setFont('helvetica', 'bold')
-          pdf.text(review.rating || '5/5', pageWidth - margin, y, { align: 'right' })
+          pdf.text(review.rating || '5/5', xPos + reviewColW - 5, currY, { align: 'right' })
 
-          y += 6
+          currY += 6 // Reduced gap
+
+          // Content
           pdf.setFont('helvetica', 'italic')
-          pdf.setFontSize(10)
-          pdf.setTextColor(80, 80, 80)
-          const lines = pdf.splitTextToSize(`"${review.content}"`, pageWidth - (margin * 2))
-          pdf.text(lines, margin, y)
-          y += (lines.length * 6) + 4
-
-          pdf.setFont('helvetica', 'normal')
           pdf.setFontSize(9)
-          pdf.setTextColor(150, 150, 150)
-          pdf.text(review.date, margin, y)
+          pdf.setTextColor(80, 80, 80)
+          pdf.text(review.contentLines, xPos + 5, currY)
 
-          y += 12
-        }
-        y += 10
+          // Date at bottom
+          const dateY = y + reviewBoxHeight - 5
+
+          // Date
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(8)
+          pdf.setTextColor(150, 150, 150)
+          pdf.text(review.date, xPos + 5, dateY)
+        })
+
+        // Update main Y
+        y += reviewBoxHeight + 15
 
         // Booking Policies
-        if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 25; }
+        if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
         pdf.setFont('times', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
