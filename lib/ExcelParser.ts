@@ -143,7 +143,10 @@ export function parseExcelFile(fileBuffer: ArrayBuffer): ParsedExcelData {
         : [];
 
     const guestReviews: GuestReviewRow[] = reviewsSheet
-        ? XLSX.utils.sheet_to_json<GuestReviewRow>(reviewsSheet)
+        ? XLSX.utils.sheet_to_json<GuestReviewRow>(reviewsSheet).map(row => ({
+            ...row,
+            Date: typeof row.Date === 'number' ? excelDateToJSDate(row.Date) : row.Date
+        }))
         : [];
 
     const bookingPolicies: BookingPolicyRow[] = policiesSheet
@@ -188,4 +191,19 @@ export function parseSheet<T>(fileBuffer: ArrayBuffer, sheetName: string): T[] {
         return [];
     }
     return XLSX.utils.sheet_to_json<T>(sheet);
+}
+
+/**
+ * Convert Excel serial date to JS Date string (DD Month YYYY)
+ * @param serial Serial number from Excel (e.g., 45992)
+ * @returns Formatted date string (e.g., "01 December 2025")
+ */
+function excelDateToJSDate(serial: number): string {
+    const utc_days = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+
+    // Format options: 01 December 2025
+    const options: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'long', year: 'numeric' };
+    return date_info.toLocaleDateString('en-GB', options);
 }

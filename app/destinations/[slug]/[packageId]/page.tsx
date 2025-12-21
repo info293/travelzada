@@ -290,6 +290,13 @@ export default function PackageDetailPage({ params }: PageProps) {
     return []
   }
 
+  // Format price with commas
+  const formatPrice = (price: string | number) => {
+    const numericPrice = String(price).replace(/[^0-9]/g, '')
+    if (!numericPrice) return price
+    return new Intl.NumberFormat('en-IN').format(Number(numericPrice))
+  }
+
   // Extract days from Duration or Duration_Days
   const extractDays = (duration: string): number => {
     const match = duration.match(/(\d+)/)
@@ -654,7 +661,6 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.text(item, margin + 8, y)
           y += 9
         })
-
 
         // --- PAGE 3: ITINERARY & INC/EXC ---
         pdf.addPage()
@@ -1139,16 +1145,49 @@ export default function PackageDetailPage({ params }: PageProps) {
                 </div>
                 <div className="flex flex-col gap-2 sm:gap-3">
                   <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif text-[#1e1d2f] leading-tight">{packageTitle}</h1>
-                  <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
+                  {/* <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
                     <span className="text-lg">💳</span>
                     Flexible payment options available
-                  </p>
+                  </p> */}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-                  <StatBlock label="Duration" value={packageData.Duration} />
-                  <StatBlock label="Location" value={packageData.Destination_Name || 'Bali, Indonesia'} />
-                  <StatBlock label="Hotel" value={packageData.Star_Category || 'Hotel'} />
-                  <StatBlock label="Travel Type" value={packageData.Travel_Type || '—'} />
+                  <StatBlock
+                    label="Duration"
+                    value={packageData.Duration}
+                    icon={
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    }
+                  />
+                  <StatBlock
+                    label="Location"
+                    value={packageData.Location_Breakup || packageData.Destination_Name || 'Bali, Indonesia'}
+                    icon={
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    }
+                  />
+                  <StatBlock
+                    label="Hotel"
+                    value={packageData.Star_Category || 'Hotel'}
+                    icon={
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    }
+                  />
+                  <StatBlock
+                    label="Travel Type"
+                    value={packageData.Travel_Type || '—'}
+                    icon={
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    }
+                  />
                 </div>
               </article>
 
@@ -1231,10 +1270,26 @@ export default function PackageDetailPage({ params }: PageProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <SectionCard title="Inclusions">
-                  <ListWithIcon items={inclusions} icon="✓" iconClass="text-green-600" />
+                  <ListWithIcon
+                    items={inclusions}
+                    icon={
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    }
+                    iconClass="text-green-600"
+                  />
                 </SectionCard>
                 <SectionCard title="Exclusions">
-                  <ListWithIcon items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']} icon="✕" iconClass="text-red-500" />
+                  <ListWithIcon
+                    items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']}
+                    icon={
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    }
+                    iconClass="text-gray-400"
+                  />
                 </SectionCard>
               </div>
 
@@ -1252,7 +1307,14 @@ export default function PackageDetailPage({ params }: PageProps) {
                           <div key={idx} className="rounded-lg sm:rounded-[5px] border border-gray-200 p-4 sm:p-5 bg-white hover:shadow-md transition-shadow">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
                               <p className="font-semibold text-sm sm:text-base">{review.name}</p>
-                              <p className="text-yellow-500 text-sm sm:text-base">{review.rating || '★★★★★'}</p>
+                              <div className="flex items-center gap-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-current animate-pulse" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                ))}
+                                <span className="ml-2 text-xl sm:text-2xl animate-bounce">😊</span>
+                              </div>
                             </div>
                             <p className="text-sm sm:text-base text-gray-600 mb-2 leading-relaxed">{review.content}</p>
                             <p className="text-xs sm:text-sm text-gray-500">{review.date}</p>
@@ -1347,7 +1409,7 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
                 <div>
                   <p className="text-sm text-gray-500">Starting from</p>
-                  <p className="text-4xl font-serif text-[#c99846]">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                  <p className="text-4xl font-serif text-[#c99846]">INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'} </p>
                   {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
                 </div>
                 <div className="flex flex-col gap-3">
@@ -1526,16 +1588,21 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StatBlock({ label, value }: { label: string; value: string }) {
+function StatBlock({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-lg sm:rounded-[5px] border border-gray-100 bg-gray-50 p-3 sm:p-4">
-      <p className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500 mb-1">{label}</p>
-      <p className="text-sm sm:text-base font-semibold text-[#1e1d2f] leading-tight break-words">{value}</p>
+    <div className="flex flex-col items-start p-3 sm:p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 group h-full">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="p-1.5 rounded-full bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
+          {icon}
+        </div>
+        <p className="text-[10px] sm:text-xs uppercase tracking-wider text-gray-500 font-medium">{label}</p>
+      </div>
+      <p className="text-xs sm:text-sm font-bold text-[#1e1d2f] leading-snug break-words pl-1 line-clamp-3">{value}</p>
     </div>
   )
 }
 
-function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: string; iconClass: string }) {
+function ListWithIcon({ items, icon, iconClass }: { items: string[]; icon: React.ReactNode; iconClass: string }) {
   return (
     <ul className="space-y-2.5 sm:space-y-3 text-sm sm:text-base text-gray-600">
       {items.map((item) => (
