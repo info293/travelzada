@@ -42,6 +42,7 @@ interface GeneratedPackage {
     Ideal_Traveler_Persona?: string;
     Slug?: string;
     Primary_Image_URL?: string;
+    Image_Alt_Text?: string;
     Booking_URL?: string;
     SEO_Title?: string;
     SEO_Description?: string;
@@ -325,6 +326,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                     Sustainability_Score: pkg.Sustainability_Score,
                     Ideal_Traveler_Persona: pkg.Ideal_Traveler_Persona,
                     Primary_Image_URL: pkg.Primary_Image_URL,
+                    Image_Alt_Text: pkg.Image_Alt_Text,
                     Inclusions: incExc.inclusions.length > 0 ? incExc.inclusions.join(', ') : pkg.Inclusions, // Fallback to flat string if parsed
                     Exclusions: incExc.exclusions.length > 0 ? incExc.exclusions.join(', ') : pkg.Exclusions,
                     Day_Wise_Itinerary: itinerary.length > 0 ? itinerary : pkg.Day_Wise_Itinerary,
@@ -407,9 +409,9 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 'Elderly_Friendly', 'Language_Preference', 'Seasonality', 'Hotel_Examples',
                 'Rating', 'Location_Breakup', 'Airport_Code', 'Transfer_Type', 'Currency',
                 'Climate_Type', 'Safety_Score', 'Sustainability_Score', 'Ideal_Traveler_Persona',
-                'Primary_Image_URL', 'SEO_Title', 'SEO_Description', 'SEO_Keywords'
+                'Primary_Image_URL', 'Image_Alt_Text', 'SEO_Title', 'SEO_Description', 'SEO_Keywords'
             ];
-            const pkgData = [['BAL_001', 'Bali', 'A beautiful escape...', '5 Nights / 6 Days', '₹50,000 - ₹70,000', 'Family', 'Relax', 'Vacation', 'Mid', 'Beach', 'Light', 'Resort', '4-Star', 'Breakfast', '2A 1C', 'Yes', 'Yes', 'English', 'All Year', 'Sample Resort', '4.5/5', '3N Ubud', 'DPS', 'Private', 'INR', 'Tropical', '8/10', '7/10', 'Families', 'https://example.com/image.jpg', 'Bali Package', 'Desc', 'bali, beach']];
+            const pkgData = [['BAL_001', 'Bali', 'A beautiful escape...', '5 Nights / 6 Days', '₹50,000 - ₹70,000', 'Family', 'Relax', 'Vacation', 'Mid', 'Beach', 'Light', 'Resort', '4-Star', 'Breakfast', '2A 1C', 'Yes', 'Yes', 'English', 'All Year', 'Sample Resort', '4.5/5', '3N Ubud', 'DPS', 'Private', 'INR', 'Tropical', '8/10', '7/10', 'Families', 'https://example.com/image.jpg', 'Beautiful beach in Bali', 'Bali Package', 'Desc', 'bali, beach']];
             const pkgSheet = XLSX.utils.aoa_to_sheet([pkgHeaders, ...pkgData]);
             XLSX.utils.book_append_sheet(wb, pkgSheet, 'Packages_Master');
 

@@ -41,6 +41,7 @@ export interface PackageInput {
     Sustainability_Score?: string;
     Ideal_Traveler_Persona?: string;
     Primary_Image_URL?: string;
+    Image_Alt_Text?: string;
     Inclusions?: string[];
     Exclusions?: string[];
     Day_Wise_Itinerary?: Array<{ day: number; description: string }>;
@@ -82,6 +83,7 @@ export interface GeneratedPackageData {
     Sustainability_Score: string;
     Ideal_Traveler_Persona: string;
     Primary_Image_URL: string;
+    Image_Alt_Text: string;
     SEO_Title: string;
     SEO_Description: string;
     SEO_Keywords: string;
@@ -396,6 +398,8 @@ Follow these field-specific instructions STRICTLY:
   "Location_Breakup": "string",
   "Primary_Image_URL": "Unsplash URL string",
   
+  "Image_Alt_Text": "If provided in input use it. If not, generate a descriptive alt text (e.g. 'Beatiful sunset in Bali for honeymoon').",
+  
   "SEO_Title": "string",
   "SEO_Description": "string",
   "SEO_Keywords": "string",
@@ -518,6 +522,7 @@ Follow these field-specific instructions STRICTLY:
 
         // Prioritize URL from Excel if available
         Primary_Image_URL: pkg.Primary_Image_URL || generated.Primary_Image_URL || '',
+        Image_Alt_Text: pkg.Image_Alt_Text || generated.Image_Alt_Text || `${destinationName} Package`,
 
         // SEO Fields
         SEO_Title: generated.SEO_Title || `${destinationName} Honeymoon Package - ${durationString} | TravelZada`,

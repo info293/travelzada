@@ -26,6 +26,7 @@ interface DestinationPackage {
   Star_Category: string
   Price_Range_INR: string
   Primary_Image_URL: string
+  Image_Alt_Text?: string
   Inclusions: string
   Exclusions?: string
   Theme?: string
@@ -530,6 +531,15 @@ export default function PackageDetailPage({ params }: PageProps) {
           const mainImageData = await loadImage(imageUrl)
           const imgHeight = pageHeight * 0.6
           pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST')
+
+          // Add visible caption if alt text exists
+          if (packageData.Image_Alt_Text) {
+            pdf.setFont('helvetica', 'normal')
+            pdf.setFontSize(8)
+            pdf.setTextColor(230, 230, 230) // Light grey text
+            // Position at bottom right of image area
+            pdf.text(packageData.Image_Alt_Text, pageWidth - 10, imgHeight - 5, { align: 'right' })
+          }
         } catch (e) {
           console.error('Failed to load main image', e)
         }
@@ -1111,7 +1121,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         <section className="web-hero relative h-[300px] sm:h-[380px] md:h-[420px] lg:h-[520px] w-full">
           <Image
             src={imageUrl}
-            alt={packageTitle}
+            alt={packageData.Image_Alt_Text || packageTitle}
             fill
             className="object-cover"
             priority
@@ -1132,6 +1142,14 @@ export default function PackageDetailPage({ params }: PageProps) {
               </svg>
             </Link>
           </div>
+          {/* Visible Caption (Alt Text) */}
+          {packageData.Image_Alt_Text && (
+            <div className="absolute bottom-4 right-4 z-10 max-w-md text-right pointer-events-none">
+              <span className="inline-block bg-black/40 backdrop-blur-sm text-white/90 text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/10 shadow-sm">
+                {packageData.Image_Alt_Text}
+              </span>
+            </div>
+          )}
         </section>
 
         <section className="relative -mt-24 sm:-mt-28 md:-mt-36 lg:-mt-40 px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-20">

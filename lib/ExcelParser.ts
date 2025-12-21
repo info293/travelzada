@@ -37,6 +37,7 @@ export interface PackagesMasterRow {
     Sustainability_Score?: string;
     Ideal_Traveler_Persona?: string;
     Primary_Image_URL?: string;
+    Image_Alt_Text?: string;
     Inclusions?: string;
     Exclusions?: string;
     Day_Wise_Itinerary?: string;
