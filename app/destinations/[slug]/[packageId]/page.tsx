@@ -270,6 +270,26 @@ export default function PackageDetailPage({ params }: PageProps) {
   const inclusions = parseListField(packageData.Inclusions);
   const exclusions = parseListField(packageData.Exclusions);
 
+  // Helper to parse policies which might be arrays or stringified arrays
+  const parsePolicies = (items: any): string[] => {
+    if (!items) return []
+    if (Array.isArray(items)) {
+      // Check if it's an array of format ["\"Policy 1\", \"Policy 2\""] which is effectively a stringified array inside an array
+      if (items.length === 1 && typeof items[0] === 'string' && items[0].includes('", "')) {
+        return items[0].split('", "').map((i: string) => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
+      }
+      return items.map((i: any) => String(i).trim())
+    }
+    if (typeof items === 'string') {
+      // Handle "Item 1, Item 2" or "\"Item 1\", \"Item 2\""
+      if (items.includes('", "')) {
+        return items.split('", "').map(i => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
+      }
+      return items.split(',').map(i => i.trim())
+    }
+    return []
+  }
+
   // Extract days from Duration or Duration_Days
   const extractDays = (duration: string): number => {
     const match = duration.match(/(\d+)/)
@@ -546,7 +566,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.setFontSize(28)
         // Using Price Gold color - matching website
         pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
-        pdf.text(`INR ${packageData.Price_Range_INR}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
+        pdf.text(`INR ${String(packageData.Price_Range_INR)}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
 
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(10)
@@ -592,8 +612,8 @@ export default function PackageDetailPage({ params }: PageProps) {
 
         pdf.setFont('helvetica', 'normal')
         pdf.setTextColor(80, 80, 80)
-        pdf.text(packageData.Duration, col1X, boxY + 6)
-        pdf.text(packageData.Destination_Name || 'Bali', col2X, boxY + 6)
+        pdf.text(String(packageData.Duration || ''), col1X, boxY + 6)
+        pdf.text(String(packageData.Destination_Name || 'Bali'), col2X, boxY + 6)
 
         boxY += 18
 
@@ -605,8 +625,8 @@ export default function PackageDetailPage({ params }: PageProps) {
 
         pdf.setFont('helvetica', 'normal')
         pdf.setTextColor(80, 80, 80)
-        pdf.text(packageData.Star_Category || '4-Star', col1X, boxY + 6)
-        pdf.text(packageData.Travel_Type || 'Couple', col2X, boxY + 6)
+        pdf.text(String(packageData.Star_Category || '4-Star'), col1X, boxY + 6)
+        pdf.text(String(packageData.Travel_Type || 'Couple'), col2X, boxY + 6)
 
         y += boxHeight + 15
 
@@ -711,13 +731,17 @@ export default function PackageDetailPage({ params }: PageProps) {
         const excHeight = getListHeight(exclusions, colW) + 20
         const maxHeight = Math.max(incHeight, excHeight, 100) // Minimum 100 height
 
-        // Check if we have enough space for the max height
-        if (y + maxHeight > pageHeight - margin) {
-          pdf.addPage()
-          addFooter(3)
-          await addLogo()
-          y = margin + 20
-        }
+        // --- PAGE 4: Inclusions/Exclusions (Always start on new page) ---
+        pdf.addPage()
+        addFooter(4)
+        await addLogo()
+        y = margin + 10
+
+        // Header Branding Line - Primary Purple
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(margin, y, margin + 25, y)
+        y += 12
 
         const incExcStartY = y
         const startY = y // Snapshot starting Y for alignment
@@ -855,12 +879,12 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.setFont('helvetica', 'bold')
           pdf.setFontSize(11)
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(review.name, xPos + 5, currY)
+          pdf.text(String(review.name || 'Guest'), xPos + 5, currY)
 
           // Rating
           pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
           pdf.setFont('helvetica', 'bold')
-          pdf.text(review.rating || '5/5', xPos + reviewColW - 5, currY, { align: 'right' })
+          pdf.text(String(review.rating || '5/5'), xPos + reviewColW - 5, currY, { align: 'right' })
 
           currY += 6 // Reduced gap
 
@@ -877,50 +901,78 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.setFont('helvetica', 'normal')
           pdf.setFontSize(8)
           pdf.setTextColor(150, 150, 150)
-          pdf.text(review.date, xPos + 5, dateY)
+          pdf.text(String(review.date || ''), xPos + 5, dateY)
         })
 
         // Update main Y
         y += reviewBoxHeight + 15
 
-        // Booking Policies
-        if (y > pageHeight - 120) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
+        // --- PAGE 5: BOOKING POLICIES (Always start on new page) ---
+        pdf.addPage()
+        addFooter(5)
+        await addLogo()
+        y = margin + 10
+
+        // Header Branding Line - Primary Purple
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(margin, y, margin + 25, y)
+        y += 12
+
         pdf.setFont('times', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Booking Policies', margin, y)
-        y += 12
+        y += 15
 
-        const policyY = y
-        const policyW = (pageWidth - (margin * 2)) / 3
-
-        const drawPolicyCol = (title: string, items: string[], xPos: number) => {
-          let currY = policyY
+        const drawPolicySection = (title: string, items: string[]) => {
+          // Section Title
           pdf.setFont('helvetica', 'bold')
-          pdf.setFontSize(11)
-          pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(title, xPos, currY)
-          currY += 8
+          pdf.setFontSize(12)
+          pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]) // Primary Color Title
+          pdf.text(title, margin, y)
+          y += 7
+
+          // Items
           pdf.setFont('helvetica', 'normal')
-          pdf.setFontSize(9)
+          pdf.setFontSize(10)
           pdf.setTextColor(60, 60, 60)
+
           items.forEach(p => {
+            const bullet = '•'
+            const indent = 5
+
+            // Write bullet
             pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-            pdf.text('•', xPos, currY)
+            pdf.text(bullet, margin, y)
+
+            // Write text wrapping to full width
             pdf.setTextColor(60, 60, 60)
-            pdf.text(` ${p}`, xPos + 3, currY)
-            currY += 6
+            const textWidth = pageWidth - (margin * 2) - indent
+            const lines = pdf.splitTextToSize(p, textWidth)
+
+            pdf.text(lines, margin + indent, y)
+            y += (lines.length * 5) + 3 // Line height + spacing between items
           })
+          y += 8 // Spacing between sections
         }
 
-        drawPolicyCol('Booking', packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates'], margin)
-        drawPolicyCol('Payment', packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI'], margin + policyW)
-        drawPolicyCol('Cancellation', packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days'], margin + (policyW * 2))
+        drawPolicySection('Booking Terms', parsePolicies(packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates']))
+        drawPolicySection('Payment Policy', parsePolicies(packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI']))
+        drawPolicySection('Cancellation Policy', parsePolicies(packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days']))
 
-        y += 35
+        // --- PAGE 6: FAQs (Always start on new page) ---
+        pdf.addPage()
+        addFooter(6)
+        await addLogo()
+        y = margin + 10
 
-        // FAQs
-        if (y > pageHeight - 60) { pdf.addPage(); addFooter(4); addLogo(); y = margin + 20; }
+        // Header Branding Line - Primary Purple
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(margin, y, margin + 25, y)
+        y += 12
+
         pdf.setFont('times', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
@@ -1232,15 +1284,15 @@ export default function PackageDetailPage({ params }: PageProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
                   <PolicyCard
                     title="Booking"
-                    items={packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support']}
+                    items={parsePolicies(packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support'])}
                   />
                   <PolicyCard
                     title="Payment"
-                    items={packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions']}
+                    items={parsePolicies(packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions'])}
                   />
                   <PolicyCard
                     title="Cancellation"
-                    items={packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details']}
+                    items={parsePolicies(packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details'])}
                   />
                 </div>
               </SectionCard>
