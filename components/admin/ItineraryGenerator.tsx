@@ -119,10 +119,40 @@ export default function ItineraryGenerator() {
 
     const handlePackageSelect = (pkg: Package) => {
         setSelectedPackage(pkg);
+
+        // Parse existing itinerary
+        let parsedItinerary: any[] = [];
+        if (pkg.Day_Wise_Itinerary) {
+            const items = pkg.Day_Wise_Itinerary.split('|').map(item => item.trim());
+            parsedItinerary = items.map((item, index) => {
+                // handle "Day X: Title" format
+                const dayMatch = item.match(/Day\s*(\d+):\s*(.+)/i);
+                if (dayMatch) {
+                    return { day: `Day ${dayMatch[1]}`, title: dayMatch[2].trim(), description: item }; // Keep full item as description fallback or split further if needed
+                }
+
+                // Simple split by colon
+                const parts = item.split(':');
+                const title = parts.length > 1 ? parts[0].trim() : `Day ${index + 1}`;
+                const description = parts.length > 1 ? parts.slice(1).join(':').trim() : item;
+
+                return {
+                    day: `Day ${index + 1}`,
+                    title: title.replace(/^Day\s*\d+\s*/i, ''), // clean title if it has Day X
+                    description: description
+                };
+            });
+        }
+
+        // Clean price
+        const priceStr = String(pkg.Price_Min_INR || pkg.Price_Range_INR || '0');
+        const priceNum = parseInt(priceStr.replace(/[^0-9]/g, '')) || 0;
+
         setFormData(prev => ({
             ...prev,
             packageId: pkg.Destination_ID,
-            totalCost: pkg.Price_Min_INR || 0
+            totalCost: priceNum,
+            customItinerary: parsedItinerary
         }));
     };
 
@@ -158,6 +188,28 @@ export default function ItineraryGenerator() {
 
     const removeHotel = (index: number) => {
         setFormData(prev => ({ ...prev, hotels: prev.hotels.filter((_, i) => i !== index) }));
+    };
+
+    // Itinerary Management
+    const updateItineraryDay = (index: number, field: string, value: string) => {
+        const newItinerary = [...(formData.customItinerary || [])];
+        newItinerary[index] = { ...newItinerary[index], [field]: value };
+        setFormData(prev => ({ ...prev, customItinerary: newItinerary }));
+    };
+
+    const addItineraryDay = () => {
+        const newItinerary = [...(formData.customItinerary || [])];
+        const dayNum = newItinerary.length + 1;
+        newItinerary.push({ day: `Day ${dayNum}`, title: `Day ${dayNum} Activities`, description: 'Enjoy your day.' });
+        setFormData(prev => ({ ...prev, customItinerary: newItinerary }));
+    };
+
+    const removeItineraryDay = (index: number) => {
+        const newItinerary = [...(formData.customItinerary || [])];
+        newItinerary.splice(index, 1);
+        // Renumber days
+        const renumbered = newItinerary.map((item, idx) => ({ ...item, day: `Day ${idx + 1}` }));
+        setFormData(prev => ({ ...prev, customItinerary: renumbered }));
     };
 
     const generatePDF = async () => {
@@ -531,22 +583,33 @@ export default function ItineraryGenerator() {
             y += 15;
 
             // Parse Day Wise Itinerary
-            const itineraryItems = selectedPackage.Day_Wise_Itinerary.split('|').map(item => item.trim());
+            // Use custom itinerary if available, otherwise fallback (though we populate customItinerary on select)
+            const itineraryItems = formData.customItinerary && formData.customItinerary.length > 0
+                ? formData.customItinerary
+                : (selectedPackage.Day_Wise_Itinerary ? selectedPackage.Day_Wise_Itinerary.split('|').map(item => ({ day: 'Day ?', title: item, description: item })) : []);
+
             const timelineX = margin + 6;
             const timelineStartY = y;
 
-            itineraryItems.forEach((item, index) => {
+            for (const [index, item] of itineraryItems.entries()) {
                 if (y > pageHeight - margin) {
                     pdf.addPage();
-                    addFooter(3); // Page num might be wrong here, strictly it's dynamic
-                    addLogo();
+                    addFooter(3);
+                    await addLogo();
                     y = margin + 20;
                 }
 
-                const parts = item.split(':');
-                const dayLabel = `Day ${index + 1}`;
-                const title = parts[0]?.trim() || dayLabel;
-                const desc = parts.slice(1).join(':').trim() || item;
+                // If item is string (fallback), parse it roughly
+                let dayLabel = item.day || `Day ${index + 1}`;
+                let title = item.title || `Day ${index + 1}`;
+                let desc = item.description || '';
+
+                if (typeof item === 'string') {
+                    const parts = item.split(':');
+                    dayLabel = `Day ${index + 1}`;
+                    title = parts[0]?.trim() || dayLabel;
+                    desc = parts.slice(1).join(':').trim() || item;
+                }
 
                 // Dot
                 pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
@@ -562,11 +625,23 @@ export default function ItineraryGenerator() {
                 pdf.setFont('helvetica', 'medium');
                 pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
                 const titleX = timelineX + 35;
-                const titleLines = pdf.splitTextToSize(desc, pageWidth - margin - titleX);
+                const titleLines = pdf.splitTextToSize(title, pageWidth - margin - titleX);
                 pdf.text(titleLines, titleX, y);
 
-                y += (titleLines.length * 6) + 10;
-            });
+                y += (titleLines.length * 6) + 2;
+
+                // Description
+                if (desc) {
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(80, 80, 80);
+                    const descLines = pdf.splitTextToSize(desc, pageWidth - margin - titleX);
+                    pdf.text(descLines, titleX, y);
+                    y += (descLines.length * 5) + 8;
+                } else {
+                    y += 6;
+                }
+            }
 
             // Draw Timeline Line
             pdf.setDrawColor(220, 220, 220);
@@ -630,6 +705,147 @@ export default function ItineraryGenerator() {
                 pdf.text(lines, margin + colW + margin + 6, y2);
                 y2 += (lines.length * 5) + 3;
             });
+
+            // --- PAGE 4/5: Booking Policies & FAQs ---
+            // Always start new page for clean separation
+            pdf.addPage();
+            addFooter(4);
+            await addLogo();
+            y = margin + 20;
+
+            // Booking Policies
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(20);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Booking Policies', margin, y);
+            y += 15;
+
+            const parsePolicies = (items: any): string[] => {
+                if (!items) return [];
+                if (Array.isArray(items)) {
+                    if (items.length === 1 && typeof items[0] === 'string' && items[0].includes('", "')) {
+                        return items[0].split('", "').map((i: string) => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim());
+                    }
+                    return items.map((i: any) => String(i).trim());
+                }
+                if (typeof items === 'string') {
+                    if (items.includes('", "')) {
+                        return items.split('", "').map(i => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
+                    }
+                    return items.split(',').map(i => i.trim());
+                }
+                return [];
+            };
+
+            const drawPolicySection = (title: string, items: string[]) => {
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                pdf.text(title, margin, y);
+                y += 7;
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                pdf.setTextColor(60, 60, 60);
+
+                items.forEach(p => {
+                    const bullet = '•';
+                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                    pdf.text(bullet, margin, y);
+
+                    pdf.setTextColor(60, 60, 60);
+                    const textWidth = pageWidth - (margin * 2) - 5;
+                    const lines = pdf.splitTextToSize(p, textWidth);
+                    pdf.text(lines, margin + 5, y);
+                    y += (lines.length * 5) + 3;
+                });
+                y += 8;
+            };
+
+            if (selectedPackage.Booking_Policies) {
+                drawPolicySection('Booking Terms', parsePolicies(selectedPackage.Booking_Policies.booking || ['Instant confirmation', 'Flexible dates']));
+                drawPolicySection('Payment Policy', parsePolicies(selectedPackage.Booking_Policies.payment || ['Pay in instalments', 'Zero cost EMI']));
+                drawPolicySection('Cancellation Policy', parsePolicies(selectedPackage.Booking_Policies.cancellation || ['Free cancellation up to 7 days']));
+            } else {
+                // Defaults
+                drawPolicySection('Booking Terms', ['Instant confirmation', 'Flexible dates']);
+                drawPolicySection('Payment Policy', ['Pay in instalments', 'Zero cost EMI']);
+                drawPolicySection('Cancellation Policy', ['Free cancellation up to 7 days']);
+            }
+
+            // FAQs
+            if (y > pageHeight - 100) {
+                pdf.addPage();
+                addFooter(5);
+                await addLogo();
+                y = margin + 20;
+            }
+
+            pdf.setFont('times', 'bold');
+            pdf.setFontSize(20);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Frequently Asked Questions', margin, y);
+            y += 15;
+
+            const faqItems = selectedPackage.FAQ_Items || [
+                { question: 'What is the best time to visit?', answer: 'The dry season is best.' },
+                { question: 'Do I need a visa?', answer: 'Please check with your embassy.' }
+            ];
+
+            for (const faq of faqItems) {
+                if (y > pageHeight - 30) {
+                    pdf.addPage();
+                    addFooter(5);
+                    await addLogo();
+                    y = margin + 20;
+                }
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(11);
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(`Q: ${faq.question}`, margin, y);
+                y += 6;
+
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(10);
+                pdf.setTextColor(60, 60, 60);
+                const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2));
+                pdf.text(answerLines, margin, y);
+                y += (answerLines.length * 5) + 8;
+            }
+
+            // --- FINAL PAGE CTA ---
+            y += 15;
+            if (y > pageHeight - 40) {
+                pdf.addPage();
+                addFooter(5);
+                await addLogo();
+                y = margin + 25;
+            }
+
+            // Add CTA Buttons at the end
+            const btnW = 50;
+            const btnH = 12;
+            const gap = 10;
+            const startX = (pageWidth - (btnW * 2 + gap)) / 2;
+
+            // WhatsApp Button
+            pdf.setFillColor(37, 211, 102); // WhatsApp Green
+            pdf.roundedRect(startX, y, btnW, btnH, 3, 3, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.setFontSize(11);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('WhatsApp Us', startX + (btnW / 2), y + 8, { align: 'center' });
+
+            const waLink = `https://wa.me/919929962350?text=${encodeURIComponent(`Hi, here is the custom itinerary for ${formData.clientName}. Let's discuss!`)}`;
+            pdf.link(startX, y, btnW, btnH, { url: waLink });
+
+            // Call Button
+            pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]); // Dark
+            pdf.roundedRect(startX + btnW + gap, y, btnW, btnH, 3, 3, 'F');
+            pdf.setTextColor(255, 255, 255);
+            pdf.text('Call Us', startX + btnW + gap + (btnW / 2), y + 8, { align: 'center' });
+            pdf.link(startX + btnW + gap, y, btnW, btnH, { url: 'tel:+919929962350' });
 
             pdf.save(`${formData.clientName.replace(/\s+/g, '_')}_Itinerary.pdf`);
 
@@ -846,6 +1062,68 @@ export default function ItineraryGenerator() {
                             </div>
                         ))}
                         {formData.hotels.length === 0 && <p className="text-sm text-gray-400 italic">No hotels added yet.</p>}
+                    </div>
+
+                    {/* Financials */}
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            💰 Financials
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Total Trip Cost (INR)</label>
+                                <input
+                                    type="number"
+                                    className="w-full rounded-lg border-gray-300 border p-2 text-sm"
+                                    value={formData.totalCost}
+                                    onChange={(e) => setFormData({ ...formData, totalCost: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Advance Paid (INR)</label>
+                                <input
+                                    type="number"
+                                    className="w-full rounded-lg border-gray-300 border p-2 text-sm"
+                                    value={formData.advancePaid}
+                                    onChange={(e) => setFormData({ ...formData, advancePaid: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Day Wise Itinerary */}
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                📅 Day Wise Itinerary
+                            </h3>
+                            <button onClick={addItineraryDay} className="text-sm text-blue-600 hover:text-blue-800 font-medium">+ Add Day</button>
+                        </div>
+
+                        <div className="space-y-4">
+                            {formData.customItinerary?.map((item, idx) => (
+                                <div key={idx} className="bg-white p-4 rounded-lg border border-gray-200 relative group">
+                                    <button onClick={() => removeItineraryDay(idx)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded">{item.day}</span>
+                                        <input
+                                            type="text"
+                                            className="flex-1 font-semibold text-gray-800 border-none focus:ring-0 p-0"
+                                            value={item.title}
+                                            onChange={(e) => updateItineraryDay(idx, 'title', e.target.value)}
+                                            placeholder="Day Title"
+                                        />
+                                    </div>
+                                    <textarea
+                                        className="w-full text-sm text-gray-600 border-gray-200 rounded p-2 focus:ring-blue-500 focus:border-blue-500"
+                                        rows={2}
+                                        value={item.description}
+                                        onChange={(e) => updateItineraryDay(idx, 'description', e.target.value)}
+                                        placeholder="Description of activities..."
+                                    />
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="flex justify-between pt-4">
