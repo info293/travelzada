@@ -118,7 +118,29 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [showAllFAQs, setShowAllFAQs] = useState(false)
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [isInlineEnquireVisible, setIsInlineEnquireVisible] = useState(true)
   const contentRef = useRef<HTMLDivElement>(null)
+  const inlineEnquireRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsInlineEnquireVisible(entry.isIntersecting)
+      },
+      { threshold: 0.1 }
+    )
+
+    if (inlineEnquireRef.current) {
+      observer.observe(inlineEnquireRef.current)
+    }
+
+    return () => {
+      if (inlineEnquireRef.current) {
+        observer.unobserve(inlineEnquireRef.current)
+      }
+    }
+  }, [loading])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1187,6 +1209,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     }
+                    onClick={() => setShowLocationModal(true)}
                   />
                   <StatBlock
                     label="Hotel"
@@ -1217,6 +1240,7 @@ export default function PackageDetailPage({ params }: PageProps) {
                 </div>
                 <div className="flex flex-col gap-2.5 sm:gap-3">
                   <button
+                    ref={inlineEnquireRef}
                     onClick={() => setShowLeadForm(true)}
                     className="w-full text-center bg-primary text-white py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-primary/90 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
                   >
@@ -1259,9 +1283,9 @@ export default function PackageDetailPage({ params }: PageProps) {
                           <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
                             {index + 1}
                           </span>
-                          <span className="truncate sm:whitespace-normal">
-                            <span className="hidden sm:inline">{day.day}: </span>
-                            <span className="sm:font-normal">{day.title}</span>
+                          <span className="leading-tight sm:whitespace-normal">
+                            <span className="font-semibold text-primary sm:text-gray-900 sm:font-normal inline sm:hidden">{day.day}: </span>
+                            <span className="sm:font-normal block sm:inline">{day.title}</span>
                           </span>
                         </div>
                         <svg
@@ -1557,14 +1581,18 @@ export default function PackageDetailPage({ params }: PageProps) {
 
         {
           !showLeadForm && (
-            <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40 pointer-events-none">
-              <button
-                type="button"
-                onClick={() => setShowLeadForm(true)}
-                className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Enquire Now
-              </button>
+            <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40">
+              {
+                !showLeadForm && !isInlineEnquireVisible && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLeadForm(true)}
+                    className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98] animate-in slide-in-from-bottom-4 fade-in duration-300"
+                  >
+                    Enquire Now
+                  </button>
+                )
+              }
             </div>
           )
         }
@@ -1575,6 +1603,44 @@ export default function PackageDetailPage({ params }: PageProps) {
           sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
           packageName={packageData.Destination_Name}
         />
+
+        {/* Location Modal */}
+        {showLocationModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative animate-in zoom-in-95 duration-200">
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2.5 rounded-full bg-blue-50 text-blue-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Locations Covered</h3>
+              </div>
+              <div className="prose prose-sm text-gray-600 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <p className="text-base leading-relaxed">
+                  {packageData.Location_Breakup || packageData.Destination_Name || 'Bali, Indonesia'}
+                </p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="px-5 py-2.5 bg-gray-900 text-white rounded-lg font-semibold hover:bg-black transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main >
     </>
   )
@@ -1605,9 +1671,12 @@ function Fact({ label, value }: { label: string; value: string }) {
   )
 }
 
-function StatBlock({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+function StatBlock({ label, value, icon, onClick }: { label: string; value: string; icon?: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="flex flex-col items-start p-3 sm:p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 group h-full">
+    <div
+      onClick={onClick}
+      className={`flex flex-col items-start p-3 sm:p-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-md transition-all duration-300 group h-full ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className="p-1.5 rounded-full bg-primary/5 text-primary group-hover:bg-primary/10 transition-colors">
           {icon}
