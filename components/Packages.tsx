@@ -9,7 +9,7 @@ interface FirestorePackage {
   id?: string
   Destination_Name: string
   Duration: string
-  Price_Range_INR: string
+  Price_Range_INR: string | number
   Primary_Image_URL: string
   Star_Category?: string
   Travel_Type?: string
@@ -73,18 +73,21 @@ export default function Packages() {
   }
 
   // Helper function to format price
-  const formatPrice = (priceRange: string | undefined): string => {
+  const formatPrice = (priceRange: string | number | undefined): string => {
     if (!priceRange) return 'Contact for price'
+
+    const priceStr = String(priceRange)
+
     // If it's already formatted, return as is
-    if (priceRange.includes('₹') || priceRange.includes('INR')) {
-      return priceRange
+    if (priceStr.includes('₹') || priceStr.includes('INR')) {
+      return priceStr
     }
     // Otherwise, try to extract first number and format
-    const match = priceRange.match(/(\d+)/)
+    const match = priceStr.match(/(\d+)/)
     if (match) {
       return `₹${parseInt(match[1]).toLocaleString('en-IN')}`
     }
-    return priceRange
+    return priceStr
   }
 
   // Helper function to get badge
