@@ -53,6 +53,7 @@ export interface PackageInput {
     };
     FAQ_Items?: Array<{ question: string; answer: string }>;
     Why_Book_With_Us?: Array<{ label: string; description: string }>;
+    Slug?: string;
 }
 
 export interface GeneratedPackageData {
@@ -537,7 +538,7 @@ Follow these field-specific instructions STRICTLY:
                 : defaultPolicies),
         FAQ_Items: finalFAQs,
         Why_Book_With_Us: finalWhyBook,
-        Slug: generated.Slug || slugify(`${destinationName} ${nightsCount}n ${daysCount}d honeymoon package`)
+        Slug: pkg.Slug || generated.Slug || slugify(`${destinationName} ${nightsCount}n ${daysCount}d honeymoon package`)
     };
 
     return completePackage;

@@ -335,6 +335,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                     Booking_Policies: policies,
                     FAQ_Items: faqs,
                     Why_Book_With_Us: whyBook,
+                    Slug: pkg.Slug,
                 };
             });
     }, [parsedData, existingIds]);
@@ -403,7 +404,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
 
             // 2. Packages Master
             const pkgHeaders = [
-                'Destination_ID', 'Destination_Name', 'Overview', 'Duration', 'Price_Range_INR',
+                'Destination_ID', 'Destination_Name', 'Slug', 'Overview', 'Duration', 'Price_Range_INR',
                 'Travel_Type', 'Mood', 'Occasion', 'Budget_Category', 'Theme', 'Adventure_Level',
                 'Stay_Type', 'Star_Category', 'Meal_Plan', 'Group_Size', 'Child_Friendly',
                 'Elderly_Friendly', 'Language_Preference', 'Seasonality', 'Hotel_Examples',
@@ -411,7 +412,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 'Climate_Type', 'Safety_Score', 'Sustainability_Score', 'Ideal_Traveler_Persona',
                 'Primary_Image_URL', 'Image_Alt_Text', 'SEO_Title', 'SEO_Description', 'SEO_Keywords'
             ];
-            const pkgData = [['BAL_001', 'Bali', 'A beautiful escape...', '5 Nights / 6 Days', '₹50,000 - ₹70,000', 'Family', 'Relax', 'Vacation', 'Mid', 'Beach', 'Light', 'Resort', '4-Star', 'Breakfast', '2A 1C', 'Yes', 'Yes', 'English', 'All Year', 'Sample Resort', '4.5/5', '3N Ubud', 'DPS', 'Private', 'INR', 'Tropical', '8/10', '7/10', 'Families', 'https://example.com/image.jpg', 'Beautiful beach in Bali', 'Bali Package', 'Desc', 'bali, beach']];
+            const pkgData = [['BAL_001', 'Bali', 'bali-honeymoon-package-6d', 'A beautiful escape...', '5 Nights / 6 Days', '₹50,000 - ₹70,000', 'Family', 'Relax', 'Vacation', 'Mid', 'Beach', 'Light', 'Resort', '4-Star', 'Breakfast', '2A 1C', 'Yes', 'Yes', 'English', 'All Year', 'Sample Resort', '4.5/5', '3N Ubud', 'DPS', 'Private', 'INR', 'Tropical', '8/10', '7/10', 'Families', 'https://example.com/image.jpg', 'Beautiful beach in Bali', 'Bali Package', 'Desc', 'bali, beach']];
             const pkgSheet = XLSX.utils.aoa_to_sheet([pkgHeaders, ...pkgData]);
             XLSX.utils.book_append_sheet(wb, pkgSheet, 'Packages_Master');
 

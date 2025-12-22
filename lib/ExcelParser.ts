@@ -41,6 +41,7 @@ export interface PackagesMasterRow {
     Inclusions?: string;
     Exclusions?: string;
     Day_Wise_Itinerary?: string;
+    Slug?: string;
 }
 
 export interface DaywiseItineraryRow {

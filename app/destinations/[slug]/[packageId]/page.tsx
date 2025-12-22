@@ -583,7 +583,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.setFontSize(28)
         // Using Price Gold color - matching website
         pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
-        pdf.text(`INR ${String(packageData.Price_Range_INR)}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
+        pdf.text(`INR ${formatPrice(packageData.Price_Range_INR)}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
 
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(10)
@@ -1109,7 +1109,7 @@ export default function PackageDetailPage({ params }: PageProps) {
             <div className="space-y-2">
               <p className="text-2xl text-gray-500 uppercase tracking-[0.2em]">Starting From</p>
               <div className="inline-block text-black font-semibold px-10 py-4 rounded-lg shadow-lg">
-                <div className="text-5xl font-serif">INR {packageData.Price_Range_INR}</div>
+                <div className="text-5xl font-serif">INR {formatPrice(packageData.Price_Range_INR)}</div>
               </div>
               <p className="text-lg text-gray-400 mt-4">Quoted on {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
             </div>
@@ -1213,7 +1213,7 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {packageData.Price_Range_INR || 'Contact for price'} </p>
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'} </p>
                 </div>
                 <div className="flex flex-col gap-2.5 sm:gap-3">
                   <button
