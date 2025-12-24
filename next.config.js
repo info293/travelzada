@@ -2,7 +2,6 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['images.unsplash.com', 'unsplash.com', 'www.freepik.com', 'freepik.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -22,7 +21,7 @@ const nextConfig = {
         child_process: false,
       }
     }
-    
+
     // Ignore undici on server side
     if (isServer) {
       config.externals = config.externals || []
@@ -30,7 +29,7 @@ const nextConfig = {
         'undici': 'commonjs undici',
       })
     }
-    
+
     return config
   },
 }

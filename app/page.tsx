@@ -31,8 +31,8 @@ export default function Home() {
         <Hero />
         <HowItWorks />
         <Testimonials />
-        <WhyTravelzada />
         <Packages />
+        <WhyTravelzada />
         <Footer />
       </main>
     </>
