@@ -15,6 +15,10 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: 'Travelzada - Plan your perfect trip in seconds',
   description: 'One best itinerary, made just for you',
+  metadataBase: new URL('https://www.travelzada.com'),
+  alternates: {
+    canonical: '/',
+  },
   icons: {
     icon: '/images/logo/icons.png',
     shortcut: '/images/logo/icons.png',
