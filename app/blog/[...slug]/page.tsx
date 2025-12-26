@@ -341,13 +341,14 @@ export default function BlogPostPage({ params }: PageProps) {
             updateMetaTag('robots', 'index, follow')
             updateMetaTag('language', 'English')
 
-            let canonical = document.querySelector('link[rel="canonical"]')
-            if (!canonical) {
-                canonical = document.createElement('link')
-                canonical.setAttribute('rel', 'canonical')
-                document.head.appendChild(canonical)
-            }
-            canonical.setAttribute('href', canonicalUrl)
+            // Canonical link logic removed to prevent duplicates with Next.js metadata logic
+            // let canonical = document.querySelector('link[rel="canonical"]')
+            // if (!canonical) {
+            //     canonical = document.createElement('link')
+            //     canonical.setAttribute('rel', 'canonical')
+            //     document.head.appendChild(canonical)
+            // }
+            // canonical.setAttribute('href', canonicalUrl)
 
             const addStructuredData = (data: any, id: string) => {
                 let script = document.getElementById(id) as HTMLScriptElement | null

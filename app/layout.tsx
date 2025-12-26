@@ -50,6 +50,31 @@ export default function RootLayout({
             `,
           }}
         />
+        <Script
+          id="organization-schema"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'Organization',
+              name: 'Travelzada',
+              url: 'https://www.travelzada.com/',
+              logo: 'https://www.travelzada.com/images/logo/Travelzada%20Logo%20April%20(1).png',
+              contactPoint: {
+                '@type': 'ContactPoint',
+                telephone: '+919929962350',
+                contactType: 'customer support',
+                email: 'info@travelzada.com',
+              },
+              sameAs: [
+                'https://facebook.com',
+                'https://x.com',
+                'https://instagram.com',
+                'https://youtube.com',
+              ],
+            }),
+          }}
+        />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
