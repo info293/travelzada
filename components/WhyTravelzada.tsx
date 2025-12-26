@@ -62,15 +62,24 @@ export default function WhyTravelzada() {
           ))}
         </div>
 
-        <Link
-          href="/ai-planner"
-          className="inline-flex items-center justify-center bg-primary text-white px-6 md:px-10 py-4 md:py-5 rounded-full text-sm md:text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
-        >
-          TRY AI PLANNER
-          <svg className="w-4 h-4 md:w-5 md:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-          </svg>
-        </Link>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <Link
+            href="/case-study"
+            className="inline-flex items-center justify-center bg-white text-primary border-2 border-primary px-6 md:px-10 py-4 md:py-5 rounded-full text-sm md:text-base font-semibold shadow-md hover:bg-purple-50 hover:shadow-xl hover:scale-105 transition-all duration-300"
+          >
+            READ CASE STUDIES
+          </Link>
+
+          <Link
+            href="/ai-planner"
+            className="inline-flex items-center justify-center bg-primary text-white px-6 md:px-10 py-4 md:py-5 rounded-full text-sm md:text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
+          >
+            TRY AI PLANNER
+            <svg className="w-4 h-4 md:w-5 md:h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </Link>
+        </div>
       </div>
     </section>
   )
