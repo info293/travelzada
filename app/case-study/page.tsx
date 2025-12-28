@@ -3,7 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
-    title: 'Case Studies | Success Stories from Travelzada',
+    title: 'Travel Case Studies – Real Stories from Couples Who Used Travelzada',
     description: 'Read real stories of how Travelzada helps couples plan thoughtful, stress-free trips.',
     keywords: 'Travelzada reviews, customer stories, travel case studies, couple travel reviews, corporate travel planning',
     alternates: {

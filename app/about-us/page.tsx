@@ -74,20 +74,10 @@ export default function AboutUsPage() {
             {/* Hero / Intro Section */}
             <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center space-y-8">
-                    {/* Main Logo */}
-                    <div className="relative w-64 md:w-80 h-24 mx-auto mb-8">
-                        <Image
-                            src="/images/logo/Travelzada Logo April (1).png"
-                            alt="Travelzada"
-                            fill
-                            className="object-contain"
-                            priority
-                        />
-                    </div>
 
                     <div className="space-y-6">
                         <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">About Travelzada</h1>
-                        <div className="prose prose-lg mx-auto text-gray-600 leading-relaxed">
+                        <div className="prose prose-lg mx-auto text-gray-600 leading-relaxed text-justify">
                             <p>
                                 Travelzada is a unit of Sadaya Trips LLP , building couple-focused travel experiences for a little over one year now.
                             </p>
@@ -106,7 +96,7 @@ export default function AboutUsPage() {
                     {/* The Story */}
                     <div className="space-y-6">
                         <h2 className="text-3xl font-serif font-bold text-gray-900">The Story Behind Travelzada (and Why It Exists)</h2>
-                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4">
+                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travelzada was founded by Rishabh Khandelwal (<a href="https://www.linkedin.com/in/rishabhk108/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">LinkedIn</a>)
                             </p>
@@ -162,7 +152,7 @@ export default function AboutUsPage() {
                     {/* Why Book with Travelzada */}
                     <div className="space-y-6">
                         <h2 className="text-3xl font-serif font-bold text-gray-900">Why Book Your Couple Trip with Travelzada</h2>
-                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4">
+                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 We’re upfront about one thing - we are not the biggest travel company in the market (yet). We focus on planning trips that actually make sense for couples.
                             </p>
@@ -197,7 +187,7 @@ export default function AboutUsPage() {
                     {/* How We Use AI & Technology */}
                     <div className="space-y-6">
                         <h2 className="text-3xl font-serif font-bold text-gray-900">How We Use AI & Technology</h2>
-                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4">
+                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travel planning today suffers from information overload. Our technology is built to reduce that.
                             </p>
@@ -235,7 +225,7 @@ export default function AboutUsPage() {
                     {/* Who Travelzada Is Built For */}
                     <div className="space-y-6">
                         <h2 className="text-3xl font-serif font-bold text-gray-900">Who Travelzada Is Built For</h2>
-                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4">
+                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travelzada is designed exclusively for couples:
                             </p>
@@ -259,24 +249,21 @@ export default function AboutUsPage() {
                     </div>
 
                     {/* Our Philosophy */}
-                    <div className="bg-gray-900 text-white p-8 md:p-12 rounded-3xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[60px] translate-x-1/2 -translate-y-1/2"></div>
-                        <div className="relative z-10 space-y-6">
-                            <h2 className="text-3xl font-serif font-bold text-white">Our Philosophy</h2>
-                            <div className="prose prose-lg text-gray-300 leading-relaxed space-y-4">
-                                <p>
-                                    Travel is a high ticket-size decision.
-                                </p>
-                                <p>
-                                    It involves money, time, emotions, and expectations.
-                                </p>
-                                <p>
-                                    At Travelzada, we believe couples should feel confident and happy about where their money and time are going. The trip should feel meaningful, not transactional.
-                                </p>
-                                <p className="text-white font-medium text-xl">
-                                    That feeling matters to us more than anything else.
-                                </p>
-                            </div>
+                    <div className="space-y-6">
+                        <h2 className="text-3xl font-serif font-bold text-gray-900">Our Philosophy</h2>
+                        <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
+                            <p>
+                                Travel is a high ticket-size decision.
+                            </p>
+                            <p>
+                                It involves money, time, emotions, and expectations.
+                            </p>
+                            <p>
+                                At Travelzada, we believe couples should feel confident and happy about where their money and time are going. The trip should feel meaningful, not transactional.
+                            </p>
+                            <p className="font-medium text-gray-900 text-xl">
+                                That feeling matters to us more than anything else.
+                            </p>
                         </div>
                     </div>
 

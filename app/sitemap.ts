@@ -22,6 +22,7 @@ interface DestinationPackage {
     id: string
     Destination_ID: string
     Last_Updated?: string
+    Slug?: string
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -115,29 +116,58 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             else if ((data as any).Destination_Name && destinationMap.has((data as any).Destination_Name.toLowerCase())) {
                 destinationSlug = destinationMap.get((data as any).Destination_Name.toLowerCase())!
             }
-            // Strategy 3: Try to extract from Destination_ID (e.g., DEST_BALI_002 -> bali)
+            // Strategy 3: Try to extract from Destination_ID (e.g., BAL_005 -> bali)
             else {
                 const parts = data.Destination_ID.split('_')
                 if (parts.length >= 2) {
-                    // Try matching the middle part (e.g., BALI)
-                    const potentialName = parts[1].toLowerCase()
-                    if (destinationMap.has(potentialName)) {
-                        destinationSlug = destinationMap.get(potentialName)!
+                    const prefix = parts[0].toUpperCase()
+
+                    // Manual Fallback Map for common codes to match typical destination slugs
+                    const prefixMap: Record<string, string> = {
+                        'BAL': 'bali-packages', // Updated to match likely slug based on user xml
+                        'KER': 'kerala',
+                        'GOA': 'goa',
+                        'KASH': 'kashmir',
+                        'RAJ': 'rajasthan',
+                        'THAI': 'thailand',
+                        'VIET': 'vietnam',
+                        'DUBAI': 'dubai',
+                        'MAL': 'maldives',
+                        'EUR': 'europe',
+                        'LAD': 'ladakh',
+                        'AND': 'andaman'
+                    }
+
+                    if (prefixMap[prefix]) {
+                        destinationSlug = prefixMap[prefix]
+                    } else {
+                        // Try matching the prefix against names if not in map
+                        const potentialName = prefix.toLowerCase()
+                        if (destinationMap.has(potentialName)) {
+                            destinationSlug = destinationMap.get(potentialName)!
+                        } else if (destinationMap.has(`${potentialName}-packages`)) {
+                            destinationSlug = destinationMap.get(`${potentialName}-packages`)!
+                        }
                     }
                 }
             }
 
             if (destinationSlug === 'unknown') {
                 console.warn(`Sitemap: Package ${doc.id} (DestID: ${data.Destination_ID}) could not be linked to a destination.`)
+                // Fallback: If we really can't find a destination, maybe use a default or skip? 
+                // For now, we will still filter it out but we tried harder.
             }
 
+            // Use the package's custom Slug if available, otherwise fallback to ID
+            const packageSlug = (data.Slug && data.Slug.trim()) ? data.Slug.trim() : doc.id
+
             return {
-                url: `${baseUrl}/destinations/${destinationSlug}/${doc.id}`,
+                url: `${baseUrl}/destinations/${destinationSlug}/${packageSlug}`,
                 lastModified: data.Last_Updated ? new Date(data.Last_Updated) : new Date(),
                 changeFrequency: 'weekly' as const,
-                priority: 1.0, // Highest priority for packages
+                priority: 1.0,
             }
-        }).filter(route => !route.url.includes('/unknown/')) // Filter out packages with missing destinations
+        }).filter(route => !route.url.includes('/unknown/'))
 
     } catch (error) {
         console.error('Error generating sitemap:', error)
