@@ -4,7 +4,7 @@ import Image from 'next/image'
 export default function Footer() {
   return (
     <footer className="bg-ink text-white py-12">
-      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-5 gap-8">
         <div>
           <Link href="/" className="inline-block mb-4">
             <Image
@@ -66,6 +66,31 @@ export default function Footer() {
             <li>
               <Link href="/blog" className="hover:text-white transition-colors">
                 Blog
+              </Link>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 className="font-semibold mb-4">Popular Routes</h3>
+          <ul className="space-y-2 text-sm text-white/70">
+            <li>
+              <Link href="/destinations/bali/tours/from-delhi" className="hover:text-white transition-colors">
+                Bali from Delhi
+              </Link>
+            </li>
+            <li>
+              <Link href="/destinations/kerala/tours/from-mumbai" className="hover:text-white transition-colors">
+                Kerala from Mumbai
+              </Link>
+            </li>
+            <li>
+              <Link href="/destinations/kashmir/tours/from-delhi" className="hover:text-white transition-colors">
+                Kashmir from Delhi
+              </Link>
+            </li>
+            <li>
+              <Link href="/destinations/thailand/tours/from-bangalore" className="hover:text-white transition-colors">
+                Thailand from Bangalore
               </Link>
             </li>
           </ul>
