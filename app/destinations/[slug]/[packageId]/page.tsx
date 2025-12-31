@@ -507,7 +507,8 @@ export default function PackageDetailPage({ params }: PageProps) {
             const targetWidth = (imgProps.width / imgProps.height) * targetHeight
 
             // Add logo to top left
-            pdf.addImage(logoData, 'PNG', 15, 10, targetWidth, targetHeight, undefined, 'FAST')
+            const xPos = 15 // Left margin
+            pdf.addImage(logoData, 'PNG', xPos, 10, targetWidth, targetHeight, undefined, 'FAST')
           } catch (e) {
             console.error('Failed to load logo', e)
           }
@@ -548,77 +549,101 @@ export default function PackageDetailPage({ params }: PageProps) {
           pdf.text(title, pageWidth - 10, 17, { align: 'right' })
         }
 
-        // --- PAGE 1: COVER PAGE (UNCHANGED) ---
+        // --- PAGE 1: COVER PAGE ---
+
+        // 1. Logo (Top)
+        await addLogo()
+
+        // Brand Line (Under Logo Only)
+        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setLineWidth(2)
+        pdf.line(15, 28, 15 + 60, 28)
+
+        // 2. Main Image (Reduced Height, Below Line)
         try {
           const mainImageData = await loadImage(imageUrl)
-          const imgHeight = pageHeight * 0.6
-          pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST')
+          const imgStartY = 35 // Start below line
+          const imgHeight = pageHeight * 0.35 // Reduced height
+
+          pdf.addImage(mainImageData, 'JPEG', 0, imgStartY, pageWidth, imgHeight, undefined, 'FAST')
 
           // Add visible caption if alt text exists
           if (packageData.Image_Alt_Text) {
             pdf.setFont('helvetica', 'normal')
             pdf.setFontSize(8)
-            pdf.setTextColor(230, 230, 230) // Light grey text
-            // Position at bottom right of image area
-            pdf.text(packageData.Image_Alt_Text, pageWidth - 10, imgHeight - 5, { align: 'right' })
+            pdf.setTextColor(100, 100, 100)
+            // Position at bottom right of image area, slightly below
+            pdf.text(packageData.Image_Alt_Text, pageWidth - 10, imgStartY + imgHeight + 5, { align: 'right' })
           }
+
+          // Update Y cursor for text content
+          var contentCursorY = imgStartY + imgHeight + 15
         } catch (e) {
           console.error('Failed to load main image', e)
+          var contentCursorY = 50 // Fallback
         }
 
-        // Add Logo to Page 1
-        await addLogo()
+        // 3. Text Content (Below Image)
 
-        pdf.setTextColor(255, 255, 255)
+        // Title - Dark Ink Color
+        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.setFont('times', 'bold')
-        // Calculate title height dynamically to prevent overlap
-        pdf.setFont('times', 'bold')
-        pdf.setFontSize(32)
+        pdf.setFontSize(28) // Slightly smaller than before to fit better
+
         const maxTitleWidth = pageWidth - 40
         const titleLines = pdf.splitTextToSize(packageTitle, maxTitleWidth)
+        pdf.text(titleLines, pageWidth / 2, contentCursorY, { align: 'center' })
 
-        // Start Y position relative to image height
-        // Adjusted to ensure it leaves ~30-40mm padding from bottom of image
-        const titleStartY = (pageHeight * 0.6) - (titleLines.length * 12) - 40
-        pdf.text(titleLines, pageWidth / 2, titleStartY, { align: 'center' })
+        contentCursorY += (titleLines.length * 10) + 5
 
+        // Tags (Duration • Category • Type)
         pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(12)
+        pdf.setFontSize(11)
+        pdf.setTextColor(100, 100, 100) // Grey
         const tags = [
           packageData.Duration,
           packageData.Star_Category || 'Luxury Stay',
           packageData.Travel_Type || 'Custom Trip'
         ].join('  •  ')
 
-        // Position tags relative to title end
-        const tagsY = titleStartY + (titleLines.length * 12) + 12
-        pdf.text(tags, pageWidth / 2, tagsY, { align: 'center' })
+        pdf.text(tags, pageWidth / 2, contentCursorY, { align: 'center' })
 
-        const contentStartY = (pageHeight * 0.6) + 15
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
+        contentCursorY += 15
 
+        // "Starting From"
         pdf.setFontSize(10)
         pdf.setTextColor(100, 100, 100)
-        pdf.text('STARTING FROM', pageWidth / 2, contentStartY, { align: 'center' })
+        pdf.text('STARTING FROM', pageWidth / 2, contentCursorY, { align: 'center' })
 
+        contentCursorY += 8
+
+        // Price - Gold
         pdf.setFont('times', 'bold')
-        pdf.setFontSize(28)
-        // Using Price Gold color - matching website
+        pdf.setFontSize(26)
         pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
-        pdf.text(`INR ${formatPrice(packageData.Price_Range_INR)}`, pageWidth / 2, contentStartY + 12, { align: 'center' })
+        pdf.text(`INR ${formatPrice(packageData.Price_Range_INR)}`, pageWidth / 2, contentCursorY, { align: 'center' })
 
+        contentCursorY += 8
+
+        // Date Quote
         pdf.setFont('helvetica', 'normal')
-        pdf.setFontSize(10)
+        pdf.setFontSize(9)
         pdf.setTextColor(150, 150, 150)
-        pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentStartY + 20, { align: 'center' })
+        pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentCursorY, { align: 'center' })
 
-        pdf.setDrawColor(200, 200, 200)
-        pdf.line((pageWidth / 2) - 15, contentStartY + 28, (pageWidth / 2) + 15, contentStartY + 28)
+        contentCursorY += 8
 
+        // Separator Line
+        pdf.setDrawColor(220, 220, 220)
+        pdf.line((pageWidth / 2) - 15, contentCursorY, (pageWidth / 2) + 15, contentCursorY)
+
+        contentCursorY += 10
+
+        // Description / Overview
         pdf.setFontSize(11)
         pdf.setTextColor(60, 60, 60)
-        const overviewText = pdf.splitTextToSize(packageData.Overview || '', pageWidth - 60)
-        pdf.text(overviewText, pageWidth / 2, contentStartY + 40, { align: 'center' })
+        const overviewText = pdf.splitTextToSize(packageData.Overview || '', pageWidth - 50)
+        pdf.text(overviewText, pageWidth / 2, contentCursorY, { align: 'center' })
 
 
         // --- PAGE 2: DETAILS & HIGHLIGHTS ---
@@ -627,10 +652,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         let y = margin + 10 // Increased top margin for logo
 
-        // Header Branding Line - Primary Purple
+        // Header Branding Line - Primary Purple (Under Logo Only)
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 25, y)
+        pdf.line(margin, y, margin + 55, y)
         y += 12
 
         // Details Box - Cream background matching website
@@ -700,10 +725,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple
+        // Header Branding Line - Primary Purple (Under Logo Only)
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 25, y)
+        pdf.line(margin, y, margin + 55, y)
         y += 12
 
         // Itinerary - Matching website style
@@ -775,10 +800,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple
+        // Header Branding Line - Primary Purple (Under Logo Only)
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 25, y)
+        pdf.line(margin, y, margin + 55, y)
         y += 12
 
         const incExcStartY = y
@@ -951,10 +976,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple
+        // Header Branding Line - Primary Purple (Under Logo Only)
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 25, y)
+        pdf.line(margin, y, margin + 55, y)
         y += 12
 
         pdf.setFont('times', 'bold')
@@ -1005,10 +1030,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple
+        // Header Branding Line - Primary Purple (Under Logo Only)
         pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
         pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 25, y)
+        pdf.line(margin, y, margin + 55, y)
         y += 12
 
         pdf.setFont('times', 'bold')
