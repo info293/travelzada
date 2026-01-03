@@ -85,12 +85,11 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
         packageName: packageName || 'General Enquiry',
       }
 
-      // TODO: Replace YOUR_SERVICE_ID and YOUR_TEMPLATE_ID with actual values from EmailJS
-      // Public Key: gIP99fUwF6iBneHVb
+      // EmailJS Configuration
       try {
         await emailjs.send(
-          'YOUR_SERVICE_ID',
-          'YOUR_TEMPLATE_ID',
+          'service_6e9dvlb',
+          'template_qz05lkd',
           templateParams,
           'gIP99fUwF6iBneHVb'
         )
