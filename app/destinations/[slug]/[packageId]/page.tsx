@@ -32,6 +32,13 @@ interface DestinationPackage {
   Theme?: string
   Stay?: string
   Day_Wise_Itinerary?: string
+  Highlights?: string[]
+  Day_Wise_Itinerary_Details?: Array<{
+    day: number
+    title: string
+    description: string
+    activities: string[]
+  }>
   Guest_Reviews?: Array<{
     name: string
     content: string
@@ -349,6 +356,16 @@ export default function PackageDetailPage({ params }: PageProps) {
 
   // Create itinerary from Day_Wise_Itinerary field or generate from duration
   const createItinerary = () => {
+    // NEW: Use AI-generated itinerary details if available
+    if (packageData.Day_Wise_Itinerary_Details && packageData.Day_Wise_Itinerary_Details.length > 0) {
+      return packageData.Day_Wise_Itinerary_Details.map((item) => ({
+        day: `Day ${item.day}`,
+        title: item.title,
+        description: item.description,
+        details: item.activities || []
+      }))
+    }
+
     // Check if Day_Wise_Itinerary exists in package data
     if (packageData.Day_Wise_Itinerary) {
       // Parse the Day_Wise_Itinerary string
@@ -542,7 +559,7 @@ export default function PackageDetailPage({ params }: PageProps) {
           }
 
           // Package Title (Truncated) - White text on purple
-          pdf.setFont('times', 'bold')
+          pdf.setFont('helvetica', 'bold')
           pdf.setFontSize(14)
           pdf.setTextColor(255, 255, 255)
           const title = packageTitle.length > 40 ? packageTitle.substring(0, 37) + '...' : packageTitle
@@ -554,10 +571,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         // 1. Logo (Top)
         await addLogo()
 
-        // Brand Line (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(15, 28, 15 + 60, 28)
+        // Brand Line removed per user request - logo no longer has underline
 
         // 2. Main Image (Reduced Height, Below Line)
         try {
@@ -585,9 +599,9 @@ export default function PackageDetailPage({ params }: PageProps) {
 
         // 3. Text Content (Below Image)
 
-        // Title - Dark Ink Color
-        pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.setFont('times', 'bold')
+        // Title - Brand Primary Color (Purple)
+        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(28) // Slightly smaller than before to fit better
 
         const maxTitleWidth = pageWidth - 40
@@ -618,7 +632,7 @@ export default function PackageDetailPage({ params }: PageProps) {
         contentCursorY += 8
 
         // Price - Gold
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(26)
         pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
         pdf.text(`INR ${formatPrice(packageData.Price_Range_INR)}`, pageWidth / 2, contentCursorY, { align: 'center' })
@@ -652,11 +666,8 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         let y = margin + 10 // Increased top margin for logo
 
-        // Header Branding Line - Primary Purple (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 55, y)
-        y += 12
+        // Header Branding Line removed per user request
+        y += 5
 
         // Details Box - Cream background matching website
         const boxHeight = 45
@@ -698,7 +709,7 @@ export default function PackageDetailPage({ params }: PageProps) {
 
 
         // Highlights - Matching website style
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Highlights', margin, y)
@@ -725,53 +736,76 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 55, y)
-        y += 12
+        // Header Branding Line removed per user request
+        y += 5
 
         // Itinerary - Matching website style
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Day-wise Itinerary', margin, y)
-        y += 15
+        y += 12
 
         const itinerary = createItinerary()
 
-        // Draw vertical timeline line
-        const timelineX = margin + 6
-        const timelineStartY = y
+        // CLEAN SIMPLE TABLE DESIGN
+        const tableStartX = margin
+        const tableWidth = pageWidth - (margin * 2)
+        const dayColWidth = 35 // Compact day column
+        const rowHeight = 12 // Compact row height
 
+        // Table Header - Simple purple header
+        pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
+        pdf.rect(tableStartX, y, tableWidth, rowHeight + 2, 'F')
+
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.setTextColor(255, 255, 255)
+        pdf.text('Day', tableStartX + 8, y + 8)
+        pdf.text('Activities', tableStartX + dayColWidth + 8, y + 8)
+        y += rowHeight + 2
+
+        // Table Rows - Clean and minimal
         itinerary.forEach((day, index) => {
-          if (y > pageHeight - margin) { pdf.addPage(); addFooter(3); addLogo(); y = margin + 20; }
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(9)
+          const descLines = pdf.splitTextToSize(day.title, tableWidth - dayColWidth - 15)
+          const currentRowHeight = Math.max(rowHeight, (descLines.length * 5) + 8)
 
-          // Dot - Primary Purple circle
-          pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-          pdf.circle(timelineX, y - 1.5, 2, 'F')
+          // Check for page break
+          if (y + currentRowHeight > pageHeight - 30) {
+            pdf.addPage()
+            addFooter(3)
+            addLogo()
+            y = margin + 25
+          }
 
-          // Day Text - Primary Purple
+          // Subtle alternating background
+          if (index % 2 === 0) {
+            pdf.setFillColor(252, 250, 248)
+          } else {
+            pdf.setFillColor(255, 255, 255)
+          }
+          pdf.rect(tableStartX, y, tableWidth, currentRowHeight, 'F')
+
+          // Day text - Purple, bold
           pdf.setFont('helvetica', 'bold')
-          pdf.setFontSize(11)
+          pdf.setFontSize(9)
           pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-          pdf.text(day.day, timelineX + 10, y)
+          pdf.text(day.day, tableStartX + 8, y + 7)
 
-          // Title - Ink color
-          pdf.setFont('helvetica', 'medium')
+          // Description text - Dark
+          pdf.setFont('helvetica', 'normal')
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          const titleX = timelineX + 35
-          const titleWidth = pageWidth - margin - titleX
-          const titleLines = pdf.splitTextToSize(day.title, titleWidth)
-          pdf.text(titleLines, titleX, y)
+          pdf.text(descLines, tableStartX + dayColWidth + 8, y + 7)
 
-          y += (titleLines.length * 6) + 6
+          // Bottom border
+          pdf.setDrawColor(230, 230, 230)
+          pdf.setLineWidth(0.2)
+          pdf.line(tableStartX, y + currentRowHeight, tableStartX + tableWidth, y + currentRowHeight)
+
+          y += currentRowHeight
         })
-
-        // Draw line connecting dots (approximate)
-        pdf.setDrawColor(220, 220, 220)
-        pdf.setLineWidth(0.5)
-        pdf.line(timelineX, timelineStartY - 2, timelineX, y - 12)
 
         y += 10
 
@@ -800,11 +834,8 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 55, y)
-        y += 12
+        // Header Branding Line removed per user request
+        y += 5
 
         const incExcStartY = y
         const startY = y // Snapshot starting Y for alignment
@@ -813,10 +844,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
         pdf.roundedRect(margin, y - 5, colW, maxHeight, 5, 5, 'F')
 
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(16)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text('Inclusions', margin, y)
+        pdf.text('Inclusions', margin + 3, y + 1)
         y += 10
 
         pdf.setFont('helvetica', 'normal')
@@ -826,11 +857,11 @@ export default function PackageDetailPage({ params }: PageProps) {
           // Green Check
           pdf.setTextColor(22, 163, 74)
           pdf.setFont('helvetica', 'bold')
-          pdf.text('+', margin, y)
+          pdf.text('+', margin + 3, y)
           pdf.setFont('helvetica', 'normal')
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(lines, margin + 6, y)
-          y += (lines.length * 6) + 2
+          pdf.text(lines, margin + 10, y)
+          y += (lines.length * 6) + 3
         })
 
         // Exclusions - Cream background with dynamic height
@@ -838,10 +869,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
         pdf.roundedRect(margin + colW + margin, y2 - 5, colW, maxHeight, 5, 5, 'F')
 
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(16)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-        pdf.text('Exclusions', margin + colW + margin, y2)
+        pdf.text('Exclusions', margin + colW + margin + 3, y2 + 1)
         y2 += 10
 
         pdf.setFont('helvetica', 'normal')
@@ -851,11 +882,11 @@ export default function PackageDetailPage({ params }: PageProps) {
           // Red X
           pdf.setTextColor(239, 68, 68)
           pdf.setFont('helvetica', 'bold')
-          pdf.text('-', margin + colW + margin, y2)
+          pdf.text('-', margin + colW + margin + 3, y2)
           pdf.setFont('helvetica', 'normal')
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(lines, margin + colW + margin + 6, y2)
-          y2 += (lines.length * 6) + 2
+          pdf.text(lines, margin + colW + margin + 8, y2)
+          y2 += (lines.length * 6) + 3
         })
 
         // Update main Y to be below the tallest column
@@ -872,103 +903,83 @@ export default function PackageDetailPage({ params }: PageProps) {
           y += 15 // Add some spacing if continuing on same page
         }
 
-        // Header Branding Line (only if new page or enough space)
+        // Header Branding Line removed per user request
         if (y === margin + 10) {
-          pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-          pdf.setLineWidth(2)
-          pdf.line(margin, y, margin + 25, y)
-          y += 12
+          y += 5
         }
 
         // Reviews
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Guest Reviews', margin, y)
-        y += 15
+        y += 12
 
         const reviews = packageData.Guest_Reviews || DEFAULT_GUEST_REVIEWS
-        const reviewsToShow = reviews.slice(0, 1) // Show ONLY 1 review as per request
-        // FULL WIDTH: Use entire page width minus margins
-        const reviewColW = pageWidth - (margin * 2)
+        const reviewsToShow = reviews.slice(0, 2) // Show 2 reviews
 
-        // 1. Calculate Height
-        let maxContentHeight = 0
+        // TWO COLUMN LAYOUT for 2 reviews side by side
+        const reviewColWidth = (pageWidth - (margin * 2) - 10) / 2 // 10px gap between columns
+        const maxReviewChars = 850 // Show more content since we have space
+
+        // Process reviews first to calculate heights
         const processedReviews = reviewsToShow.map(review => {
-          const maxReviewLength = 300
           let reviewContent = review.content
-          if (reviewContent.length > maxReviewLength) {
-            reviewContent = reviewContent.substring(0, maxReviewLength) + '...'
+          if (reviewContent.length > maxReviewChars) {
+            reviewContent = reviewContent.substring(0, maxReviewChars) + '...'
           }
 
           pdf.setFont('helvetica', 'italic')
-          pdf.setFontSize(10)
-          const contentLines = pdf.splitTextToSize(`"${reviewContent}"`, reviewColW - 10)
-          // Height: Top pad(6) + Name(6) + Gap(4) + Content(lines*6) + Gap(4) + Date(8) + Bottom Pad(4) => Tighter spacing
-          const height = 6 + 6 + 4 + (contentLines.length * 6) + 4 + 8 + 4
+          pdf.setFontSize(9)
+          const contentLines = pdf.splitTextToSize(`"${reviewContent}"`, reviewColWidth - 16)
+          // Height: padding(8) + name(8) + rating gap(6) + content + date(12) + bottom padding(6)
+          const height = 8 + 8 + 6 + (contentLines.length * 5)
 
-          if (height > maxContentHeight) maxContentHeight = height
-
-          return { ...review, contentLines, contentHeight: height }
+          return { ...review, contentLines, contentHeight: height, displayContent: reviewContent }
         })
 
-        // Reduce min height floor from 60 to 40
-        const reviewBoxHeight = Math.max(maxContentHeight, 40)
+        // Use the taller review height for both boxes (uniform look)
+        const reviewBoxHeight = Math.max(...processedReviews.map(r => r.contentHeight), 55)
 
-        // 2. Page Break Logic - DISABLED BY REQUEST
-        // User explicitly asked to force it on the "next page" behavior being wrong and wants it on the same page.
-        /*
-        if (y + reviewBoxHeight > pageHeight - margin) {
-          pdf.addPage()
-          addFooter(4)
-          await addLogo()
-          y = margin + 25
-        }
-        */
-
-        // 3. Draw Single Review
+        // Draw both reviews side by side
         processedReviews.forEach((review, index) => {
-          const xPos = margin
+          const xPos = margin + (index * (reviewColWidth + 10))
           let currY = y
 
-          // Draw Box
-          pdf.setDrawColor(230, 230, 230)
-          pdf.setFillColor(255, 255, 255)
-          pdf.roundedRect(xPos, currY, reviewColW, reviewBoxHeight, 3, 3, 'FD')
+          // Draw Box with cream background
+          pdf.setDrawColor(220, 220, 220)
+          pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2])
+          pdf.roundedRect(xPos, currY, reviewColWidth, reviewBoxHeight, 4, 4, 'FD')
 
-          currY += 6 // Reduced top padding
+          currY += 8 // Top padding
 
-          // Name
+          // Name - Bold
           pdf.setFont('helvetica', 'bold')
-          pdf.setFontSize(11)
+          pdf.setFontSize(10)
           pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
-          pdf.text(String(review.name || 'Guest'), xPos + 5, currY)
+          pdf.text(String(review.name || 'Guest'), xPos + 8, currY)
 
-          // Rating
+          // Rating - Gold color on the right
           pdf.setTextColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2])
-          pdf.setFont('helvetica', 'bold')
-          pdf.text(String(review.rating || '5/5'), xPos + reviewColW - 5, currY, { align: 'right' })
+          pdf.text(String(review.rating || '5/5'), xPos + reviewColWidth - 8, currY, { align: 'right' })
 
-          currY += 6 // Reduced gap
+          currY += 8 // Gap after name
 
-          // Content
+          // Review Content - Italic
           pdf.setFont('helvetica', 'italic')
           pdf.setFontSize(9)
           pdf.setTextColor(80, 80, 80)
-          pdf.text(review.contentLines, xPos + 5, currY)
+          pdf.text(review.contentLines, xPos + 8, currY)
 
-          // Date at bottom
-          const dateY = y + reviewBoxHeight - 5
-
-          // Date
+          // Date at bottom of box
           pdf.setFont('helvetica', 'normal')
           pdf.setFontSize(8)
-          pdf.setTextColor(150, 150, 150)
-          pdf.text(String(review.date || ''), xPos + 5, dateY)
+          pdf.setTextColor(130, 130, 130)
+          pdf.text(String(review.date || ''), xPos + 8, y + reviewBoxHeight - 6)
         })
 
-        // Update main Y
-        y += reviewBoxHeight + 15
+        // Update main Y position after reviews
+        y += reviewBoxHeight + 12
 
         // --- PAGE 5: BOOKING POLICIES (Always start on new page) ---
         pdf.addPage()
@@ -976,13 +987,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 55, y)
-        y += 12
+        // Header Branding Line removed per user request
+        y += 5
 
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Booking Policies', margin, y)
@@ -1030,13 +1038,10 @@ export default function PackageDetailPage({ params }: PageProps) {
         await addLogo()
         y = margin + 10
 
-        // Header Branding Line - Primary Purple (Under Logo Only)
-        pdf.setDrawColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2])
-        pdf.setLineWidth(2)
-        pdf.line(margin, y, margin + 55, y)
-        y += 12
+        // Header Branding Line removed per user request
+        y += 5
 
-        pdf.setFont('times', 'bold')
+        pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(20)
         pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2])
         pdf.text('Frequently Asked Questions', margin, y)
@@ -1287,10 +1292,13 @@ export default function PackageDetailPage({ params }: PageProps) {
 
               <SectionCard title="Highlights">
                 <ul className="space-y-2.5 sm:space-y-3 text-base sm:text-lg text-[#1e1d2f]">
-                  {inclusions.slice(0, 5).map((inclusion, idx) => (
+                  {(packageData.Highlights && packageData.Highlights.length > 0
+                    ? packageData.Highlights
+                    : inclusions
+                  ).slice(0, 5).map((item, idx) => (
                     <li key={idx} className="flex items-start gap-3 sm:gap-4">
                       <span className="mt-0.5 sm:mt-1 text-primary text-lg sm:text-xl flex-shrink-0">✔</span>
-                      <p className="leading-relaxed">{inclusion}</p>
+                      <p className="leading-relaxed">{item}</p>
                     </li>
                   ))}
                 </ul>

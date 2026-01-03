@@ -98,6 +98,7 @@ export default function DestinationsSection({
                 duration: formData.duration || '',
                 currency: formData.currency || '',
                 language: formData.language || '',
+                rating: formData.rating || null,
                 updatedAt: now,
             }
 
@@ -174,6 +175,10 @@ export default function DestinationsSection({
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
                             <input type="text" value={formData.language || ''} onChange={(e) => setFormData({ ...formData, language: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Rating (4.0 - 5.0)</label>
+                            <input type="number" min="4.0" max="5.0" step="0.1" value={formData.rating || ''} onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) || undefined })} placeholder="e.g., 4.8" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                         </div>
                     </div>
                     <div>

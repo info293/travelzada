@@ -146,6 +146,7 @@ export interface Destination {
     image: string
     slug: string
     featured?: boolean
+    rating?: number
     packageIds?: string[]
     bestTimeToVisit?: string
     duration?: string

@@ -188,6 +188,7 @@ interface Destination {
     luxury: string
   }
   hotelTypes?: string[] // Array of hotel type strings
+  rating?: number // Rating from 4.0 to 5.0
   createdAt?: string
   updatedAt?: string
 }
@@ -3309,6 +3310,7 @@ export default function AdminDashboard() {
                         activities: destinationFormData.activities || [],
                         budgetRange: destinationFormData.budgetRange || {},
                         hotelTypes: destinationFormData.hotelTypes || [],
+                        rating: destinationFormData.rating || null,
                         updatedAt: new Date().toISOString(),
                       }
                       if (!editingDestination?.id) {
@@ -3475,6 +3477,19 @@ export default function AdminDashboard() {
                             value={destinationFormData.language || ''}
                             onChange={(e) => setDestinationFormData({ ...destinationFormData, language: e.target.value })}
                             placeholder="Indonesian, Balinese"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Rating (4.0 - 5.0)</label>
+                          <input
+                            type="number"
+                            min="4.0"
+                            max="5.0"
+                            step="0.1"
+                            value={destinationFormData.rating || ''}
+                            onChange={(e) => setDestinationFormData({ ...destinationFormData, rating: parseFloat(e.target.value) || undefined })}
+                            placeholder="e.g., 4.8"
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                           />
                         </div>

@@ -12,6 +12,7 @@ interface DestinationCardProps {
     image?: string
     slug?: string
     featured?: boolean
+    rating?: number
     packageIds?: string[]
     // Legacy fields (from JSON, optional)
     bestTimeToVisit?: string
@@ -28,7 +29,7 @@ interface DestinationCardProps {
 
 export default function DestinationCard({ destination }: DestinationCardProps) {
   const [imageError, setImageError] = useState(false)
-  
+
   // Get destination-specific images
   const getDestinationImage = (name: string) => {
     const imageMap: { [key: string]: string } = {
@@ -68,8 +69,8 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
     return price.replace('₹', 'INR ')
   }
 
-  // Generate a deterministic rating based on destination name
-  const getRating = (name: string): string => {
+  // Generate a deterministic rating based on destination name (fallback)
+  const getAutoRating = (name: string): string => {
     let hash = 0
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash)
@@ -77,14 +78,15 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
     const rating = 4.5 + (Math.abs(hash) % 40) / 100
     return rating.toFixed(1)
   }
-  
-  const rating = getRating(destination.name)
+
+  // Use Firestore rating if available, otherwise fallback to auto-generated
+  const rating = destination.rating ? destination.rating.toFixed(1) : getAutoRating(destination.name)
 
   // Use image from Firestore if available, otherwise fallback to image map
   const imageUrl = destination.image || getDestinationImage(destination.name)
   const durationFormatted = parseDuration(destination.duration)
   const startingPrice = getStartingPrice(destination.budgetRange?.budget)
-  
+
   // Use slug if available, otherwise use name
   const destinationSlug = destination.slug || destination.name.toLowerCase().replace(/\s+/g, '-')
 
@@ -111,7 +113,7 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
             <span className="text-6xl">🌴</span>
           </div>
         )}
-        
+
         {/* FEATURED Tag */}
         {(destination.featured !== false) && (
           <div className="absolute top-3 left-3 bg-primary text-white px-2.5 py-1 rounded-lg">
