@@ -20,6 +20,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         title: `${destName} Packages from ${originName} - Best Deals & Itineraries | Travelzada`,
         description: `Book the best ${destName} tour packages from ${originName} with flights. All-inclusive ${destName} trips customizable for couples and families from ${originName}.`,
         keywords: [`${destName} packages from ${originName}`, `${destName} tour from ${originName}`, `trip to ${destName} from ${originName}`],
+        alternates: {
+            canonical: `/destinations/${destination}/tours/${routeSlug}`,
+        },
         openGraph: {
             title: `${destName} Packages from ${originName}`,
             description: `Plan your perfect trip to ${destName} from ${originName} with Travelzada.`,

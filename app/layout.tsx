@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: 'Travelzada - Plan your perfect trip in seconds',
   description: 'One best itinerary, made just for you',
   metadataBase: new URL('https://www.travelzada.com'),
+  robots: {
+    index: true,
+    follow: true,
+  },
   alternates: {
     canonical: '/',
   },

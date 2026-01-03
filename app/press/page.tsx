@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: 'Press & Media | Travelzada - Latest News and Updates',
   description: 'Stay updated with Travelzada news, press releases, and media resources. Get the latest announcements about our AI-powered travel planning platform.',
   keywords: 'Travelzada press, media kit, news, press releases, travel startup',
+  alternates: {
+    canonical: '/press',
+  },
   openGraph: {
     title: 'Press & Media | Travelzada',
     description: 'Latest news, press releases, and media resources from Travelzada.',
