@@ -47,6 +47,7 @@ export interface PackagesMasterRow {
 export interface DaywiseItineraryRow {
     Destination_ID: string;
     Day: number | string;
+    Title?: string;
     Description: string;
 }
 
@@ -54,6 +55,7 @@ export interface InclusionsExclusionsRow {
     Destination_ID: string;
     Inclusions?: string;
     Exclusions?: string;
+    Highlights?: string;
 }
 
 export interface GuestReviewRow {

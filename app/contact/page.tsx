@@ -5,6 +5,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import emailjs from '@emailjs/browser'
 
 interface Destination {
   id?: string
@@ -36,39 +37,30 @@ export default function ContactPage() {
       metaDescription.setAttribute('content', 'Have questions about your trip? Contact Travelzada for booking inquiries, customer support, and travel planning assistance. We respond within 24 hours.')
     }
 
-    // Fetch destinations from database
-    const fetchDestinations = async () => {
-      if (typeof window === 'undefined' || !db) {
-        setLoadingDestinations(false)
-        return
-      }
+    // Static list of destinations as requested
+    const staticDestinations: string[] = [
+      'Andaman and Nicobar Islands',
+      'Bali',
+      'Bhutan',
+      'Dubai',
+      'Georgia',
+      'Goa',
+      'Kashmir',
+      'Kerala',
+      'Malaysia',
+      'Maldives',
+      'Nepal',
+      'North-East',
+      'Rajasthan',
+      'Singapore',
+      'Sri Lanka',
+      'Tamil Nadu',
+      'Thailand',
+      'Vietnam'
+    ]
 
-      try {
-        const destinationsRef = collection(db, 'destinations')
-        const querySnapshot = await getDocs(destinationsRef)
-        const destinationsData: Destination[] = []
-
-        querySnapshot.forEach((doc) => {
-          const data = doc.data()
-          destinationsData.push({
-            id: doc.id,
-            name: data.name || '',
-            slug: data.slug || '',
-            country: data.country || '',
-          })
-        })
-
-        // Sort destinations alphabetically by name
-        destinationsData.sort((a, b) => a.name.localeCompare(b.name))
-        setDestinations(destinationsData)
-      } catch (error) {
-        console.error('Error fetching destinations:', error)
-      } finally {
-        setLoadingDestinations(false)
-      }
-    }
-
-    fetchDestinations()
+    setDestinations(staticDestinations.map(name => ({ name, slug: name.toLowerCase().replace(/ /g, '-'), country: '' })))
+    setLoadingDestinations(false)
   }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -77,6 +69,8 @@ export default function ContactPage() {
       [e.target.name]: e.target.value,
     })
   }
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,6 +93,30 @@ export default function ContactPage() {
         createdAt: serverTimestamp(),
         read: false,
       })
+
+      // Send email notification via EmailJS
+      // Using the same configuration as LeadForm
+      const templateParams = {
+        name: formData.name.trim(),
+        mobile: formData.phone.trim(),
+        email: formData.email.trim(),
+        packageName: `Contact Enquiry: ${formData.destination}`, // Mapping destination to packageName
+        message: formData.message.trim(),
+        sourceUrl: 'Contact Us Page',
+      }
+
+      try {
+        await emailjs.send(
+          'service_6e9dvlb',
+          'template_qz05lkd',
+          templateParams,
+          'gIP99fUwF6iBneHVb'
+        )
+        console.log('Email sent successfully')
+      } catch (emailError) {
+        console.error('Failed to send email:', emailError)
+        // We don't block the success state if email fails
+      }
 
       setIsSubmitting(false)
       setSubmitted(true)

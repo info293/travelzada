@@ -44,7 +44,7 @@ export interface PackageInput {
     Image_Alt_Text?: string;
     Inclusions?: string[];
     Exclusions?: string[];
-    Day_Wise_Itinerary?: Array<{ day: number; description: string }>;
+    Day_Wise_Itinerary?: Array<{ day: number; title: string; description: string }>;
     Guest_Reviews?: Array<{ name: string; content: string; date: string; rating: string }>;
     Booking_Policies?: {
         booking?: string[];
@@ -53,6 +53,7 @@ export interface PackageInput {
     };
     FAQ_Items?: Array<{ question: string; answer: string }>;
     Why_Book_With_Us?: Array<{ label: string; description: string }>;
+    Highlights?: string[];
     Slug?: string;
 }
 
@@ -75,6 +76,13 @@ export interface GeneratedPackageData {
     Inclusions: string;
     Exclusions: string;
     Day_Wise_Itinerary: string;
+    Highlights: string[];
+    Day_Wise_Itinerary_Details: Array<{
+        day: number;
+        title: string;
+        description: string;
+        activities: string[];
+    }>;
     Rating: string;
     Location_Breakup: string;
     Airport_Code: string;
@@ -211,10 +219,14 @@ async function generatePackageData(pkg: PackageInput): Promise<GeneratedPackageD
     // 2. DATA PREPARATION FOR PROMPT
     // ------------------------------------------------------------------
     let itineraryText = '';
+    let itineraryTitlesText = '';
     if (Array.isArray(pkg.Day_Wise_Itinerary)) {
-        itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.description}`).join(' | ');
+        itineraryText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.title || d.description}`).join(' | ');
+        // Create titles-only list for AI to generate descriptions (fallback to description if title is missing)
+        itineraryTitlesText = pkg.Day_Wise_Itinerary.map((d) => `Day ${d.day}: ${d.title || d.description || 'Activity'}`).join(' | ');
     } else if (typeof pkg.Day_Wise_Itinerary === 'string') {
         itineraryText = pkg.Day_Wise_Itinerary;
+        itineraryTitlesText = pkg.Day_Wise_Itinerary;
     }
 
     const inclusionsText = Array.isArray(pkg.Inclusions)
@@ -252,6 +264,7 @@ You specialize in:
 - **Primary Image:** ${pkg.Primary_Image_URL || 'N/A'}
 - **Inclusions:** ${inclusionsText || 'N/A'}
 - **Exclusions:** ${exclusionsText || 'N/A'}
+- **Day Titles from Excel:** ${itineraryTitlesText || 'Generate appropriate day titles'}
 - **Full Itinerary:** ${itineraryText.substring(0, 20000) || 'Design a balanced mix of leisure and sightseeing.'}
 
 ------------------------------------------------------------------
@@ -304,6 +317,23 @@ Follow these field-specific instructions STRICTLY:
    - If input itinerary is missing, generate a realistic ${daysCount}-day plan.
    - Format: "Day 1: [Title] - [Brief Activity] | Day 2: ..."
    - Must match the duration.
+
+10. **Highlights**:
+   - Generate exactly 5-6 compelling package highlights
+   - Focus on unique experiences, NOT generic inclusions like "breakfast" or "transfers"
+   - Examples: "Romantic sunset at Uluwatu Temple", "Private candlelight dinner on the beach", "Exclusive spa ritual for couples"
+   - Content must be derived from destination and itinerary
+   - Format: Array of strings
+
+11. **Day_Wise_Itinerary_Details**:
+   - IMPORTANT: Use the exact day titles provided in "Day Titles from Excel" - DO NOT change them
+   - For each day (${daysCount} days total), generate a detailed object:
+     - "day": Day number (integer 1, 2, 3...)
+     - "title": MUST be the exact title from Excel input (e.g., "Uluwatu Temple & Beach Club") - DO NOT modify
+     - "description": Generate a unique 2-3 sentence narrative description for that title
+     - "activities": Array of 3-4 specific activities derived from the title
+   - Day 1 should describe arrival experience, Last day should describe departure
+   - Middle days should have specific sightseeing/experience descriptions based on the provided title
 
 6. **FAQ_Items**:
    FAQ GENERATION RULES (LLM, GOOGLE SGE & REDDIT STYLE):
@@ -404,6 +434,11 @@ Follow these field-specific instructions STRICTLY:
   "SEO_Title": "string",
   "SEO_Description": "string",
   "SEO_Keywords": "string",
+  
+  "Highlights": ["string"],
+  "Day_Wise_Itinerary_Details": [
+    { "day": 1, "title": "string", "description": "string", "activities": ["string"] }
+  ],
   
   "Guest_Reviews": [],
   "FAQ_Items": [ { "question": "string", "answer": "string" } ],
@@ -520,6 +555,8 @@ Follow these field-specific instructions STRICTLY:
         Exclusions: exclusionsText || generated.Exclusions || 'Flights, Visa, Personal Expenses',
 
         Day_Wise_Itinerary: itineraryString,
+        Highlights: (pkg.Highlights && pkg.Highlights.length > 0) ? pkg.Highlights : (generated.Highlights || []),
+        Day_Wise_Itinerary_Details: generated.Day_Wise_Itinerary_Details || [],
 
         // Prioritize URL from Excel if available
         Primary_Image_URL: pkg.Primary_Image_URL || generated.Primary_Image_URL || '',

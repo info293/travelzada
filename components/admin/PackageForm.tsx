@@ -66,6 +66,13 @@ interface DestinationPackage {
     label: string
     description: string
   }>
+  Highlights?: string[]
+  Day_Wise_Itinerary_Details?: Array<{
+    day: number
+    title: string
+    description: string
+    activities: string[]
+  }>
 }
 
 interface PackageFormProps {
@@ -489,6 +496,50 @@ export default function PackageForm({
               rows={4}
               placeholder="Day 1: Arrive & relax | Day 2: Ubud Tour | Day 3: Watersports..."
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Highlights (JSON Array)</label>
+            <textarea
+              name="Highlights"
+              value={formData.Highlights ? JSON.stringify(formData.Highlights, null, 2) : ''}
+              onChange={(e) => {
+                try {
+                  const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                  if (setFormData) {
+                    setFormData((prev: any) => ({ ...prev, Highlights: parsed }))
+                  } else {
+                    handleInputChange({ target: { name: 'Highlights', value: JSON.stringify(parsed) } } as any)
+                  }
+                } catch (err) {
+                  // Invalid JSON
+                }
+              }}
+              rows={4}
+              placeholder='["Sunset Dinner Cruise", "Private Pool Villa Stay"]'
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Detailed Day Wise Itinerary (JSON Array)</label>
+            <textarea
+              name="Day_Wise_Itinerary_Details"
+              value={formData.Day_Wise_Itinerary_Details ? JSON.stringify(formData.Day_Wise_Itinerary_Details, null, 2) : ''}
+              onChange={(e) => {
+                try {
+                  const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                  if (setFormData) {
+                    setFormData((prev: any) => ({ ...prev, Day_Wise_Itinerary_Details: parsed }))
+                  } else {
+                    handleInputChange({ target: { name: 'Day_Wise_Itinerary_Details', value: JSON.stringify(parsed) } } as any)
+                  }
+                } catch (err) {
+                  // Invalid JSON
+                }
+              }}
+              rows={6}
+              placeholder='[{"day": 1, "title": "Arrival", "description": "...", "activities": []}]'
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
             />
           </div>
           <div className="md:col-span-2">

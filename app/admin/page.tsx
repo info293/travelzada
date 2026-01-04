@@ -91,6 +91,13 @@ interface DestinationPackage {
     label: string
     description: string
   }>
+  Highlights?: string[]
+  Day_Wise_Itinerary_Details?: Array<{
+    day: number
+    title: string
+    description: string
+    activities: string[]
+  }>
 }
 
 interface BlogSection {
@@ -1768,6 +1775,13 @@ export default function AdminDashboard() {
         "Hotel_Examples": "Sample Resort, Example Hotel",
         "Inclusions": "4★ stay with breakfast, airport transfers, city tour",
         "Exclusions": "Flights, meals other than breakfast, personal expenses",
+        "Highlights": [
+          "Romantic sunset dinner",
+          "Private pool villa experience",
+          "Full day island tour",
+          "Spa therapy",
+          "Sunset view"
+        ],
         "Day_Wise_Itinerary": "Day 1: Arrive & relax | Day 2: City tour | Day 3: Beach activities | Day 4: Depart",
         "Rating": "4.5/5",
         "Location_Breakup": "3N Main City",
@@ -5068,6 +5082,8 @@ export default function AdminDashboard() {
                     Booking_Policies: pkg.Booking_Policies || {},
                     FAQ_Items: pkg.FAQ_Items || [],
                     Why_Book_With_Us: pkg.Why_Book_With_Us || [],
+                    Highlights: pkg.Highlights || [],
+                    Day_Wise_Itinerary_Details: pkg.Day_Wise_Itinerary_Details || [],
                     Created_By: currentUser?.email || 'AI Generator',
                     Last_Updated: new Date().toISOString().split('T')[0],
                   };

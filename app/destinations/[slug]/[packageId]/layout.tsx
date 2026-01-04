@@ -12,8 +12,8 @@ export async function generateMetadata({ params }: { params: { slug: string; pac
     const packageName = packageId.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
     return {
-        title: `${packageName} | ${destName} Package - Travelzada`,
-        description: `Book ${packageName} package in ${destName}. Includes accommodation, transfers, and curated experiences. Plan your perfect trip with Travelzada.`,
+        title: `${packageName} | ${destName} - Travelzada`,
+        description: `Book ${packageName} in ${destName}. Includes accommodation, transfers, and curated experiences. Plan your perfect trip with Travelzada.`,
         alternates: {
             canonical: `/destinations/${destination}/${packageId}`,
         },

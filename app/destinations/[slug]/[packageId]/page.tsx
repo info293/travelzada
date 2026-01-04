@@ -629,15 +629,23 @@ export default function PackageDetailPage({ params }: PageProps) {
         pdf.setTextColor(100, 100, 100)
         pdf.text('STARTING FROM', pageWidth / 2, contentCursorY, { align: 'center' })
 
-        contentCursorY += 8
+        contentCursorY += 10 // Increased spacing
 
         // Price - Gold
         pdf.setFont('helvetica', 'bold')
-        pdf.setFontSize(26)
+        pdf.setFontSize(26) // Back to larger size
         pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2])
         pdf.text(`INR ${formatPrice(packageData.Price_Range_INR)}`, pageWidth / 2, contentCursorY, { align: 'center' })
 
-        contentCursorY += 8
+        contentCursorY += 7 // Gap between price and per person text
+
+        // "PER PERSON" - Small block text below price
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.setTextColor(150, 150, 150) // Light gray
+        pdf.text('PER PERSON', pageWidth / 2, contentCursorY, { align: 'center' })
+
+        contentCursorY += 12 // Increased spacing
 
         // Date Quote
         pdf.setFont('helvetica', 'normal')

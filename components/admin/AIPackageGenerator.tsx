@@ -31,6 +31,13 @@ interface GeneratedPackage {
     Inclusions?: string | string[];
     Exclusions?: string | string[];
     Day_Wise_Itinerary?: string | Array<{ day: number; description: string }>;
+    Highlights?: string[];
+    Day_Wise_Itinerary_Details?: Array<{
+        day: number;
+        title: string;
+        description: string;
+        activities: string[];
+    }>;
     Rating?: string;
     Location_Breakup?: string;
     Airport_Code?: string;
@@ -170,7 +177,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
         }
 
         // Create index for itinerary
-        const itineraryIndex: Record<string, Array<{ day: number; description: string }>> = {};
+        const itineraryIndex: Record<string, Array<{ day: number; title: string; description: string }>> = {};
         for (const row of parsedData.itinerary) {
             const id = row.Destination_ID?.trim() || '';
             if (!itineraryIndex[id]) {
@@ -178,22 +185,33 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
             }
             itineraryIndex[id].push({
                 day: typeof row.Day === 'number' ? row.Day : parseInt(row.Day) || 0,
+                title: row.Title || '',
                 description: row.Description || '',
             });
         }
 
-        // Create index for inclusions/exclusions
-        const incExcIndex: Record<string, { inclusions: string[]; exclusions: string[] }> = {};
+        // Create index for inclusions/exclusions/highlights
+        const incExcIndex: Record<string, { inclusions: string[]; exclusions: string[]; highlights: string[] }> = {};
         for (const row of parsedData.inclusionsExclusions) {
             const id = row.Destination_ID?.trim() || '';
             if (!incExcIndex[id]) {
-                incExcIndex[id] = { inclusions: [], exclusions: [] };
+                incExcIndex[id] = { inclusions: [], exclusions: [], highlights: [] };
             }
             if (row.Inclusions) {
                 incExcIndex[id].inclusions.push(row.Inclusions.trim());
             }
             if (row.Exclusions) {
                 incExcIndex[id].exclusions.push(row.Exclusions.trim());
+            }
+            if (row.Highlights) {
+                // Highlights might be one string or multiple rows. Assuming one string with delimiters or multiple rows.
+                // If it's a long string with commas/newlines, split it?
+                // Or if the user mistakenly puts multiple rows with same ID, we just push.
+                // Let's assume standard behavior: single cell string, maybe separate by newlines if intended as list?
+                // But for "Highlights" array in PackageInput, we usually expect specific items.
+                // Let's split by comma or newline if provided in one cell.
+                const parts = row.Highlights.split(/[,\n]+/).map(s => s.trim()).filter(s => s.length > 0);
+                incExcIndex[id].highlights.push(...parts);
             }
         }
 
@@ -262,7 +280,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 const destinationCountry = destIndex[destCode]?.Country;
 
                 const itinerary = (itineraryIndex[pkgId] || []).sort((a, b) => a.day - b.day);
-                const incExc = incExcIndex[pkgId] || { inclusions: [], exclusions: [] };
+                const incExc = incExcIndex[pkgId] || { inclusions: [], exclusions: [], highlights: [] };
                 const reviews = reviewsIndex[pkgId] || [];
                 const policies = policiesIndex[pkgId] || { booking: [], payment: [], cancellation: [] };
                 const faqs = faqIndex[pkgId] || [];
@@ -329,6 +347,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                     Image_Alt_Text: pkg.Image_Alt_Text,
                     Inclusions: incExc.inclusions.length > 0 ? incExc.inclusions.join(', ') : pkg.Inclusions, // Fallback to flat string if parsed
                     Exclusions: incExc.exclusions.length > 0 ? incExc.exclusions.join(', ') : pkg.Exclusions,
+                    Highlights: incExc.highlights.length > 0 ? incExc.highlights : [],
                     Day_Wise_Itinerary: itinerary.length > 0 ? itinerary : pkg.Day_Wise_Itinerary,
 
                     Guest_Reviews: reviews,
@@ -417,14 +436,21 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
             XLSX.utils.book_append_sheet(wb, pkgSheet, 'Packages_Master');
 
             // 3. Daywise Itinerary
-            const itinHeaders = ['Destination_ID', 'Day', 'Description'];
-            const itinData = [['BAL_001', 1, 'Arrival in Bali']];
+            const itinHeaders = ['Destination_ID', 'Day', 'Title', 'Description'];
+            const itinData = [
+                ['BAL_001', 1, 'Arrival & Airport Pickup', ''],
+                ['BAL_001', 2, 'Ubud Temple & Rice Terraces', ''],
+                ['BAL_001', 3, 'Nusa Penida Island Tour', ''],
+                ['BAL_001', 4, 'Beach Club & Sunset', ''],
+                ['BAL_001', 5, 'Spa Day & Shopping', ''],
+                ['BAL_001', 6, 'Departure', '']
+            ];
             const itinSheet = XLSX.utils.aoa_to_sheet([itinHeaders, ...itinData]);
             XLSX.utils.book_append_sheet(wb, itinSheet, 'Daywise_Itinerary');
 
             // 4. Inclusions Exclusions
-            const incExcHeaders = ['Destination_ID', 'Inclusions', 'Exclusions'];
-            const incExcData = [['BAL_001', 'Breakfast, Airport Transfers', 'Flights, Personal Expenses']];
+            const incExcHeaders = ['Destination_ID', 'Inclusions', 'Exclusions', 'Highlights'];
+            const incExcData = [['BAL_001', 'Breakfast, Airport Transfers', 'Flights, Personal Expenses', 'Sunset Dinner, Spa']];
             const incExcSheet = XLSX.utils.aoa_to_sheet([incExcHeaders, ...incExcData]);
             XLSX.utils.book_append_sheet(wb, incExcSheet, 'Inclusions_Exclusions');
 
