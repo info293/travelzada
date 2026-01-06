@@ -334,27 +334,77 @@ export default function DestinationDetailPage({ params }: PageProps) {
                           )}
                         </div>
 
-                        {/* Overview - Compact */}
-                        {pkg.Overview && (
-                          <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                            <p className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
-                              <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              Overview
-                            </p>
-                            <div className="space-y-1">
-                              {pkg.Overview.split('. ').filter((point: string) => point.trim().length > 0).slice(0, 3).map((point: string, idx: number) => (
-                                <div key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-700 min-w-0">
-                                  <svg className="w-3 h-3 text-primary/70 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        {/* Highlights / Overview - Compact */}
+                        {(() => {
+                          // Helper to get highlights with priority: Highlights > Day Wise > Overview
+                          const getHighlights = () => {
+                            // 1. Check explicit Highlights field
+                            if (pkg.Highlights) {
+                              if (Array.isArray(pkg.Highlights) && pkg.Highlights.length > 0) {
+                                return pkg.Highlights;
+                              }
+                              if (typeof pkg.Highlights === 'string') {
+                                try {
+                                  if (pkg.Highlights.trim().startsWith('[')) {
+                                    const parsed = JSON.parse(pkg.Highlights);
+                                    if (Array.isArray(parsed)) return parsed;
+                                  }
+                                  return [pkg.Highlights];
+                                } catch (e) {
+                                  return [pkg.Highlights];
+                                }
+                              }
+                            }
+
+                            // 2. Fallback to Day Wise Itinerary Titles
+                            if (pkg.Day_Wise_Itinerary_Details && Array.isArray(pkg.Day_Wise_Itinerary_Details)) {
+                              const titles = pkg.Day_Wise_Itinerary_Details
+                                .map((day: any) => day.Title)
+                                .filter((t: any) => t && t.trim().length > 3 && !t.toLowerCase().includes('arrival') && !t.toLowerCase().includes('departure'));
+                              if (titles.length > 0) return titles;
+                            }
+
+                            return [];
+                          };
+
+                          const highlights = getHighlights();
+
+                          const displayPoints = highlights.length > 0
+                            ? highlights
+                            : (pkg.Overview ? pkg.Overview.split('. ').filter((point: string) => point.trim().length > 0) : []);
+
+                          const label = highlights.length > 0 ? 'Highlights' : 'Overview';
+                          const showSection = displayPoints.length > 0;
+
+                          if (!showSection) return null;
+
+                          return (
+                            <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
+                              <p className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                                {label === 'Highlights' ? (
+                                  <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                                   </svg>
-                                  <span className="leading-snug line-clamp-2 flex-1 min-w-0">{point.trim()}{point.trim().endsWith('.') ? '' : '.'}</span>
-                                </div>
-                              ))}
+                                ) : (
+                                  <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                )}
+                                {label}
+                              </p>
+                              <div className="space-y-1">
+                                {displayPoints.slice(0, 3).map((point: string, idx: number) => (
+                                  <div key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-700 min-w-0">
+                                    <svg className="w-3 h-3 text-primary/70 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    <span className="leading-snug line-clamp-2 flex-1 min-w-0">{point.trim()}{point.trim().endsWith('.') ? '' : '.'}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
 
                       {/* Price Section - Compact */}
