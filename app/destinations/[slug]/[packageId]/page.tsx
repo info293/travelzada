@@ -1274,7 +1274,10 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
                 <div>
                   <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'} </p>
+                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">
+                    INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'}
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-500">per person</p>
                 </div>
                 <div className="flex flex-col gap-2.5 sm:gap-3">
                   <button
@@ -1491,7 +1494,10 @@ export default function PackageDetailPage({ params }: PageProps) {
               <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
                 <div>
                   <p className="text-sm text-gray-500">Starting from</p>
-                  <p className="text-4xl font-serif text-[#c99846]">INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'} </p>
+                  <p className="text-4xl font-serif text-[#c99846]">
+                    INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'}
+                  </p>
+                  <p className="text-sm text-gray-500">per person</p>
                   {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
                 </div>
                 <div className="flex flex-col gap-3">
