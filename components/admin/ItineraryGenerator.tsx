@@ -9,6 +9,7 @@ import { DestinationPackage } from './types'; // Assuming types are exported or 
 // Re-defining interface if not easily importable from a clean types file
 interface Package extends DestinationPackage {
     id?: string;
+    Image_Alt_Text?: string;
 }
 
 interface FlightDetail {
@@ -217,6 +218,7 @@ export default function ItineraryGenerator() {
         setLoading(true);
 
         try {
+            // Dynamically import jspdf
             const jsPDFModule = await import('jspdf');
             const jsPDF = jsPDFModule.default || jsPDFModule;
 
@@ -225,14 +227,14 @@ export default function ItineraryGenerator() {
             const pageHeight = pdf.internal.pageSize.getHeight();
             const margin = 20;
 
-            // Brand Colors
-            const COLOR_PRIMARY = [124, 58, 237]; // #7c3aed
-            const COLOR_ACCENT = [212, 175, 55]; // #d4af37
-            const COLOR_INK = [31, 27, 44]; // #1f1b2c
-            const COLOR_CREAM = [253, 249, 243]; // #fdf9f3
-            const COLOR_PRICE = [201, 152, 70]; // #c99846
+            // Brand Colors - Matching Website UI
+            const COLOR_PRIMARY = [124, 58, 237]; // #7c3aed (Purple - Primary)
+            const COLOR_ACCENT = [212, 175, 55]; // #d4af37 (Gold - Accent)
+            const COLOR_INK = [31, 27, 44]; // #1f1b2c (Ink - Dark Text)
+            const COLOR_CREAM = [253, 249, 243]; // #fdf9f3 (Cream - Background)
+            const COLOR_PRICE = [201, 152, 70]; // #c99846 (Price Gold)
 
-            // Helpers
+            // Helper to load image
             const loadImage = (url: string): Promise<string> => {
                 return new Promise((resolve, reject) => {
                     const img = new window.Image();
@@ -254,166 +256,199 @@ export default function ItineraryGenerator() {
                 });
             };
 
-            const getImageProperties = (url: string): Promise<{ width: number; height: number }> => {
-                return new Promise((resolve, reject) => {
-                    const img = new window.Image();
-                    img.onload = () => resolve({ width: img.width, height: img.height });
-                    img.onerror = reject;
-                    img.src = url;
-                });
-            };
-
-            // Pre-load assets
-            let logoData: string | null = null;
-            let flightIconData: string | null = null;
-            let hotelIconData: string | null = null;
-
-            try {
-                const [logo, flight, hotel] = await Promise.all([
-                    loadImage('/images/logo/Travelzada Logo April (1).png').catch(e => null),
-                    loadImage('https://img.icons8.com/fluency/96/airplane-take-off.png').catch(e => null),
-                    loadImage('https://img.icons8.com/fluency/96/5-star-hotel.png').catch(e => null)
-                ]);
-                logoData = logo;
-                flightIconData = flight;
-                hotelIconData = hotel;
-            } catch (e) {
-                console.error("Error loading assets", e);
-            }
-
-            const addLogo = async () => {
-                if (logoData) {
-                    try {
-                        const imgProps = await getImageProperties('/images/logo/Travelzada Logo April (1).png'); // We have data, but need props for ratio
-                        // Fallback ratio if props fail or just assume standard
-                        const ratio = imgProps.width / imgProps.height;
-                        const targetHeight = 15;
-                        const targetWidth = ratio * targetHeight;
-                        pdf.addImage(logoData, 'PNG', 15, 10, targetWidth, targetHeight, undefined, 'FAST');
-                    } catch (e) {
-                        // fallback if props fail but we have data (rare)
-                        pdf.addImage(logoData, 'PNG', 15, 10, 40, 15, undefined, 'FAST');
-                    }
-                }
-            };
-
+            // Helper: Add Footer
             const addFooter = (pageNum: number) => {
                 const footerY = pageHeight - 15;
                 pdf.setFont('helvetica', 'normal');
                 pdf.setFontSize(8);
                 pdf.setTextColor(150, 150, 150);
                 pdf.text('Travelzada • +91 99299 62350 • info@travelzada.com', pageWidth / 2, footerY, { align: 'center' });
-                pdf.text(`Page ${pageNum}`, pageWidth - 15, footerY, { align: 'right' });
             };
 
-            // --- PAGE 1: COVER ---
-            try {
-                // Handle markdown image URL if present
-                const imageUrl = selectedPackage.Primary_Image_URL
-                    ? selectedPackage.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                    : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80';
+            // Helper to get image properties (width/height)
+            const getImageProperties = (url: string): Promise<{ width: number; height: number }> => {
+                return new Promise((resolve, reject) => {
+                    const img = new window.Image();
+                    img.onload = () => {
+                        resolve({ width: img.width, height: img.height });
+                    };
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
 
+            // Helper: Add Logo
+            const addLogo = async () => {
+                try {
+                    const logoUrl = '/images/logo/Travelzada Logo April (1).png';
+                    const logoData = await loadImage(logoUrl);
+
+                    // Calculate aspect ratio to prevent distortion
+                    const imgProps = await getImageProperties(logoUrl);
+                    const targetHeight = 15;
+                    const targetWidth = (imgProps.width / imgProps.height) * targetHeight;
+
+                    // Add logo to top left
+                    const xPos = 15; // Left margin
+                    pdf.addImage(logoData, 'PNG', xPos, 10, targetWidth, targetHeight, undefined, 'FAST');
+                } catch (e) {
+                    // fallback if props fail but we have data (rare)
+                    // console.error('Failed to load logo', e)
+                }
+            };
+
+            // Parse helper with better newline handling
+            const parseListField = (field: string | string[] | undefined): string[] => {
+                if (!field) return [];
+                if (Array.isArray(field)) return field.map((i: string) => String(i).trim());
+                if (typeof field === 'string') {
+                    // Try splitting by newline first if it looks like a block
+                    if (field.includes('\n')) {
+                        return field.split('\n').map(i => i.trim()).filter(i => i.length > 0);
+                    }
+                    // Else split by commas
+                    return field.split(',').map((i: string) => i.trim()).filter(i => i.length > 0);
+                }
+                return [];
+            };
+
+            const inclusions = parseListField(selectedPackage.Inclusions);
+            const exclusions = parseListField(selectedPackage.Exclusions);
+
+            // Helper to parse policies
+            const parsePolicies = (items: any): string[] => {
+                if (!items) return []
+                if (Array.isArray(items)) {
+                    if (items.length === 1 && typeof items[0] === 'string' && items[0].includes('", "')) {
+                        return items[0].split('", "').map((i: string) => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
+                    }
+                    return items.map((i: any) => String(i).trim())
+                }
+                if (typeof items === 'string') {
+                    if (items.includes('", "')) {
+                        return items.split('", "').map(i => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
+                    }
+                    return items.split(',').map(i => i.trim())
+                }
+                return []
+            }
+
+
+            // --- PAGE 1: COVER PAGE ---
+            await addLogo();
+
+            // Image URL
+            const imageUrl = selectedPackage.Primary_Image_URL
+                ? selectedPackage.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80';
+
+            // 2. Main Image
+            let contentCursorY = 50;
+            try {
                 const mainImageData = await loadImage(imageUrl);
-                const imgHeight = pageHeight * 0.6;
-                pdf.addImage(mainImageData, 'JPEG', 0, 0, pageWidth, imgHeight, undefined, 'FAST');
+                const imgStartY = 35;
+                const imgHeight = pageHeight * 0.35;
+                pdf.addImage(mainImageData, 'JPEG', 0, imgStartY, pageWidth, imgHeight, undefined, 'FAST');
+                // Alt Text
+                if (selectedPackage.Image_Alt_Text) {
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(8);
+                    pdf.setTextColor(100, 100, 100);
+                    pdf.text(selectedPackage.Image_Alt_Text, pageWidth - 10, imgStartY + imgHeight + 5, { align: 'right' });
+                }
+                contentCursorY = imgStartY + imgHeight + 15;
             } catch (e) {
                 console.error('Failed to load main image', e);
             }
 
-            await addLogo();
+            // 3. Text Content
+            // Title
+            pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(28);
 
-            pdf.setTextColor(255, 255, 255);
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(32);
+            const maxTitleWidth = pageWidth - 40;
+            const titleLines = pdf.splitTextToSize(selectedPackage.Destination_Name || 'Custom Package', maxTitleWidth);
+            pdf.text(titleLines, pageWidth / 2, contentCursorY, { align: 'center' });
 
-            const titleY = (pageHeight * 0.6) - 50; // Moved up slightly to make room
-            const title = selectedPackage.Destination_Name || 'Custom Package';
-            const titleLines = pdf.splitTextToSize(title, pageWidth - 40);
-            pdf.text(titleLines, pageWidth / 2, titleY, { align: 'center' });
+            contentCursorY += (titleLines.length * 10) + 5;
 
-            // Calculate height of title to position tags correctly
-            // 32pt font roughly needs 12-14mm per line including spacing
-            const titleHeight = titleLines.length * 14;
-
+            // Tags
             pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(12);
+            pdf.setFontSize(11);
+            pdf.setTextColor(100, 100, 100);
             const tags = [
                 selectedPackage.Duration,
                 selectedPackage.Star_Category || 'Luxury Stay',
                 selectedPackage.Travel_Type || 'Custom Trip'
             ].join('  •  ');
+            pdf.text(tags, pageWidth / 2, contentCursorY, { align: 'center' });
 
-            // Position tags below the title with a dynamic buffer
-            pdf.text(tags, pageWidth / 2, titleY + titleHeight + 5, { align: 'center' });
+            contentCursorY += 15;
 
-            // Custom Client Info on Cover - REMOVED from Image area to be placed in white space
-
-            const contentStartY = (pageHeight * 0.6) + 20; // Added a bit more breathing room
-
-            // --- WHITE SPACE CONTENT ---
-
-            // 1. CLIENT NAME (Eye Catching)
+            // Client Info (Specific to Custom Itinerary)
             if (formData.clientName) {
-                // "Specially Prepared For" label
-                pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(10);
-                pdf.setTextColor(100, 100, 100);
-                pdf.text('SPECIALLY PREPARED FOR', pageWidth / 2, contentStartY, { align: 'center' });
-
-                // Client Name - Large & Primary Colored
-                pdf.setFont('times', 'bold');
-                pdf.setFontSize(26);
-                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                pdf.text(formData.clientName, pageWidth / 2, contentStartY + 12, { align: 'center' });
-
-                // Travel Dates
-                if (formData.travelDate) {
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setFontSize(11);
-                    pdf.setTextColor(80, 80, 80);
-                    pdf.text(`${formData.travelDate}`, pageWidth / 2, contentStartY + 20, { align: 'center' });
-                }
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(12);
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(`Prepared for ${formData.clientName}`, pageWidth / 2, contentCursorY, { align: 'center' });
+                contentCursorY += 15;
             }
 
-            // 2. Price Section (pushed down)
-            const priceY = formData.clientName ? contentStartY + 35 : contentStartY;
-
-            // Separator Line
-            pdf.setDrawColor(220, 220, 220);
-            pdf.line(pageWidth / 2 - 20, priceY, pageWidth / 2 + 20, priceY);
-
-            // Price / Package Label
-            pdf.setFont('helvetica', 'normal');
+            // Price Label
             pdf.setFontSize(10);
-            pdf.setTextColor(150, 150, 150);
-            const priceLabel = formData.totalCost > 0 ? 'TOTAL TRIP COST' : 'PACKAGE STARTING FROM';
-            pdf.text(priceLabel, pageWidth / 2, priceY + 10, { align: 'center' });
+            pdf.setTextColor(100, 100, 100);
+            const priceLabel = formData.totalCost > 0 ? 'TOTAL TRIP COST' : 'STARTING FROM';
+            pdf.text(priceLabel, pageWidth / 2, contentCursorY, { align: 'center' });
 
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(22);
-            pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2]); // Gold
-            const price = formData.totalCost > 0 ? formData.totalCost : selectedPackage.Price_Range_INR;
-            pdf.text(`INR ${price}`, pageWidth / 2, priceY + 20, { align: 'center' });
+            contentCursorY += 10;
 
-            // 3. Overview (pushed down)
-            const overviewY = priceY + 35;
+            // Price - Gold
+            const formatPrice = (p: any) => new Intl.NumberFormat('en-IN').format(Number(String(p).replace(/[^0-9]/g, '')) || 0);
+
+            pdf.setFont('times', 'bold'); // Serif as requested recentl
+            pdf.setFontSize(26);
+            pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2]);
+            const priceVal = formData.totalCost > 0 ? formData.totalCost : selectedPackage.Price_Range_INR;
+            pdf.text(`INR ${formatPrice(priceVal)}`, pageWidth / 2, contentCursorY, { align: 'center' });
+
+            contentCursorY += 7;
+
+            // "per person" - Matching logic from public page (gray-500, small)
             pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10); // Approximate sm/xs
+            pdf.setTextColor(107, 114, 128); // gray-500
+            pdf.text('per person', pageWidth / 2, contentCursorY, { align: 'center' });
+
+            contentCursorY += 12;
+
+            // Date Quote
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(9);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(`Quoted on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, contentCursorY, { align: 'center' });
+
+            contentCursorY += 8;
+
+            // Separator
+            pdf.setDrawColor(220, 220, 220);
+            pdf.line((pageWidth / 2) - 15, contentCursorY, (pageWidth / 2) + 15, contentCursorY);
+
+            contentCursorY += 10;
+
+            // Overview
             pdf.setFontSize(11);
             pdf.setTextColor(60, 60, 60);
-
-            // Limit overview lines to avoid overflow
             const overviewText = pdf.splitTextToSize(selectedPackage.Overview || '', pageWidth - 50);
-            // Take first 4-5 lines max to fit cover page comfortably
-            const displayedOverview = overviewText.slice(0, 5);
-            if (overviewText.length > 5) displayedOverview.push('...');
+            pdf.text(overviewText, pageWidth / 2, contentCursorY, { align: 'center' });
 
-            pdf.text(displayedOverview, pageWidth / 2, overviewY, { align: 'center' });
 
-            // --- PAGE 2: DETAILS & ARRANGEMENTS ---
+            // --- PAGE 2: DETAILS & HIGHLIGHTS ---
             pdf.addPage();
             addFooter(2);
             await addLogo();
-            let y = margin + 15;
+            let y = margin + 10;
+            y += 5; // Header space
 
             // Details Box
             const boxHeight = 45;
@@ -424,151 +459,62 @@ export default function ItineraryGenerator() {
             const col1X = margin + 10;
             const col2X = margin + (pageWidth - (margin * 2)) / 2 + 10;
 
+            // Row 1
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(10);
             pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-            pdf.text('Travelers', col1X, boxY);
-            pdf.text('Destination', col2X, boxY);
-
+            pdf.text('Duration', col1X, boxY);
+            pdf.text('Location', col2X, boxY);
             pdf.setFont('helvetica', 'normal');
             pdf.setTextColor(80, 80, 80);
-            pdf.text(`${formData.adults} Adults, ${formData.children} Children`, col1X, boxY + 6);
-            pdf.text(selectedPackage.Destination_Name, col2X, boxY + 6);
+            pdf.text(String(selectedPackage.Duration || ''), col1X, boxY + 6);
+            pdf.text(String(selectedPackage.Destination_Name || ''), col2X, boxY + 6);
 
             boxY += 18;
+            // Row 2
             pdf.setFont('helvetica', 'bold');
             pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-            pdf.text('Duration', col1X, boxY);
-            pdf.text('Contact', col2X, boxY);
-
+            pdf.text('Hotel Category', col1X, boxY);
+            pdf.text('Travel Type', col2X, boxY);
             pdf.setFont('helvetica', 'normal');
             pdf.setTextColor(80, 80, 80);
-            pdf.text(selectedPackage.Duration, col1X, boxY + 6);
-            pdf.text(formData.clientPhone || formData.clientEmail || 'N/A', col2X, boxY + 6);
+            pdf.text(String(selectedPackage.Star_Category || '4-Star'), col1X, boxY + 6);
+            pdf.text(String(selectedPackage.Travel_Type || 'Custom'), col2X, boxY + 6);
 
-            y += boxHeight + 20;
+            y += boxHeight + 15;
 
-            // FLIGHTS SECTION
-            if (formData.flights.length > 0) {
-                // Icon + Header
-                if (flightIconData) {
-                    pdf.addImage(flightIconData, 'PNG', margin, y - 6, 8, 8); // 8x8mm icon
-                    pdf.setFont('times', 'bold');
-                    pdf.setFontSize(18);
-                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                    pdf.text('Flight Details', margin + 12, y); // Shifted right for icon
-                } else {
-                    pdf.setFont('times', 'bold');
-                    pdf.setFontSize(18);
-                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                    pdf.text('Flight Details', margin, y);
-                }
 
-                y += 10;
 
-                formData.flights.forEach(flight => {
-                    // Card Container
-                    pdf.setDrawColor(230, 230, 240);
-                    pdf.setFillColor(250, 252, 255); // Very light cool tint
-                    pdf.roundedRect(margin, y, pageWidth - (margin * 2), 28, 2, 2, 'FD');
-
-                    // Blue Accent Strip
-                    pdf.setFillColor(59, 130, 246); // Blue
-                    pdf.rect(margin, y + 3, 1.5, 22, 'F');
-
-                    // Airline Name & Flight No
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setFontSize(12);
-                    pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-                    pdf.text(`${flight.airline}`, margin + 8, y + 9);
-
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setFontSize(11);
-                    pdf.setTextColor(100, 100, 100);
-                    pdf.text(`|  ${flight.flightNumber}`, margin + 8 + (pdf.getStringUnitWidth(flight.airline) * 4.5) + 5, y + 9); // Rough spacing calc
-
-                    // Date
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(59, 130, 246); // Blue Text
-                    pdf.text(flight.date, pageWidth - margin - 5, y + 9, { align: 'right' });
-
-                    // Route
-                    pdf.setFontSize(10);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(80, 80, 80);
-                    pdf.text(`${flight.departureCity}`, margin + 8, y + 19);
-
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text(`(${flight.departureTime})`, margin + 8 + (pdf.getStringUnitWidth(flight.departureCity) * 4) + 2, y + 19);
-
-                    pdf.setTextColor(150, 150, 150);
-                    pdf.text('➝', margin + 55, y + 19);
-
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setTextColor(80, 80, 80);
-                    pdf.text(`${flight.arrivalCity}`, margin + 65, y + 19);
-
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text(`(${flight.arrivalTime})`, margin + 65 + (pdf.getStringUnitWidth(flight.arrivalCity) * 4) + 2, y + 19);
-
-                    y += 35;
-                });
-                y += 5;
+            // Highlights
+            // Check spacing before adding highlights
+            if (y > pageHeight - 80) {
+                pdf.addPage();
+                addFooter(3);
+                addLogo();
+                y = margin + 15;
             }
 
-            // HOTELS SECTION
-            if (formData.hotels.length > 0) {
-                // Icon + Header
-                if (hotelIconData) {
-                    pdf.addImage(hotelIconData, 'PNG', margin, y - 6, 8, 8); // 8x8mm icon
-                    pdf.setFont('times', 'bold');
-                    pdf.setFontSize(18);
-                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                    pdf.text('Accommodation', margin + 12, y); // Shifted
-                } else {
-                    pdf.setFont('times', 'bold');
-                    pdf.setFontSize(18);
-                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]); // Primary Color
-                    pdf.text('Accommodation', margin, y);
-                }
-                y += 10;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(20);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Highlights', margin, y);
+            y += 12;
 
-                formData.hotels.forEach(hotel => {
-                    // Card Container
-                    pdf.setDrawColor(240, 235, 230);
-                    pdf.setFillColor(255, 252, 248); // Warm tint
-                    pdf.roundedRect(margin, y, pageWidth - (margin * 2), 30, 2, 2, 'FD');
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(11);
+            pdf.setTextColor(60, 60, 60);
+            const highlights = inclusions.slice(0, 8);
+            highlights.forEach(item => {
+                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('+', margin, y);
 
-                    // Gold Accent Strip
-                    pdf.setFillColor(212, 175, 55); // Gold
-                    pdf.rect(margin, y + 3, 1.5, 24, 'F');
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(item, margin + 8, y);
+                y += 9;
+            });
 
-                    // Hotel Name
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.setFontSize(12);
-                    pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-                    pdf.text(hotel.hotelName, margin + 8, y + 9);
-
-                    // Location
-                    pdf.setFontSize(10);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setTextColor(100, 100, 100);
-                    pdf.text(hotel.city, pageWidth - margin - 5, y + 9, { align: 'right' }); // Right align city
-
-                    // Details Row 1
-                    pdf.setFontSize(9);
-                    pdf.setTextColor(80, 80, 80);
-                    pdf.text(`Check-in: ${hotel.checkIn}`, margin + 8, y + 17);
-                    pdf.text(`Check-out: ${hotel.checkOut}`, margin + 50, y + 17);
-
-                    // Details Row 2
-                    pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2]); // Gold text for room info
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(`${hotel.roomType}  •  ${hotel.mealPlan}`, margin + 8, y + 24);
-
-                    y += 38;
-                });
-            }
 
             // --- PAGE 3: ITINERARY ---
             pdf.addPage();
@@ -576,183 +522,168 @@ export default function ItineraryGenerator() {
             await addLogo();
             y = margin + 15;
 
-            pdf.setFont('times', 'bold');
+            pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(20);
             pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
             pdf.text('Day-wise Itinerary', margin, y);
-            y += 15;
+            y += 12;
 
-            // Parse Day Wise Itinerary
-            // Use custom itinerary if available, otherwise fallback (though we populate customItinerary on select)
-            const itineraryItems = formData.customItinerary && formData.customItinerary.length > 0
-                ? formData.customItinerary
-                : (selectedPackage.Day_Wise_Itinerary ? selectedPackage.Day_Wise_Itinerary.split('|').map(item => ({ day: 'Day ?', title: item, description: item })) : []);
+            const itinerary = formData.customItinerary && formData.customItinerary.length > 0 ? formData.customItinerary : [];
+            // CLEAN SIMPLE TABLE DESIGN (Matching public page)
+            const tableStartX = margin;
+            const tableWidth = pageWidth - (margin * 2);
+            const dayColWidth = 35;
+            const rowHeight = 12;
 
-            const timelineX = margin + 6;
-            const timelineStartY = y;
+            pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+            pdf.rect(tableStartX, y, tableWidth, rowHeight + 2, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(9);
+            pdf.setTextColor(255, 255, 255);
+            pdf.text('Day', tableStartX + 8, y + 8);
+            pdf.text('Activities', tableStartX + dayColWidth + 8, y + 8);
+            y += rowHeight + 2;
 
-            for (const [index, item] of itineraryItems.entries()) {
-                if (y > pageHeight - margin) {
+            itinerary.forEach((day: any, index: number) => {
+                pdf.setFont('helvetica', 'normal');
+                pdf.setFontSize(9);
+                const descLines = pdf.splitTextToSize(day.title + (day.description ? "\n" + day.description : ""), tableWidth - dayColWidth - 15);
+                const currentRowHeight = Math.max(rowHeight, (descLines.length * 5) + 8);
+
+                if (y + currentRowHeight > pageHeight - 30) {
                     pdf.addPage();
                     addFooter(3);
-                    await addLogo();
-                    y = margin + 20;
+                    addLogo();
+                    y = margin + 25;
                 }
 
-                // If item is string (fallback), parse it roughly
-                let dayLabel = item.day || `Day ${index + 1}`;
-                let title = item.title || `Day ${index + 1}`;
-                let desc = item.description || '';
-
-                if (typeof item === 'string') {
-                    const parts = item.split(':');
-                    dayLabel = `Day ${index + 1}`;
-                    title = parts[0]?.trim() || dayLabel;
-                    desc = parts.slice(1).join(':').trim() || item;
-                }
-
-                // Dot
-                pdf.setFillColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                pdf.circle(timelineX, y - 1.5, 2, 'F');
-
-                // Day Text
-                pdf.setFont('helvetica', 'bold');
-                pdf.setFontSize(11);
-                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
-                pdf.text(dayLabel, timelineX + 10, y);
-
-                // Title
-                pdf.setFont('helvetica', 'medium');
-                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-                const titleX = timelineX + 35;
-                const titleLines = pdf.splitTextToSize(title, pageWidth - margin - titleX);
-                pdf.text(titleLines, titleX, y);
-
-                y += (titleLines.length * 6) + 2;
-
-                // Description
-                if (desc) {
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.setFontSize(10);
-                    pdf.setTextColor(80, 80, 80);
-                    const descLines = pdf.splitTextToSize(desc, pageWidth - margin - titleX);
-                    pdf.text(descLines, titleX, y);
-                    y += (descLines.length * 5) + 8;
+                if (index % 2 === 0) {
+                    pdf.setFillColor(252, 250, 248);
                 } else {
-                    y += 6;
+                    pdf.setFillColor(255, 255, 255);
                 }
-            }
+                pdf.rect(tableStartX, y, tableWidth, currentRowHeight, 'F');
 
-            // Draw Timeline Line
-            pdf.setDrawColor(220, 220, 220);
-            pdf.setLineWidth(0.5);
-            pdf.line(timelineX, timelineStartY - 2, timelineX, y - 15);
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(9);
+                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                pdf.text(day.day, tableStartX + 8, y + 7);
 
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(descLines, tableStartX + dayColWidth + 8, y + 7);
+
+                pdf.setDrawColor(230, 230, 230);
+                pdf.setLineWidth(0.2);
+                pdf.line(tableStartX, y + currentRowHeight, tableStartX + tableWidth, y + currentRowHeight);
+
+                y += currentRowHeight;
+            });
             y += 10;
 
-            // --- INCLUSIONS/EXCLUSIONS (If space permits, or new page) ---
-            if (y > pageHeight - 120) {
-                pdf.addPage();
-                addFooter(4);
-                await addLogo();
-                y = margin + 20;
+
+            // --- INCLUSIONS & EXCLUSIONS ---
+            const getListHeight = (items: string[], width: number) => {
+                let h = 0;
+                items.forEach(item => {
+                    const lines = pdf.splitTextToSize(item, width - 10);
+                    h += (lines.length * 6) + 2;
+                });
+                return h;
             }
 
-            const incExcStartY = y;
             const colW = (pageWidth - (margin * 3)) / 2;
+            const incHeight = getListHeight(inclusions, colW) + 20;
+            const excHeight = getListHeight(exclusions, colW) + 20;
+            const maxHeight = Math.max(incHeight, excHeight, 100);
 
-            // Inclusions
-            pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2]);
-            pdf.roundedRect(margin, y - 5, colW, 100, 5, 5, 'F');
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(16);
-            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-            pdf.text('Inclusions', margin, y);
-            y += 10;
-
-            const inclusions = selectedPackage.Inclusions ? selectedPackage.Inclusions.split(',') : [];
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(10);
-            inclusions.forEach(inc => {
-                const lines = pdf.splitTextToSize(inc.trim(), colW - 10);
-                pdf.setTextColor(22, 163, 74); // Green
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('+', margin, y);
-                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(lines, margin + 6, y);
-                y += (lines.length * 5) + 3;
-            });
-
-            // Exclusions
-            let y2 = incExcStartY;
-            pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2]);
-            pdf.roundedRect(margin + colW + margin, y2 - 5, colW, 100, 5, 5, 'F');
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(16);
-            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-            pdf.text('Exclusions', margin + colW + margin, y2);
-            y2 += 10;
-
-            const exclusions = selectedPackage.Exclusions ? selectedPackage.Exclusions.split(',') : [];
-            exclusions.forEach(exc => {
-                const lines = pdf.splitTextToSize(exc.trim(), colW - 10);
-                pdf.setTextColor(239, 68, 68); // Red
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('-', margin + colW + margin, y2);
-                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(lines, margin + colW + margin + 6, y2);
-                y2 += (lines.length * 5) + 3;
-            });
-
-            // --- PAGE 4/5: Booking Policies & FAQs ---
-            // Always start new page for clean separation
             pdf.addPage();
             addFooter(4);
             await addLogo();
-            y = margin + 20;
+            y = margin + 15;
 
-            // Booking Policies
-            pdf.setFont('times', 'bold');
+            const startY = y;
+            // Inclusions
+            pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2]);
+            pdf.roundedRect(margin, y - 5, colW, maxHeight, 5, 5, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Inclusions', margin + 3, y + 1);
+            y += 10;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            inclusions.forEach(item => {
+                const lines = pdf.splitTextToSize(item, colW - 10);
+                pdf.setTextColor(22, 163, 74);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('+', margin + 3, y);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(lines, margin + 10, y);
+                y += (lines.length * 6) + 3;
+            });
+
+            // Exclusions
+            let y2 = startY;
+            pdf.setFillColor(COLOR_CREAM[0], COLOR_CREAM[1], COLOR_CREAM[2]);
+            pdf.roundedRect(margin + colW + margin, y2 - 5, colW, maxHeight, 5, 5, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(16);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Exclusions', margin + colW + margin + 3, y2 + 1);
+            y2 += 10;
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            exclusions.forEach(item => {
+                const lines = pdf.splitTextToSize(item, colW - 10);
+                pdf.setTextColor(239, 68, 68);
+                pdf.setFont('helvetica', 'bold');
+                pdf.text('-', margin + colW + margin + 3, y2);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text(lines, margin + colW + margin + 8, y2);
+                y2 += (lines.length * 6) + 3;
+            });
+            y = startY + maxHeight + 10;
+
+
+            // --- BOOKING POLICIES ---
+            // Check if we need a new page for policies
+            if (y > pageHeight - 120) { // Ensure at least 120mm space for policies, or force new page
+                pdf.addPage();
+                addFooter(5);
+                await addLogo();
+                y = margin + 15;
+            }
+
+            pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(20);
             pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
             pdf.text('Booking Policies', margin, y);
             y += 15;
 
-            const parsePolicies = (items: any): string[] => {
-                if (!items) return [];
-                if (Array.isArray(items)) {
-                    if (items.length === 1 && typeof items[0] === 'string' && items[0].includes('", "')) {
-                        return items[0].split('", "').map((i: string) => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim());
-                    }
-                    return items.map((i: any) => String(i).trim());
-                }
-                if (typeof items === 'string') {
-                    if (items.includes('", "')) {
-                        return items.split('", "').map(i => i.replace(/^"|"$/g, '').replace(/^\\"|\\"?$/g, '').trim())
-                    }
-                    return items.split(',').map(i => i.trim());
-                }
-                return [];
-            };
-
             const drawPolicySection = (title: string, items: string[]) => {
+                // Check inner section spacing
+                if (y > pageHeight - 40) {
+                    pdf.addPage();
+                    addFooter(5);
+                    addLogo();
+                    y = margin + 20;
+                }
+
                 pdf.setFont('helvetica', 'bold');
                 pdf.setFontSize(12);
                 pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
                 pdf.text(title, margin, y);
                 y += 7;
-
                 pdf.setFont('helvetica', 'normal');
                 pdf.setFontSize(10);
                 pdf.setTextColor(60, 60, 60);
-
                 items.forEach(p => {
                     const bullet = '•';
                     pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
                     pdf.text(bullet, margin, y);
-
                     pdf.setTextColor(60, 60, 60);
                     const textWidth = pageWidth - (margin * 2) - 5;
                     const lines = pdf.splitTextToSize(p, textWidth);
@@ -760,96 +691,302 @@ export default function ItineraryGenerator() {
                     y += (lines.length * 5) + 3;
                 });
                 y += 8;
-            };
+            }
 
             if (selectedPackage.Booking_Policies) {
                 drawPolicySection('Booking Terms', parsePolicies(selectedPackage.Booking_Policies.booking || ['Instant confirmation', 'Flexible dates']));
                 drawPolicySection('Payment Policy', parsePolicies(selectedPackage.Booking_Policies.payment || ['Pay in instalments', 'Zero cost EMI']));
                 drawPolicySection('Cancellation Policy', parsePolicies(selectedPackage.Booking_Policies.cancellation || ['Free cancellation up to 7 days']));
-            } else {
-                // Defaults
-                drawPolicySection('Booking Terms', ['Instant confirmation', 'Flexible dates']);
-                drawPolicySection('Payment Policy', ['Pay in instalments', 'Zero cost EMI']);
-                drawPolicySection('Cancellation Policy', ['Free cancellation up to 7 days']);
             }
 
-            // FAQs
-            if (y > pageHeight - 100) {
-                pdf.addPage();
-                addFooter(5);
-                await addLogo();
-                y = margin + 20;
+
+
+            // FLIGHTS & HOTELS (Moved here)
+            // Force new page for this section
+            pdf.addPage();
+            addFooter(6); // Adjust page number dynamic if possible, hardcoded for now or use variable
+            await addLogo();
+            y = margin + 15;
+
+            if (formData.flights.length > 0) {
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(15);
+                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                pdf.text('Flight Details', margin, y);
+                y += 10;
+
+                formData.flights.forEach(flight => {
+                    // Card Container
+                    const cardHeight = 35;
+                    pdf.setFillColor(252, 252, 252); // Almost white
+                    pdf.setDrawColor(230, 230, 230); // Light gray border
+                    pdf.roundedRect(margin, y, pageWidth - (margin * 2), cardHeight, 3, 3, 'FD');
+
+                    // Left Accent Bar (Blue)
+                    pdf.setFillColor(59, 130, 246); // Blue-500
+                    pdf.rect(margin, y + 4, 1.5, cardHeight - 8, 'F');
+
+                    const contentX = margin + 8;
+                    const contentWidth = pageWidth - (margin * 2) - 16;
+                    let currentY = y + 10;
+
+                    // Row 1: Airline & Date
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(12);
+                    pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                    pdf.text(flight.airline, contentX, currentY);
+
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                    pdf.text(flight.date, margin + pageWidth - (margin * 2) - 8, currentY, { align: 'right' });
+
+                    // Subtext: Flight Number
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text(flight.flightNumber.toUpperCase(), contentX + pdf.getStringUnitWidth(flight.airline) * 5, currentY);
+
+                    currentY += 12;
+
+                    // Row 2: Route Visual
+                    // Departure
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(11);
+                    pdf.setTextColor(50, 50, 50);
+                    pdf.text(flight.departureCity, contentX, currentY);
+
+                    if (flight.departureTime) {
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(100, 100, 100);
+                        pdf.text(flight.departureTime, contentX, currentY + 5);
+                    }
+
+                    // Arrival (Right Aligned)
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(11);
+                    pdf.setTextColor(50, 50, 50);
+                    pdf.text(flight.arrivalCity, margin + pageWidth - (margin * 2) - 8, currentY, { align: 'right' });
+
+                    if (flight.arrivalTime) {
+                        pdf.setFont('helvetica', 'normal');
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(100, 100, 100);
+                        pdf.text(flight.arrivalTime, margin + pageWidth - (margin * 2) - 8, currentY + 5, { align: 'right' });
+                    }
+
+                    // Connector Line (Visual)
+                    const lineStartX = contentX + 35;
+                    const lineEndX = margin + contentWidth - 35;
+                    const lineY = currentY - 1;
+
+                    pdf.setDrawColor(200, 200, 200);
+                    pdf.setLineWidth(0.5);
+                    pdf.line(lineStartX, lineY, lineEndX, lineY);
+
+                    // Small circle at start
+                    pdf.setFillColor(200, 200, 200);
+                    pdf.circle(lineStartX, lineY, 1, 'F');
+
+                    // Arrow/Circle at end
+                    pdf.circle(lineEndX, lineY, 1, 'F');
+
+                    // "Direct" or Icon text in middle
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(180, 180, 180);
+                    pdf.text('✈', (lineStartX + lineEndX) / 2, lineY + 1, { align: 'center' });
+
+                    y += cardHeight + 8;
+                });
+                y += 5;
             }
 
-            pdf.setFont('times', 'bold');
-            pdf.setFontSize(20);
-            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
-            pdf.text('Frequently Asked Questions', margin, y);
-            y += 15;
-
-            const faqItems = selectedPackage.FAQ_Items || [
-                { question: 'What is the best time to visit?', answer: 'The dry season is best.' },
-                { question: 'Do I need a visa?', answer: 'Please check with your embassy.' }
-            ];
-
-            for (const faq of faqItems) {
-                if (y > pageHeight - 30) {
+            if (formData.hotels.length > 0) {
+                // Check space for hotels header + 1 card
+                if (y > pageHeight - 50) {
                     pdf.addPage();
-                    addFooter(5);
-                    await addLogo();
-                    y = margin + 20;
+                    addFooter(6);
+                    addLogo();
+                    y = margin + 15;
                 }
 
                 pdf.setFont('helvetica', 'bold');
-                pdf.setFontSize(11);
+                pdf.setFontSize(15);
+                pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                pdf.text('Accommodation', margin, y);
+                y += 10;
+
+                formData.hotels.forEach(hotel => {
+                    // Check individual card space
+                    if (y > pageHeight - 40) {
+                        pdf.addPage();
+                        addFooter(6);
+                        addLogo();
+                        y = margin + 15;
+                    }
+
+                    const cardHeight = 35;
+                    // Card Container
+                    pdf.setFillColor(255, 255, 255);
+                    pdf.setDrawColor(230, 230, 230);
+                    pdf.roundedRect(margin, y, pageWidth - (margin * 2), cardHeight, 3, 3, 'FD');
+
+                    // Left Accent Bar (Gold)
+                    pdf.setFillColor(COLOR_ACCENT[0], COLOR_ACCENT[1], COLOR_ACCENT[2]);
+                    pdf.rect(margin, y + 4, 1.5, cardHeight - 8, 'F');
+
+                    const contentX = margin + 8;
+                    let currentY = y + 10;
+
+                    // Row 1: Hotel Name & City
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(12);
+                    pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                    pdf.text(hotel.hotelName, contentX, currentY);
+
+                    // City Pill
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(120, 120, 120);
+                    pdf.text(`•   ${hotel.city}`, contentX + pdf.getStringUnitWidth(hotel.hotelName) * 5.5, currentY);
+
+                    // Row 2: Room & Meal (Bottom Left)
+                    currentY += 12;
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(80, 80, 80);
+                    pdf.text(`${hotel.roomType}`, contentX, currentY);
+
+                    // Meal Plan (Badge style text)
+                    if (hotel.mealPlan) {
+                        pdf.setTextColor(COLOR_PRIMARY[0], COLOR_PRIMARY[1], COLOR_PRIMARY[2]);
+                        pdf.setFontSize(9);
+                        pdf.text(`(${hotel.mealPlan})`, contentX + pdf.getStringUnitWidth(hotel.roomType) * 4.5 + 2, currentY);
+                    }
+
+                    // Dates (Bottom Right)
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(COLOR_PRICE[0], COLOR_PRICE[1], COLOR_PRICE[2]);
+                    pdf.text(`${hotel.checkIn}  —  ${hotel.checkOut}`, pageWidth - margin - 8, currentY, { align: 'right' });
+
+                    // Label above dates
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(150, 150, 150);
+                    pdf.text('CHECK-IN — CHECK-OUT', pageWidth - margin - 8, currentY - 6, { align: 'right' });
+
+                    y += cardHeight + 8;
+                });
+                y += 5;
+            }
+
+            // --- GUEST REVIEWS (Moved after Hotels) ---
+            if (selectedPackage.Guest_Reviews && selectedPackage.Guest_Reviews.length > 0) {
+                // Check if we need a new page for reviews
+                if (y > pageHeight - 60) {
+                    pdf.addPage();
+                    addFooter(6);
+                    await addLogo();
+                    y = margin + 15;
+                } else {
+                    y += 10; // Spacing from previous section
+                }
+
+                pdf.setFont('helvetica', 'bold');
+                pdf.setFontSize(20);
+                pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                pdf.text('Guest Reviews', margin, y);
+                y += 12;
+
+                selectedPackage.Guest_Reviews.slice(0, 3).forEach(review => {
+                    // Review Card
+                    if (y > pageHeight - 40) {
+                        pdf.addPage();
+                        addFooter(6);
+                        addLogo();
+                        y = margin + 20;
+                    }
+
+                    pdf.setFillColor(250, 250, 252);
+                    pdf.roundedRect(margin, y, pageWidth - (margin * 2), 25, 3, 3, 'F');
+
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(10);
+                    pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+                    pdf.text(review.name, margin + 5, y + 8);
+
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(9);
+                    pdf.setTextColor(100, 100, 100);
+                    pdf.text(review.date, pageWidth - margin - 5, y + 8, { align: 'right' });
+
+                    pdf.setTextColor(60, 60, 60);
+                    const contentLines = pdf.splitTextToSize(review.content, pageWidth - (margin * 2) - 10);
+                    pdf.text(contentLines, margin + 5, y + 16);
+
+                    y += 25 + 5;
+                });
+            }
+
+            // --- FAQs ---
+            pdf.addPage();
+            addFooter(6);
+            await addLogo();
+            y = margin + 15;
+
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(20);
+            pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
+            pdf.text('Frequently Asked Questions', margin, y);
+            y += 12;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(10);
+            (selectedPackage.FAQ_Items || []).slice(0, 5).forEach((faq: any) => {
+                pdf.setFont('helvetica', 'bold');
                 pdf.setTextColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
                 pdf.text(`Q: ${faq.question}`, margin, y);
                 y += 6;
-
                 pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(10);
                 pdf.setTextColor(60, 60, 60);
                 const answerLines = pdf.splitTextToSize(`A: ${faq.answer}`, pageWidth - (margin * 2));
                 pdf.text(answerLines, margin, y);
                 y += (answerLines.length * 5) + 8;
-            }
+            });
 
-            // --- FINAL PAGE CTA ---
+            // --- FINAL CTA ---
             y += 15;
-            if (y > pageHeight - 40) {
-                pdf.addPage();
-                addFooter(5);
-                await addLogo();
-                y = margin + 25;
-            }
+            if (y > pageHeight - 40) { pdf.addPage(); addFooter(4); await addLogo(); y = margin + 25; }
 
-            // Add CTA Buttons at the end
             const btnW = 50;
             const btnH = 12;
             const gap = 10;
             const startX = (pageWidth - (btnW * 2 + gap)) / 2;
 
             // WhatsApp Button
-            pdf.setFillColor(37, 211, 102); // WhatsApp Green
+            pdf.setFillColor(37, 211, 102);
             pdf.roundedRect(startX, y, btnW, btnH, 3, 3, 'F');
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(11);
             pdf.setFont('helvetica', 'bold');
             pdf.text('WhatsApp Us', startX + (btnW / 2), y + 8, { align: 'center' });
-
-            const waLink = `https://wa.me/919929962350?text=${encodeURIComponent(`Hi, here is the custom itinerary for ${formData.clientName}. Let's discuss!`)}`;
-            pdf.link(startX, y, btnW, btnH, { url: waLink });
+            pdf.link(startX, y, btnW, btnH, { url: `https://wa.me/919929962350?text=${encodeURIComponent(`Hi, here is the custom itinerary for ${formData.clientName}.`)}` });
 
             // Call Button
-            pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]); // Dark
+            pdf.setFillColor(COLOR_INK[0], COLOR_INK[1], COLOR_INK[2]);
             pdf.roundedRect(startX + btnW + gap, y, btnW, btnH, 3, 3, 'F');
             pdf.setTextColor(255, 255, 255);
             pdf.text('Call Us', startX + btnW + gap + (btnW / 2), y + 8, { align: 'center' });
             pdf.link(startX + btnW + gap, y, btnW, btnH, { url: 'tel:+919929962350' });
 
-            pdf.save(`${formData.clientName.replace(/\s+/g, '_')}_Itinerary.pdf`);
 
-            // Save customer itinerary record to Firestore for CRM
+            // Save
+            const fileName = `${formData.clientName.replace(/\s+/g, '_')}_Itinerary.pdf`;
+            pdf.save(fileName);
+
+            // Log to CRM (existing logic)
             try {
                 const now = new Date().toISOString();
                 const customerRecord = {
@@ -885,9 +1022,10 @@ export default function ItineraryGenerator() {
                 console.error('Failed to save customer record:', saveError);
             }
 
+
         } catch (error) {
-            console.error("PDF Generation Error", error);
-            alert("Failed to generate PDF");
+            console.error('Error generating PDF:', error);
+            alert('Failed to generate PDF. Please try again.');
         } finally {
             setLoading(false);
         }
