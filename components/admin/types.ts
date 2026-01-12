@@ -123,6 +123,7 @@ export interface User {
     displayName?: string
     photoURL?: string
     role: 'user' | 'admin'
+    permissions?: TabType[]
     createdAt: string
     lastLogin?: string
     isActive: boolean

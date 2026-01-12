@@ -39,6 +39,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   isAdmin: boolean
+  permissions: string[]
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !auth) {
@@ -64,24 +66,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user)
-      // Check if user is admin from Firestore
       if (user && user.email) {
         try {
           const dbInstance = getDbInstance()
           const userDoc = await getDoc(doc(dbInstance, 'users', user.uid))
-          
+
           if (userDoc.exists()) {
             const userData = userDoc.data()
             const userRole = userData.role || 'user'
             setIsAdmin(userRole === 'admin')
-            console.log('Admin check from Firestore:', { email: user.email, role: userRole, isAdmin: userRole === 'admin' })
+            setPermissions(userData.permissions || [])
+            console.log('Admin check from Firestore:', {
+              email: user.email,
+              role: userRole,
+              isAdmin: userRole === 'admin',
+              permissions: userData.permissions
+            })
           } else {
             // Fallback: Check if email contains 'admin' or matches specific admin emails
             const adminEmails = ['admin@travelzada.com', 'admin@example.com']
             const emailLower = user.email.toLowerCase()
-            const isAdminEmail = adminEmails.includes(emailLower) || 
-                                emailLower.split('@')[0].includes('admin')
+            const isAdminEmail = adminEmails.includes(emailLower) ||
+              emailLower.split('@')[0].includes('admin')
             setIsAdmin(isAdminEmail)
+            setPermissions([]) // No specific permissions for fallback admin
             console.log('Admin check (fallback):', { email: user.email, isAdmin: isAdminEmail })
           }
         } catch (error) {
@@ -89,12 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Fallback: Check if email contains 'admin' or matches specific admin emails
           const adminEmails = ['admin@travelzada.com', 'admin@example.com']
           const emailLower = user.email.toLowerCase()
-          const isAdminEmail = adminEmails.includes(emailLower) || 
-                              emailLower.split('@')[0].includes('admin')
+          const isAdminEmail = adminEmails.includes(emailLower) ||
+            emailLower.split('@')[0].includes('admin')
           setIsAdmin(isAdminEmail)
+          setPermissions([])
         }
       } else {
         setIsAdmin(false)
+        setPermissions([])
       }
       setLoading(false)
     })
@@ -105,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signup(email: string, password: string) {
     const authInstance = getAuthInstance()
     const userCredential = await createUserWithEmailAndPassword(authInstance, email, password)
-    
+
     // Create user document in Firestore
     if (userCredential.user) {
       const userDoc = {
@@ -115,8 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: 'user' as const,
         createdAt: serverTimestamp(),
         isActive: true,
+        permissions: [] as string[]
       }
-      
+
       try {
         const dbInstance = getDbInstance()
         await setDoc(doc(dbInstance, 'users', userCredential.user.uid), userDoc)
@@ -129,13 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     const authInstance = getAuthInstance()
     const userCredential = await signInWithEmailAndPassword(authInstance, email, password)
-    
+
     // Update last login in Firestore
     if (userCredential.user) {
       const dbInstance = getDbInstance()
       const userRef = doc(dbInstance, 'users', userCredential.user.uid)
       const userSnap = await getDoc(userRef)
-      
+
       if (userSnap.exists()) {
         await setDoc(userRef, {
           lastLogin: serverTimestamp(),
@@ -150,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           isActive: true,
+          permissions: [] as string[]
         }
         await setDoc(userRef, userDoc)
       }
@@ -165,13 +177,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authInstance = getAuthInstance()
     const provider = new GoogleAuthProvider()
     const userCredential = await signInWithPopup(authInstance, provider)
-    
+
     // Create or update user document in Firestore
     if (userCredential.user) {
       const dbInstance = getDbInstance()
       const userRef = doc(dbInstance, 'users', userCredential.user.uid)
       const userSnap = await getDoc(userRef)
-      
+
       if (!userSnap.exists()) {
         // Create new user document
         const userDoc = {
@@ -182,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
           isActive: true,
+          permissions: [] as string[]
         }
         await setDoc(userRef, userDoc)
       } else {
@@ -209,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithGoogle,
     resetPassword,
     isAdmin,
+    permissions,
   }
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>

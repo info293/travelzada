@@ -159,6 +159,7 @@ interface User {
   createdAt: string
   lastLogin?: string
   isActive: boolean
+  permissions?: TabType[]
 }
 
 type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records'
@@ -219,7 +220,7 @@ interface Lead {
 }
 
 export default function AdminDashboard() {
-  const { currentUser, isAdmin, loading } = useAuth()
+  const { currentUser, isAdmin, loading, permissions } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
   const [packages, setPackages] = useState<DestinationPackage[]>([])
@@ -351,6 +352,13 @@ export default function AdminDashboard() {
       })
   }
 
+  const hasPermission = (tab: TabType) => {
+    if (isAdmin) return true
+    if (!permissions) return false
+    // @ts-ignore - Permission strings from context match TabType
+    return permissions.includes(tab)
+  }
+
   // Helper to render sort arrow
   const SortIcon = ({ column }: { column: string }) => {
     if (sortConfig.key !== column) return <span className="inline-block w-4" />
@@ -362,16 +370,24 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (!loading && (!currentUser || !isAdmin)) {
-      router.push('/')
+    if (!loading) {
+      if (!currentUser) {
+        router.push('/')
+        return
+      }
+      // Allow access if admin OR if user has any permissions
+      const hasAccess = isAdmin || (permissions && permissions.length > 0)
+      if (!hasAccess) {
+        router.push('/')
+      }
     }
-  }, [currentUser, isAdmin, loading, router])
+  }, [currentUser, isAdmin, permissions, loading, router])
 
   useEffect(() => {
-    if (isAdmin) {
+    if (isAdmin || (permissions && permissions.length > 0)) {
       fetchAllData()
     }
-  }, [isAdmin, activeTab])
+  }, [isAdmin, permissions, activeTab])
 
   const fetchAllData = async () => {
     setIsLoading(true)
@@ -462,6 +478,7 @@ export default function AdminDashboard() {
           createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
           lastLogin: data.lastLogin?.toDate?.()?.toISOString() || data.lastLogin || '',
           isActive: data.isActive !== undefined ? data.isActive : true,
+          permissions: data.permissions || [],
         } as User)
       })
 
@@ -1714,41 +1731,7 @@ export default function AdminDashboard() {
     setBlogBulkImportJson(JSON.stringify(sample, null, 2))
   }
 
-  const handleUpdateUserRole = async (userId: string, newRole: 'user' | 'admin', currentRole: 'user' | 'admin') => {
-    if (!userId) {
-      alert('User ID is required')
-      return
-    }
 
-    if (newRole === currentRole) {
-      return // No change needed
-    }
-
-    if (!confirm(`Are you sure you want to change this user's role from ${currentRole} to ${newRole}?`)) {
-      return
-    }
-
-    try {
-      const dbInstance = getDbInstance()
-      const userRef = doc(dbInstance, 'users', userId)
-      await updateDoc(userRef, {
-        role: newRole,
-      })
-
-      // Refresh users list
-      await fetchUsers()
-
-      // If updating own role, show special message
-      if (userId === currentUser?.uid) {
-        alert(`Your role has been updated to ${newRole}. Please refresh the page or sign out and sign back in for the changes to take effect.`)
-      } else {
-        alert(`User role updated to ${newRole} successfully!`)
-      }
-    } catch (error) {
-      console.error('Error updating user role:', error)
-      alert(`Error updating user role: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
 
   const loadSampleTemplate = () => {
     const sample = [
@@ -1852,7 +1835,8 @@ export default function AdminDashboard() {
     )
   }
 
-  if (!isAdmin) {
+  const hasAccess = isAdmin || (permissions && permissions.length > 0)
+  if (!hasAccess) {
     return (
       <main className="min-h-screen bg-white">
         <Header />
@@ -1860,7 +1844,7 @@ export default function AdminDashboard() {
           <div className="text-center max-w-md">
             <div className="text-6xl mb-4">🔒</div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-            <p className="text-gray-600 mb-2">You need admin privileges to access this page.</p>
+            <p className="text-gray-600 mb-2">You need admin privileges or assigned permissions to access this page.</p>
             <p className="text-sm text-gray-500 mb-4">Logged in as: <strong>{currentUser?.email}</strong></p>
           </div>
         </div>
@@ -1931,7 +1915,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all">
+          <div
+            className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all cursor-pointer"
+            onClick={() => router.push('/admin/users')}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Users</p>
@@ -1963,283 +1950,305 @@ export default function AdminDashboard() {
         {/* Navigation Tabs - Modern Grid Layout */}
         <div className="mb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'dashboard'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-700'}`}>
-                  Dashboard
+            {hasPermission('dashboard') && (
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'dashboard'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'dashboard' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
                 </div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'dashboard' ? 'text-primary' : 'text-gray-700'}`}>
+                    Dashboard
+                  </div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('packages')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'packages'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'packages' ? 'text-primary' : 'text-gray-700'}`}>
-                  Packages
+            {hasPermission('packages') && (
+              <button
+                onClick={() => setActiveTab('packages')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'packages'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'packages' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{packages.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'packages' ? 'text-primary' : 'text-gray-700'}`}>
+                    Packages
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{packages.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('blogs')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'blogs'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'blogs' ? 'text-primary' : 'text-gray-700'}`}>
-                  Blogs
+            {hasPermission('blogs') && (
+              <button
+                onClick={() => setActiveTab('blogs')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'blogs'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'blogs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{blogs.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'blogs' ? 'text-primary' : 'text-gray-700'}`}>
+                    Blogs
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{blogs.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('destinations')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'destinations'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'destinations' ? 'text-primary' : 'text-gray-700'}`}>
-                  Destinations
+            {hasPermission('destinations') && (
+              <button
+                onClick={() => setActiveTab('destinations')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'destinations'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'destinations' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{destinations.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'destinations' ? 'text-primary' : 'text-gray-700'}`}>
+                    Destinations
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{destinations.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'users'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'users' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'users' ? 'text-primary' : 'text-gray-700'}`}>
-                  Users
+            {hasPermission('users') && (
+              <button
+                onClick={() => router.push('/admin/users')}
+                className="group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{users.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-700">
+                    Users
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{users.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('leads')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'leads'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'leads' ? 'text-primary' : 'text-gray-700'}`}>
-                  Leads
+            {hasPermission('leads') && (
+              <button
+                onClick={() => setActiveTab('leads')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'leads'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'leads' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{leads.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'leads' ? 'text-primary' : 'text-gray-700'}`}>
+                    Leads
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{leads.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('contacts')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'contacts'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'contacts' ? 'text-primary' : 'text-gray-700'}`}>
-                  Contact
+            {hasPermission('contacts') && (
+              <button
+                onClick={() => setActiveTab('contacts')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'contacts'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'contacts' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{contactMessages.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'contacts' ? 'text-primary' : 'text-gray-700'}`}>
+                    Contact
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{contactMessages.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('subscribers')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'subscribers'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'subscribers' ? 'text-primary' : 'text-gray-700'}`}>
-                  Newsletter
+            {hasPermission('subscribers') && (
+              <button
+                onClick={() => setActiveTab('subscribers')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'subscribers'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'subscribers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{subscribers.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'subscribers' ? 'text-primary' : 'text-gray-700'}`}>
+                    Newsletter
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{subscribers.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('careers')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'careers'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-5.196 0-8.07-.745-9-1.745M21 13.255v-2.51A23.931 23.931 0 0112 8c-5.196 0-8.07.745-9 1.745m18 0v6.51A23.931 23.931 0 0112 21c-5.196 0-8.07-.745-9-1.745m0 0v-6.51M3 13.255A23.931 23.931 0 0112 15c5.196 0 8.07-.745 9-1.745" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'careers' ? 'text-primary' : 'text-gray-700'}`}>
-                  Careers
+            {hasPermission('careers') && (
+              <button
+                onClick={() => setActiveTab('careers')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'careers'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'careers' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-5.196 0-8.07-.745-9-1.745M21 13.255v-2.51A23.931 23.931 0 0112 8c-5.196 0-8.07.745-9 1.745m18 0v6.51A23.931 23.931 0 0112 21c-5.196 0-8.07-.745-9-1.745m0 0v-6.51M3 13.255A23.931 23.931 0 0112 15c5.196 0 8.07-.745 9-1.745" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{jobApplications.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'careers' ? 'text-primary' : 'text-gray-700'}`}>
+                    Careers
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{jobApplications.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('testimonials')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'testimonials'
-                ? 'border-primary bg-primary/5 shadow-md'
-                : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'testimonials' ? 'text-primary' : 'text-gray-700'}`}>
-                  Testimonials
+            {hasPermission('testimonials') && (
+              <button
+                onClick={() => setActiveTab('testimonials')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'testimonials'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'testimonials' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">{testimonials.length}</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'testimonials' ? 'text-primary' : 'text-gray-700'}`}>
+                    Testimonials
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{testimonials.length}</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('ai-generator')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'ai-generator'
-                ? 'border-purple-500 bg-purple-50 shadow-md'
-                : 'border-gray-200 bg-white hover:border-purple-400 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'ai-generator' ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'ai-generator' ? 'text-purple-600' : 'text-gray-700'}`}>
-                  AI Generator
+            {hasPermission('ai-generator') && (
+              <button
+                onClick={() => setActiveTab('ai-generator')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'ai-generator'
+                  ? 'border-purple-500 bg-purple-50 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-purple-400 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'ai-generator' ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">New</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'ai-generator' ? 'text-purple-600' : 'text-gray-700'}`}>
+                    AI Generator
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">New</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('create-itinerary')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'create-itinerary'
-                ? 'border-indigo-500 bg-indigo-50 shadow-md'
-                : 'border-gray-200 bg-white hover:border-indigo-400 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'create-itinerary' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'create-itinerary' ? 'text-indigo-600' : 'text-gray-700'}`}>
-                  Itinerary
+            {hasPermission('create-itinerary') && (
+              <button
+                onClick={() => setActiveTab('create-itinerary')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'create-itinerary'
+                  ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-indigo-400 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'create-itinerary' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">New</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'create-itinerary' ? 'text-indigo-600' : 'text-gray-700'}`}>
+                    Itinerary
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">New</div>
+                </div>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('customer-records')}
-              className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'customer-records'
-                ? 'border-emerald-500 bg-emerald-50 shadow-md'
-                : 'border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm'
-                }`}
-            >
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'customer-records' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-600'
-                }`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <div className={`text-sm font-semibold ${activeTab === 'customer-records' ? 'text-emerald-600' : 'text-gray-700'}`}>
-                  CRM
+            {hasPermission('customer-records') && (
+              <button
+                onClick={() => setActiveTab('customer-records')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'customer-records'
+                  ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'customer-records' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
                 </div>
-                <div className="text-xs text-gray-500 mt-0.5">Records</div>
-              </div>
-            </button>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'customer-records' ? 'text-emerald-600' : 'text-gray-700'}`}>
+                    CRM
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">Records</div>
+                </div>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && hasPermission('dashboard') && (
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Actions</h2>
@@ -2337,7 +2346,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Packages Tab - Keep existing package form and table */}
-        {activeTab === 'packages' && (
+        {activeTab === 'packages' && hasPermission('packages') && (
           <div className="space-y-6">
             {showForm && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -2580,7 +2589,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Blogs Tab */}
-        {activeTab === 'blogs' && (
+        {activeTab === 'blogs' && hasPermission('blogs') && (
           <div className="space-y-6">
             {showBlogForm && (
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -3298,7 +3307,7 @@ export default function AdminDashboard() {
 
         {/* Destinations Tab */}
         {
-          activeTab === 'destinations' && (
+          activeTab === 'destinations' && hasPermission('destinations') && (
             <div className="space-y-6">
               {showDestinationForm && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -3716,224 +3725,11 @@ export default function AdminDashboard() {
         }
 
         {/* Users Tab */}
-        {
-          activeTab === 'users' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-gray-900">All Users ({users.length})</h2>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search users..."
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
-                        className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary w-64"
-                      />
-                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                    >
-                      <option value="all">All Roles</option>
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={fetchUsers}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
-                    >
-                      🔄 Refresh
-                    </button>
-                    <button
-                      onClick={async () => {
-                        try {
-                          if (!currentUser) {
-                            alert('Please log in first to sync your user data.')
-                            return
-                          }
 
-                          // Create/update current user's document
-                          const dbInstance = getDbInstance()
-                          const { doc, setDoc, serverTimestamp } = await import('firebase/firestore')
-                          const userRef = doc(dbInstance, 'users', currentUser.uid)
-                          await setDoc(userRef, {
-                            email: currentUser.email,
-                            displayName: currentUser.displayName || '',
-                            photoURL: currentUser.photoURL || '',
-                            role: isAdmin ? 'admin' : 'user',
-                            createdAt: serverTimestamp(),
-                            lastLogin: serverTimestamp(),
-                            isActive: true,
-                          }, { merge: true })
-
-                          alert('User document created/updated! Refreshing...')
-                          fetchUsers()
-                        } catch (error: any) {
-                          console.error('Error syncing user:', error)
-                          alert(`Error syncing user: ${error.message}. Check console for details.`)
-                        }
-                      }}
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                    >
-                      + Sync Current User
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('displayName')}
-                        >
-                          User <SortIcon column="displayName" />
-                        </th>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('email')}
-                        >
-                          Email <SortIcon column="email" />
-                        </th>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('role')}
-                        >
-                          Role <SortIcon column="role" />
-                        </th>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('isActive')}
-                        >
-                          Status <SortIcon column="isActive" />
-                        </th>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('createdAt')}
-                        >
-                          Joined <SortIcon column="createdAt" />
-                        </th>
-                        <th
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
-                          onClick={() => handleSort('lastLogin')}
-                        >
-                          Last Login <SortIcon column="lastLogin" />
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {getSortedAndFilteredData(users, ['displayName', 'email'], statusFilter === 'all' ? undefined : 'role').map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              {user.photoURL ? (
-                                <img src={user.photoURL} alt={user.email} className="w-10 h-10 rounded-full" />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <span className="text-primary font-semibold">
-                                    {user.email?.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              )}
-                              <div>
-                                <div className="font-medium text-gray-900">{user.displayName || 'User'}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                              {user.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {new Date(user.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <select
-                                value={user.role}
-                                onChange={(e) => {
-                                  const newRole = e.target.value as 'user' | 'admin'
-                                  handleUpdateUserRole(user.id!, newRole, user.role)
-                                }}
-                                className={`text-xs px-3 py-1.5 border rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-primary transition-colors ${user.role === 'admin'
-                                  ? 'bg-purple-100 text-purple-800 border-purple-300'
-                                  : 'bg-gray-100 text-gray-800 border-gray-300'
-                                  }`}
-                              >
-                                <option value="user">User</option>
-                                <option value="admin">Admin</option>
-                              </select>
-                              {user.id === currentUser?.uid && (
-                                <span className="text-xs text-gray-500 italic">(You)</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {users.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="text-gray-500 mb-4">No users found in Firestore</div>
-                      <div className="text-sm text-gray-400 mb-4">
-                        Users are automatically created when they sign up. If you don't see any users:
-                      </div>
-                      <div className="text-sm text-gray-400 space-y-1">
-                        <p>1. Make sure users have signed up after the user creation feature was added</p>
-                        <p>2. Click "Sync Current User" to create your own user document</p>
-                        <p>3. Check the browser console for any errors</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Info Box */}
-              <div className="space-y-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800 font-semibold mb-2">👤 Role Management:</p>
-                  <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
-                    <li>Use the dropdown in the "Actions" column to change user roles</li>
-                    <li>Users with "Admin" role can access the admin dashboard and manage content</li>
-                    <li>If you change your own role, please refresh the page or sign out and sign back in for changes to take effect</li>
-                  </ul>
-                </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800 font-semibold mb-2">💡 Note:</p>
-                  <p className="text-xs text-yellow-700">
-                    User documents are created automatically when users sign up. If you signed up before this feature was added,
-                    click "Sync Current User" to create your user document. You can also check the browser console (F12) for any errors.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )
-        }
 
         {/* Newsletter Subscribers Tab */}
         {
-          activeTab === 'subscribers' && (
+          activeTab === 'subscribers' && hasPermission('subscribers') && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -4068,7 +3864,7 @@ export default function AdminDashboard() {
 
         {/* Contact Messages Tab */}
         {
-          activeTab === 'contacts' && (
+          activeTab === 'contacts' && hasPermission('contacts') && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -4285,7 +4081,7 @@ export default function AdminDashboard() {
 
         {/* Leads Tab */}
         {
-          activeTab === 'leads' && (
+          activeTab === 'leads' && hasPermission('leads') && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -4530,7 +4326,7 @@ export default function AdminDashboard() {
 
         {/* Job Applications Tab */}
         {
-          activeTab === 'careers' && (
+          activeTab === 'careers' && hasPermission('careers') && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -4771,7 +4567,7 @@ export default function AdminDashboard() {
 
         {/* Testimonials Tab */}
         {
-          activeTab === 'testimonials' && (
+          activeTab === 'testimonials' && hasPermission('testimonials') && (
             <div className="space-y-6">
               {showTestimonialForm && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
@@ -4993,7 +4789,7 @@ export default function AdminDashboard() {
         }
 
         {/* AI Package Generator Tab */}
-        {activeTab === 'ai-generator' && (
+        {activeTab === 'ai-generator' && hasPermission('ai-generator') && (
           <AIPackageGenerator
             onImportPackages={async (generatedPackages) => {
               const dbInstance = getDbInstance();
@@ -5119,12 +4915,12 @@ export default function AdminDashboard() {
         )}
 
         {/* Create Itinerary Tab */}
-        {activeTab === 'create-itinerary' && (
+        {activeTab === 'create-itinerary' && hasPermission('create-itinerary') && (
           <ItineraryGenerator />
         )}
 
         {/* Customer Records CRM Tab */}
-        {activeTab === 'customer-records' && (
+        {activeTab === 'customer-records' && hasPermission('customer-records') && (
           <CustomerRecordsManager />
         )}
       </div >
