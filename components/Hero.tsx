@@ -1,6 +1,81 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { collection, getDocs, query, limit } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
+
+interface HeroSlide {
+  image: string
+  link: string
+  alt: string
+}
 
 export default function Hero() {
+  const [slides, setSlides] = useState<HeroSlide[]>([])
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0)
+
+  // Default fallback slide
+  const defaultSlide: HeroSlide = {
+    image: '/images/home/homepage.jpg',
+    link: '/destinations',
+    alt: 'Travel destination'
+  }
+
+  const currentSlide = slides.length > 0 ? slides[currentSlideIndex] : defaultSlide
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      if (typeof window === 'undefined' || !db) return
+
+      try {
+        const packagesRef = collection(db, 'packages')
+        const packagesSnapshot = await getDocs(packagesRef)
+
+        const validSlides: HeroSlide[] = []
+
+        packagesSnapshot.forEach((doc) => {
+          const data = doc.data()
+          if (data.Primary_Image_URL) {
+            const cleanUrl = data.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+            if (cleanUrl) {
+              const destinationSlug = (data.Destination_Name || '').split(',')[0].trim().toLowerCase()
+              const packageId = data.Destination_ID || doc.id || 'package'
+
+              validSlides.push({
+                image: cleanUrl,
+                link: `/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageId)}`,
+                alt: data.Destination_Name || 'Travel destination'
+              })
+            }
+          }
+        })
+
+        if (validSlides.length > 0) {
+          // Shuffle the array to get random start order
+          const shuffled = validSlides.sort(() => 0.5 - Math.random())
+          setSlides(shuffled)
+        }
+      } catch (error) {
+        console.error('Error fetching hero images:', error)
+      }
+    }
+
+    fetchPackages()
+  }, [])
+
+  // Auto-rotation effect
+  useEffect(() => {
+    if (slides.length <= 1) return
+
+    const intervalId = setInterval(() => {
+      setCurrentSlideIndex((prevIndex) => (prevIndex + 1) % slides.length)
+    }, 10000) // 10 seconds
+
+    return () => clearInterval(intervalId)
+  }, [slides.length])
+
+
   return (
     <section className="w-full bg-gradient-to-b from-cream via-white to-cream pt-10 pb-20 relative overflow-hidden">
       {/* Decorative elements */}
@@ -64,12 +139,14 @@ export default function Hero() {
             {/* Glow effect */}
             <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
 
-            <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
-              <img
-                src="/images/home/homepage.jpg"
-                alt="Beach resort"
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
+            <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group-hover:shadow-3xl transition-shadow duration-300">
+              <Link href={currentSlide.link} className="block w-full h-full cursor-pointer">
+                <img
+                  src={currentSlide.image}
+                  alt={currentSlide.alt}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+              </Link>
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
 
               {/* Shine effect */}

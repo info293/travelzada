@@ -23,6 +23,7 @@ import ViewModal from '@/components/admin/ViewModal'
 import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
 import ItineraryGenerator from '@/components/admin/ItineraryGenerator'
 import CustomerRecordsManager from '@/components/admin/CustomerRecordsManager'
+
 import type { ReactNode } from 'react'
 
 interface DestinationPackage {
@@ -162,7 +163,7 @@ interface User {
   permissions?: TabType[]
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records' | 'jobs'
 
 interface Testimonial {
   id?: string
@@ -219,6 +220,17 @@ interface Lead {
   notes?: string
 }
 
+interface Job {
+  id?: string
+  title: string
+  department: string
+  location: string
+  type: string
+  description: string
+  status: 'active' | 'closed'
+  createdAt: any
+}
+
 export default function AdminDashboard() {
   const { currentUser, isAdmin, loading, permissions } = useAuth()
   const router = useRouter()
@@ -248,6 +260,8 @@ export default function AdminDashboard() {
   const [showTestimonialForm, setShowTestimonialForm] = useState(false)
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null)
   const [testimonialFormData, setTestimonialFormData] = useState<Partial<Testimonial>>({})
+  const [jobs, setJobs] = useState<Job[]>([])
+
   const [showDestinationForm, setShowDestinationForm] = useState(false)
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
   const [destinationFormData, setDestinationFormData] = useState<Partial<Destination>>({})
@@ -402,6 +416,7 @@ export default function AdminDashboard() {
         fetchLeads(),
         fetchJobApplications(),
         fetchTestimonials(),
+        fetchJobs(),
       ])
     } finally {
       setIsLoading(false)
@@ -707,6 +722,45 @@ export default function AdminDashboard() {
       setTestimonials(testimonialsData)
     } catch (error) {
       console.error('Error fetching testimonials:', error)
+    }
+  }
+
+  const fetchJobs = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      const q = query(collection(dbInstance, 'jobs'), orderBy('createdAt', 'desc'))
+      const querySnapshot = await getDocs(q)
+      const jobsData: Job[] = []
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        jobsData.push({
+          id: doc.id,
+          title: data.title,
+          department: data.department,
+          location: data.location,
+          type: data.type,
+          description: data.description,
+          status: data.status,
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+        })
+      })
+      setJobs(jobsData)
+    } catch (error) {
+      console.error('Error fetching jobs:', error)
+    }
+  }
+
+
+
+  const handleDeleteJob = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this job?')) return
+    try {
+      const dbInstance = getDbInstance()
+      await deleteDoc(doc(dbInstance, 'jobs', id))
+      await fetchJobs()
+    } catch (error) {
+      console.error('Error deleting job:', error)
+      alert('Error deleting job. Please try again.')
     }
   }
 
@@ -2146,9 +2200,32 @@ export default function AdminDashboard() {
                 </div>
                 <div className="text-center">
                   <div className={`text-sm font-semibold ${activeTab === 'careers' ? 'text-primary' : 'text-gray-700'}`}>
-                    Careers
+                    Applications
                   </div>
                   <div className="text-xs text-gray-500 mt-0.5">{jobApplications.length}</div>
+                </div>
+              </button>
+            )}
+
+            {hasPermission('jobs') && (
+              <button
+                onClick={() => router.push('/admin/jobs')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'jobs'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'jobs' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'
+                  }`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-5.196 0-8.07-.745-9-1.745M21 13.255v-2.51A23.931 23.931 0 0112 8c-5.196 0-8.07.745-9 1.745m18 0v6.51A23.931 23.931 0 0112 21c-5.196 0-8.07-.745-9-1.745m0 0v-6.51M3 13.255A23.931 23.931 0 0112 15c5.196 0 8.07-.745 9-1.745" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'jobs' ? 'text-primary' : 'text-gray-700'}`}>
+                    Post Jobs
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">{jobs.length}</div>
                 </div>
               </button>
             )}
@@ -4787,6 +4864,10 @@ export default function AdminDashboard() {
             </div>
           )
         }
+
+
+
+
 
         {/* AI Package Generator Tab */}
         {activeTab === 'ai-generator' && hasPermission('ai-generator') && (
