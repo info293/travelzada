@@ -193,6 +193,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   packageMatch?: DestinationPackage
+  recommendations?: DestinationPackage[]
 }
 
 interface ConversationAgentProps {
@@ -1314,10 +1315,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     return scored
   }, [destinationSpecificPackages, tripInfo, userFeedback])
 
-  const suggestedPackages = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
-  const showPackageSuggestions = Boolean(
-    currentQuestion === 'complete' && suggestedPackages.length > 0 && aiResponseComplete
-  )
 
   // Scroll to edit form when it opens
   useEffect(() => {
@@ -1331,12 +1328,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     }
   }, [isEditMode])
 
-  useEffect(() => {
-    if (showPackageSuggestions && !tripDetailsAutoOpenedRef.current) {
-      tripDetailsAutoOpenedRef.current = true
-      onTripDetailsRequest?.()
-    }
-  }, [showPackageSuggestions, onTripDetailsRequest])
 
   const generateRecommendation = useCallback(async () => {
     const currentInfo = tripInfoRef.current
@@ -1371,7 +1362,13 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       ? destinations.map(d => d.name)
       : []
 
-    await sendAssistantPrompt(prompt, { packageMatch: bestMatch }, availableDests)
+    // Pass the top 2 suggestions to be rendered with the message
+    const suggestions = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
+
+    await sendAssistantPrompt(prompt, {
+      packageMatch: bestMatch,
+      recommendations: suggestions
+    }, availableDests)
 
     // Mark AI response as complete after the message is sent
     setAiResponseComplete(true)
@@ -1668,8 +1665,27 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
           // Find the exact destination name from available destinations (for proper capitalization)
           const exactDest = availableDests.find(d => d.toLowerCase() === destLower) || normalizedDest
-          updates.destination = exactDest
-          hasUpdates = true
+
+          // CRITICAL FIX: If we found a destination, and it's different from current, OR we are in 'complete' state
+          // we MUST reset if it's a clear intent change.
+          if (exactDest !== latestInfo.destination || currentQuestion === 'complete') {
+            console.log('[AI Extraction] New destination detected, resetting flow:', exactDest)
+            // Update destination
+            updates.destination = exactDest
+            hasUpdates = true
+
+            // If we were complete, or switching destinations, reset other fields that might not be relevant anymore
+            // unless user explicitly said "same dates" etc. (which would be handled by other extractors)
+            if (currentQuestion === 'complete' || exactDest !== latestInfo.destination) {
+              // Reset flow to date question
+              setCurrentQuestion('date')
+              // We keep travelType/budget/hotelType as they might be user preferences that persist
+              // But we definitely need to re-verify dates and structure
+            }
+          } else {
+            updates.destination = exactDest
+            hasUpdates = true
+          }
           // console.log('[AI Extraction] Destination extracted and normalized:', updates.destination)
         }
       }
@@ -2152,36 +2168,123 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         {/* Messages */}
         <div className="p-4 md:p-6 space-y-3 md:space-y-4">
           {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              {message.role === 'assistant' && (
-                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-              )}
-              {message.role === 'assistant' && message.packageMatch ? (
-                <div className="max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
-                  <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
-                </div>
-              ) : (
-                <div
-                  className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                    : 'bg-gray-50 border border-gray-100 text-gray-800'
-                    }`}
-                >
-                  <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
-                </div>
-              )}
-              {message.role === 'user' && (
-                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
+            <div key={index} className="flex flex-col gap-2 w-full">
+              <div
+                className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                )}
+                {message.role === 'assistant' && message.packageMatch ? (
+                  <div className="max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
+                    <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                  </div>
+                ) : (
+                  <div
+                    className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                      : 'bg-gray-50 border border-gray-100 text-gray-800'
+                      }`}
+                  >
+                    <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                  </div>
+                )}
+                {message.role === 'user' && (
+                  <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              {/* Render Recommended Packages if present */}
+              {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
+                <div className="pl-0 md:pl-11 w-full mt-2">
+                  <div className="bg-gray-50 rounded-xl p-3 md:p-4 border border-gray-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Recommended for you</p>
+                        <p className="text-[10px] text-gray-500">Based on your preferences</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 w-full">
+                      {message.recommendations.map((pkg) => {
+                        const pkgAny = pkg as any
+                        const imageUrl = pkgAny.Primary_Image_URL
+                          ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                          : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+
+                        const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
+                        const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
+                        const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
+
+                        return (
+                          <div
+                            key={pkgAny.Destination_ID || pkgAny.id}
+                            className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-md transition-all w-full"
+                          >
+                            <div className="flex flex-col sm:flex-row h-auto sm:h-32">
+                              <div className="relative w-full sm:w-32 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
+                                <img
+                                  src={imageUrl}
+                                  alt={pkgAny.Destination_Name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 p-3 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex justify-between items-start gap-2">
+                                    <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{pkgAny.Destination_Name}</h4>
+                                    <span className="text-xs font-bold text-primary whitespace-nowrap">{pkgAny.Price_Range_INR}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 mb-2">
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-md font-medium">{pkgAny.Duration}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium">{pkgAny.Star_Category}</span>
+                                  </div>
+                                  <p className="text-[10px] text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
+
+                                  {/* Highlights Section */}
+                                  {(pkgAny.Highlights && (Array.isArray(pkgAny.Highlights) ? pkgAny.Highlights.length > 0 : typeof pkgAny.Highlights === 'string')) && (
+                                    <div className="mt-2 bg-purple-50/50 rounded-lg p-2 border border-purple-100/50">
+                                      <p className="text-[10px] font-semibold text-purple-900 mb-1.5 flex items-center gap-1">
+                                        <span className="text-xs">✨</span> Highlights
+                                      </p>
+                                      <ul className="space-y-1">
+                                        {(Array.isArray(pkgAny.Highlights)
+                                          ? pkgAny.Highlights
+                                          : String(pkgAny.Highlights).split(',')
+                                        ).slice(0, 3).map((highlight: string, idx: number) => (
+                                          <li key={idx} className="text-[10px] text-purple-800 flex items-start gap-1.5">
+                                            <span className="mt-1 w-1 h-1 rounded-full bg-purple-400 flex-shrink-0"></span>
+                                            <span className="line-clamp-1 leading-tight">{highlight.trim()}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                                <Link
+                                  href={packageUrl}
+                                  className="mt-2 text-xs font-semibold text-primary hover:text-purple-700 transition-colors flex items-center gap-1 self-end sm:self-start"
+                                >
+                                  View Details
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2228,7 +2331,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                     }}
                     className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-xs md:text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
                   >
-                    I want to visit {dest.name}
+                    {dest.name}
                   </button>
                 ))
               ) : (
@@ -2241,7 +2344,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                   }}
                   className="px-4 py-2 bg-white border border-gray-200 hover:border-purple-300 hover:bg-purple-50 rounded-full text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
-                  I want to visit Bali
+                  Bali
                 </button>
               )}
             </div>
@@ -2507,129 +2610,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         )}
 
         {/* Recommended Packages */}
-        {showPackageSuggestions && (
-          <div className="border-t border-gray-100 bg-gray-50 px-3 md:px-4 py-4 md:py-6 overflow-hidden">
-            <div className="relative mb-4">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] md:text-[10px] font-semibold px-2 md:px-3 py-0.5 rounded-b-full shadow whitespace-nowrap">
-                we have two options
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
-              <div className="min-w-0">
-                <p className="text-xs md:text-sm font-semibold text-gray-800">Recommended Packages</p>
-                <p className="text-[10px] md:text-xs text-gray-500 truncate">
-                  Based on your answers for {tripInfo.destination}
-                </p>
-              </div>
-              <Link
-                href={`/destinations/${tripInfo.destination}`}
-                className="text-[10px] md:text-xs text-primary font-semibold hover:underline self-start sm:self-auto flex-shrink-0"
-              >
-                View all
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 w-full">
-              {suggestedPackages.map((pkg) => {
-                const pkgAny = pkg as any
-                // Extract image URL from Primary_Image_URL (handle markdown link format)
-                const imageUrl = pkgAny.Primary_Image_URL
-                  ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                  : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-
-                // Generate package URL - use Destination_ID or Firestore doc id
-                const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
-                const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
-                const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
-
-                return (
-                  <div
-                    key={pkgAny.Destination_ID || pkgAny.id}
-                    className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all w-full min-w-0"
-                  >
-                    {/* Package Image */}
-                    <div className="relative h-40 md:h-48 w-full overflow-hidden bg-gray-100">
-                      <img
-                        src={imageUrl}
-                        alt={pkgAny.Destination_Name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                        }}
-                      />
-                    </div>
-                    <div className="p-4 md:p-5 space-y-3 md:space-y-4">
-                      <div className="flex items-start justify-between gap-3 md:gap-4">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-base md:text-lg font-bold text-gray-900 truncate">{pkgAny.Destination_Name}</h3>
-                          <p className="text-xs md:text-sm text-gray-500">{pkgAny.Duration}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-xs md:text-sm font-semibold text-primary">{pkgAny.Price_Range_INR}</p>
-                          <p className="text-[10px] md:text-xs text-gray-500">
-                            {pkgAny.Budget_Category} • {pkgAny.Star_Category}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-xs md:text-sm text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
-                      <div className="grid grid-cols-2 gap-2 md:gap-3 text-xs text-gray-600">
-                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Mood</p>
-                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Mood}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Theme</p>
-                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Theme}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Travel Type</p>
-                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Travel_Type}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-2 md:p-3">
-                          <p className="text-[9px] md:text-[10px] uppercase text-gray-500">Stay</p>
-                          <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">{pkgAny.Stay_Type}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[10px] md:text-xs uppercase text-gray-500 mb-2">Key Inclusions</p>
-                        <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-gray-600">
-                          {(pkgAny.Inclusions?.split(',') || []).slice(0, 4).map((item: string, idx: number) => (
-                            <li key={idx} className="flex items-center gap-2">
-                              <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                              <span>{item.trim()}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <Link
-                        href={packageUrl}
-                        className="block w-full text-center rounded-xl border border-primary/40 bg-primary/5 px-3 md:px-4 py-2 text-xs md:text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
-                      >
-                        View Full Details
-                      </Link>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            {/* <button
-            type="button"
-            onClick={() => {
-              // Initialize edit form with current trip info
-              setEditTripInfo({ ...tripInfo })
-              setIsEditMode(true)
-            }}
-            className="mt-4 md:mt-6 w-full rounded-xl border border-dashed border-primary/40 bg-white px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-semibold text-primary transition-colors hover:bg-primary/5"
-          >
-            Edit Trip Details & Regenerate
-          </button> */}
-          </div>
-        )}
 
         {/* Edit Trip Details Form */}
         {isEditMode && (
@@ -2783,12 +2763,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           </div>
         )}
 
-        {!showPackageSuggestions && tripInfo.destination && tripInfo.travelType && (
-          <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600">
-            We’re still curating ready-made packages for {tripInfo.destination}. A travel expert will
-            review your preferences and follow up with personalized options.
-          </div>
-        )}
 
         {/* Image Analysis Result Display */}
         {imageAnalysisResult && (
