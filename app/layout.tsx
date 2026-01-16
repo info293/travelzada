@@ -72,9 +72,7 @@ export default function RootLayout({
               },
               sameAs: [
                 'https://facebook.com',
-                'https://x.com',
-                'https://instagram.com',
-                'https://youtube.com',
+                'https://linkedin.com',
               ],
             }),
           }}
