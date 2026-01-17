@@ -102,7 +102,7 @@ export default function Hero() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
-                href="/ai-planner"
+                href="/ai-trip-planner"
                 className="inline-flex items-center justify-center bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-10 py-5 rounded-full text-base font-semibold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:from-purple-700 hover:to-indigo-700 hover:scale-105 transition-all duration-300"
               >
                 START PLANNING WITH AI

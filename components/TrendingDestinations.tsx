@@ -31,7 +31,7 @@ export default function TrendingDestinations() {
               ></div>
               <div className="p-4">
                 <h3 className="text-lg font-semibold text-ink mb-2">{destination.name}</h3>
-                <a href="/ai-planner" className="text-primary font-semibold">
+                <a href="/ai-trip-planner" className="text-primary font-semibold">
                   Plan with AI →
                 </a>
               </div>

@@ -20,7 +20,7 @@ Travelzada revolutionizes how you explore the world. By combining advanced AI al
 
 ### 1. AI-Powered Itineraries
 Generate comprehensive, day-by-day travel plans tailored to your specific interests, budget, and timeline. Our AI considers millions of data points to ensure every moment of your trip is optimized.
-- **Try it now**: https://www.travelzada.com/ai-planner
+- **Try it now**: https://www.travelzada.com/ai-trip-planner
 
 ### 2. Exclusive Travel Packages
 Discover our hand-picked collection of premium travel packages. Each package is designed to offer unique experiences, luxury accommodations, and exceptional value.

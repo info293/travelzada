@@ -475,7 +475,7 @@ export default function ReviewsPage() {
                   Join thousands of satisfied travelers and let our AI planner create your personalized itinerary in minutes
                 </p>
                 <a
-                  href="/ai-planner"
+                  href="/ai-trip-planner"
                   className="inline-flex items-center justify-center bg-gradient-to-r from-primary to-primary-dark text-white px-12 py-5 rounded-full text-base font-bold shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 group"
                 >
                   PLAN MY TRIP

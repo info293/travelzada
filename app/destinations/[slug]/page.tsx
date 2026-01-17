@@ -246,7 +246,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 </p>
               </div>
               <Link
-                href={`/ai-planner?destination=${encodeURIComponent(destination.name)}`}
+                href={`/ai-trip-planner?destination=${encodeURIComponent(destination.name)}`}
                 className="inline-flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all"
               >
                 Need something custom?
@@ -565,7 +565,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
               </div>
               <div className="space-y-3">
                 <Link
-                  href={`/ai-planner?destination=${encodeURIComponent(destination?.name || destinationName)}`}
+                  href={`/ai-trip-planner?destination=${encodeURIComponent(destination?.name || destinationName)}`}
                   className="block w-full bg-primary text-white text-center px-6 py-4 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
                 >
                   Plan Your Trip with AI
@@ -617,7 +617,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
             </div>
             <div className="mt-6 text-center">
               <Link
-                href={`/ai-planner?destination=${encodeURIComponent(destination.name)}`}
+                href={`/ai-trip-planner?destination=${encodeURIComponent(destination.name)}`}
                 className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
               >
                 Get Your Personalized Itinerary

@@ -253,7 +253,7 @@ export default function SourceDestinationClient({ params }: PageProps) {
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
                             <Link
-                                href="/ai-planner"
+                                href="/ai-trip-planner"
                                 className="px-8 py-4 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white rounded-full font-semibold shadow-lg shadow-primary/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
                             >
                                 <SparkleIcon className="w-5 h-5" />
@@ -473,7 +473,7 @@ export default function SourceDestinationClient({ params }: PageProps) {
             {/* Mobile Sticky CTA */}
             <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-50 flex gap-4 shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                 <button
-                    onClick={() => router.push('/ai-planner')}
+                    onClick={() => router.push('/ai-trip-planner')}
                     className="flex-1 bg-gray-900 text-white font-semibold py-3 rounded-xl text-sm shadow-md active:scale-95 transition-transform"
                 >
                     AI Planner

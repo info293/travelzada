@@ -146,7 +146,7 @@ export default function Footer() {
               <h3 id="footer-services" className="font-bold text-lg mb-5 text-white">Services</h3>
               <ul className="space-y-3" role="list">
                 <li>
-                  <Link href="/ai-planner" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="AI-powered trip planner">
+                  <Link href="/ai-trip-planner" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="AI-powered trip planner">
                     AI Planner
                   </Link>
                 </li>

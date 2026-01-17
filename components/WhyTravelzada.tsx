@@ -71,7 +71,7 @@ export default function WhyTravelzada() {
           </Link>
 
           <Link
-            href="/ai-planner"
+            href="/ai-trip-planner"
             className="inline-flex items-center justify-center bg-primary text-white px-6 md:px-10 py-4 md:py-5 rounded-full text-sm md:text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
           >
             TRY AI PLANNER

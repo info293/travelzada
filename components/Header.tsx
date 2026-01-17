@@ -35,7 +35,7 @@ export default function Header() {
 
   const navItems = [
     { href: '/', label: 'Home' },
-    { href: '/ai-planner', label: 'AI Planner', isAI: true },
+    { href: '/ai-trip-planner', label: 'AI Planner', isAI: true },
     { href: '/destinations', label: 'Destinations' },
     { href: '/blog', label: 'Blog' },
     { href: '/contact', label: 'Contact' },
@@ -57,20 +57,19 @@ export default function Header() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-out ${
-        isScrolled 
-          ? `${bgOpacity} ${backdropBlur} shadow-lg border-b border-gray-200/50` 
+      className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-out ${isScrolled
+          ? `${bgOpacity} ${backdropBlur} shadow-lg border-b border-gray-200/50`
           : 'bg-white/80 backdrop-blur-sm'
-      }`}
+        }`}
       style={{
-        boxShadow: isScrolled 
+        boxShadow: isScrolled
           ? `0 10px 40px -10px rgba(0, 0, 0, ${0.1 * shadowIntensity}), 0 0 0 1px rgba(0, 0, 0, ${0.05 * shadowIntensity})`
           : 'none',
       }}
     >
       <div className={`max-w-6xl mx-auto px-4 md:px-6 lg:px-0 ${headerHeight} flex items-center justify-between transition-all duration-500`}>
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className={`flex items-center transition-transform duration-500 ${logoScale} hover:scale-105`}
         >
           <Image
@@ -78,9 +77,8 @@ export default function Header() {
             alt="Travelzada Logo"
             width={150}
             height={50}
-            className={`h-8 w-auto object-contain transition-all duration-500 ${
-              isScrolled ? 'h-7' : 'h-8'
-            }`}
+            className={`h-8 w-auto object-contain transition-all duration-500 ${isScrolled ? 'h-7' : 'h-8'
+              }`}
             priority
           />
         </Link>
@@ -93,11 +91,10 @@ export default function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`header-nav-item relative transition-all duration-300 ${
-                  isAI
+                className={`header-nav-item relative transition-all duration-300 ${isAI
                     ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
                     : 'text-gray-600 hover:text-primary group'
-                }`}
+                  }`}
               >
                 {!isAI && (
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 group-hover:w-full"></span>
@@ -184,11 +181,10 @@ export default function Header() {
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          
+
           {/* Menu Panel */}
-          <div className={`fixed left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg z-40 md:hidden transition-all duration-300 ${
-            isScrolled ? 'top-[65px]' : 'top-[73px]'
-          }`}>
+          <div className={`fixed left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg z-40 md:hidden transition-all duration-300 ${isScrolled ? 'top-[65px]' : 'top-[73px]'
+            }`}>
             <nav className="flex flex-col py-4">
               {navItems.map((item) => {
                 const isAI = (item as any).isAI
@@ -197,11 +193,10 @@ export default function Header() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`px-6 py-3 text-base font-medium transition-colors ${
-                      isAI
+                    className={`px-6 py-3 text-base font-medium transition-colors ${isAI
                         ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
-                    }`}
+                      }`}
                   >
                     {isAI && <SparkleIcon className="w-4 h-4" />}
                     {item.label}

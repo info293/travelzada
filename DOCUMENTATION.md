@@ -154,7 +154,7 @@ travelingproject/
 ## Features
 
 ### 1. AI Trip Planner
-- **Location**: `/ai-planner`
+- **Location**: `/ai-trip-planner`
 - **Features**:
   - Interactive conversation interface
   - Multi-step questionnaire (destination, date, duration, hotel type, travel type, feedback)

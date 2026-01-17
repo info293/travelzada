@@ -277,7 +277,7 @@ export default function Testimonials() {
       {/* Decorative elements */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
-      
+
       <div className="max-w-7xl mx-auto text-center relative z-10">
         <div className="inline-block mb-4">
           <span className="text-xs uppercase tracking-[0.3em] text-primary font-semibold">Testimonials</span>
@@ -288,7 +288,7 @@ export default function Testimonials() {
         <p className="text-lg text-gray-600 mb-16 max-w-2xl mx-auto">
           Join thousands of satisfied travelers who've experienced the perfect trip
         </p>
-        
+
         {/* Slider Container */}
         <div className="relative mb-12">
           {/* Navigation Buttons */}
@@ -328,8 +328,8 @@ export default function Testimonials() {
               const testimonialId = testimonial.id || `testimonial-${index}`
               const isQuoteExpanded = isExpanded(testimonialId)
               const showReadMore = shouldShowReadMore(testimonial.quote)
-              const displayText = isQuoteExpanded || !showReadMore 
-                ? testimonial.quote 
+              const displayText = isQuoteExpanded || !showReadMore
+                ? testimonial.quote
                 : getTruncatedText(testimonial.quote)
 
               return (
@@ -392,11 +392,10 @@ export default function Testimonials() {
                     // Pause auto-scroll temporarily when user clicks dot
                     pauseAutoScroll()
                   }}
-                  className={`w-3 h-3 rounded-full transition-all ${
-                    Math.floor(currentIndex) === index
+                  className={`w-3 h-3 rounded-full transition-all ${Math.floor(currentIndex) === index
                       ? 'bg-primary w-8'
                       : 'bg-gray-300 hover:bg-gray-400'
-                  }`}
+                    }`}
                   aria-label={`Go to slide ${index + 1}`}
                 />
               ))}
@@ -415,7 +414,7 @@ export default function Testimonials() {
             </svg>
           </Link>
           <Link
-            href="/ai-planner"
+            href="/ai-trip-planner"
             className="inline-flex items-center justify-center bg-primary text-white px-10 py-5 rounded-full text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
           >
             PLAN MY TRIP
