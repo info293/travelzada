@@ -143,6 +143,7 @@ export interface Destination {
     id?: string
     name: string
     country: string
+    region?: 'India' | 'International'
     description: string
     image: string
     slug: string

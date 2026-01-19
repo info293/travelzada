@@ -179,6 +179,7 @@ interface Destination {
   id?: string
   name: string
   country: string
+  region?: 'India' | 'International'
   description: string
   image: string
   slug: string
@@ -3397,6 +3398,7 @@ export default function AdminDashboard() {
                       const destinationData: any = {
                         name: destinationFormData.name || '',
                         country: destinationFormData.country || '',
+                        region: destinationFormData.region || 'International', // Include region
                         description: destinationFormData.description || '',
                         image: destinationFormData.image || '',
                         slug: destinationFormData.slug || (destinationFormData.name?.toLowerCase().replace(/\s+/g, '-') || ''),
@@ -3456,6 +3458,18 @@ export default function AdminDashboard() {
                           placeholder="Indonesia"
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Region *</label>
+                        <select
+                          value={destinationFormData.region || 'International'}
+                          onChange={(e) => setDestinationFormData({ ...destinationFormData, region: e.target.value as 'India' | 'International' })}
+                          required
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                        >
+                          <option value="International">International</option>
+                          <option value="India">India</option>
+                        </select>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Description *</label>
@@ -3738,6 +3752,11 @@ export default function AdminDashboard() {
                             Country <SortIcon column="country" />
                           </th>
                           <th
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                          >
+                            Region
+                          </th>
+                          <th
                             className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 transition-colors"
                             onClick={() => handleSort('slug')}
                           >
@@ -3754,6 +3773,11 @@ export default function AdminDashboard() {
                               <div className="font-medium text-gray-900">{dest.name}</div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">{dest.country}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${dest.region === 'India' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                                {dest.region || 'International'}
+                              </span>
+                            </td>
                             <td className="px-6 py-4 text-sm text-gray-900">{dest.slug}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                               {dest.packageIds?.length || 0} package(s)

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import FooterSEO from '@/components/FooterSEO'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -47,6 +48,7 @@ export default function Footer() {
       <footer className="bg-gradient-to-br from-gray-900 via-ink to-gray-900 text-white border-t border-white/5" role="contentinfo" aria-label="Site Footer">
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto px-4 py-16">
+          <FooterSEO />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8">
             {/* Brand Section */}
             <div className="lg:col-span-4">

@@ -89,6 +89,7 @@ export default function DestinationsSection({
             const data: any = {
                 name: formData.name || '',
                 country: formData.country || '',
+                region: formData.region || 'International',
                 description: formData.description || '',
                 image: formData.image || '',
                 slug: formData.slug || formData.name?.toLowerCase().replace(/\s+/g, '-') || '',
@@ -151,6 +152,17 @@ export default function DestinationsSection({
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Country *</label>
                             <input type="text" value={formData.country || ''} onChange={(e) => setFormData({ ...formData, country: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Region *</label>
+                            <select
+                                value={formData.region || 'International'}
+                                onChange={(e) => setFormData({ ...formData, region: e.target.value as 'India' | 'International' })}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            >
+                                <option value="International">International</option>
+                                <option value="India">India</option>
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
@@ -229,6 +241,7 @@ export default function DestinationsSection({
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Image</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('name')}>Name <SortIcon field="name" /></th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100" onClick={() => handleSort('country')}>Country <SortIcon field="country" /></th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Region</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Packages</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Featured</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -245,6 +258,11 @@ export default function DestinationsSection({
                                         <div className="text-sm text-gray-500">{dest.slug}</div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-gray-700">{dest.country}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-700">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${dest.region === 'India' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}`}>
+                                            {dest.region || 'International'}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-4 text-sm text-gray-700">{dest.packageIds?.length || 0}</td>
                                     <td className="px-6 py-4">
                                         <button onClick={() => handleToggleFeatured(dest)} className={`px-2 py-1 rounded-full text-xs font-semibold ${dest.featured ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>{dest.featured ? 'Yes' : 'No'}</button>

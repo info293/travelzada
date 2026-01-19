@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 import ConversationAgent from '@/components/ConversationAgent'
 import TripForm from '@/components/TripForm'
 import PlannerPackages from '@/components/PlannerPackages'
+import BlogSection from '@/components/BlogSection'
 
 function AIPlannerContent() {
   const searchParams = useSearchParams()
@@ -114,7 +115,7 @@ function AIPlannerContent() {
               {/* Main Heading */}
               <h1 className="text-3xl md:text-6xl text-gray-900 mb-4 leading-tight">
                 Tell us your vibe.
-                <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent">
+                <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent pb-2">
                   AI will plan your trip.
                 </span>
               </h1>
@@ -198,6 +199,8 @@ function AIPlannerContent() {
             <PlannerPackages />
           </div>
         </section>
+
+        <BlogSection />
 
         <Footer />
 

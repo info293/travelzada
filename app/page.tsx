@@ -8,6 +8,9 @@ import WhyTravelzada from '@/components/WhyTravelzada'
 import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
 import SchemaMarkup, { generateOrganizationSchema } from '@/components/SchemaMarkup'
+import FAQ from '@/components/FAQ'
+import DynamicOccasionRails from '@/components/DynamicOccasionRails'
+import DestinationRail from '@/components/DestinationRail'
 
 export default function Home() {
   // Generate Organization schema for SEO
@@ -31,8 +34,29 @@ export default function Home() {
         <Hero />
         <HowItWorks />
         <Testimonials />
+
+        {/* India Destinations Rail */}
+        <DestinationRail
+          region="India"
+          title="Explore India"
+          subtitle="Handpicked luxury journeys across the country."
+          tagLabel="Incredible India"
+        />
+
+        {/* International Destinations Rail */}
+        <DestinationRail
+          region="International"
+          title="World Destinations"
+          subtitle="Curated global adventures beyond borders."
+          tagLabel="International"
+        />
+
+        {/* Dynamic Occasions */}
+        <DynamicOccasionRails />
         <Packages />
+        {/* Testimonials moved up */}
         <WhyTravelzada />
+        <FAQ />
         <Footer />
       </main>
     </>

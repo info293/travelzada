@@ -143,7 +143,7 @@ export default function Packages() {
           <span className="text-xs uppercase tracking-[0.3em] text-orange-500 font-semibold">Featured journeys</span>
         </div>
         <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-gray-900 mb-4">
-          Premium capsules, ready to book
+          Best Travel Packages, Ready to Book
         </h2>
         <p className="text-lg text-gray-600 mb-16 max-w-2xl mx-auto">
           Balanced itineraries curated for design lovers, slow travelers, and celebration seekers.

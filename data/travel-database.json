@@ -7,15 +7,163 @@
       "bestTimeToVisit": "April to October (dry season)",
       "currency": "Indonesian Rupiah (IDR)",
       "language": "Indonesian, Balinese",
-      "highlights": ["Ubud rice terraces", "Tanah Lot Temple", "Seminyak Beach", "Mount Batur sunrise"],
-      "activities": ["Beach relaxation", "Temple visits", "Water sports", "Yoga retreats", "Spa treatments"],
+      "highlights": [
+        "Ubud rice terraces",
+        "Tanah Lot Temple",
+        "Seminyak Beach",
+        "Mount Batur sunrise"
+      ],
+      "activities": [
+        "Beach relaxation",
+        "Temple visits",
+        "Water sports",
+        "Yoga retreats",
+        "Spa treatments"
+      ],
       "budgetRange": {
         "budget": "₹30,000 - ₹50,000",
         "midRange": "₹50,000 - ₹80,000",
         "luxury": "₹80,000+"
       },
-      "hotelTypes": ["Beach resorts", "Villa rentals", "Boutique hotels", "Eco-lodges"],
+      "hotelTypes": [
+        "Beach resorts",
+        "Villa rentals",
+        "Boutique hotels",
+        "Eco-lodges"
+      ],
       "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Ladakh",
+      "country": "India",
+      "description": "The Land of High Passes, known for its stunning landscapes, Buddhist monasteries, and vibrant culture.",
+      "bestTimeToVisit": "June to September",
+      "currency": "Indian Rupee (INR)",
+      "language": "Ladakhi, Tibetan, Urdu, English",
+      "highlights": [
+        "Pangong Lake",
+        "Nubra Valley",
+        "Thiksey Monastery",
+        "Magnetic Hill"
+      ],
+      "activities": [
+        "Motorbiking",
+        "Trekking",
+        "River rafting",
+        "Monastery visits",
+        "Stargazing"
+      ],
+      "budgetRange": {
+        "budget": "₹20,000 - ₹35,000",
+        "midRange": "₹35,000 - ₹60,000",
+        "luxury": "₹60,000+"
+      },
+      "hotelTypes": [
+        "Luxury camps",
+        "Homestays",
+        "Boutique hotels",
+        "Guesthouses"
+      ],
+      "duration": "5-8 days recommended"
+    },
+    {
+      "name": "Kashmir",
+      "country": "India",
+      "description": "Paradise on Earth, famous for its houseboats, stunning gardens, and snow-capped mountains.",
+      "bestTimeToVisit": "March to October",
+      "currency": "Indian Rupee (INR)",
+      "language": "Kashmiri, Urdu, English",
+      "highlights": [
+        "Dal Lake",
+        "Gulmarg Gondola",
+        "Pahalgam Valley",
+        "Mughal Gardens"
+      ],
+      "activities": [
+        "Shikara rides",
+        "Skiing",
+        "Trekking",
+        "Gondola rides",
+        "Houseboat stays"
+      ],
+      "budgetRange": {
+        "budget": "₹20,000 - ₹35,000",
+        "midRange": "₹35,000 - ₹55,000",
+        "luxury": "₹55,000+"
+      },
+      "hotelTypes": [
+        "Houseboats",
+        "Luxury resorts",
+        "Boutique cottages",
+        "Hotels"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Andaman",
+      "country": "India",
+      "description": "Exotic islands with pristine beaches, coral reefs, and historical landmarks.",
+      "bestTimeToVisit": "October to May",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, English, Bengali",
+      "highlights": [
+        "Radhanagar Beach",
+        "Cellular Jail",
+        "Havelock Island",
+        "Scuba diving sites"
+      ],
+      "activities": [
+        "Scuba diving",
+        "Snorkeling",
+        "Beach hopping",
+        "Water sports",
+        "Light and Sound show"
+      ],
+      "budgetRange": {
+        "budget": "₹25,000 - ₹40,000",
+        "midRange": "₹40,000 - ₹70,000",
+        "luxury": "₹70,000+"
+      },
+      "hotelTypes": [
+        "Beach resorts",
+        "Eco-huts",
+        "Luxury villas",
+        "Hotels"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Dubai",
+      "country": "UAE",
+      "description": "A city of superlatives, from the tallest building to huge malls and desert adventures.",
+      "bestTimeToVisit": "November to March",
+      "currency": "Dirham (AED)",
+      "language": "Arabic, English",
+      "highlights": [
+        "Burj Khalifa",
+        "Dubai Mall",
+        "Palm Jumeirah",
+        "Desert Safari"
+      ],
+      "activities": [
+        "Shopping",
+        "Desert safari",
+        "Skydiving",
+        "Theme parks",
+        "Dhow cruise"
+      ],
+      "budgetRange": {
+        "budget": "₹50,000 - ₹80,000",
+        "midRange": "₹80,000 - ₹1,20,000",
+        "luxury": "₹1,20,000+"
+      },
+      "hotelTypes": [
+        "Luxury hotels",
+        "Apartments",
+        "Resorts",
+        "City hotels"
+      ],
+      "duration": "4-6 days recommended"
     },
     {
       "name": "Goa",
@@ -24,14 +172,30 @@
       "bestTimeToVisit": "November to February",
       "currency": "Indian Rupee (INR)",
       "language": "Konkani, English, Hindi",
-      "highlights": ["Baga Beach", "Old Goa churches", "Anjuna Flea Market", "Dudhsagar Falls"],
-      "activities": ["Beach parties", "Water sports", "Heritage tours", "Casino visits", "Spice plantation tours"],
+      "highlights": [
+        "Baga Beach",
+        "Old Goa churches",
+        "Anjuna Flea Market",
+        "Dudhsagar Falls"
+      ],
+      "activities": [
+        "Beach parties",
+        "Water sports",
+        "Heritage tours",
+        "Casino visits",
+        "Spice plantation tours"
+      ],
       "budgetRange": {
         "budget": "₹15,000 - ₹25,000",
         "midRange": "₹25,000 - ₹45,000",
         "luxury": "₹45,000+"
       },
-      "hotelTypes": ["Beach shacks", "Resorts", "Heritage hotels", "Luxury villas"],
+      "hotelTypes": [
+        "Beach shacks",
+        "Resorts",
+        "Heritage hotels",
+        "Luxury villas"
+      ],
       "duration": "3-5 days recommended"
     },
     {
@@ -41,14 +205,30 @@
       "bestTimeToVisit": "October to March",
       "currency": "Indian Rupee (INR)",
       "language": "Malayalam, English",
-      "highlights": ["Alleppey backwaters", "Munnar tea gardens", "Kochi Fort", "Wayanad wildlife"],
-      "activities": ["Houseboat cruises", "Ayurveda treatments", "Tea plantation tours", "Wildlife safaris", "Beach relaxation"],
+      "highlights": [
+        "Alleppey backwaters",
+        "Munnar tea gardens",
+        "Kochi Fort",
+        "Wayanad wildlife"
+      ],
+      "activities": [
+        "Houseboat cruises",
+        "Ayurveda treatments",
+        "Tea plantation tours",
+        "Wildlife safaris",
+        "Beach relaxation"
+      ],
       "budgetRange": {
         "budget": "₹20,000 - ₹35,000",
         "midRange": "₹35,000 - ₹60,000",
         "luxury": "₹60,000+"
       },
-      "hotelTypes": ["Houseboats", "Resorts", "Heritage homestays", "Ayurveda retreats"],
+      "hotelTypes": [
+        "Houseboats",
+        "Resorts",
+        "Heritage homestays",
+        "Ayurveda retreats"
+      ],
       "duration": "5-7 days recommended"
     },
     {
@@ -58,14 +238,30 @@
       "bestTimeToVisit": "October to March",
       "currency": "Indian Rupee (INR)",
       "language": "Hindi, Rajasthani, English",
-      "highlights": ["Jaipur City Palace", "Udaipur Lake Palace", "Jaisalmer Fort", "Pushkar Camel Fair"],
-      "activities": ["Palace tours", "Desert safaris", "Camel rides", "Cultural shows", "Shopping for handicrafts"],
+      "highlights": [
+        "Jaipur City Palace",
+        "Udaipur Lake Palace",
+        "Jaisalmer Fort",
+        "Pushkar Camel Fair"
+      ],
+      "activities": [
+        "Palace tours",
+        "Desert safaris",
+        "Camel rides",
+        "Cultural shows",
+        "Shopping for handicrafts"
+      ],
       "budgetRange": {
         "budget": "₹25,000 - ₹40,000",
         "midRange": "₹40,000 - ₹70,000",
         "luxury": "₹70,000+"
       },
-      "hotelTypes": ["Heritage palaces", "Desert camps", "Boutique hotels", "Luxury resorts"],
+      "hotelTypes": [
+        "Heritage palaces",
+        "Desert camps",
+        "Boutique hotels",
+        "Luxury resorts"
+      ],
       "duration": "7-10 days recommended"
     },
     {
@@ -75,14 +271,30 @@
       "bestTimeToVisit": "March to June, October to December",
       "currency": "Indian Rupee (INR)",
       "language": "Hindi, English",
-      "highlights": ["Rohtang Pass", "Solang Valley", "Hadimba Temple", "Old Manali"],
-      "activities": ["Skiing", "Paragliding", "Trekking", "River rafting", "Mountain biking"],
+      "highlights": [
+        "Rohtang Pass",
+        "Solang Valley",
+        "Hadimba Temple",
+        "Old Manali"
+      ],
+      "activities": [
+        "Skiing",
+        "Paragliding",
+        "Trekking",
+        "River rafting",
+        "Mountain biking"
+      ],
       "budgetRange": {
         "budget": "₹15,000 - ₹30,000",
         "midRange": "₹30,000 - ₹50,000",
         "luxury": "₹50,000+"
       },
-      "hotelTypes": ["Mountain resorts", "Homestays", "Luxury hotels", "Adventure camps"],
+      "hotelTypes": [
+        "Mountain resorts",
+        "Homestays",
+        "Luxury hotels",
+        "Adventure camps"
+      ],
       "duration": "4-6 days recommended"
     },
     {
@@ -92,14 +304,30 @@
       "bestTimeToVisit": "Year-round (February to April is driest)",
       "currency": "Singapore Dollar (SGD)",
       "language": "English, Mandarin, Malay, Tamil",
-      "highlights": ["Marina Bay Sands", "Gardens by the Bay", "Sentosa Island", "Universal Studios"],
-      "activities": ["City tours", "Shopping", "Theme parks", "Food tours", "Nightlife"],
+      "highlights": [
+        "Marina Bay Sands",
+        "Gardens by the Bay",
+        "Sentosa Island",
+        "Universal Studios"
+      ],
+      "activities": [
+        "City tours",
+        "Shopping",
+        "Theme parks",
+        "Food tours",
+        "Nightlife"
+      ],
       "budgetRange": {
         "budget": "₹50,000 - ₹80,000",
         "midRange": "₹80,000 - ₹1,20,000",
         "luxury": "₹1,20,000+"
       },
-      "hotelTypes": ["City hotels", "Resorts", "Boutique hotels", "Luxury suites"],
+      "hotelTypes": [
+        "City hotels",
+        "Resorts",
+        "Boutique hotels",
+        "Luxury suites"
+      ],
       "duration": "3-5 days recommended"
     },
     {
@@ -109,14 +337,30 @@
       "bestTimeToVisit": "November to March",
       "currency": "Thai Baht (THB)",
       "language": "Thai, English",
-      "highlights": ["Bangkok temples", "Phuket beaches", "Chiang Mai", "Phi Phi Islands"],
-      "activities": ["Temple visits", "Beach activities", "Thai massage", "Street food tours", "Island hopping"],
+      "highlights": [
+        "Bangkok temples",
+        "Phuket beaches",
+        "Chiang Mai",
+        "Phi Phi Islands"
+      ],
+      "activities": [
+        "Temple visits",
+        "Beach activities",
+        "Thai massage",
+        "Street food tours",
+        "Island hopping"
+      ],
       "budgetRange": {
         "budget": "₹35,000 - ₹60,000",
         "midRange": "₹60,000 - ₹1,00,000",
         "luxury": "₹1,00,000+"
       },
-      "hotelTypes": ["Beach resorts", "City hotels", "Boutique hotels", "Luxury villas"],
+      "hotelTypes": [
+        "Beach resorts",
+        "City hotels",
+        "Boutique hotels",
+        "Luxury villas"
+      ],
       "duration": "5-7 days recommended"
     },
     {
@@ -126,15 +370,97 @@
       "bestTimeToVisit": "November to April",
       "currency": "Maldivian Rufiyaa (MVR)",
       "language": "Dhivehi, English",
-      "highlights": ["Overwater villas", "Snorkeling", "Diving", "Spa treatments", "Sunset cruises"],
-      "activities": ["Water sports", "Diving", "Snorkeling", "Spa", "Island hopping"],
+      "highlights": [
+        "Overwater villas",
+        "Snorkeling",
+        "Diving",
+        "Spa treatments",
+        "Sunset cruises"
+      ],
+      "activities": [
+        "Water sports",
+        "Diving",
+        "Snorkeling",
+        "Spa",
+        "Island hopping"
+      ],
       "budgetRange": {
         "budget": "₹80,000 - ₹1,50,000",
         "midRange": "₹1,50,000 - ₹3,00,000",
         "luxury": "₹3,00,000+"
       },
-      "hotelTypes": ["Overwater villas", "Beach resorts", "Luxury resorts", "All-inclusive resorts"],
+      "hotelTypes": [
+        "Overwater villas",
+        "Beach resorts",
+        "Luxury resorts",
+        "All-inclusive resorts"
+      ],
       "duration": "4-7 days recommended"
+    },
+    {
+      "name": "Baku",
+      "country": "Azerbaijan",
+      "description": "The City of Winds, blending medieval heritage with futuristic architecture on the Caspian Sea.",
+      "bestTimeToVisit": "April to June, September to October",
+      "currency": "Azerbaijani Manat (AZN)",
+      "language": "Azerbaijani, Russian, English",
+      "highlights": [
+        "Flame Towers",
+        "Old City (Icherisheher)",
+        "Heydar Aliyev Center",
+        "Baku Boulevard"
+      ],
+      "activities": [
+        "City tours",
+        "Cultural walks",
+        "Mud volcanoes tour",
+        "Carpet Museum visit"
+      ],
+      "budgetRange": {
+        "budget": "₹40,000 - ₹60,000",
+        "midRange": "₹60,000 - ₹90,000",
+        "luxury": "₹90,000+"
+      },
+      "hotelTypes": [
+        "Luxury hotels",
+        "Boutique hotels",
+        "Hostels",
+        "Apartments"
+      ],
+      "duration": "4-6 days recommended"
+    },
+    {
+      "name": "Phuket-Krabi",
+      "country": "Thailand",
+      "description": "The ultimate island combo featuring stunning limestone cliffs, clear waters, and vibrant nightlife.",
+      "bestTimeToVisit": "November to March",
+      "currency": "Thai Baht (THB)",
+      "language": "Thai, English",
+      "highlights": [
+        "Phi Phi Islands",
+        "Railay Beach",
+        "James Bond Island",
+        "Patong Beach"
+      ],
+      "activities": [
+        "Island hopping",
+        "Snorkeling",
+        "Rock climbing",
+        "Beach parties",
+        "Kayaking"
+      ],
+      "budgetRange": {
+        "budget": "₹40,000 - ₹70,000",
+        "midRange": "₹70,000 - ₹1,10,000",
+        "luxury": "₹1,10,000+"
+      },
+      "hotelTypes": [
+        "Beach resorts",
+        "Private pool villas",
+        "Bungalows",
+        "Luxury hotels"
+      ],
+      "duration": "6-8 days recommended"
     }
   ],
   "hotelTypes": [
@@ -177,5 +503,3 @@
     "adventureTravel": "Destinations like Manali, Bali, and Thailand offer great adventure activities. Ensure you have proper insurance and use certified operators."
   }
 }
-
-

@@ -29,7 +29,7 @@ export default function HowItWorks() {
           <span className="text-[10px] md:text-xs uppercase tracking-[0.2em] md:tracking-[0.3em] text-primary font-semibold">Simple Process</span>
         </div>
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-semibold text-ink mb-4 md:mb-6">
-          How It Works
+          How AI Travel Planner Works
         </h2>
         <p className="text-base md:text-lg text-gray-600 mb-8 md:mb-16 max-w-2xl mx-auto px-4">
           Planning your dream trip is as easy as 1, 2, 3 with our intelligent platform.
