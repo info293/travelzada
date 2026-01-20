@@ -6,6 +6,11 @@ import type { NextRequest } from 'next/server'
  * - Adds noindex header for URLs with ?t= parameter to prevent duplicate indexing
  */
 export function middleware(request: NextRequest) {
+    // Redirect old AI Planner URL to new URL
+    if (request.nextUrl.pathname === '/ai-planner') {
+        return NextResponse.redirect(new URL('/ai-trip-planner', request.url), 301)
+    }
+
     // Check if URL has ?t= parameter (tracking/campaign parameter)
     if (request.nextUrl.searchParams.has('t')) {
         const response = NextResponse.next()
