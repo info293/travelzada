@@ -155,7 +155,7 @@ export default function FooterSEO() {
                             <Link
                                 key={blog.id}
                                 href={getBlogUrl(blog)}
-                                className="text-white/50 hover:text-primary text-[13px] transition-colors line-clamp-1"
+                                className="text-white/50 hover:text-primary text-[13px] transition-colors"
                                 title={blog.title}
                             >
                                 {blog.title}
@@ -169,7 +169,7 @@ export default function FooterSEO() {
                         <Link
                             key={index}
                             href={link.url}
-                            className="text-white/50 hover:text-primary text-[13px] transition-colors line-clamp-1"
+                            className="text-white/50 hover:text-primary text-[13px] transition-colors"
                         >
                             {link.name}
                         </Link>

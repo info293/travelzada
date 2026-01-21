@@ -247,7 +247,7 @@ export default function SourceDestinationClient({ params }: PageProps) {
                             </span>
                         </h1>
 
-                        <p className="text-lg md:text-xl text-gray-200 max-w-xl font-normal leading-relaxed drop-shadow-md">
+                        <p className="text-base md:text-xl text-gray-200 max-w-xl font-normal leading-relaxed drop-shadow-md">
                             Unlock exclusive deals on {destination?.name || 'travel'} packages tailored for {originName} departures. Flights, hotels, and experiences included.
                         </p>
 
@@ -257,7 +257,7 @@ export default function SourceDestinationClient({ params }: PageProps) {
                                 className="px-8 py-4 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-700 text-white rounded-full font-semibold shadow-lg shadow-primary/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2"
                             >
                                 <SparkleIcon className="w-5 h-5" />
-                                <span>Plan with AI Planner</span>
+                                <span>Customise More</span>
                             </Link>
                             <button
                                 onClick={() => setIsLeadFormOpen(true)}
@@ -476,7 +476,7 @@ export default function SourceDestinationClient({ params }: PageProps) {
                     onClick={() => router.push('/ai-trip-planner')}
                     className="flex-1 bg-gray-900 text-white font-semibold py-3 rounded-xl text-sm shadow-md active:scale-95 transition-transform"
                 >
-                    AI Planner
+                    Customise More
                 </button>
                 <button
                     onClick={() => setIsLeadFormOpen(true)}

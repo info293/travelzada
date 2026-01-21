@@ -171,7 +171,7 @@ const OccasionSection = ({ occasion, packages, index }: { occasion: string, pack
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-[10px] md:text-xs text-gray-500 uppercase tracking-wide font-medium">{pkg.Duration || 'Flexible'}</span>
                                     </div>
-                                    <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1 line-clamp-1 group-hover:text-primary transition-colors">{pkg.Destination_Name}</h3>
+                                    <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-primary transition-colors">{pkg.Destination_Name}</h3>
                                     <div className="flex items-center justify-between mt-4 border-t border-gray-100 pt-3">
                                         <span className="text-xs font-medium text-gray-500">From {formatPrice(pkg.Price_Range_INR)}</span>
                                         <span className="text-xs md:text-sm font-semibold text-primary group-hover:underline">
