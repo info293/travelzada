@@ -183,7 +183,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
       <Header />
 
       {/* Hero Image Section */}
-      <section className="relative h-[350px] md:h-[400px] overflow-hidden">
+      <section className="relative h-[460px] md:h-[400px] overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${imageUrl})` }}
@@ -452,15 +452,15 @@ export default function DestinationDetailPage({ params }: PageProps) {
         <>
           {/* Quick Info Bar */}
           <section className="bg-gradient-to-r from-gray-50 to-white border-y border-gray-200">
-            <div className="max-w-6xl mx-auto px-4 md:px-12 py-8">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="max-w-6xl mx-auto px-4 md:px-12 py-4 md:py-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
                 {destination.bestTimeToVisit && (
-                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-1 md:mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <p className="text-xs text-gray-500 mb-1 font-medium">Best Time</p>
-                    <p className="text-sm font-bold text-gray-900">{destination.bestTimeToVisit}</p>
+                    <p className="text-xs md:text-sm font-bold text-gray-900 leading-tight">{destination.bestTimeToVisit}</p>
                   </div>
                 )}
                 {destination.duration && (
@@ -504,9 +504,9 @@ export default function DestinationDetailPage({ params }: PageProps) {
           </section>
 
           {/* Highlights & Activities */}
-          <section className="py-12 px-4 md:px-12 bg-white">
+          <section className="py-6 md:py-10 px-4 md:px-12 bg-white">
             <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 {/* Highlights */}
                 {destination.highlights && destination.highlights.length > 0 && (
                   <div>
@@ -518,9 +518,9 @@ export default function DestinationDetailPage({ params }: PageProps) {
                     </h2>
                     <div className="space-y-3">
                       {destination.highlights.map((highlight: string, index: number) => (
-                        <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-primary/5 transition-colors">
-                          <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
-                          <p className="text-gray-700 leading-relaxed">{highlight}</p>
+                        <div key={index} className="flex items-start gap-2 md:gap-3 p-2 md:p-3 bg-gray-50 rounded-lg hover:bg-primary/5 transition-colors">
+                          <span className="flex-shrink-0 w-5 h-5 md:w-6 md:h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                          <p className="text-sm md:text-base text-gray-700 leading-relaxed">{highlight}</p>
                         </div>
                       ))}
                     </div>
@@ -530,15 +530,15 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 {/* Activities */}
                 {destination.activities && destination.activities.length > 0 && (
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
                       <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Things to Do
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                       {destination.activities.map((activity: string, index: number) => (
-                        <div key={index} className="flex items-center gap-2 p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/10">
+                        <div key={index} className="flex items-center gap-2 p-2 md:p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/10">
                           <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
@@ -553,21 +553,21 @@ export default function DestinationDetailPage({ params }: PageProps) {
           </section>
 
           {/* Budget & Hotel Types */}
-          <section className="py-12 px-4 md:px-12 bg-gray-50">
+          <section className="py-6 md:py-10 px-4 md:px-12 bg-gray-50">
             <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 {/* Budget Range */}
                 {destination.budgetRange && Object.keys(destination.budgetRange).length > 0 && (
                   <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Budget Guide</h2>
-                    <div className="space-y-4">
+                    <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6">Budget Guide</h2>
+                    <div className="space-y-3 md:space-y-4">
                       {destination.budgetRange.budget && (
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                           <div className="flex items-center justify-between mb-2">
                             <h3 className="font-bold text-gray-900">Budget</h3>
                             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">Economical</span>
                           </div>
-                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.budget}</p>
+                          <p className="text-xl md:text-2xl font-bold text-primary">{destination.budgetRange.budget}</p>
                         </div>
                       )}
                       {destination.budgetRange.midRange && (
@@ -807,13 +807,13 @@ export default function DestinationDetailPage({ params }: PageProps) {
           {destination.airportCities && destination.airportCities.length > 0 && (
             <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
               <div className="max-w-6xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">From Airport Cities</h2>
+                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6">From Airport Cities</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {destination.airportCities.map((city: any, index: number) => (
                     <Link
                       key={index}
                       href={city.url}
-                      className="px-4 py-3 bg-gray-50 hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
+                      className="px-3 md:px-4 py-2 md:py-3 bg-gray-50 hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
                     >
                       {city.cityName}
                     </Link>
@@ -848,7 +848,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
             <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
               <div className="max-w-6xl mx-auto">
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Travel Guides</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {destination.travelGuides.map((guide: any, index: number) => (
                     <div key={index} className="bg-gray-50 p-6 rounded-xl border border-gray-200 hover:border-primary/50 transition-all">
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{guide.title}</h3>
