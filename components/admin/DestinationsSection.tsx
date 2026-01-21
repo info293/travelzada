@@ -100,6 +100,11 @@ export default function DestinationsSection({
                 currency: formData.currency || '',
                 language: formData.language || '',
                 rating: formData.rating || null,
+                // PLP Sections
+                airportCities: formData.airportCities || [],
+                fromIndiaCities: formData.fromIndiaCities || [],
+                travelGuides: formData.travelGuides || [],
+                faqs: formData.faqs || [],
                 updatedAt: now,
             }
 
@@ -200,6 +205,67 @@ export default function DestinationsSection({
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Package IDs (comma-separated)</label>
                         <input type="text" value={packageIdsInput} onChange={(e) => setPackageIdsInput(e.target.value)} placeholder="PKG_001, PKG_002" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+                    </div>
+
+                    {/* PLP Sections */}
+                    <div className="col-span-full bg-gray-50 p-4 rounded-lg space-y-4 border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-3">PLP Sections (JSON Format)</h3>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Airport Cities (JSON)</label>
+                            <textarea
+                                value={formData.airportCities ? JSON.stringify(formData.airportCities, null, 2) : ''}
+                                onChange={(e) => {
+                                    try { setFormData({ ...formData, airportCities: e.target.value ? JSON.parse(e.target.value) : undefined }) }
+                                    catch (err) { /* Invalid JSON, ignore */ }
+                                }}
+                                placeholder='{"cityName": "Delhi", "url": "/destinations/kashmir/tours/from-delhi"}'
+                                rows={3}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">From India Cities (JSON)</label>
+                            <textarea
+                                value={formData.fromIndiaCities ? JSON.stringify(formData.fromIndiaCities, null, 2) : ''}
+                                onChange={(e) => {
+                                    try { setFormData({ ...formData, fromIndiaCities: e.target.value ? JSON.parse(e.target.value) : undefined }) }
+                                    catch (err) { /* Invalid JSON, ignore */ }
+                                }}
+                                placeholder='{"cityName": "Mumbai", "url": "/destinations/kashmir/tours/from-mumbai"}'
+                                rows={3}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Travel Guides (JSON)</label>
+                            <textarea
+                                value={formData.travelGuides ? JSON.stringify(formData.travelGuides, null, 2) : ''}
+                                onChange={(e) => {
+                                    try { setFormData({ ...formData, travelGuides: e.target.value ? JSON.parse(e.target.value) : undefined }) }
+                                    catch (err) { /* Invalid JSON, ignore */ }
+                                }}
+                                placeholder='{"title": "Best Time to Visit", "description": "Plan your trip..."}'
+                                rows={3}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">FAQs (JSON)</label>
+                            <textarea
+                                value={formData.faqs ? JSON.stringify(formData.faqs, null, 2) : ''}
+                                onChange={(e) => {
+                                    try { setFormData({ ...formData, faqs: e.target.value ? JSON.parse(e.target.value) : undefined }) }
+                                    catch (err) { /* Invalid JSON, ignore */ }
+                                }}
+                                placeholder='{"question": "How to reach?", "answer": "You can fly to..."}'
+                                rows={3}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono text-xs"
+                            />
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <input type="checkbox" id="featured" checked={formData.featured || false} onChange={(e) => setFormData({ ...formData, featured: e.target.checked })} className="w-4 h-4" />

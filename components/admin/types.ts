@@ -162,6 +162,11 @@ export interface Destination {
         luxury: string
     }
     hotelTypes?: string[]
+    // PLP Sections
+    airportCities?: AirportCity[]
+    fromIndiaCities?: AirportCity[]
+    travelGuides?: TravelGuide[]
+    faqs?: PLPFAQ[]
     createdAt?: string
     updatedAt?: string
 }
@@ -293,3 +298,20 @@ export interface CustomerItinerary {
     createdBy: string
 }
 
+
+// PLP Section Types for Destination Pages
+export interface AirportCity {
+    cityName: string
+    url: string
+}
+
+export interface TravelGuide {
+    title: string
+    description: string
+    url?: string
+}
+
+export interface PLPFAQ {
+    question: string
+    answer: string
+}

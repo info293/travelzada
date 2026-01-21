@@ -199,6 +199,11 @@ interface Destination {
   }
   hotelTypes?: string[] // Array of hotel type strings
   rating?: number // Rating from 4.0 to 5.0
+  // PLP Sections
+  airportCities?: Array<{ cityName: string; url: string }>
+  fromIndiaCities?: Array<{ cityName: string; url: string }>
+  travelGuides?: Array<{ title: string; description: string; url?: string }>
+  faqs?: Array<{ question: string; answer: string }>
   createdAt?: string
   updatedAt?: string
 }
@@ -3413,6 +3418,11 @@ export default function AdminDashboard() {
                         budgetRange: destinationFormData.budgetRange || {},
                         hotelTypes: destinationFormData.hotelTypes || [],
                         rating: destinationFormData.rating || null,
+                        // PLP Sections
+                        airportCities: destinationFormData.airportCities || [],
+                        fromIndiaCities: destinationFormData.fromIndiaCities || [],
+                        travelGuides: destinationFormData.travelGuides || [],
+                        faqs: destinationFormData.faqs || [],
                         updatedAt: new Date().toISOString(),
                       }
                       if (!editingDestination?.id) {
@@ -3678,6 +3688,89 @@ export default function AdminDashboard() {
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
                           />
                           <p className="text-xs text-gray-500 mt-1">Enter as JSON array of strings</p>
+                        </div>
+
+                        {/* PLP Sections */}
+                        <div className="md:col-span-2 border-t pt-6 mt-6">
+                          <h4 className="text-md font-bold text-gray-900 mb-4">PLP Sections (for destination pages)</h4>
+
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">From Airport Cities (JSON Array)</label>
+                              <textarea
+                                value={destinationFormData.airportCities ? JSON.stringify(destinationFormData.airportCities, null, 2) : ''}
+                                onChange={(e) => {
+                                  try {
+                                    const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                                    setDestinationFormData({ ...destinationFormData, airportCities: parsed })
+                                  } catch {
+                                    // Invalid JSON
+                                  }
+                                }}
+                                rows={3}
+                                placeholder={`[\n  {"cityName": "Delhi", "url": "/destinations/bali/tours/from-delhi"},\n  {"cityName": "Mumbai", "url": "/destinations/bali/tours/from-mumbai"}\n]`}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Array of objects with cityName and url</p>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">From India Cities (JSON Array)</label>
+                              <textarea
+                                value={destinationFormData.fromIndiaCities ? JSON.stringify(destinationFormData.fromIndiaCities, null, 2) : ''}
+                                onChange={(e) => {
+                                  try {
+                                    const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                                    setDestinationFormData({ ...destinationFormData, fromIndiaCities: parsed })
+                                  } catch {
+                                    // Invalid JSON
+                                  }
+                                }}
+                                rows={3}
+                                placeholder={`[\n  {"cityName": "Bangalore", "url": "/destinations/bali/tours/from-bangalore"}\n]`}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Array of objects with cityName and url</p>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Guides (JSON Array)</label>
+                              <textarea
+                                value={destinationFormData.travelGuides ? JSON.stringify(destinationFormData.travelGuides, null, 2) : ''}
+                                onChange={(e) => {
+                                  try {
+                                    const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                                    setDestinationFormData({ ...destinationFormData, travelGuides: parsed })
+                                  } catch {
+                                    // Invalid JSON
+                                  }
+                                }}
+                                rows={4}
+                                placeholder={`[\n  {\n    "title": "Best Time to Visit",\n    "description": "April to October offers great weather...",\n    "url": "/blog/bali-weather-guide"\n  }\n]`}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Array of objects with title,description and optional url</p>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">FAQs (JSON Array)</label>
+                              <textarea
+                                value={destinationFormData.faqs ? JSON.stringify(destinationFormData.faqs, null, 2) : ''}
+                                onChange={(e) => {
+                                  try {
+                                    const parsed = e.target.value ? JSON.parse(e.target.value) : []
+                                    setDestinationFormData({ ...destinationFormData, faqs: parsed })
+                                  } catch {
+                                    // Invalid JSON
+                                  }
+                                }}
+                                rows={4}
+                                placeholder={`[\n  {\n    "question": "Do I need a visa?",\n    "answer": "Indian passport holders get visa-on-arrival..."\n  }\n]`}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">Array of objects with question and answer</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

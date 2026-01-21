@@ -249,7 +249,10 @@ export default function DestinationDetailPage({ params }: PageProps) {
                 href={`/ai-trip-planner?destination=${encodeURIComponent(destination.name)}`}
                 className="inline-flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all"
               >
-                Need something custom?
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Plan Trip with AI
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
@@ -444,6 +447,175 @@ export default function DestinationDetailPage({ params }: PageProps) {
         </section>
       ) : null}
 
+      {/* Destination Information Section */}
+      {destination && (
+        <>
+          {/* Quick Info Bar */}
+          <section className="bg-gradient-to-r from-gray-50 to-white border-y border-gray-200">
+            <div className="max-w-6xl mx-auto px-4 md:px-12 py-8">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {destination.bestTimeToVisit && (
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Best Time</p>
+                    <p className="text-sm font-bold text-gray-900">{destination.bestTimeToVisit}</p>
+                  </div>
+                )}
+                {destination.duration && (
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Duration</p>
+                    <p className="text-sm font-bold text-gray-900">{destination.duration}</p>
+                  </div>
+                )}
+                {destination.currency && (
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Currency</p>
+                    <p className="text-sm font-bold text-gray-900">{destination.currency}</p>
+                  </div>
+                )}
+                {destination.language && (
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Language</p>
+                    <p className="text-sm font-bold text-gray-900">{destination.language}</p>
+                  </div>
+                )}
+                {destination.rating && (
+                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+                    <svg className="w-6 h-6 mx-auto mb-2 text-yellow-500 fill-current" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Rating</p>
+                    <p className="text-sm font-bold text-gray-900">{destination.rating}/5.0</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Highlights & Activities */}
+          <section className="py-12 px-4 md:px-12 bg-white">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Highlights */}
+                {destination.highlights && destination.highlights.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                      <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                      Top Highlights
+                    </h2>
+                    <div className="space-y-3">
+                      {destination.highlights.map((highlight: string, index: number) => (
+                        <div key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-primary/5 transition-colors">
+                          <span className="flex-shrink-0 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
+                          <p className="text-gray-700 leading-relaxed">{highlight}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Activities */}
+                {destination.activities && destination.activities.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                      <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Things to Do
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {destination.activities.map((activity: string, index: number) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/10">
+                          <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <p className="text-sm text-gray-700">{activity}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Budget & Hotel Types */}
+          <section className="py-12 px-4 md:px-12 bg-gray-50">
+            <div className="max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Budget Range */}
+                {destination.budgetRange && Object.keys(destination.budgetRange).length > 0 && (
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Budget Guide</h2>
+                    <div className="space-y-4">
+                      {destination.budgetRange.budget && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-bold text-gray-900">Budget</h3>
+                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">Economical</span>
+                          </div>
+                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.budget}</p>
+                        </div>
+                      )}
+                      {destination.budgetRange.midRange && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-bold text-gray-900">Mid-Range</h3>
+                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">Popular</span>
+                          </div>
+                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.midRange}</p>
+                        </div>
+                      )}
+                      {destination.budgetRange.luxury && (
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-bold text-gray-900">Luxury</h3>
+                            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">Premium</span>
+                          </div>
+                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.luxury}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Hotel Types */}
+                {destination.hotelTypes && destination.hotelTypes.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Accommodation Options</h2>
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                      <div className="space-y-3">
+                        {destination.hotelTypes.map((hotelType: string, index: number) => (
+                          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <p className="text-gray-700 font-medium">{hotelType}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
+
       {/* Quick Info Bar */}
       {/* <section className="bg-gray-50 border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 md:px-12 py-6">
@@ -627,6 +799,95 @@ export default function DestinationDetailPage({ params }: PageProps) {
         </div>
       </section>
       */}
+
+      {/* PLP Sections */}
+      {destination && (
+        <>
+          {/* From Airport Cities Section */}
+          {destination.airportCities && destination.airportCities.length > 0 && (
+            <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">From Airport Cities</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {destination.airportCities.map((city: any, index: number) => (
+                    <Link
+                      key={index}
+                      href={city.url}
+                      className="px-4 py-3 bg-gray-50 hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
+                    >
+                      {city.cityName}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* From India Section */}
+          {destination.fromIndiaCities && destination.fromIndiaCities.length > 0 && (
+            <section className="py-12 px-4 md:px-12 bg-gray-50 border-t border-gray-100">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">From India</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {destination.fromIndiaCities.map((city: any, index: number) => (
+                    <Link
+                      key={index}
+                      href={city.url}
+                      className="px-4 py-3 bg-white hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
+                    >
+                      {city.cityName}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Travel Guides Section */}
+          {destination.travelGuides && destination.travelGuides.length > 0 && (
+            <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
+              <div className="max-w-6xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Travel Guides</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {destination.travelGuides.map((guide: any, index: number) => (
+                    <div key={index} className="bg-gray-50 p-6 rounded-xl border border-gray-200 hover:border-primary/50 transition-all">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">{guide.title}</h3>
+                      <p className="text-gray-600 leading-relaxed">{guide.description}</p>
+                      {guide.url && (
+                        <Link href={guide.url} className="inline-block mt-3 text-primary font-semibold hover:underline">
+                          Read More →
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* FAQ Section */}
+          {destination.faqs && destination.faqs.length > 0 && (
+            <section className="py-12 px-4 md:px-12 bg-gray-50 border-t border-gray-100">
+              <div className="max-w-4xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 text-center">Frequently Asked Questions</h2>
+                <div className="space-y-4">
+                  {destination.faqs.map((faq: any, index: number) => (
+                    <details key={index} className="bg-white p-6 rounded-xl border border-gray-200 hover:border-primary/50 transition-all group">
+                      <summary className="font-semibold text-gray-900 cursor-pointer list-none flex items-center justify-between">
+                        <span>{faq.question}</span>
+                        <svg className="w-5 h-5 text-gray-400 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </summary>
+                      <p className="mt-3 text-gray-600 leading-relaxed">{faq.answer}</p>
+                    </details>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+        </>
+      )}
 
       <Footer />
     </main>
