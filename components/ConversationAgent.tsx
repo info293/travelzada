@@ -2228,7 +2228,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                             key={pkgAny.Destination_ID || pkgAny.id}
                             className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-md transition-all w-full"
                           >
-                            <div className="flex flex-col sm:flex-row h-auto sm:h-32">
+                            <div className="flex flex-col sm:flex-row min-h-[8rem]">
                               <div className="relative w-full sm:w-32 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
                                 <img
                                   src={imageUrl}
@@ -2243,7 +2243,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                                 <div>
                                   <div className="flex justify-between items-start gap-2">
                                     <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{pkgAny.Destination_Name}</h4>
-                                    <span className="text-xs font-bold text-primary whitespace-nowrap">{pkgAny.Price_Range_INR}</span>
+                                    <span className="text-xs font-bold text-primary whitespace-nowrap">₹{pkgAny.Price_Range_INR}</span>
                                   </div>
                                   <div className="flex items-center gap-2 mt-1 mb-2">
                                     <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-md font-medium">{pkgAny.Duration}</span>
@@ -2273,7 +2273,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                                 </div>
                                 <Link
                                   href={packageUrl}
-                                  className="mt-2 text-xs font-semibold text-primary hover:text-purple-700 transition-colors flex items-center gap-1 self-end sm:self-start"
+                                  className="mt-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:shadow-md hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-1 self-end"
                                 >
                                   View Details
                                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
