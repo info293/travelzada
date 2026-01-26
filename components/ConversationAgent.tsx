@@ -1362,8 +1362,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       ? destinations.map(d => d.name)
       : []
 
-    // Pass the top 2 suggestions to be rendered with the message
-    const suggestions = rankedPackages.slice(0, 2).map(({ pkg }) => pkg)
+    // Pass the top 1 suggestion to be rendered with the message
+    const suggestions = rankedPackages.slice(0, 1).map(({ pkg }) => pkg)
 
     await sendAssistantPrompt(prompt, {
       packageMatch: bestMatch,
