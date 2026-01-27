@@ -194,6 +194,7 @@ interface Message {
   content: string
   packageMatch?: DestinationPackage
   recommendations?: DestinationPackage[]
+  quickActions?: Array<{ label: string; action: string; packageData?: DestinationPackage }>
 }
 
 interface ConversationAgentProps {
@@ -247,6 +248,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [aiResponseComplete, setAiResponseComplete] = useState(false)
   const [firestorePackages, setFirestorePackages] = useState<DestinationPackage[]>([])
   const [packagesLoading, setPackagesLoading] = useState(true)
+  // Interactive chat features - post-recommendation phase
+  const [conversationPhase, setConversationPhase] = useState<'collecting-info' | 'showing-recommendation' | 'post-recommendation'>('collecting-info')
+  const [shownPackageIds, setShownPackageIds] = useState<string[]>([])
+  const [currentRecommendationIndex, setCurrentRecommendationIndex] = useState(0)
   const [destinations, setDestinations] = useState<Array<{ id?: string; name: string; slug?: string }>>([])
   const [destinationsLoading, setDestinationsLoading] = useState(true)
   const [destinationDayOptions, setDestinationDayOptions] = useState<Array<{ label: string; value: string }>>([])
@@ -1365,19 +1370,141 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // Pass the top 1 suggestion to be rendered with the message
     const suggestions = rankedPackages.slice(0, 1).map(({ pkg }) => pkg)
 
+    // Create dynamic quick action text (ChatGPT-style) for post-recommendation interaction
+    const packageName = bestMatchAny.Destination_Name || tripInfo.destination
+    const quickActions = [
+      { label: `1. Tell me more about ${packageName}`, action: "package-details", packageData: bestMatch },
+      { label: `2. Show me other packages for ${tripInfo.destination}`, action: "show-alternatives" },
+      { label: `3. What's included in ${packageName}?`, action: "show-inclusions", packageData: bestMatch },
+      { label: `4. Show day-wise itinerary for ${packageName}`, action: "show-itinerary", packageData: bestMatch },
+    ]
+
     await sendAssistantPrompt(prompt, {
       packageMatch: bestMatch,
-      recommendations: suggestions
+      recommendations: suggestions,
+      quickActions
     }, availableDests)
 
     // Mark AI response as complete after the message is sent
     setAiResponseComplete(true)
+
+    // Set conversation phase to post-recommendation
+    setConversationPhase('post-recommendation')
+    setShownPackageIds([bestMatchAny.Destination_ID || bestMatchAny.id || ''])
+    setCurrentRecommendationIndex(0)
 
     if (!tripDetailsAutoOpenedRef.current) {
       tripDetailsAutoOpenedRef.current = true
       onTripDetailsRequest?.()
     }
   }, [onTripDetailsRequest, rankedPackages, sendAssistantPrompt, destinations])
+
+  // Handle quick action button clicks (AI-powered responses with database context)
+  const handleQuickAction = useCallback(async (action: string, packageData?: DestinationPackage) => {
+    const pkg = packageData as any
+
+    switch (action) {
+      case 'package-details':
+        if (pkg) {
+          // AI analyzes conversation + database data to give intelligent response
+          const prompt = withStyle(
+            `The user asked for more details about the "${pkg.Destination_Name}" package. Based on our conversation and their preferences (${tripInfo.travelType} trip, ${tripInfo.days} days, ${tripInfo.hotelType}), provide a detailed, personalized overview. Here's the package data from our database:
+            
+- Package: ${pkg.Destination_Name}
+- Duration: ${pkg.Duration}
+- Overview: ${pkg.Overview || 'Not available'}
+- Travel Type: ${pkg.Travel_Type || 'Not specified'}
+- Star Category: ${pkg.Star_Category || 'Not specified'}
+- Price Range: ${pkg.Price_Range_INR || 'Contact for pricing'}
+- Highlights: ${pkg.Highlights || 'Not available'}
+
+Craft a natural, engaging response that highlights why this package fits their needs. Be conversational and enthusiastic.`,
+            120
+          )
+          await sendAssistantPrompt(prompt)
+        }
+        break
+
+      case 'show-alternatives':
+        // Show 2nd and 3rd ranked packages from database with AI introduction
+        const alternatives = rankedPackages.slice(1, 3).map(({ pkg }) => pkg)
+
+        if (alternatives.length > 0) {
+          // AI generates contextual introduction for alternatives
+          const altNames = alternatives.map((p: any) => p.Destination_Name).join(' and ')
+          const prompt = withStyle(
+            `The user wants to see alternative packages. Introduce these options naturally: ${altNames}. Keep it brief and enthusiastic, mentioning they're also great matches for their ${tripInfo.travelType} trip to ${tripInfo.destination}.`,
+            40
+          )
+
+          const firstAltName = (alternatives[0] as any).Destination_Name || tripInfo.destination
+          await sendAssistantPrompt(prompt, {
+            recommendations: alternatives,
+            quickActions: [
+              { label: `1. Tell me more about ${firstAltName}`, action: "package-details", packageData: alternatives[0] },
+              { label: `2. What's included in ${firstAltName}?`, action: "show-inclusions", packageData: alternatives[0] },
+            ]
+          })
+
+          // Track shown packages
+          const newIds = alternatives.map((p: any) => p.Destination_ID || p.id || '').filter(Boolean)
+          setShownPackageIds(prev => [...prev, ...newIds])
+          setCurrentRecommendationIndex(prev => prev + alternatives.length)
+        } else {
+          const prompt = withStyle(
+            `Explain that you've shown all matching packages for their ${tripInfo.travelType} trip to ${tripInfo.destination}. Offer to help modify their preferences (dates, budget, duration) to see more options, or ask if they'd like to proceed with one of the packages already shown.`,
+            50
+          )
+          await sendAssistantPrompt(prompt)
+        }
+        break
+
+      case 'show-inclusions':
+        if (pkg && pkg.Inclusions) {
+          // AI analyzes inclusions and presents them naturally
+          const prompt = withStyle(
+            `The user asked what's included in "${pkg.Destination_Name}". Here's the inclusions data from our database:
+
+${pkg.Inclusions}
+
+Present this information in a clear, organized way. Group similar items together (accommodation, meals, activities, transfers, etc.) and highlight the key benefits that match their ${tripInfo.travelType} trip preferences. Be enthusiastic about the value they're getting.`,
+            100
+          )
+          await sendAssistantPrompt(prompt)
+        } else {
+          const prompt = withStyle(
+            `Apologize that detailed inclusions for "${pkg.Destination_Name}" aren't available in the system right now. Offer to connect them with a travel advisor who can provide complete details, or suggest they can check other packages.`,
+            40
+          )
+          await sendAssistantPrompt(prompt)
+        }
+        break
+
+      case 'show-itinerary':
+        if (pkg && pkg.Day_Wise_Itinerary) {
+          // AI formats and contextualizes the itinerary
+          const prompt = withStyle(
+            `The user wants to see the day-by-day itinerary for "${pkg.Destination_Name}". Here's the itinerary from our database:
+
+${pkg.Day_Wise_Itinerary}
+
+Present this in an engaging way, highlighting activities that would appeal to a ${tripInfo.travelType} traveler. Keep the day-by-day structure but make it conversational and exciting. Mention if any days are particularly special or unique.`,
+            150
+          )
+          await sendAssistantPrompt(prompt)
+        } else {
+          const prompt = withStyle(
+            `Explain that the detailed day-wise itinerary for "${pkg.Destination_Name}" isn't in the system yet. Offer to have a travel expert create a custom itinerary based on their ${tripInfo.travelType} preferences, or suggest they can check the itinerary for other packages.`,
+            40
+          )
+          await sendAssistantPrompt(prompt)
+        }
+        break
+
+      default:
+        break
+    }
+  }, [rankedPackages, appendMessage, sendAssistantPrompt, tripInfo])
 
   const askNextQuestion = useCallback(
     async (infoOverride?: TripInfo) => {
@@ -1546,8 +1673,70 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     const latestInfo = tripInfoRef.current
 
-    // Check if user is asking for packages/inquiry form
     const userInputLower = userInput.toLowerCase()
+
+    // INTENT DETECTION: Post-recommendation phase handling
+    if (conversationPhase === 'post-recommendation') {
+      const lastRecommendation = messages.filter(m => m.role === 'assistant' && m.recommendations && m.recommendations.length > 0).pop()
+      const lastPackage = lastRecommendation?.recommendations?.[0]
+
+      // Check if user typed a number (1-4)
+      const numberMatch = userInput.trim().match(/^(\d)\.?$/)
+      if (numberMatch) {
+        const num = parseInt(numberMatch[1], 10)
+        // Map number to action based on the quick actions shown
+        if (num === 1 && lastPackage) {
+          await handleQuickAction('package-details', lastPackage)
+          return
+        } else if (num === 2) {
+          await handleQuickAction('show-alternatives')
+          return
+        } else if (num === 3 && lastPackage) {
+          await handleQuickAction('show-inclusions', lastPackage)
+          return
+        } else if (num === 4 && lastPackage) {
+          await handleQuickAction('show-itinerary', lastPackage)
+          return
+        }
+      }
+
+      // Detect user intent in post-recommendation phase
+      if (userInputLower.includes('more') || userInputLower.includes('other') ||
+        userInputLower.includes('alternative') || userInputLower.includes('different') ||
+        userInputLower.includes('more option')) {
+        // User wants to see alternatives
+        await handleQuickAction('show-alternatives')
+        return
+      }
+
+      if ((userInputLower.includes('detail') || userInputLower.includes('tell me more') ||
+        userInputLower.includes('more about') || userInputLower.includes('information')) && lastPackage) {
+        // User wants more details
+        await handleQuickAction('package-details', lastPackage)
+        return
+      }
+
+      if ((userInputLower.includes('include') || userInputLower.includes('inclusion') ||
+        userInputLower.includes('what') && userInputLower.includes('include')) && lastPackage) {
+        // User wants inclusions
+        await handleQuickAction('show-inclusions', lastPackage)
+        return
+      }
+
+      if ((userInputLower.includes('itinerary') || userInputLower.includes('day wise') ||
+        userInputLower.includes('schedule') || userInputLower.includes('plan')) && lastPackage) {
+        // User wants itinerary
+        await handleQuickAction('show-itinerary', lastPackage)
+        return
+      }
+
+      // If no specific intent detected, let AI respond naturally
+      const prompt = withStyle(`The user said: "${userInput}". Respond conversationally and offer to help with package details, alternatives, or booking.`, 40)
+      await sendAssistantPrompt(prompt)
+      return
+    }
+
+    // Check if user is asking for packages/inquiry form
     const wantsPackages = userInputLower.includes('inquiry') ||
       userInputLower.includes('form') ||
       userInputLower.includes('package') && (userInputLower.includes('show') || userInputLower.includes('dikhao') || userInputLower.includes('chahiye'))
@@ -2284,6 +2473,24 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
                         )
                       })}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Render Quick Action Text Links (ChatGPT-style) if present */}
+              {message.role === 'assistant' && message.quickActions && message.quickActions.length > 0 && (
+                <div className="pl-0 md:pl-11 w-full mt-3">
+                  <div className="flex flex-col gap-2">
+                    {message.quickActions.map((action, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleQuickAction(action.action, action.packageData)}
+                        className="text-left text-sm text-gray-700 hover:text-purple-700 hover:underline transition-all cursor-pointer bg-transparent border-none p-0 font-normal"
+                      >
+                        {action.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
