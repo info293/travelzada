@@ -33,18 +33,7 @@ const monthNames = [
   'december',
 ]
 
-// Get next 6 months from today
-const getNextSixMonths = () => {
-  const today = new Date()
-  const months: { name: string; index: number }[] = []
-  for (let i = 0; i < 6; i++) {
-    const date = new Date(today.getFullYear(), today.getMonth() + i, 1)
-    const monthIndex = date.getMonth()
-    const monthName = monthNames[monthIndex]
-    months.push({ name: monthName, index: monthIndex })
-  }
-  return months
-}
+
 
 const TOTAL_STEPS = 5 // Removed budget step
 
@@ -162,15 +151,12 @@ const parseFlexibleDate = (text: string) => {
   return null
 }
 
-const getUpcomingDateForMonth = (monthIndex: number) => {
-  const today = new Date()
-  let year = today.getFullYear()
-  if (monthIndex < today.getMonth()) {
-    year += 1
-  }
-  const day = Math.min(today.getDate(), 28) // avoid invalid dates
-  return formatISODate(new Date(year, monthIndex, day))
-}
+
+
+const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate()
+const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay()
 
 const isSameAnswer = (text: string) => {
   const normalized = text.trim().toLowerCase()
@@ -257,7 +243,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [destinationDayOptions, setDestinationDayOptions] = useState<Array<{ label: string; value: string }>>([])
   const [destinationHotelOptions, setDestinationHotelOptions] = useState<Array<{ label: string; value: string }>>([])
   const [destinationTravelTypeOptions, setDestinationTravelTypeOptions] = useState<Array<{ label: string; value: string }>>([])
-  const [selectedMonthForCalendar, setSelectedMonthForCalendar] = useState<number | null>(null)
+
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [calendarViewDate, setCalendarViewDate] = useState(new Date())
+
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
   const [imageAnalysisResult, setImageAnalysisResult] = useState<{
@@ -2175,53 +2164,9 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     },
     [appendMessage, askNextQuestion, updateTripInfo]
   )
-  const selectedMonthIndex = useMemo(() => {
-    if (!tripInfo.travelDate) return null
-    const parsed = new Date(tripInfo.travelDate)
-    return isNaN(parsed.getTime()) ? null : parsed.getMonth()
-  }, [tripInfo.travelDate])
 
-  const handleMonthSelect = useCallback(
-    (monthIndex: number) => {
-      // Set the selected month for calendar focus (don't auto-select a date)
-      setSelectedMonthForCalendar(monthIndex)
-      // Set a date in that month to help the calendar navigate there
-      const iso = getUpcomingDateForMonth(monthIndex)
 
-      // Use ref if available, otherwise query selector
-      const dateInput = dateInputRef.current || (document.querySelector('input[type="date"]') as HTMLInputElement)
 
-      if (dateInput) {
-        dateInput.value = iso
-        // Scroll the input into view if needed
-        dateInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-
-        // Try to open the calendar picker immediately (within the same user gesture)
-        // This should work because we're still within the button click event
-        if (dateInput.showPicker) {
-          try {
-            // Call showPicker synchronously - this should work within the user gesture
-            dateInput.showPicker()
-          } catch (err) {
-            // If showPicker fails (e.g., browser doesn't support it or gesture expired),
-            // try clicking the input as fallback
-            dateInput.focus()
-            // Use requestAnimationFrame to ensure DOM is ready, then click
-            requestAnimationFrame(() => {
-              dateInput.click()
-            })
-          }
-        } else {
-          // Browser doesn't support showPicker, use click fallback
-          dateInput.focus()
-          requestAnimationFrame(() => {
-            dateInput.click()
-          })
-        }
-      }
-    },
-    []
-  )
 
   const handleCalendarInputChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -2567,70 +2512,152 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                   Select your travel date
                 </label>
                 <p className="text-xs text-gray-600 mb-4">
-                  Choose a month first, then pick a specific date
+                  Pick your travel date from the calendar
                 </p>
 
-                {/* Month Selector */}
-                <div className="mb-4">
-                  <p className="text-xs font-medium text-gray-700 mb-2">Select Month (optional - helps navigate to the right month):</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                    {getNextSixMonths().map((month) => {
-                      const isSelected = selectedMonthForCalendar === month.index || selectedMonthIndex === month.index
-                      return (
-                        <button
-                          key={month.index}
-                          type="button"
-                          onClick={() => handleMonthSelect(month.index)}
-                          className={`rounded-lg border-2 px-3 py-2.5 text-xs md:text-sm font-medium transition-all duration-200 ${isSelected
-                            ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md'
-                            : 'border-gray-200 bg-white text-gray-700 hover:border-purple-300 hover:bg-purple-50'
-                            }`}
-                        >
-                          {month.name.charAt(0).toUpperCase() + month.name.slice(1)}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* Date Picker */}
                 <div>
-                  <p className="text-xs font-medium text-gray-700 mb-2">Select Specific Date:</p>
-                  <div className="relative">
-                    <input
-                      ref={dateInputRef}
-                      type="date"
-                      min={todayISO}
-                      value={tripInfo.travelDate || (selectedMonthForCalendar !== null ? getUpcomingDateForMonth(selectedMonthForCalendar) : '')}
-                      onChange={handleCalendarInputChange}
-                      className="w-full rounded-lg border-2 border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all cursor-pointer relative z-10"
-                      style={{ cursor: 'pointer', position: 'relative', zIndex: 10 }}
+                  <div className="relative group">
+                    {/* Input Trigger */}
+                    <div
+                      className="w-full rounded-xl border border-gray-300 bg-white pl-10 pr-4 py-3.5 text-sm text-gray-700 shadow-sm hover:border-purple-300 hover:shadow-md transition-all cursor-pointer relative z-10 flex items-center"
                       onClick={(e) => {
-                        // Ensure the calendar opens when clicked
-                        const input = e.target as HTMLInputElement
-                        e.stopPropagation()
-                        // Try modern showPicker API - this works because it's a direct user gesture
-                        if (input.showPicker) {
-                          try {
-                            input.showPicker()
-                          } catch (err) {
-                            // Fallback: just focus if showPicker fails
-                            input.focus()
-                          }
-                        } else {
-                          // Fallback for older browsers - just focus
-                          input.focus()
+                        e.stopPropagation();
+                        setShowCalendar(!showCalendar);
+                        // Initialize view date if date is selected
+                        if (tripInfo.travelDate) {
+                          setCalendarViewDate(new Date(tripInfo.travelDate));
                         }
                       }}
-                    />
+                    >
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <span className={tripInfo.travelDate ? "text-gray-900 font-medium" : "text-gray-400"}>
+                        {tripInfo.travelDate
+                          ? new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                          : "Select travel date..."}
+                      </span>
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${showCalendar ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Custom Calendar Popover */}
+                    {showCalendar && (
+                      <>
+                        {/* Backdrop to close on click outside */}
+                        <div className="fixed inset-0 z-20" onClick={() => setShowCalendar(false)}></div>
+
+                        <div className="absolute bottom-full right-0 mb-2 w-full sm:w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-30 animate-in fade-in zoom-in-95 duration-200">
+                          {/* Calendar Header */}
+                          <div className="flex items-center justify-between mb-4">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newDate = new Date(calendarViewDate);
+                                newDate.setMonth(newDate.getMonth() - 1);
+                                setCalendarViewDate(newDate);
+                              }}
+                              className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                            <h4 className="text-sm font-bold text-gray-900">
+                              {calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newDate = new Date(calendarViewDate);
+                                newDate.setMonth(newDate.getMonth() + 1);
+                                setCalendarViewDate(newDate);
+                              }}
+                              className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                          </div>
+
+                          {/* Days Grid */}
+                          <div className="grid grid-cols-7 gap-1 mb-2">
+                            {dayNames.map(day => (
+                              <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Dates Grid */}
+                          <div className="grid grid-cols-7 gap-1">
+                            {/* Empty cells for start of month */}
+                            {Array.from({ length: getFirstDayOfMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => (
+                              <div key={`empty-${i}`} className="h-8 md:h-9"></div>
+                            ))}
+
+                            {/* Date cells */}
+                            {Array.from({ length: getDaysInMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => {
+                              const day = i + 1;
+                              const date = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+                              const dateISO = formatISODate(date);
+                              const isToday = dateISO === todayISO;
+                              const isSelected = tripInfo.travelDate === dateISO;
+                              const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+                              return (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  disabled={isPast}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDateSelection(dateISO);
+                                    setShowCalendar(false);
+                                  }}
+                                  className={`
+                                    h-8 md:h-9 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center justify-center relative
+                                    ${isSelected
+                                      ? 'bg-purple-600 text-white shadow-md'
+                                      : isPast
+                                        ? 'text-gray-300 cursor-not-allowed'
+                                        : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+                                    }
+                                    ${isToday && !isSelected ? 'border border-purple-200 text-purple-600 font-bold' : ''}
+                                  `}
+                                >
+                                  {day}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {tripInfo.travelDate
-                      ? `✅ Selected: ${new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`
-                      : selectedMonthForCalendar !== null
-                        ? `💡 Click the date field above to pick a date in ${monthNames[selectedMonthForCalendar].charAt(0).toUpperCase() + monthNames[selectedMonthForCalendar].slice(1)}`
-                        : '💡 Click a month above to navigate, or click the date field to pick any date'}
-                  </p>
+                  <div className="mt-3">
+                    {tripInfo.travelDate ? (
+                      <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-medium">
+                          Selected: {new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="flex items-center gap-1.5 text-xs text-gray-500 ml-1">
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Tap the box above to open the calendar
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

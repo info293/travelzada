@@ -170,32 +170,7 @@ export default function Footer() {
               </ul>
             </nav>
 
-            {/* Popular Routes */}
-            <nav className="lg:col-span-2" aria-labelledby="footer-routes">
-              <h3 id="footer-routes" className="font-bold text-lg mb-5 text-white">Popular Routes</h3>
-              <ul className="space-y-3" role="list">
-                <li>
-                  <Link href="/destinations/bali/tours/from-delhi" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Bali tour packages from Delhi">
-                    Bali from Delhi
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/destinations/kerala/tours/from-mumbai" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Kerala tour packages from Mumbai">
-                    Kerala from Mumbai
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/destinations/kashmir/tours/from-delhi" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Kashmir tour packages from Delhi">
-                    Kashmir from Delhi
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/destinations/thailand/tours/from-bangalore" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Thailand tour packages from Bangalore">
-                    Thailand from Bangalore
-                  </Link>
-                </li>
-              </ul>
-            </nav>
+
 
             {/* Legal Links */}
             <nav className="lg:col-span-2" aria-labelledby="footer-legal">
