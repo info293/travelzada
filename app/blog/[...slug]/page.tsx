@@ -55,6 +55,42 @@ interface PageProps {
     params: Promise<{ slug: string[] }> | { slug: string[] }
 }
 
+// Helper function to convert various date formats to ISO 8601
+function convertToISO8601(dateString: string): string {
+    if (!dateString) return new Date().toISOString().split('T')[0]
+
+    // Already in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+        return dateString.split('T')[0] // Return just the date part
+    }
+
+    // Handle formats like "DEC 01", "JAN 15", etc.
+    const monthShortMatch = dateString.match(/^([A-Z]{3})\s+(\d{1,2})$/i)
+    if (monthShortMatch) {
+        const monthMap: { [key: string]: string } = {
+            'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04', 'MAY': '05', 'JUN': '06',
+            'JUL': '07', 'AUG': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        }
+        const month = monthMap[monthShortMatch[1].toUpperCase()]
+        const day = monthShortMatch[2].padStart(2, '0')
+        const year = new Date().getFullYear()
+        return `${year}-${month}-${day}`
+    }
+
+    // Try to parse as a Date object and convert
+    try {
+        const parsed = new Date(dateString)
+        if (!isNaN(parsed.getTime())) {
+            return parsed.toISOString().split('T')[0]
+        }
+    } catch (e) {
+        // Fall through to default
+    }
+
+    // Default to current date if parsing fails
+    return new Date().toISOString().split('T')[0]
+}
+
 // Fetch blog post server-side
 async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
     if (!db) return null
@@ -112,26 +148,56 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
     }
 }
 
-// Fetch related posts
+// Fetch related posts - ensures 2-3 posts are always returned
 async function fetchRelatedPosts(category: string | undefined, currentPostId: string | undefined): Promise<BlogPost[]> {
-    if (!category || !db) return []
+    if (!db) return []
 
     try {
-        const relatedQuery = query(
-            collection(db, 'blogs'),
-            where('published', '==', true),
-            where('category', '==', category),
-            limit(4)
-        )
-        const relatedSnapshot = await getDocs(relatedQuery)
         const related: BlogPost[] = []
 
-        relatedSnapshot.forEach((doc) => {
-            if (doc.id !== currentPostId) {
-                related.push({ id: doc.id, ...doc.data() } as BlogPost)
-            }
-        })
+        // First, try to get posts from the same category
+        if (category) {
+            const relatedQuery = query(
+                collection(db, 'blogs'),
+                where('published', '==', true),
+                where('category', '==', category),
+                limit(6) // Get more to filter out current post
+            )
+            const relatedSnapshot = await getDocs(relatedQuery)
 
+            relatedSnapshot.forEach((doc) => {
+                if (doc.id !== currentPostId) {
+                    related.push({ id: doc.id, ...doc.data() } as BlogPost)
+                }
+            })
+        }
+
+        // If we have enough related posts from the same category, return 3
+        if (related.length >= 3) {
+            return related.slice(0, 3)
+        }
+
+        // If we need more posts, fetch popular posts from other categories
+        const neededCount = 3 - related.length
+        if (neededCount > 0) {
+            const popularQuery = query(
+                collection(db, 'blogs'),
+                where('published', '==', true),
+                limit(10) // Get top posts
+            )
+            const popularSnapshot = await getDocs(popularQuery)
+            const existingIds = new Set(related.map(p => p.id))
+            existingIds.add(currentPostId)
+
+            popularSnapshot.forEach((doc) => {
+                if (!existingIds.has(doc.id) && related.length < 3) {
+                    related.push({ id: doc.id, ...doc.data() } as BlogPost)
+                    existingIds.add(doc.id)
+                }
+            })
+        }
+
+        // Return 2-3 posts (or whatever we could find)
         return related.slice(0, 3)
     } catch (err) {
         console.error('Could not fetch related posts:', err)
@@ -237,6 +303,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     }
 
     // Generate structured data for SEO
+    const isoDate = convertToISO8601(post.date)
     const articleSchema = {
         '@context': 'https://schema.org',
         '@type': 'Article',
@@ -247,8 +314,8 @@ export default async function BlogPostPage({ params }: PageProps) {
             '@type': 'Person',
             name: post.author,
         },
-        datePublished: post.date,
-        dateModified: post.date,
+        datePublished: isoDate,
+        dateModified: isoDate,
         publisher: {
             '@type': 'Organization',
             name: 'Travelzada',
@@ -382,7 +449,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                             alt={post.metaDescription || post.description || post.title}
                                             title={post.title}
                                             className="w-full max-h-[500px] object-cover rounded-lg"
-                                            loading="eager"
+                                            loading="lazy"
                                         />
                                     </div>
                                 )}

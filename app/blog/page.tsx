@@ -1,12 +1,10 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { collection, getDocs, query, orderBy, where, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { NewsletterSubscription } from '@/components/blog/NewsletterSubscription'
 
 interface BlogPost {
   id?: string
@@ -30,158 +28,87 @@ interface BlogPost {
   slug?: string
 }
 
-export default function BlogPage() {
-  const [allPosts, setAllPosts] = useState<BlogPost[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'latest' | 'top' | 'discussions'>('latest')
-  const [email, setEmail] = useState('')
-  const [subscribing, setSubscribing] = useState(false)
-  const [subscribeMessage, setSubscribeMessage] = useState('')
-  const searchParams = useSearchParams()
+// Metadata for SEO
+export const metadata: Metadata = {
+  title: 'Travel Blog | Travelzada - Tips, Guides & Destination Insights',
+  description: 'Read the latest travel tips, destination guides, and travel insights from Travelzada. Get expert advice for your next trip.',
+  alternates: {
+    canonical: 'https://www.travelzada.com/blog',
+  },
+  openGraph: {
+    title: 'Travel Blog | Travelzada',
+    description: 'Read the latest travel tips, destination guides, and travel insights from Travelzada.',
+    url: 'https://www.travelzada.com/blog',
+    type: 'website',
+    siteName: 'Travelzada',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
 
-  useEffect(() => {
-    // Set page SEO
-    document.title = 'Travel Blog | Travelzada - Tips, Guides & Destination Insights'
-    const metaDescription = document.querySelector('meta[name="description"]')
-    if (metaDescription) {
-      metaDescription.setAttribute('content', 'Read the latest travel tips, destination guides, and travel insights from Travelzada. Get expert advice for your next trip.')
-    }
+// Fetch blogs server-side
+async function fetchBlogs(): Promise<BlogPost[]> {
+  if (!db) return []
 
-    fetchBlogs()
-  }, [])
-
-
-  const fetchBlogs = async () => {
+  try {
+    // Try to fetch with published filter and orderBy
+    let querySnapshot
     try {
-      if (typeof window === 'undefined' || !db) return
-
-      // Try to fetch with published filter and orderBy
-      let querySnapshot
+      const q = query(
+        collection(db, 'blogs'),
+        where('published', '==', true),
+        orderBy('createdAt', 'desc')
+      )
+      querySnapshot = await getDocs(q)
+    } catch (orderError) {
+      // If orderBy fails (missing index or createdAt field), try without orderBy
+      console.log('OrderBy failed, trying without orderBy:', orderError)
       try {
         const q = query(
           collection(db, 'blogs'),
-          where('published', '==', true),
-          orderBy('createdAt', 'desc')
+          where('published', '==', true)
         )
         querySnapshot = await getDocs(q)
-      } catch (orderError) {
-        // If orderBy fails (missing index or createdAt field), try without orderBy
-        console.log('OrderBy failed, trying without orderBy:', orderError)
-        try {
-          const q = query(
-            collection(db, 'blogs'),
-            where('published', '==', true)
-          )
-          querySnapshot = await getDocs(q)
-        } catch (whereError) {
-          // If where also fails, fetch all blogs and filter client-side
-          console.log('Where clause failed, fetching all blogs:', whereError)
-          querySnapshot = await getDocs(collection(db, 'blogs'))
-        }
+      } catch (whereError) {
+        // If where also fails, fetch all blogs and filter
+        console.log('Where clause failed, fetching all blogs:', whereError)
+        querySnapshot = await getDocs(collection(db, 'blogs'))
       }
-
-      const blogsData: BlogPost[] = []
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data() as BlogPost
-        // Filter client-side if needed (in case where clause failed)
-        if (data.published !== false) {
-          blogsData.push({ id: doc.id, ...data })
-        }
-      })
-
-      // Sort by createdAt if available, otherwise by date
-      blogsData.sort((a, b) => {
-        const aDate = (a as any).createdAt || a.date || ''
-        const bDate = (b as any).createdAt || b.date || ''
-        return bDate.localeCompare(aDate)
-      })
-
-      console.log(`✅ Loaded ${blogsData.length} blogs from Firestore`)
-      console.log('Blogs data:', blogsData.map(b => ({ id: b.id, title: b.title, published: (b as any).published })))
-      setAllPosts(blogsData)
-    } catch (error) {
-      console.error('Error fetching blogs:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const emailValue = email.trim().toLowerCase()
-
-    if (!emailValue) {
-      setSubscribeMessage('Please enter a valid email address.')
-      return
     }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(emailValue)) {
-      setSubscribeMessage('Please enter a valid email address.')
-      return
-    }
+    const blogsData: BlogPost[] = []
 
-    try {
-      setSubscribing(true)
-      setSubscribeMessage('')
-
-      if (typeof window === 'undefined' || !db) {
-        setSubscribeMessage('Unable to subscribe. Please try again later.')
-        return
+    querySnapshot.forEach((doc) => {
+      const data = doc.data() as BlogPost
+      // Filter if needed (in case where clause failed)
+      if (data.published !== false) {
+        blogsData.push({ id: doc.id, ...data })
       }
+    })
 
-      // Check if email already exists
-      const subscribersRef = collection(db, 'newsletter_subscribers')
-      const existingQuery = query(subscribersRef, where('email', '==', emailValue))
-      const existingSnapshot = await getDocs(existingQuery)
+    // Sort by createdAt if available, otherwise by date
+    blogsData.sort((a, b) => {
+      const aDate = (a as any).createdAt || a.date || ''
+      const bDate = (b as any).createdAt || b.date || ''
+      return bDate.localeCompare(aDate)
+    })
 
-      if (!existingSnapshot.empty) {
-        setSubscribeMessage('This email is already subscribed!')
-        setEmail('')
-        return
-      }
-
-      // Add email to Firestore
-      await addDoc(subscribersRef, {
-        email: emailValue,
-        subscribedAt: serverTimestamp(),
-        status: 'active',
-        source: 'blog_page',
-      })
-
-      setSubscribeMessage('Thank you for subscribing!')
-      setEmail('')
-
-      // Clear message after 3 seconds
-      setTimeout(() => {
-        setSubscribeMessage('')
-      }, 3000)
-    } catch (error) {
-      console.error('Error subscribing:', error)
-      setSubscribeMessage('Something went wrong. Please try again later.')
-    } finally {
-      setSubscribing(false)
-    }
+    console.log(`✅ Loaded ${blogsData.length} blogs from Firestore`)
+    return blogsData
+  } catch (error) {
+    console.error('Error fetching blogs:', error)
+    return []
   }
+}
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-white">
-        <Header />
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-        <Footer />
-      </main>
-    )
-  }
+export default async function BlogPage({ searchParams }: { searchParams: Promise<{ section?: string }> | { section?: string } }) {
+  const resolvedParams = searchParams instanceof Promise ? await searchParams : searchParams
+  const selectedSection = resolvedParams?.section
 
-  // Show message if no blogs found
+  const allPosts = await fetchBlogs()
+
   if (allPosts.length === 0) {
     return (
       <main className="min-h-screen bg-white">
@@ -193,7 +120,7 @@ export default function BlogPage() {
               There are no published blog posts at the moment. Check back soon!
             </p>
             <p className="text-sm text-gray-500">
-              If you're an admin, make sure your blogs are marked as "Published" in the admin dashboard.
+              If you&apos;re an admin, make sure your blogs are marked as &quot;Published&quot; in the admin dashboard.
             </p>
           </div>
         </section>
@@ -212,10 +139,7 @@ export default function BlogPage() {
     return acc
   }, {} as Record<string, BlogPost[]>)
 
-  // Get selected section from URL
-  const selectedSection = searchParams.get('section')
-
-  // Sort sections and posts within sections
+  // Get section names
   let sortedSections = Object.keys(groupedPosts).sort()
 
   // Filter sections if a specific section is selected
@@ -304,9 +228,7 @@ export default function BlogPage() {
                                 src={post.image}
                                 alt={post.title}
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=600&q=80'
-                                }}
+                                loading="lazy"
                               />
                             </div>
 
@@ -376,9 +298,7 @@ export default function BlogPage() {
                               src={featuredPost.image}
                               alt={featuredPost.title}
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-                              }}
+                              loading="lazy"
                             />
                           </div>
 
@@ -418,9 +338,7 @@ export default function BlogPage() {
                                     src={post.image}
                                     alt={post.title}
                                     className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
-                                    }}
+                                    loading="lazy"
                                   />
                                 </div>
 
@@ -452,36 +370,7 @@ export default function BlogPage() {
                             <p className="text-sm text-gray-600 mb-4">
                               Essays and analysis about travel, destinations, tips, and all the other things we care about.
                             </p>
-
-                            <form onSubmit={handleSubscribe} className="space-y-3">
-                              <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => {
-                                  setEmail(e.target.value)
-                                  setSubscribeMessage('')
-                                }}
-                                placeholder="Type your email..."
-                                disabled={subscribing}
-                                className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                required
-                              />
-                              <button
-                                type="submit"
-                                disabled={subscribing}
-                                className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {subscribing ? 'Subscribing...' : 'Subscribe'}
-                              </button>
-                              {subscribeMessage && (
-                                <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
-                                  }`}>
-                                  {subscribeMessage}
-                                </p>
-                              )}
-                            </form>
+                            <NewsletterSubscription />
                           </div>
                         </div>
                       )}
@@ -490,86 +379,6 @@ export default function BlogPage() {
                 </div>
               )
             })}
-
-            {/* If no sections, show all posts in default layout */}
-            {sortedSections.length === 0 && (
-              <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 lg:gap-12">
-                <div className="space-y-6">
-                  {allPosts.map((post) => (
-                    <Link
-                      key={post.id || post.title}
-                      href={getBlogUrl(post)}
-                      className="block group"
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0 w-32 h-32">
-                          <img
-                            src={post.image}
-                            alt={post.title}
-                            className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-bold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight">
-                            {post.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                            {post.subtitle || post.description}
-                          </p>
-                          <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
-                            <span>{post.date}</span>
-                            <span>•</span>
-                            <span>{post.author.toUpperCase()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Newsletter Sidebar */}
-                <div className="sticky top-24">
-                  <div className="bg-white border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Essays and analysis about travel, destinations, tips, and all the other things we care about.
-                    </p>
-                    <form onSubmit={handleSubscribe} className="space-y-3">
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value)
-                          setSubscribeMessage('')
-                        }}
-                        placeholder="Type your email..."
-                        disabled={subscribing}
-                        className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        required
-                      />
-                      <button
-                        type="submit"
-                        disabled={subscribing}
-                        className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {subscribing ? 'Subscribing...' : 'Subscribe'}
-                      </button>
-                      {subscribeMessage && (
-                        <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                          }`}>
-                          {subscribeMessage}
-                        </p>
-                      )}
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* New Three Column Section: Top Posts, Recent Posts, Newsletter */}
             <div className="pt-16 border-t border-gray-200 mt-16">
@@ -593,9 +402,7 @@ export default function BlogPage() {
                               src={post.image}
                               alt={post.title}
                               className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
-                              }}
+                              loading="lazy"
                             />
                           </div>
 
@@ -647,9 +454,7 @@ export default function BlogPage() {
                               src={post.image}
                               alt={post.title}
                               className="w-full h-full object-cover rounded transition-transform duration-300 group-hover:scale-105"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=200&q=80'
-                              }}
+                              loading="lazy"
                             />
                           </div>
 
@@ -686,36 +491,7 @@ export default function BlogPage() {
                       <p className="text-sm text-gray-600 mb-4">
                         Essays and analysis about travel, destinations, tips, and all the other things we care about.
                       </p>
-
-                      <form onSubmit={handleSubscribe} className="space-y-3">
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => {
-                            setEmail(e.target.value)
-                            setSubscribeMessage('')
-                          }}
-                          placeholder="Type your email..."
-                          disabled={subscribing}
-                          className="w-full px-4 py-2.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          required
-                        />
-                        <button
-                          type="submit"
-                          disabled={subscribing}
-                          className="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {subscribing ? 'Subscribing...' : 'Subscribe'}
-                        </button>
-                        {subscribeMessage && (
-                          <p className={`text-xs text-center ${subscribeMessage.includes('Thank you')
-                            ? 'text-green-600'
-                            : 'text-red-600'
-                            }`}>
-                            {subscribeMessage}
-                          </p>
-                        )}
-                      </form>
+                      <NewsletterSubscription />
                     </div>
                   </div>
                 </div>
