@@ -5,7 +5,9 @@ import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { doc, getDoc, collection, getDocs, query, where, limit, updateDoc, increment } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { ShareButtons, NewsletterForm, RelatedPosts } from '@/components/blog/BlogInteractive'
+import { ShareButtons } from '@/components/blog/ShareButtons'
+import { NewsletterForm } from '@/components/blog/NewsletterForm'
+import { RelatedPosts } from '@/components/blog/RelatedPosts'
 
 interface BlogSection {
     type: 'intro' | 'paragraph' | 'heading' | 'subheading' | 'image' | 'quote' | 'list' | 'cta' | 'divider' | 'faq' | 'toc' | 'related'
