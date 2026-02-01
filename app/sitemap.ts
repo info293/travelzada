@@ -31,13 +31,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 1. Static Routes
     const staticRoutes = [
         '',
-        '/about-us',
+        '/about',
         '/contact',
         '/blog',
         '/destinations',
         '/careers',
         '/reviews',
-        '/story',
+        '/our-story',
         '/press',
         '/ai-trip-planner',
         '/case-study',

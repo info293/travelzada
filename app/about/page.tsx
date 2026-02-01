@@ -9,13 +9,13 @@ export const metadata: Metadata = {
 
     keywords: 'Travelzada, about us, couple travel, honeymoon planning, AI travel planner, Jaipur travel agency, Sadaya Trips LLP, personalized travel itineraries',
     alternates: {
-        canonical: '/about-us',
+        canonical: '/about',
     },
     openGraph: {
         title: 'About Travelzada | The Story Behind Travelzada',
         description: 'Travelzada is a couple-focused travel company building thoughtful, fairly priced, and emotionally satisfying travel experiences.',
         type: 'website',
-        url: 'https://www.travelzada.com/about-us',
+        url: 'https://www.travelzada.com/about',
         siteName: 'Travelzada',
         locale: 'en_US',
         images: [

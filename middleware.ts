@@ -6,6 +6,18 @@ import type { NextRequest } from 'next/server'
  * - Adds noindex header for URLs with ?t= parameter to prevent duplicate indexing
  */
 export function middleware(request: NextRequest) {
+    // SEO URL Redirects (301 Permanent) - Old URLs → New SEO-optimized URLs
+    const seoRedirects: Record<string, string> = {
+        '/about-us': '/about',
+        '/story': '/our-story',
+    }
+
+    if (seoRedirects[request.nextUrl.pathname]) {
+        const url = request.nextUrl.clone()
+        url.pathname = seoRedirects[request.nextUrl.pathname]
+        return NextResponse.redirect(url, 301)
+    }
+
     // Redirect old AI Planner URL to new URL
     if (request.nextUrl.pathname === '/ai-planner') {
         return NextResponse.redirect(new URL('/ai-trip-planner', request.url), 301)

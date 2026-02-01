@@ -121,12 +121,12 @@ export default function Footer() {
               <h3 id="footer-company" className="font-bold text-lg mb-5 text-white">Company</h3>
               <ul className="space-y-3" role="list">
                 <li>
-                  <Link href="/about-us" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Learn about Travelzada">
-                    About Us
+                  <Link href="/about" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Learn about Travelzada">
+                    About
                   </Link>
                 </li>
                 <li>
-                  <Link href="/story" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Our journey and mission">
+                  <Link href="/our-story" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Our journey and mission">
                     Our Story
                   </Link>
                 </li>

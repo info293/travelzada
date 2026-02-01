@@ -196,10 +196,10 @@ export default function DestinationDetailPage({ params }: PageProps) {
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              router.back()
+              router.push('/destinations')
             }}
             className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white hover:bg-white text-gray-900 hover:text-primary transition-all shadow-xl hover:shadow-2xl backdrop-blur-sm cursor-pointer"
-            aria-label="Go back"
+            aria-label="Go back to destinations"
             type="button"
           >
             <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>

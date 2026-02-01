@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: 'Discover the journey behind Travelzada. Learn how we combine AI technology with travel expertise to create personalized, unforgettable travel experiences.',
   keywords: 'Travelzada story, about us, travel planning, AI travel, travel platform',
   alternates: {
-    canonical: '/story',
+    canonical: '/our-story',
   },
   openGraph: {
     title: 'Our Story | Travelzada',
