@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { getDestinationSlugFromPackage, getPackageIdFromPackage } from '@/lib/destinationSlugMapper'
 
 interface FirestorePackage {
     id?: string
@@ -44,13 +45,7 @@ const OccasionSection = ({ occasion, packages, index }: { occasion: string, pack
         return priceStr
     }
 
-    const getDestinationSlug = (destinationName: string): string => {
-        return destinationName.split(',')[0].trim().toLowerCase()
-    }
-
-    const getPackageId = (pkg: FirestorePackage): string => {
-        return pkg.Destination_ID || pkg.id || 'package'
-    }
+    // Using centralized mapper functions from lib/destinationSlugMapper
 
     // Auto-scroll functionality
     useEffect(() => {
@@ -141,8 +136,8 @@ const OccasionSection = ({ occasion, packages, index }: { occasion: string, pack
                 >
                     {packages.map((pkg) => {
                         const imageUrl = getImageUrl(pkg.Primary_Image_URL)
-                        const destinationSlug = getDestinationSlug(pkg.Destination_Name)
-                        const packageId = getPackageId(pkg)
+                        const destinationSlug = getDestinationSlugFromPackage(pkg)
+                        const packageId = getPackageIdFromPackage(pkg)
                         const badge = pkg.Travel_Type || pkg.Star_Category
 
                         return (

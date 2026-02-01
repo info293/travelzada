@@ -11,6 +11,7 @@ import SchemaMarkup, { generateOrganizationSchema } from '@/components/SchemaMar
 import FAQ from '@/components/FAQ'
 import DynamicOccasionRails from '@/components/DynamicOccasionRails'
 import DestinationRail from '@/components/DestinationRail'
+import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
 
 export default function Home() {
   // Generate Organization schema for SEO
@@ -29,6 +30,7 @@ export default function Home() {
   return (
     <>
       <SchemaMarkup schema={organizationSchema} />
+      <DestinationSlugCacheInitializer />
       <main className="min-h-screen bg-cream pt-16 md:pt-24">
         <Header />
         <Hero />

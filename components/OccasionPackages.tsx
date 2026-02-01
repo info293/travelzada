@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { getDestinationSlugFromPackage, getPackageIdFromPackage } from '@/lib/destinationSlugMapper'
 
 interface FirestorePackage {
     id?: string
@@ -84,13 +85,7 @@ export default function OccasionPackages({ occasion, title, subtitle }: Occasion
         return priceStr
     }
 
-    const getDestinationSlug = (destinationName: string): string => {
-        return destinationName.split(',')[0].trim().toLowerCase()
-    }
-
-    const getPackageId = (pkg: FirestorePackage): string => {
-        return pkg.Destination_ID || pkg.id || 'package'
-    }
+    // Using centralized mapper functions from lib/destinationSlugMapper
 
     if (loading) return null; // Or a skeleton loader
     if (packages.length === 0) return null;
@@ -106,8 +101,8 @@ export default function OccasionPackages({ occasion, title, subtitle }: Occasion
                 <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
                     {packages.map((pkg) => {
                         const imageUrl = getImageUrl(pkg.Primary_Image_URL)
-                        const destinationSlug = getDestinationSlug(pkg.Destination_Name)
-                        const packageId = getPackageId(pkg)
+                        const destinationSlug = getDestinationSlugFromPackage(pkg)
+                        const packageId = getPackageIdFromPackage(pkg)
                         const price = formatPrice(pkg.Price_Range_INR)
                         const badge = pkg.Travel_Type || pkg.Star_Category
 
