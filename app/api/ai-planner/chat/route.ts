@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     )
   }
 
+
   try {
     const { prompt, conversation = [], availableDestinations = [] } = await request.json()
 
