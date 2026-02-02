@@ -42,7 +42,7 @@ export default function Footer() {
       {/* Structured Data */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c') }}
       />
 
       <footer className="bg-gradient-to-br from-gray-900 via-ink to-gray-900 text-white border-t border-white/5" role="contentinfo" aria-label="Site Footer">
