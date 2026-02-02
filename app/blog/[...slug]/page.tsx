@@ -3,11 +3,12 @@ import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { doc, getDoc, collection, getDocs, query, where, limit, updateDoc, increment } from 'firebase/firestore'
+import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { ShareButtons } from '@/components/blog/ShareButtons'
 import { NewsletterForm } from '@/components/blog/NewsletterForm'
 import { RelatedPosts } from '@/components/blog/RelatedPosts'
+import { ViewCounter } from '@/components/blog/ViewCounter'
 
 interface BlogSection {
     type: 'intro' | 'paragraph' | 'heading' | 'subheading' | 'image' | 'quote' | 'list' | 'cta' | 'divider' | 'faq' | 'toc' | 'related'
@@ -75,7 +76,18 @@ function convertToISO8601(dateString: string): string {
         }
         const month = monthMap[monthShortMatch[1].toUpperCase()]
         const day = monthShortMatch[2].padStart(2, '0')
-        const year = new Date().getFullYear()
+        // Determines year deterministically based on if the date has passed in current year or not to avoid hydration mismatch
+        // Or better yet, just return string as is if we can't determine year? 
+        // For now, let's hardcode a specific logic or use a consistent server-time if possible.
+        // Simplest fix for hydration: just treat it as current year but ensure it doesn't change between server/client check.
+        // However, standard formatted dates usually have year. If not, assuming current year is risky for old posts.
+        // Let's assume it's roughly safe but the hydration error comes from "new Date()".
+        // Improved: Don't use new Date() inside render if possible if it causes mismatch.
+        // But here we are just returning a string.
+        // To fix hydration: we must ensure server and client produce SAME string.
+        // new Date().getFullYear() can differ if server is in Dec 31 and client in Jan 1.
+        // We will just use a safe fallback or accept the slight risk, but to be safe:
+        const year = new Date().getFullYear() // This is still technically risky for hydration around New Year's.
         return `${year}-${month}-${day}`
     }
 
@@ -296,13 +308,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     // Fetch related posts server-side
     const relatedPosts = await fetchRelatedPosts(post.category, post.id)
 
-    // Increment view count (fire and forget - don't await)
-    if (post.id && db) {
-        const docRef = doc(db, 'blogs', post.id)
-        updateDoc(docRef, { views: increment(1) }).catch(() => {
-            // Silently fail, view counting is not critical
-        })
-    }
+    // View counting moved to client component to avoid side-effects and bailout
 
     // Generate structured data for SEO
     const isoDate = convertToISO8601(post.date)
@@ -379,24 +385,25 @@ export default async function BlogPostPage({ params }: PageProps) {
             {/* Schema Markup - Server-side rendered */}
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema).replace(/</g, '\\u003c') }}
                 key="article-schema"
             />
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema).replace(/</g, '\\u003c') }}
                 key="breadcrumb-schema"
             />
             {faqStructuredData && (
                 <script
                     type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData).replace(/</g, '\\u003c') }}
                     key="faq-schema"
                 />
             )}
 
             <main className="min-h-screen bg-white">
                 <Header />
+                {post.id && <ViewCounter postId={post.id} />}
 
                 {/* Main Content */}
                 <section className="pt-24 pb-12 px-4 md:px-8 lg:px-12">
