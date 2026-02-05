@@ -137,6 +137,21 @@ export default function DestinationDetailPage({ params }: PageProps) {
     fetchDestinationAndPackages()
   }, [destinationName])
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white">
+        <Header />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <p className="text-gray-500 font-medium animate-pulse">Finding destination...</p>
+          </div>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
   if (!destination) {
     return (
       <main className="min-h-screen bg-white">
