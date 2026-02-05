@@ -5,11 +5,26 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
+// SSR-safe Header component
+// Key insight: We render the header immediately with static content,
+// then hydrate auth state on the client. This prevents SSR bailout.
+
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [scrollY, setScrollY] = useState(0)
-  const { currentUser, isAdmin, logout } = useAuth()
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Auth state - only accessed after mount to prevent SSR issues
+  const auth = useAuth()
+  const currentUser = isMounted ? auth.currentUser : null
+  const isAdmin = isMounted ? auth.isAdmin : false
+  const logout = auth.logout
+
+  // Mark as mounted after first render (client-side only)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,7 +36,6 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Close mobile menu when clicking outside or on a link
   useEffect(() => {
     if (isMobileMenuOpen) {
       document.body.style.overflow = 'hidden'
@@ -33,13 +47,15 @@ export default function Header() {
     }
   }, [isMobileMenuOpen])
 
+  // Static nav items (always rendered)
   const navItems = [
     { href: '/', label: 'Home' },
     { href: '/ai-trip-planner', label: 'AI Planner', isAI: true },
     { href: '/destinations', label: 'Destinations' },
     { href: '/blog', label: 'Blog' },
     { href: '/contact', label: 'Contact' },
-    ...(isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
+    // Admin link only added client-side after mount
+    ...(isMounted && isAdmin ? [{ href: '/admin', label: 'Admin' }] : []),
   ]
 
   const SparkleIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
@@ -48,7 +64,6 @@ export default function Header() {
     />
   )
 
-  // Calculate dynamic values based on scroll
   const headerHeight = isScrolled ? 'py-2.5' : 'py-4'
   const logoScale = isScrolled ? 'scale-95' : 'scale-100'
   const backdropBlur = isScrolled ? 'backdrop-blur-xl' : 'backdrop-blur-none'
@@ -58,8 +73,8 @@ export default function Header() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-out ${isScrolled
-          ? `${bgOpacity} ${backdropBlur} shadow-lg border-b border-gray-200/50`
-          : 'bg-white/80 backdrop-blur-sm'
+        ? `${bgOpacity} ${backdropBlur} shadow-lg border-b border-gray-200/50`
+        : 'bg-white/80 backdrop-blur-sm'
         }`}
       style={{
         boxShadow: isScrolled
@@ -77,23 +92,22 @@ export default function Header() {
             alt="Travelzada Logo"
             width={150}
             height={50}
-            className={`h-8 w-auto object-contain transition-all duration-500 ${isScrolled ? 'h-7' : 'h-8'
-              }`}
+            className={`h-8 w-auto object-contain transition-all duration-500 ${isScrolled ? 'h-7' : 'h-8'}`}
             priority
           />
         </Link>
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
-          {navItems.map((item, index) => {
+          {navItems.map((item) => {
             const isAI = (item as any).isAI
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`header-nav-item relative transition-all duration-300 ${isAI
-                    ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
-                    : 'text-gray-600 hover:text-primary group'
+                  ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
+                  : 'text-gray-600 hover:text-primary group'
                   }`}
               >
                 {!isAI && (
@@ -101,16 +115,12 @@ export default function Header() {
                 )}
                 {isAI && (
                   <>
-                    {/* Sparkle icon */}
                     <SparkleIcon className="w-3.5 h-3.5 relative z-10" />
-                    {/* Text that scrolls out, then AI Planner scrolls back in */}
                     <div className="relative z-10 overflow-hidden min-w-[100px] h-5">
                       <div className="relative h-full">
-                        {/* Original text that scrolls out */}
                         <span className="ai-text-original absolute left-0 top-0 inline-block">
                           {item.label}
                         </span>
-                        {/* AI Planner text that scrolls in after delay */}
                         <span className="ai-text-new absolute left-0 top-0 inline-block opacity-0 translate-y-full">
                           {item.label}
                         </span>
@@ -124,8 +134,9 @@ export default function Header() {
           })}
         </nav>
 
+        {/* Auth Buttons - SSR-safe: always show Sign In/Sign Up initially */}
         <div className="flex items-center gap-3">
-          {currentUser ? (
+          {isMounted && currentUser ? (
             <>
               <span className="hidden sm:inline-block text-sm text-gray-600">
                 {currentUser.email}
@@ -176,15 +187,11 @@ export default function Header() {
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
         <>
-          {/* Overlay */}
           <div
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-
-          {/* Menu Panel */}
-          <div className={`fixed left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg z-40 md:hidden transition-all duration-300 ${isScrolled ? 'top-[65px]' : 'top-[73px]'
-            }`}>
+          <div className={`fixed left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg z-40 md:hidden transition-all duration-300 ${isScrolled ? 'top-[65px]' : 'top-[73px]'}`}>
             <nav className="flex flex-col py-4">
               {navItems.map((item) => {
                 const isAI = (item as any).isAI
@@ -194,8 +201,8 @@ export default function Header() {
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`px-6 py-3 text-base font-medium transition-colors ${isAI
-                        ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                      ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
                       }`}
                   >
                     {isAI && <SparkleIcon className="w-4 h-4" />}
@@ -209,7 +216,7 @@ export default function Header() {
                 )
               })}
               <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
-                {currentUser ? (
+                {isMounted && currentUser ? (
                   <>
                     <div className="py-2 text-base font-medium text-gray-700">
                       {currentUser.email}
@@ -250,4 +257,3 @@ export default function Header() {
     </header>
   )
 }
-
