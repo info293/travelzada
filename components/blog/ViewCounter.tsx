@@ -1,17 +1,21 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { doc, updateDoc, increment } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 
 export function ViewCounter({ postId }: { postId: string }) {
     const hasIncremented = useRef(false)
 
     useEffect(() => {
-        if (!postId || !db || hasIncremented.current) return
+        if (!postId || hasIncremented.current) return
 
+        // Dynamic import to prevent SSR bailout - only runs on client
         const incrementView = async () => {
             try {
+                const { doc, updateDoc, increment } = await import('firebase/firestore')
+                const { db } = await import('@/lib/firebase')
+
+                if (!db) return
+
                 const docRef = doc(db, 'blogs', postId)
                 await updateDoc(docRef, { views: increment(1) })
                 hasIncremented.current = true
@@ -26,3 +30,4 @@ export function ViewCounter({ postId }: { postId: string }) {
 
     return null
 }
+

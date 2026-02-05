@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+
+// Firebase imports moved inside useEffect to prevent SSR bailout
 
 type TabType = 'india' | 'international' | 'blogs'
 
@@ -27,6 +27,14 @@ export default function FooterSEO() {
     useEffect(() => {
         const fetchBlogs = async () => {
             try {
+                // Dynamic imports to prevent SSR bailout
+                const { collection, getDocs, query, where, orderBy } = await import('firebase/firestore')
+                const { db } = await import('@/lib/firebase')
+
+                if (!db) {
+                    throw new Error('Firestore not available')
+                }
+
                 let querySnapshot;
                 // 1. Try with published filter and sort
                 try {
