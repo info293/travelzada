@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+// Imports moved dynamically for SSR safety
 
 export function NewsletterSubscription() {
     const [email, setEmail] = useState('')
@@ -28,6 +27,10 @@ export function NewsletterSubscription() {
         try {
             setSubscribing(true)
             setSubscribeMessage('')
+
+            // Dynamic imports to prevent SSR bailout
+            const { addDoc, collection, getDocs, query, serverTimestamp, where } = await import('firebase/firestore')
+            const { db } = await import('@/lib/firebase')
 
             if (typeof window === 'undefined' || !db) {
                 setSubscribeMessage('Unable to subscribe. Please try again later.')
