@@ -1,34 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import {
-  User,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-  sendPasswordResetEmail,
-} from 'firebase/auth'
-import { auth, db } from '@/lib/firebase'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
-
-// Helper to ensure auth is available
-const getAuthInstance = () => {
-  if (typeof window === 'undefined' || !auth) {
-    throw new Error('Firebase Auth is not available. Make sure you are using this on the client side.')
-  }
-  return auth
-}
-
-// Helper to ensure db is available
-const getDbInstance = () => {
-  if (typeof window === 'undefined' || !db) {
-    throw new Error('Firestore is not available. Make sure you are using this on the client side.')
-  }
-  return db
-}
+import type { User } from 'firebase/auth'
 
 interface AuthContextType {
   currentUser: User | null
@@ -74,62 +47,90 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !auth) {
-      setLoading(false)
-      return
+    let unsubscribe: () => void
+
+    const initAuth = async () => {
+      if (typeof window === 'undefined') {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const { auth, db } = await import('@/lib/firebase')
+        const { onAuthStateChanged } = await import('firebase/auth')
+        const { doc, getDoc } = await import('firebase/firestore')
+
+        if (!auth) {
+          setLoading(false)
+          return
+        }
+
+        unsubscribe = onAuthStateChanged(auth, async (user) => {
+          setCurrentUser(user)
+          if (user && user.email) {
+            try {
+              if (db) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid))
+
+                if (userDoc.exists()) {
+                  const userData = userDoc.data()
+                  const userRole = userData.role || 'user'
+                  setIsAdmin(userRole === 'admin')
+                  setPermissions(userData.permissions || [])
+                  console.log('Admin check from Firestore:', {
+                    email: user.email,
+                    role: userRole,
+                    isAdmin: userRole === 'admin',
+                    permissions: userData.permissions
+                  })
+                } else {
+                  // Fallback: Check if email contains 'admin' or matches specific admin emails
+                  const adminEmails = ['admin@travelzada.com', 'admin@example.com']
+                  const emailLower = user.email.toLowerCase()
+                  const isAdminEmail = adminEmails.includes(emailLower) ||
+                    emailLower.split('@')[0].includes('admin')
+                  setIsAdmin(isAdminEmail)
+                  setPermissions([]) // No specific permissions for fallback admin
+                  console.log('Admin check (fallback):', { email: user.email, isAdmin: isAdminEmail })
+                }
+              }
+            } catch (error) {
+              console.error('Error checking admin status:', error)
+              // Fallback: Check if email contains 'admin' or matches specific admin emails
+              const adminEmails = ['admin@travelzada.com', 'admin@example.com']
+              const emailLower = user.email.toLowerCase()
+              const isAdminEmail = adminEmails.includes(emailLower) ||
+                emailLower.split('@')[0].includes('admin')
+              setIsAdmin(isAdminEmail)
+              setPermissions([])
+            }
+          } else {
+            setIsAdmin(false)
+            setPermissions([])
+          }
+          setLoading(false)
+        })
+      } catch (error) {
+        console.error('Error initializing auth:', error)
+        setLoading(false)
+      }
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user)
-      if (user && user.email) {
-        try {
-          const dbInstance = getDbInstance()
-          const userDoc = await getDoc(doc(dbInstance, 'users', user.uid))
+    initAuth()
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data()
-            const userRole = userData.role || 'user'
-            setIsAdmin(userRole === 'admin')
-            setPermissions(userData.permissions || [])
-            console.log('Admin check from Firestore:', {
-              email: user.email,
-              role: userRole,
-              isAdmin: userRole === 'admin',
-              permissions: userData.permissions
-            })
-          } else {
-            // Fallback: Check if email contains 'admin' or matches specific admin emails
-            const adminEmails = ['admin@travelzada.com', 'admin@example.com']
-            const emailLower = user.email.toLowerCase()
-            const isAdminEmail = adminEmails.includes(emailLower) ||
-              emailLower.split('@')[0].includes('admin')
-            setIsAdmin(isAdminEmail)
-            setPermissions([]) // No specific permissions for fallback admin
-            console.log('Admin check (fallback):', { email: user.email, isAdmin: isAdminEmail })
-          }
-        } catch (error) {
-          console.error('Error checking admin status:', error)
-          // Fallback: Check if email contains 'admin' or matches specific admin emails
-          const adminEmails = ['admin@travelzada.com', 'admin@example.com']
-          const emailLower = user.email.toLowerCase()
-          const isAdminEmail = adminEmails.includes(emailLower) ||
-            emailLower.split('@')[0].includes('admin')
-          setIsAdmin(isAdminEmail)
-          setPermissions([])
-        }
-      } else {
-        setIsAdmin(false)
-        setPermissions([])
-      }
-      setLoading(false)
-    })
-
-    return unsubscribe
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
   }, [])
 
   async function signup(email: string, password: string) {
-    const authInstance = getAuthInstance()
-    const userCredential = await createUserWithEmailAndPassword(authInstance, email, password)
+    const { auth, db } = await import('@/lib/firebase')
+    const { createUserWithEmailAndPassword } = await import('firebase/auth')
+    const { doc, setDoc, serverTimestamp } = await import('firebase/firestore')
+
+    if (!auth || !db) throw new Error('Firebase not initialized')
+
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
 
     // Create user document in Firestore
     if (userCredential.user) {
@@ -144,8 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const dbInstance = getDbInstance()
-        await setDoc(doc(dbInstance, 'users', userCredential.user.uid), userDoc)
+        await setDoc(doc(db, 'users', userCredential.user.uid), userDoc)
       } catch (error) {
         console.error('Error creating user document:', error)
       }
@@ -153,13 +153,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function login(email: string, password: string) {
-    const authInstance = getAuthInstance()
-    const userCredential = await signInWithEmailAndPassword(authInstance, email, password)
+    const { auth, db } = await import('@/lib/firebase')
+    const { signInWithEmailAndPassword } = await import('firebase/auth')
+    const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore')
+
+    if (!auth || !db) throw new Error('Firebase not initialized')
+
+    const userCredential = await signInWithEmailAndPassword(auth, email, password)
 
     // Update last login in Firestore
     if (userCredential.user) {
-      const dbInstance = getDbInstance()
-      const userRef = doc(dbInstance, 'users', userCredential.user.uid)
+      const userRef = doc(db, 'users', userCredential.user.uid)
       const userSnap = await getDoc(userRef)
 
       if (userSnap.exists()) {
@@ -184,19 +188,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    const authInstance = getAuthInstance()
-    await signOut(authInstance)
+    const { auth } = await import('@/lib/firebase')
+    const { signOut } = await import('firebase/auth')
+
+    if (!auth) throw new Error('Firebase not initialized')
+    await signOut(auth)
   }
 
   async function loginWithGoogle() {
-    const authInstance = getAuthInstance()
+    const { auth, db } = await import('@/lib/firebase')
+    const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
+    const { doc, getDoc, setDoc, serverTimestamp } = await import('firebase/firestore')
+
+    if (!auth || !db) throw new Error('Firebase not initialized')
+
     const provider = new GoogleAuthProvider()
-    const userCredential = await signInWithPopup(authInstance, provider)
+    const userCredential = await signInWithPopup(auth, provider)
 
     // Create or update user document in Firestore
     if (userCredential.user) {
-      const dbInstance = getDbInstance()
-      const userRef = doc(dbInstance, 'users', userCredential.user.uid)
+      const userRef = doc(db, 'users', userCredential.user.uid)
       const userSnap = await getDoc(userRef)
 
       if (!userSnap.exists()) {
@@ -224,8 +235,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetPassword(email: string) {
-    const authInstance = getAuthInstance()
-    await sendPasswordResetEmail(authInstance, email)
+    const { auth } = await import('@/lib/firebase')
+    const { sendPasswordResetEmail } = await import('firebase/auth')
+
+    if (!auth) throw new Error('Firebase not initialized')
+    await sendPasswordResetEmail(auth, email)
   }
 
   const value: AuthContextType = {

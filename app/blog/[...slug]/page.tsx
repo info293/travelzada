@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import Header from '@/components/Header'
+
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 // Firebase is imported dynamically inside functions to prevent SSR bailout
@@ -413,7 +413,6 @@ export default async function BlogPostPage({ params }: PageProps) {
             )}
 
             <main className="min-h-screen bg-white">
-                <Header />
                 {post.id && <ViewCounter postId={post.id} />}
 
                 {/* Main Content */}
@@ -686,12 +685,12 @@ export default async function BlogPostPage({ params }: PageProps) {
 
                             {/* Related Posts - Client Component */}
                             <RelatedPosts relatedPosts={relatedPosts} />
-                        </div>
-                    </div>
-                </section>
+                        </div >
+                    </div >
+                </section >
 
                 <Footer />
-            </main>
+            </main >
         </>
     )
 }
