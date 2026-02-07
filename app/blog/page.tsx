@@ -3,7 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+// import { db } from '@/lib/firebase' // Removed for SSR safety
 import { NewsletterSubscription } from '@/components/blog/NewsletterSubscription'
 
 interface BlogPost {
@@ -50,9 +50,12 @@ export const metadata: Metadata = {
 
 // Fetch blogs server-side
 async function fetchBlogs(): Promise<BlogPost[]> {
-  if (!db) return []
-
   try {
+    // Dynamic import to prevent SSR side-effects
+    const { db } = await import('@/lib/firebase')
+
+    if (!db) return []
+
     // Try to fetch with published filter and orderBy
     let querySnapshot
     try {
