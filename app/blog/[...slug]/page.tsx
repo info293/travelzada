@@ -58,8 +58,9 @@ interface PageProps {
 }
 
 // Helper function to convert various date formats to ISO 8601
+// Helper function to convert various date formats to ISO 8601
 function convertToISO8601(dateString: string): string {
-    if (!dateString) return new Date().toISOString().split('T')[0]
+    if (!dateString) return '2026-01-01' // Use a static fallback
 
     // Already in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
     if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
@@ -75,33 +76,23 @@ function convertToISO8601(dateString: string): string {
         }
         const month = monthMap[monthShortMatch[1].toUpperCase()]
         const day = monthShortMatch[2].padStart(2, '0')
-        // Determines year deterministically based on if the date has passed in current year or not to avoid hydration mismatch
-        // Or better yet, just return string as is if we can't determine year? 
-        // For now, let's hardcode a specific logic or use a consistent server-time if possible.
-        // Simplest fix for hydration: just treat it as current year but ensure it doesn't change between server/client check.
-        // However, standard formatted dates usually have year. If not, assuming current year is risky for old posts.
-        // Let's assume it's roughly safe but the hydration error comes from "new Date()".
-        // Improved: Don't use new Date() inside render if possible if it causes mismatch.
-        // But here we are just returning a string.
-        // To fix hydration: we must ensure server and client produce SAME string.
-        // new Date().getFullYear() can differ if server is in Dec 31 and client in Jan 1.
-        // We will just use a safe fallback or accept the slight risk, but to be safe:
-        const year = new Date().getFullYear() // This is still technically risky for hydration around New Year's.
-        return `${year}-${month}-${day}`
+
+        // Use a fixed year instead of new Date().getFullYear()
+        return `2026-${month}-${day}`
     }
 
-    // Try to parse as a Date object and convert
+    // Try to parse as Date
     try {
         const parsed = new Date(dateString)
         if (!isNaN(parsed.getTime())) {
             return parsed.toISOString().split('T')[0]
         }
     } catch (e) {
-        // Fall through to default
+        // Fall through
     }
 
-    // Default to current date if parsing fails
-    return new Date().toISOString().split('T')[0]
+    // Static fallback instead of new Date()
+    return '2026-01-01'
 }
 
 // Fetch blog post server-side using dynamic imports to prevent SSR bailout
@@ -580,18 +571,20 @@ export default async function BlogPostPage({ params }: PageProps) {
                                                             </section>
                                                         )
                                                     case 'toc':
-                                                        const headings = post.blogStructure?.filter(s => s.type === 'heading' || s.type === 'subheading') || []
+                                                        const headings = post.blogStructure
+                                                            ?.map((s, idx) => ({ section: s, originalIndex: idx }))
+                                                            .filter(item => item.section.type === 'heading' || item.section.type === 'subheading') || []
                                                         return (
                                                             <nav key={index} className="my-10 bg-gradient-to-r from-primary/10 to-primary-dark/10 rounded-xl p-6 border-l-4 border-primary">
                                                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Table of Contents</h3>
                                                                 <ol className="list-decimal list-inside space-y-2">
-                                                                    {headings.map((heading, headingIndex) => (
+                                                                    {headings.map((item, headingIndex) => (
                                                                         <li key={headingIndex}>
                                                                             <a
-                                                                                href={`#heading-${headingIndex}`}
+                                                                                href={`#heading-${item.originalIndex}`}
                                                                                 className="text-primary hover:text-primary-dark font-medium transition-colors"
                                                                             >
-                                                                                {heading.text || heading.content}
+                                                                                {item.section.text || item.section.content}
                                                                             </a>
                                                                         </li>
                                                                     ))}
