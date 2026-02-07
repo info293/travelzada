@@ -2,13 +2,15 @@
 
 import Script from 'next/script'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 
 // Google Analytics Account ID: 375765240
 // Using GA4 Measurement ID format (G-XXXXXXXXXX)
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-375765240'
 
-export default function GoogleAnalytics() {
+// Separate component for page tracking that uses useSearchParams
+// This MUST be wrapped in Suspense to prevent SSR bailout
+function PageTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -25,6 +27,12 @@ export default function GoogleAnalytics() {
     }
   }, [pathname, searchParams])
 
+  return null
+}
+
+// Main GoogleAnalytics component - only loads scripts
+// Page tracking is handled by PageTracker wrapped in Suspense
+export default function GoogleAnalytics() {
   if (!GA_MEASUREMENT_ID) {
     return null
   }
@@ -49,6 +57,10 @@ export default function GoogleAnalytics() {
           `,
         }}
       />
+      {/* PageTracker is wrapped in Suspense to prevent useSearchParams from causing SSR bailout */}
+      <Suspense fallback={null}>
+        <PageTracker />
+      </Suspense>
     </>
   )
 }
@@ -60,4 +72,5 @@ declare global {
     gtag: (...args: any[]) => void
   }
 }
+
 

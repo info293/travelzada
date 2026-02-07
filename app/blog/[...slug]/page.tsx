@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+// Firebase is imported dynamically inside functions to prevent SSR bailout
 import { ShareButtons } from '@/components/blog/ShareButtons'
 import { NewsletterForm } from '@/components/blog/NewsletterForm'
 import { RelatedPosts } from '@/components/blog/RelatedPosts'
@@ -105,11 +104,15 @@ function convertToISO8601(dateString: string): string {
     return new Date().toISOString().split('T')[0]
 }
 
-// Fetch blog post server-side
+// Fetch blog post server-side using dynamic imports to prevent SSR bailout
 async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
-    if (!db) return null
-
     try {
+        // Dynamic imports to prevent SSR bailout
+        const { doc, getDoc, collection, getDocs, query, where } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+
+        if (!db) return null
+
         const blogsRef = collection(db, 'blogs')
         let foundPost: BlogPost | null = null
 
@@ -129,13 +132,13 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
                 const qAll = query(blogsRef, where('published', '==', true))
                 const snapshotAll = await getDocs(qAll)
 
-                snapshotAll.forEach(doc => {
+                snapshotAll.forEach((docSnapshot) => {
                     if (foundPost) return
-                    const data = doc.data() as BlogPost
+                    const data = docSnapshot.data() as BlogPost
                     const titleSlug = data.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 
                     if (titleSlug === urlSlug) {
-                        foundPost = { id: doc.id, ...data }
+                        foundPost = { id: docSnapshot.id, ...data }
                     }
                 })
             }
@@ -162,11 +165,15 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
     }
 }
 
-// Fetch related posts - ensures 2-3 posts are always returned
+// Fetch related posts - ensures 2-3 posts are always returned using dynamic imports
 async function fetchRelatedPosts(category: string | undefined, currentPostId: string | undefined): Promise<BlogPost[]> {
-    if (!db) return []
-
     try {
+        // Dynamic imports to prevent SSR bailout
+        const { collection, getDocs, query, where, limit } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+
+        if (!db) return []
+
         const related: BlogPost[] = []
 
         // First, try to get posts from the same category
@@ -179,9 +186,9 @@ async function fetchRelatedPosts(category: string | undefined, currentPostId: st
             )
             const relatedSnapshot = await getDocs(relatedQuery)
 
-            relatedSnapshot.forEach((doc) => {
-                if (doc.id !== currentPostId) {
-                    related.push({ id: doc.id, ...doc.data() } as BlogPost)
+            relatedSnapshot.forEach((docSnapshot) => {
+                if (docSnapshot.id !== currentPostId) {
+                    related.push({ id: docSnapshot.id, ...docSnapshot.data() } as BlogPost)
                 }
             })
         }
@@ -203,10 +210,10 @@ async function fetchRelatedPosts(category: string | undefined, currentPostId: st
             const existingIds = new Set(related.map(p => p.id))
             existingIds.add(currentPostId)
 
-            popularSnapshot.forEach((doc) => {
-                if (!existingIds.has(doc.id) && related.length < 3) {
-                    related.push({ id: doc.id, ...doc.data() } as BlogPost)
-                    existingIds.add(doc.id)
+            popularSnapshot.forEach((docSnapshot) => {
+                if (!existingIds.has(docSnapshot.id) && related.length < 3) {
+                    related.push({ id: docSnapshot.id, ...docSnapshot.data() } as BlogPost)
+                    existingIds.add(docSnapshot.id)
                 }
             })
         }
@@ -270,16 +277,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 }
 
-// Generate static params for all blog posts
+// Generate static params for all blog posts using dynamic imports
 export async function generateStaticParams() {
-    if (!db) return []
-
     try {
+        // Dynamic imports to prevent SSR bailout
+        const { collection, getDocs, query, where } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+
+        if (!db) return []
+
         const blogsQuery = query(collection(db, 'blogs'), where('published', '==', true))
         const blogsSnapshot = await getDocs(blogsQuery)
 
-        return blogsSnapshot.docs.map((doc) => {
-            const data = doc.data() as BlogPost
+        return blogsSnapshot.docs.map((docSnapshot) => {
+            const data = docSnapshot.data() as BlogPost
             const category = data.category
                 ? data.category.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
                 : 'general'
