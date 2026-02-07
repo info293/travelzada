@@ -44,10 +44,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// SSR-safe default values - used during server rendering
+const defaultAuthContext: AuthContextType = {
+  currentUser: null,
+  loading: true,
+  signup: async () => { throw new Error('Auth not available during SSR') },
+  login: async () => { throw new Error('Auth not available during SSR') },
+  logout: async () => { throw new Error('Auth not available during SSR') },
+  loginWithGoogle: async () => { throw new Error('Auth not available during SSR') },
+  resetPassword: async () => { throw new Error('Auth not available during SSR') },
+  isAdmin: false,
+  permissions: [],
+}
+
 export function useAuth() {
   const context = useContext(AuthContext)
+  // Return default context during SSR to prevent bailout
+  // The real context will be available after hydration
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+    return defaultAuthContext
   }
   return context
 }
