@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
+// // import { collection, getDocs, query, orderBy, where } from 'firebase/firestore' // Removed for SSR safety // Removed for SSR safety
 // import { db } from '@/lib/firebase' // Removed for SSR safety
 import { NewsletterSubscription } from '@/components/blog/NewsletterSubscription'
 
@@ -53,6 +53,7 @@ async function fetchBlogs(): Promise<BlogPost[]> {
   try {
     // Dynamic import to prevent SSR side-effects
     const { db } = await import('@/lib/firebase')
+    const { collection, getDocs, query, orderBy, where } = await import('firebase/firestore')
 
     if (!db) return []
 
