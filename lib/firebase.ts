@@ -41,9 +41,4 @@ const getAnalyticsSafe = async (): Promise<Analytics | null> => {
   return analytics
 }
 
-// Initialize analytics on client side only
-if (typeof window !== 'undefined') {
-  getAnalyticsSafe()
-}
-
 export { app, analytics, auth, db, getAnalyticsSafe }
