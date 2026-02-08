@@ -124,7 +124,7 @@ My recommendation: Package B suits you best because..."`
         })
 
         // Extract text from Claude response
-        const textContent = claudeResponse.content.find(block => block.type === 'text')
+        const textContent = claudeResponse.content.find(block => block.type === 'text') as any
         message = textContent?.text ?? 'I am here to help you plan your trip!'
 
         return NextResponse.json({ message, provider: 'claude' })

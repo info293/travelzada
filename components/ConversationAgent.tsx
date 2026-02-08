@@ -27,10 +27,14 @@ import {
   Image as ImageIcon,
   X,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  Mic,
+  Volume2,
+  Square
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useVoiceChat } from '@/hooks/useVoiceChat'
 
 // Animation Variants
 const fadeIn = {
@@ -359,7 +363,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         setDestinations(destinationsData)
         console.log(`✅ Loaded ${destinationsData.length} destinations from Firestore`)
       } catch (error) {
-        console.error('Error fetching destinations from Firestore:', error)
+        console.error('Error fetching destinations:', error)
       } finally {
         setDestinationsLoading(false)
       }
@@ -367,6 +371,32 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     fetchDestinationsFromFirestore()
   }, [])
+
+  // Initialize Voice Chat
+  const {
+    isListening,
+    isSpeaking,
+    transcript,
+    startListening,
+    stopListening,
+    speakText,
+    stopSpeaking,
+    isSupported: isVoiceSupported
+  } = useVoiceChat({
+    onTranscript: (text) => {
+      setInput(text)
+    },
+    onError: (err) => {
+      alert(err)
+    }
+  })
+
+  // Auto-send when voice input stops and we have text
+  useEffect(() => {
+    if (!isListening && transcript && transcript.trim().length > 0) {
+      handleSend()
+    }
+  }, [isListening, transcript]) // Removed handleSend from deps to avoid loop, but it's stable via useCallback usually
 
   // Fetch packages from Firestore on component mount
   useEffect(() => {
@@ -411,6 +441,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // Find packages for the selected destination
     const normalizedDestination = normalizeDestination(tripInfo.destination)
     const destinationPackages = firestorePackages.filter((pkg: DestinationPackage) => {
+      const pkgAny = pkg as any
       const pkgName = normalizeDestination((pkg as any).Destination_Name || '')
       return pkgName.includes(normalizedDestination) || normalizedDestination.includes(pkgName)
     })
@@ -611,7 +642,6 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           body: JSON.stringify({
             prompt,
             conversation: messagesRef.current.slice(-12), // Increased from 6 to 12 for better context
-            availableDestinations: destinationsToSend,
             shownPackages: shownPackagesRef.current, // Use ref for stable reference
           }),
         })
@@ -2053,7 +2083,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     // Use AI to extract data from user response
     const extractedData = await extractDataWithAI(userInput, currentQuestion, latestInfo)
 
-    // If user wants to see packages and we have a destination, show packages directly
+    // If user wants to see packages and we now have enough info, show packages
     if (wantsPackages && latestInfo.destination) {
       // User wants packages - generate recommendations directly
       setCurrentQuestion('complete')
@@ -2587,6 +2617,27 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         }
       }}
     >
+      {/* Voice Output Indicator/Stop Button */}
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-sm cursor-pointer hover:bg-black/90"
+            onClick={stopSpeaking}
+          >
+            <div className="flex gap-1 items-center">
+              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full" />
+              <span className="animate-pulse w-1 h-5 bg-white/80 rounded-full delay-75" />
+              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full delay-150" />
+            </div>
+            <span className="text-xs font-medium">Speaking... Click to Stop</span>
+            <Square className="w-3 h-3 ml-1 fill-white" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Decorative gradient overlay - hide in mobile chat mode */}
       {!isMobileChatMode && (
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none"></div>
@@ -2669,6 +2720,30 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         </div>
       )}
 
+      {/* Voice Output Indicator/Stop Button */}
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-sm cursor-pointer hover:bg-black/90 transition-all"
+            onClick={(e) => {
+              e.stopPropagation()
+              stopSpeaking()
+            }}
+          >
+            <div className="flex gap-1 items-center">
+              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full" />
+              <span className="animate-pulse w-1 h-5 bg-white/80 rounded-full delay-75" />
+              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full delay-150" />
+            </div>
+            <span className="text-xs font-medium whitespace-nowrap">Speaking... Click to Stop</span>
+            <Square className="w-3 h-3 ml-1 fill-white" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Scrollable Content Area - Contains messages AND all selectors */}
       {/* This is the middle section that scrolls, like WhatsApp */}
       <div
@@ -2697,22 +2772,46 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                   {message.role === 'assistant' && (
                     <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
                       <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2-386l-.548-.547z" />
                       </svg>
                     </div>
                   )}
                   {message.role === 'assistant' && message.packageMatch ? (
-                    <div className="max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
+                    <div className="group relative max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
                       <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                      {/* Speaker Button for Package Match messages */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          isSpeaking ? stopSpeaking() : speakText(message.content)
+                        }}
+                        className="absolute -bottom-6 right-0 p-1.5 text-gray-400 hover:text-[#008080] opacity-0 group-hover:opacity-100 transition-all"
+                        title="Read aloud"
+                      >
+                        {isSpeaking ? <Square className="w-3 h-3 fill-current" /> : <Volume2 className="w-3 h-3" />}
+                      </button>
                     </div>
                   ) : (
                     <div
-                      className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
+                      className={`group relative max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
                         ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
                         : 'bg-gray-50 border border-gray-100 text-gray-800'
                         }`}
                     >
                       <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                      {/* Speaker Button for AI messages */}
+                      {message.role === 'assistant' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            isSpeaking ? stopSpeaking() : speakText(message.content)
+                          }}
+                          className="absolute -bottom-6 right-0 p-1.5 text-gray-400 hover:text-[#008080] opacity-0 group-hover:opacity-100 transition-all"
+                          title="Read aloud"
+                        >
+                          {isSpeaking ? <Square className="w-3 h-3 fill-current" /> : <Volume2 className="w-3 h-3" />}
+                        </button>
+                      )}
                     </div>
                   )}
                   {message.role === 'user' && (
@@ -3429,6 +3528,22 @@ Present this in an engaging way, highlighting activities that would appeal to a 
               </svg>
             )}
           </label>
+
+          {/* Voice Input Button */}
+          {isVoiceSupported && (
+            <button
+              type="button"
+              onClick={isListening ? stopListening : startListening}
+              className={`flex items-center justify-center px-3 md:px-4 py-2.5 md:py-3.5 rounded-xl border-2 transition-all cursor-pointer flex-shrink-0 ${isListening
+                ? 'border-red-200 bg-red-50 text-red-500 animate-pulse'
+                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-purple-300'
+                }`}
+              title={isListening ? "Stop listening" : "Speak to chat"}
+            >
+              <Mic className={`w-4 h-4 md:w-5 md:h-5 ${isListening ? 'fill-current' : ''}`} />
+            </button>
+          )}
+
           <input
             type="text"
             value={input}
