@@ -1,5 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { unstable_noStore } from 'next/cache'
 
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -97,12 +98,27 @@ function convertToISO8601(dateString: string): string {
 
 // Fetch blog post server-side using dynamic imports to prevent SSR bailout
 async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
+    console.log('[SSR-DEBUG] fetchBlogPost START - slug:', slug)
+    console.log('[SSR-DEBUG] Running on:', typeof window === 'undefined' ? 'SERVER' : 'CLIENT')
+
+    // Opt out of static generation BEFORE try/catch to prevent PPR bailout
+    unstable_noStore()
+    console.log('[SSR-DEBUG] unstable_noStore() called')
+
     try {
+        console.log('[SSR-DEBUG] Importing firebase/firestore...')
         // Dynamic imports to prevent SSR bailout
         const { doc, getDoc, collection, getDocs, query, where } = await import('firebase/firestore')
-        const { db } = await import('@/lib/firebase')
+        console.log('[SSR-DEBUG] firebase/firestore imported successfully')
 
-        if (!db) return null
+        console.log('[SSR-DEBUG] Importing @/lib/firebase...')
+        const { db } = await import('@/lib/firebase')
+        console.log('[SSR-DEBUG] @/lib/firebase imported, db exists:', !!db)
+
+        if (!db) {
+            console.log('[SSR-DEBUG] db is null, returning null')
+            return null
+        }
 
         const blogsRef = collection(db, 'blogs')
         let foundPost: BlogPost | null = null
@@ -145,25 +161,38 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
                     foundPost = { id: docSnap.id, ...docSnap.data() } as BlogPost
                 }
             } catch (e) {
+                console.log('[SSR-DEBUG] Inner catch block hit:', e)
                 // Ignore invalid ID format errors
             }
         }
 
+        console.log('[SSR-DEBUG] fetchBlogPost returning foundPost:', !!foundPost)
         return foundPost
     } catch (error) {
-        console.error('Error fetching blog post:', error)
+        console.error('[SSR-DEBUG] fetchBlogPost OUTER CATCH ERROR:', error)
         return null
     }
 }
 
 // Fetch related posts - ensures 2-3 posts are always returned using dynamic imports
 async function fetchRelatedPosts(category: string | undefined, currentPostId: string | undefined): Promise<BlogPost[]> {
+    console.log('[SSR-DEBUG] fetchRelatedPosts START - category:', category, 'currentPostId:', currentPostId)
+
+    // Opt out of static generation BEFORE try/catch to prevent PPR bailout
+    unstable_noStore()
+    console.log('[SSR-DEBUG] fetchRelatedPosts - unstable_noStore() called')
+
     try {
+        console.log('[SSR-DEBUG] fetchRelatedPosts - Importing firebase...')
         // Dynamic imports to prevent SSR bailout
         const { collection, getDocs, query, where, limit } = await import('firebase/firestore')
         const { db } = await import('@/lib/firebase')
+        console.log('[SSR-DEBUG] fetchRelatedPosts - imports done, db exists:', !!db)
 
-        if (!db) return []
+        if (!db) {
+            console.log('[SSR-DEBUG] fetchRelatedPosts - db is null, returning []')
+            return []
+        }
 
         const related: BlogPost[] = []
 
@@ -210,9 +239,10 @@ async function fetchRelatedPosts(category: string | undefined, currentPostId: st
         }
 
         // Return 2-3 posts (or whatever we could find)
+        console.log('[SSR-DEBUG] fetchRelatedPosts returning', related.length, 'posts')
         return related.slice(0, 3)
     } catch (err) {
-        console.error('Could not fetch related posts:', err)
+        console.error('[SSR-DEBUG] fetchRelatedPosts CATCH ERROR:', err)
         return []
     }
 }

@@ -16,16 +16,21 @@ const firebaseConfig = {
   measurementId: "G-5JQNQ4BRCJ"
 }
 
+console.log('[SSR-DEBUG-FIREBASE] firebase.ts module loaded on:', typeof window === 'undefined' ? 'SERVER' : 'CLIENT')
+
 // Initialize Firebase app (this is safe for SSR)
 const app: FirebaseApp = getApps().length === 0
   ? initializeApp(firebaseConfig)
   : getApps()[0]
+console.log('[SSR-DEBUG-FIREBASE] Firebase app initialized, existing apps:', getApps().length)
 
 // Initialize Auth (this is also SSR-safe)
 const auth: Auth = getAuth(app)
+console.log('[SSR-DEBUG-FIREBASE] Auth initialized')
 
 // Initialize Firestore (this is also SSR-safe)
 const db: Firestore = getFirestore(app)
+console.log('[SSR-DEBUG-FIREBASE] Firestore initialized')
 
 // Analytics - browser only, initialized lazily with dynamic import
 // Using 'any' type since Analytics type comes from the dynamically imported module
