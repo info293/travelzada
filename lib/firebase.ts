@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getAnalytics, Analytics, isSupported } from 'firebase/analytics'
+// NOTE: firebase/analytics is NOT imported statically to prevent SSR bailout
+// It's dynamically imported in getAnalyticsSafe() only on the client
 import { getAuth, Auth } from 'firebase/auth'
 import { getFirestore, Firestore } from 'firebase/firestore'
 
@@ -26,19 +27,26 @@ const auth: Auth = getAuth(app)
 // Initialize Firestore (this is also SSR-safe)
 const db: Firestore = getFirestore(app)
 
-// Analytics - browser only, initialized lazily
-let analytics: Analytics | null = null
+// Analytics - browser only, initialized lazily with dynamic import
+// Using 'any' type since Analytics type comes from the dynamically imported module
+let analytics: any = null
 
-// Helper to get analytics safely
-const getAnalyticsSafe = async (): Promise<Analytics | null> => {
+// Helper to get analytics safely - uses dynamic import
+const getAnalyticsSafe = async (): Promise<any> => {
   if (typeof window === 'undefined') return null
   if (analytics) return analytics
 
-  const supported = await isSupported()
-  if (supported) {
-    analytics = getAnalytics(app)
+  try {
+    const analyticsModule = await import('firebase/analytics')
+    const supported = await analyticsModule.isSupported()
+    if (supported) {
+      analytics = analyticsModule.getAnalytics(app)
+    }
+  } catch (e) {
+    console.warn('Analytics not supported:', e)
   }
   return analytics
 }
 
 export { app, analytics, auth, db, getAnalyticsSafe }
+
