@@ -14,19 +14,40 @@ export default function AILoader({ message = "Loading..." }: { message?: string 
 
     return (
         <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-700">
-            {/* Animated background particles */}
+            {/* Animated background particles - using static values to prevent SSR hydration mismatch */}
             <div className="absolute inset-0 overflow-hidden">
-                {[...Array(20)].map((_, i) => (
+                {[
+                    { w: 87, h: 102, l: 12, t: 8, delay: 2.1, duration: 14 },
+                    { w: 54, h: 71, l: 78, t: 25, delay: 0.5, duration: 18 },
+                    { w: 102, h: 45, l: 34, t: 67, delay: 3.8, duration: 12 },
+                    { w: 68, h: 89, l: 56, t: 42, delay: 1.2, duration: 16 },
+                    { w: 41, h: 63, l: 91, t: 73, delay: 4.2, duration: 15 },
+                    { w: 93, h: 58, l: 23, t: 89, delay: 0.8, duration: 19 },
+                    { w: 76, h: 84, l: 67, t: 15, delay: 2.9, duration: 13 },
+                    { w: 49, h: 95, l: 45, t: 56, delay: 1.7, duration: 17 },
+                    { w: 82, h: 52, l: 8, t: 34, delay: 3.3, duration: 11 },
+                    { w: 65, h: 78, l: 89, t: 48, delay: 0.3, duration: 20 },
+                    { w: 98, h: 67, l: 38, t: 82, delay: 4.6, duration: 14 },
+                    { w: 57, h: 91, l: 72, t: 5, delay: 2.4, duration: 16 },
+                    { w: 44, h: 55, l: 16, t: 61, delay: 1.9, duration: 18 },
+                    { w: 89, h: 73, l: 54, t: 29, delay: 3.1, duration: 12 },
+                    { w: 61, h: 48, l: 83, t: 94, delay: 0.7, duration: 15 },
+                    { w: 78, h: 86, l: 27, t: 18, delay: 4.0, duration: 17 },
+                    { w: 52, h: 69, l: 62, t: 76, delay: 2.6, duration: 13 },
+                    { w: 95, h: 42, l: 41, t: 3, delay: 1.4, duration: 19 },
+                    { w: 73, h: 97, l: 95, t: 51, delay: 3.7, duration: 11 },
+                    { w: 36, h: 81, l: 5, t: 88, delay: 0.1, duration: 20 },
+                ].map((particle, i) => (
                     <div
                         key={i}
                         className="absolute rounded-full bg-white/10 animate-float"
                         style={{
-                            width: `${Math.random() * 100 + 20}px`,
-                            height: `${Math.random() * 100 + 20}px`,
-                            left: `${Math.random() * 100}%`,
-                            top: `${Math.random() * 100}%`,
-                            animationDelay: `${Math.random() * 5}s`,
-                            animationDuration: `${Math.random() * 10 + 10}s`,
+                            width: `${particle.w}px`,
+                            height: `${particle.h}px`,
+                            left: `${particle.l}%`,
+                            top: `${particle.t}%`,
+                            animationDelay: `${particle.delay}s`,
+                            animationDuration: `${particle.duration}s`,
                         }}
                     />
                 ))}

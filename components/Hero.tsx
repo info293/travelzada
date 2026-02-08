@@ -169,19 +169,26 @@ export default function Hero() {
                 </svg>
               </div>
 
-              {/* Snow Flow Effect */}
+              {/* Snow Flow Effect - using static values to prevent SSR hydration mismatch */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {[...Array(6)].map((_, i) => (
+                {[
+                  { top: -12, left: 15, w: 4, h: 4, delay: 2.1, duration: 7 },
+                  { top: -8, left: 45, w: 3, h: 3, delay: 0.5, duration: 9 },
+                  { top: -15, left: 72, w: 5, h: 5, delay: 3.2, duration: 6 },
+                  { top: -5, left: 28, w: 2, h: 2, delay: 1.8, duration: 8 },
+                  { top: -18, left: 88, w: 4, h: 4, delay: 4.1, duration: 7 },
+                  { top: -10, left: 55, w: 3, h: 3, delay: 0.9, duration: 10 },
+                ].map((snow, i) => (
                   <div
                     key={i}
                     className="absolute bg-white rounded-full opacity-0 animate-snow-fall"
                     style={{
-                      top: `-${Math.random() * 20}%`,
-                      left: `${Math.random() * 100}%`,
-                      width: `${Math.random() * 4 + 2}px`,
-                      height: `${Math.random() * 4 + 2}px`,
-                      animationDelay: `${Math.random() * 5}s`,
-                      animationDuration: `${Math.random() * 5 + 5}s`
+                      top: `${snow.top}%`,
+                      left: `${snow.left}%`,
+                      width: `${snow.w}px`,
+                      height: `${snow.h}px`,
+                      animationDelay: `${snow.delay}s`,
+                      animationDuration: `${snow.duration}s`
                     }}
                   ></div>
                 ))}

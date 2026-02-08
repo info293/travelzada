@@ -77,7 +77,9 @@ export default function RootLayout({
             }),
           }}
         />
-        <AuthProvider>{children}</AuthProvider>
+        <Suspense fallback={null}>
+          <AuthProvider>{children}</AuthProvider>
+        </Suspense>
       </body>
     </html>
   )
