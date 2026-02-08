@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 
+// Initialize Anthropic (Claude) as primary
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null
+
+// Initialize OpenAI as fallback
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
@@ -18,13 +25,13 @@ interface ShownPackage {
 }
 
 export async function POST(request: Request) {
-  if (!process.env.OPENAI_API_KEY) {
+  // Check if at least one API is available
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: 'Missing OPENAI_API_KEY' },
+      { error: 'No AI API keys configured' },
       { status: 500 }
     )
   }
-
 
   try {
     const { prompt, conversation = [], availableDestinations = [], shownPackages = [] } = await request.json()
@@ -37,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     // Increase history to 12 messages for better context retention
-    const history: ChatCompletionMessageParam[] = Array.isArray(conversation)
+    const history = Array.isArray(conversation)
       ? conversation
         .filter(
           (msg: any) =>
@@ -93,33 +100,71 @@ EXAMPLE FORMAT:
 My recommendation: Package B suits you best because..."`
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o', // Upgraded for better instruction following
-      temperature: 0.5, // Lowered for more consistent instruction following
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt,
-        },
-        ...history,
-        {
-          role: 'user',
-          content: prompt,
-        } satisfies ChatCompletionMessageParam,
-      ],
-    })
+    let message: string
 
-    const message =
-      completion.choices[0]?.message?.content ??
-      'I am here to help you plan your trip!'
+    // Try Claude first (primary)
+    if (anthropic) {
+      try {
+        console.log('[AI Planner] Using Claude Sonnet 4.5')
 
-    return NextResponse.json({ message })
+        // Format messages for Claude
+        const claudeMessages = [
+          ...history.map((msg: any) => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+          })),
+          { role: 'user' as const, content: prompt },
+        ]
+
+        const claudeResponse = await anthropic.messages.create({
+          model: 'claude-sonnet-4-5-20250929', // Claude Sonnet 4.5
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: claudeMessages,
+        })
+
+        // Extract text from Claude response
+        const textContent = claudeResponse.content.find(block => block.type === 'text')
+        message = textContent?.text ?? 'I am here to help you plan your trip!'
+
+        return NextResponse.json({ message, provider: 'claude' })
+      } catch (claudeError: any) {
+        console.error('[AI Planner] Claude failed, falling back to ChatGPT:', claudeError.message)
+        // Fall through to OpenAI
+      }
+    }
+
+    // Fallback to ChatGPT
+    if (process.env.OPENAI_API_KEY) {
+      console.log('[AI Planner] Using ChatGPT (fallback)')
+
+      const openaiMessages: ChatCompletionMessageParam[] = [
+        { role: 'system', content: systemPrompt },
+        ...history as ChatCompletionMessageParam[],
+        { role: 'user', content: prompt },
+      ]
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        temperature: 0.5,
+        messages: openaiMessages,
+      })
+
+      message = completion.choices[0]?.message?.content ?? 'I am here to help you plan your trip!'
+
+      return NextResponse.json({ message, provider: 'openai' })
+    }
+
+    // If we get here, no AI worked
+    return NextResponse.json(
+      { error: 'All AI providers failed' },
+      { status: 500 }
+    )
   } catch (error: any) {
     console.error('Chat API error', error)
     return NextResponse.json(
-      { error: 'Failed to contact ChatGPT' },
+      { error: 'Failed to get AI response' },
       { status: 500 }
     )
   }
 }
-
