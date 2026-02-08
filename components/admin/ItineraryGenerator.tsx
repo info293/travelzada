@@ -102,30 +102,45 @@ export default function ItineraryGenerator() {
             if (selectedDestination) {
                 const normSelectedId = selectedDestination.toLowerCase().trim();
 
-                // Find destination name for fallback string matching
+                // Find destination object
                 const destObj = destinations.find(d => d.id === selectedDestination);
                 const destNameRaw = destObj ? (destObj.name || destObj.Destination_Name || '') : '';
                 const destName = destNameRaw.toLowerCase().trim();
 
-                // Create tokens from destination name (split by &, /, and)
-                const destTokens = destName.split(/\s*(?:&|\/|and)\s*/).map((t: string) => t.trim()).filter((t: string) => t.length > 2);
+                // Check if destination has linked package IDs (like the destination page uses)
+                const linkedPackageIds: string[] = destObj?.packageIds || [];
+                const hasLinkedPackages = Array.isArray(linkedPackageIds) && linkedPackageIds.length > 0;
 
-                filtered = pkgs.filter(p => {
-                    const pName = (p.Destination_Name || '').toLowerCase().trim();
-                    const pId = (p.Destination_ID || '').toLowerCase().trim();
+                if (hasLinkedPackages) {
+                    // Priority 1: Use linked packageIds from destination (matches travelzada.com behavior)
+                    filtered = pkgs.filter(p => {
+                        const pkgId = p.Destination_ID || '';
+                        return linkedPackageIds.includes(pkgId);
+                    });
+                    console.log(`Using packageIds linkage: found ${filtered.length} linked packages for "${destNameRaw}"`);
+                } else {
+                    // Fallback: Use name/ID matching for destinations without linked packages
+                    // Create tokens from destination name (split by &, /, and)
+                    const destTokens = destName.split(/\s*(?:&|\/|and)\s*/).map((t: string) => t.trim()).filter((t: string) => t.length > 2);
 
-                    // 1. Match by ID (Best)
-                    if (pId === normSelectedId) return true;
+                    filtered = pkgs.filter(p => {
+                        const pName = (p.Destination_Name || '').toLowerCase().trim();
+                        const pId = (p.Destination_ID || '').toLowerCase().trim();
 
-                    // 2. Match by Full Name
-                    if (destName && (pName.includes(destName) || destName.includes(pName))) return true;
+                        // 1. Match by ID (Best)
+                        if (pId === normSelectedId) return true;
 
-                    // 3. Match by Name Parts (for "Andaman & Nicobar")
-                    if (destTokens.some((token: string) => pName.includes(token))) return true;
+                        // 2. Match by Full Name
+                        if (destName && (pName.includes(destName) || destName.includes(pName))) return true;
 
-                    // 4. Last Resort: ID in Name
-                    return pName.includes(normSelectedId);
-                });
+                        // 3. Match by Name Parts (for "Andaman & Nicobar")
+                        if (destTokens.some((token: string) => pName.includes(token))) return true;
+
+                        // 4. Last Resort: ID in Name
+                        return pName.includes(normSelectedId);
+                    });
+                    console.log(`Using name matching fallback: found ${filtered.length} packages for "${destNameRaw}"`);
+                }
             }
 
             console.log(`Fetched ${pkgs.length} packages, filtered to ${filtered.length} for "${selectedDestination}"`);
