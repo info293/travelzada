@@ -3,7 +3,9 @@ import Image from 'next/image'
 import FooterSEO from '@/components/FooterSEO'
 
 export default function Footer() {
-  const currentYear = new Date().getFullYear()
+  // Using static year to prevent SSR bailout - new Date() causes hydration mismatch
+  // in Server Components since server and client render times differ
+  const currentYear = 2026
 
   // Structured Data for SEO
   const organizationSchema = {
