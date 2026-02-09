@@ -23,6 +23,7 @@ import ViewModal from '@/components/admin/ViewModal'
 import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
 import ItineraryGenerator from '@/components/admin/ItineraryGenerator'
 import CustomerRecordsManager from '@/components/admin/CustomerRecordsManager'
+import * as XLSX from 'xlsx'
 
 import type { ReactNode } from 'react'
 
@@ -311,6 +312,13 @@ export default function AdminDashboard() {
     title: '',
     content: null,
   })
+
+  // Excel Upload State
+  const [isExcelUploading, setIsExcelUploading] = useState(false)
+  const [excelUploadStats, setExcelUploadStats] = useState<{
+    success: number
+    errors: string[]
+  }>({ success: 0, errors: [] })
 
   // Sorting and Filtering State
   type SortDirection = 'asc' | 'desc'
@@ -1791,6 +1799,343 @@ export default function AdminDashboard() {
     setBlogBulkImportJson(JSON.stringify(sample, null, 2))
   }
 
+  const downloadSampleBlogExcel = () => {
+    // Sheet 1: Blogs
+    const blogsHeaders = [
+      'Slug', // Key
+      'Title',
+      'Subtitle',
+      'Description',
+      'Content',
+      'Image URL',
+      'Author',
+      'Category',
+      'Tags (comma separated)',
+      'Read Time',
+      'Meta Title',
+      'Meta Description',
+      'Keywords (comma separated)',
+      'Section Header',
+      'Section Order',
+      'Is Featured'
+    ]
+
+    const blogsSampleRows = [
+      // Blog 1: Travel Destinations 2025
+      [
+        '10-best-travel-destinations-2025',
+        '10 Best Travel Destinations for 2025',
+        'Discover the most amazing places to visit this year',
+        'From tropical paradises to cultural hubs, here are the top destinations you should add to your travel bucket list.',
+        '<p>Travel is one of life\'s greatest pleasures. In this comprehensive guide, we explore the top destinations that should be on every traveler\'s radar for 2025.</p>',
+        'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80',
+        'Travel Expert',
+        'Travel Tips',
+        'travel, destinations, 2025',
+        '5 min read',
+        '10 Best Travel Destinations for 2025 | Travelzada',
+        'From tropical paradises to cultural hubs, here are the top destinations you should add to your travel bucket list.',
+        'travel, destinations, 2025, vacation',
+        'Travel Guides',
+        1,
+        true
+      ],
+      // Blog 2: Honeymoon Planning
+      [
+        'how-to-plan-perfect-honeymoon',
+        'How to Plan the Perfect Honeymoon',
+        'A complete guide to planning your dream romantic getaway',
+        'Everything you need to know about planning a memorable honeymoon that you and your partner will cherish forever.',
+        '<p>Planning a honeymoon can be overwhelming, but with the right guidance, you can create the perfect romantic escape.</p>',
+        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
+        'Romance Travel',
+        'Honeymoon',
+        'honeymoon, romance, travel',
+        '7 min read',
+        'How to Plan the Perfect Honeymoon | Travelzada',
+        'Everything you need to know about planning a memorable honeymoon that you and your partner will cherish forever.',
+        'honeymoon, planning, romantic getaway',
+        'Travel Guides',
+        2,
+        false
+      ],
+      // Blog 3: Budget Travel
+      [
+        'budget-travel-tips-backpackers',
+        'Budget Travel Tips for Backpackers',
+        'Travel the world without breaking the bank',
+        'Learn how to explore amazing destinations on a budget with these proven money-saving strategies.',
+        '<p>Traveling on a budget doesn\'t mean sacrificing experiences. Here are practical tips to help you see the world affordably.</p>',
+        'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80',
+        'Budget Traveler',
+        'Budget Travel',
+        'budget, backpacking, travel tips',
+        '6 min read',
+        'Budget Travel Tips for Backpackers | Travelzada',
+        'Learn how to explore amazing destinations on a budget with these proven money-saving strategies.',
+        'budget travel, backpacking, money-saving',
+        'Travel Tips',
+        1,
+        true
+      ]
+    ]
+
+    // Sheet 2: Blog Sections
+    const sectionsHeaders = [
+      'Blog Slug',
+      'Order',
+      'Type',
+      'Text',
+      'Image URL',
+      'Image Alt',
+      'List Items (comma separated)',
+      'Quote Author',
+      'FAQ Question',
+      'FAQ Answer',
+      'Link',
+      'Link Text'
+    ]
+
+    const sectionsSampleRows = [
+      // Blog 1: Travel Destinations 2025 - 14 sections
+      ['10-best-travel-destinations-2025', 1, 'intro', 'As we step into 2025, the world of travel continues to evolve with new destinations emerging and classic favorites reinventing themselves. Whether you\'re seeking adventure, relaxation, or cultural immersion, this curated list has something for every type of traveler.', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 2, 'heading', 'Top Destinations for 2025', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 3, 'paragraph', 'The travel landscape is constantly changing, and 2025 brings exciting new opportunities for exploration. From hidden gems to popular destinations with fresh perspectives, these locations offer unforgettable experiences.', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 4, 'image', '', 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80', 'Beautiful travel destination', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 5, 'subheading', '1. Bali, Indonesia', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 6, 'paragraph', 'Bali continues to be a top destination for travelers seeking a perfect blend of culture, nature, and relaxation. With its stunning beaches, ancient temples, and vibrant arts scene, Bali offers something for everyone.', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 7, 'subheading', '2. Santorini, Greece', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 8, 'paragraph', 'The iconic white-washed buildings and breathtaking sunsets make Santorini a dream destination. Perfect for romantic getaways and photography enthusiasts.', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 9, 'list', '', '', '', 'Book accommodations in advance during peak season, Explore beyond the main tourist areas, Try local cuisine at family-run restaurants, Respect local customs and traditions, Pack appropriate clothing for cultural sites', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 10, 'quote', 'Travel is the only thing you buy that makes you richer.', '', '', '', 'Anonymous', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 11, 'heading', 'Planning Your 2025 Adventure', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 12, 'paragraph', 'When planning your travels for 2025, consider factors like weather, local events, and travel restrictions. Early planning can help you secure better deals and ensure availability at popular destinations.', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 13, 'divider', '', '', '', '', '', '', '', '', ''],
+      ['10-best-travel-destinations-2025', 14, 'faq', '', '', '', '', '', 'What is the best time to visit these destinations?', 'The best time varies by destination. Generally, shoulder seasons (spring and fall) offer good weather with fewer crowds and better prices.', '', ''],
+      ['10-best-travel-destinations-2025', 15, 'faq', '', '', '', '', '', 'Do I need travel insurance?', 'Yes, travel insurance is highly recommended, especially for international trips. It provides coverage for medical emergencies, trip cancellations, and lost luggage.', '', ''],
+      ['10-best-travel-destinations-2025', 16, 'cta', 'Ready to explore these amazing destinations? Browse our curated travel packages and start planning your 2025 adventure today.', '', '', '', '', '', '', '/destinations', 'Explore Packages'],
+
+      // Blog 2: Honeymoon Planning - 9 sections
+      ['how-to-plan-perfect-honeymoon', 1, 'intro', 'Your honeymoon is one of the most special trips you\'ll ever take. It\'s a time to celebrate your new life together and create memories that will last a lifetime. With careful planning, you can ensure it\'s everything you\'ve dreamed of.', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 2, 'heading', 'Setting Your Honeymoon Budget', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 3, 'paragraph', 'Before diving into destination research, establish a realistic budget. Consider all expenses including flights, accommodations, meals, activities, and a buffer for unexpected costs.', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 4, 'image', '', 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80', 'Romantic honeymoon destination', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 5, 'subheading', 'Choosing the Perfect Destination', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 6, 'paragraph', 'Select a destination that matches both your interests and travel style. Whether you prefer beach relaxation, mountain adventures, or cultural exploration, there\'s a perfect honeymoon spot for every couple.', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 7, 'list', '', '', '', 'Discuss your dream destinations together, Consider the time of year and weather, Think about your travel style (relaxation vs. adventure), Research visa requirements, Check travel advisories', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 8, 'quote', 'A successful marriage requires falling in love many times, always with the same person.', '', '', '', 'Mignon McLaughlin', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 9, 'heading', 'Honeymoon Planning Timeline', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 10, 'paragraph', 'Start planning your honeymoon 6-12 months in advance, especially if you\'re traveling during peak season or to popular destinations. This gives you time to research, compare prices, and make reservations.', '', '', '', '', '', '', '', ''],
+      ['how-to-plan-perfect-honeymoon', 11, 'cta', 'Let us help you plan the perfect honeymoon. Explore our romantic travel packages designed specifically for couples.', '', '', '', '', '', '', '/destinations', 'View Honeymoon Packages'],
+
+      // Blog 3: Budget Travel - 12 sections
+      ['budget-travel-tips-backpackers', 1, 'intro', 'Traveling on a budget doesn\'t mean you have to compromise on experiences. With smart planning and a few insider tips, you can explore the world without emptying your wallet.', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 2, 'heading', 'Money-Saving Travel Strategies', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 3, 'paragraph', 'The key to budget travel is being flexible and resourceful. From finding affordable accommodations to eating like a local, there are countless ways to stretch your travel budget.', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 4, 'image', '', 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=1200&q=80', 'Budget backpacker traveling', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 5, 'subheading', 'Accommodation Hacks', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 6, 'paragraph', 'Skip expensive hotels and opt for hostels, guesthouses, or homestays. Many offer private rooms at a fraction of hotel prices while providing authentic local experiences.', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 7, 'subheading', 'Eating on a Budget', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 8, 'paragraph', 'Avoid tourist restaurants and eat where locals eat. Street food, local markets, and family-run establishments offer delicious meals at much lower prices.', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 9, 'list', '', '', '', 'Travel during off-peak seasons, Book flights in advance or use last-minute deals, Use public transportation, Cook your own meals when possible, Look for free walking tours and activities, Travel with a group to split costs, Use travel reward credit cards', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 10, 'divider', '', '', '', '', '', '', '', '', ''],
+      ['budget-travel-tips-backpackers', 11, 'faq', '', '', '', '', '', 'How can I find cheap flights?', 'Use flight comparison websites, be flexible with dates, consider nearby airports, and sign up for airline newsletters for special deals.', '', ''],
+      ['budget-travel-tips-backpackers', 12, 'faq', '', '', '', '', '', 'Is it safe to stay in hostels?', 'Yes, most hostels are safe and well-maintained. Read reviews, choose hostels with lockers, and trust your instincts when selecting accommodations.', '', ''],
+      ['budget-travel-tips-backpackers', 13, 'cta', 'Ready to start your budget adventure? Check out our affordable travel packages designed for budget-conscious travelers.', '', '', '', '', '', '', '/destinations', 'Browse Budget Packages']
+    ]
+
+
+    const wb = XLSX.utils.book_new()
+
+    // Create Blogs Sheet
+    const wsBlogs = XLSX.utils.aoa_to_sheet([blogsHeaders, ...blogsSampleRows])
+    const wsBlogsCols = blogsHeaders.map(() => ({ wch: 20 }))
+    wsBlogs['!cols'] = wsBlogsCols
+    XLSX.utils.book_append_sheet(wb, wsBlogs, 'Blogs')
+
+    // Create Blog Sections Sheet
+    const wsSections = XLSX.utils.aoa_to_sheet([sectionsHeaders, ...sectionsSampleRows])
+    const wsSectionsCols = sectionsHeaders.map(() => ({ wch: 25 }))
+    wsSections['!cols'] = wsSectionsCols
+    XLSX.utils.book_append_sheet(wb, wsSections, 'Blog Sections')
+
+    XLSX.writeFile(wb, 'travelzada-blog-template-v2.xlsx')
+  }
+
+  const handleBlogExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsExcelUploading(true)
+    setExcelUploadStats({ success: 0, errors: [] })
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const checkExistingSlug = async (slug: string) => {
+          const dbInstance = getDbInstance()
+          const q = query(collection(dbInstance, 'blogs'), where('slug', '==', slug))
+          const querySnapshot = await getDocs(q)
+          return !querySnapshot.empty
+        }
+
+        const data = event.target?.result
+        const workbook = XLSX.read(data, { type: 'binary' })
+
+        // Parse Blogs Sheet
+        const blogsSheet = workbook.Sheets['Blogs'] || workbook.Sheets[workbook.SheetNames[0]]
+        const blogsData = XLSX.utils.sheet_to_json(blogsSheet) as any[]
+
+        // Parse Blog Sections Sheet (if exists)
+        const sectionsSheet = workbook.Sheets['Blog Sections'] || workbook.Sheets[workbook.SheetNames[1]]
+        const sectionsData = sectionsSheet ? XLSX.utils.sheet_to_json(sectionsSheet) as any[] : []
+
+        let successCount = 0
+        const errors: string[] = []
+
+        const dbInstance = getDbInstance()
+
+        for (let i = 0; i < blogsData.length; i++) {
+          const row = blogsData[i]
+          const rowNumber = i + 2 // +1 for 0-index, +1 for header row
+
+          try {
+            // Validation
+            if (!row['Title']) throw new Error('Title is required')
+            if (!row['Content']) throw new Error('Content is required')
+            if (!row['Image URL']) throw new Error('Image URL is required')
+
+            // Create Blog Object
+            const slug = row['Slug'] || row['Title'].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+
+            // Check for duplicate slug
+            const isDuplicate = await checkExistingSlug(slug)
+            if (isDuplicate) {
+              throw new Error(`Slug "${slug}" already exists`)
+            }
+
+            // Build Blog Structure from Blog Sections sheet
+            let blogStructure: BlogSection[] = []
+
+            // Find all sections for this blog by matching Blog Slug
+            const blogSections = sectionsData.filter(section => section['Blog Slug'] === slug)
+
+            // Sort by Order
+            blogSections.sort((a, b) => (a['Order'] || 0) - (b['Order'] || 0))
+
+            // Map each section to BlogSection format
+            blogStructure = blogSections.map(section => {
+              const type = section['Type']?.toLowerCase()
+              const baseSection: any = { type }
+
+              switch (type) {
+                case 'intro':
+                case 'heading':
+                case 'subheading':
+                case 'paragraph':
+                  baseSection.text = section['Text'] || ''
+                  break
+
+                case 'image':
+                  baseSection.imageUrl = section['Image URL'] || ''
+                  baseSection.imageAlt = section['Image Alt'] || ''
+                  break
+
+                case 'list':
+                  baseSection.items = section['List Items (comma separated)']
+                    ? section['List Items (comma separated)'].split(',').map((item: string) => item.trim())
+                    : []
+                  break
+
+                case 'quote':
+                  baseSection.text = section['Text'] || ''
+                  baseSection.author = section['Quote Author'] || ''
+                  break
+
+                case 'faq':
+                  baseSection.faqs = [{
+                    question: section['FAQ Question'] || '',
+                    answer: section['FAQ Answer'] || ''
+                  }]
+                  break
+
+                case 'cta':
+                  baseSection.text = section['Text'] || ''
+                  baseSection.link = section['Link'] || ''
+                  baseSection.linkText = section['Link Text'] || ''
+                  break
+
+                case 'divider':
+                  // No additional properties needed
+                  break
+
+                default:
+                  baseSection.text = section['Text'] || ''
+              }
+
+              return baseSection
+            })
+
+
+            const newBlog: BlogPost = {
+              title: row['Title'],
+              subtitle: row['Subtitle'] || '',
+              description: row['Description'] || '',
+              content: row['Content'], // Assumes HTML content
+              image: row['Image URL'],
+              author: row['Author'] || currentUser?.displayName || 'Admin',
+              category: row['Category'] || 'General',
+              readTime: row['Read Time'] || '5 min read',
+              date: new Date().toISOString().split('T')[0],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              published: true, // Default to published
+              // SEO
+              metaTitle: row['Meta Title'] || row['Title'],
+              metaDescription: row['Meta Description'] || row['Description'],
+              keywords: row['Keywords (comma separated)'] ? row['Keywords (comma separated)'].split(',').map((k: string) => k.trim()) : [],
+              slug: slug,
+              // Blog Structure
+              blogStructure: blogStructure,
+              // Default values
+              views: 0,
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              // Add other fields from row if needed
+              sectionHeader: row['Section Header'] || 'Travel Guides',
+              sectionOrder: row['Section Order'] ? parseInt(row['Section Order']) : 999,
+              isFeatured: row['Is Featured'] === true || row['Is Featured'] === 'true',
+            }
+
+            await addDoc(collection(dbInstance, 'blogs'), newBlog)
+            successCount++
+          } catch (err: any) {
+            errors.push(`Row ${rowNumber}: ${err.message}`)
+          }
+        }
+
+        setExcelUploadStats({ success: successCount, errors })
+        if (successCount > 0) {
+          fetchBlogs()
+          alert(`Successfully imported ${successCount} blogs!${errors.length > 0 ? `\nWith ${errors.length} errors.` : ''}`)
+        } else {
+          alert(`Import failed. No blogs were added.\nErrors:\n${errors.join('\n')}`)
+        }
+
+      } catch (error) {
+        console.error('Error parsing Excel:', error)
+        alert('Error parsing Excel file. Please make sure it matches the template.')
+      } finally {
+        setIsExcelUploading(false)
+        // Reset file input
+        e.target.value = ''
+      }
+    }
+
+    reader.readAsBinaryString(file)
+  }
+
 
 
   const loadSampleTemplate = () => {
@@ -3154,6 +3499,42 @@ export default function AdminDashboard() {
                         </svg>
                         Bulk Import JSON
                       </button>
+
+                      {/* Excel Upload Buttons */}
+                      <button
+                        onClick={downloadSampleBlogExcel}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        Download Sample Excel
+                      </button>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept=".xlsx, .xls"
+                          onChange={handleBlogExcelUpload}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          disabled={isExcelUploading}
+                        />
+                        <button
+                          className={`bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 ${isExcelUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          {isExcelUploading ? (
+                            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                          )}
+                          Import Excel
+                        </button>
+                      </div>
+
                       <button
                         onClick={handleNewBlog}
                         className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-dark transition-colors"
@@ -3162,6 +3543,28 @@ export default function AdminDashboard() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Excel Upload Stats */}
+                  {(excelUploadStats.success > 0 || excelUploadStats.errors.length > 0) && (
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                      {excelUploadStats.success > 0 && (
+                        <div className="mb-2 text-sm text-green-700 font-semibold">
+                          ✅ Successfully imported {excelUploadStats.success} blogs.
+                        </div>
+                      )}
+                      {excelUploadStats.errors.length > 0 && (
+                        <div className="text-sm text-red-700">
+                          <p className="font-semibold mb-1">❌ Errors ({excelUploadStats.errors.length}):</p>
+                          <ul className="list-disc list-inside max-h-40 overflow-y-auto bg-red-50 p-2 rounded border border-red-200">
+                            {excelUploadStats.errors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-gray-50">

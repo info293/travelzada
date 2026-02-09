@@ -145,7 +145,7 @@ function AIPlannerContent() {
 
         {/* Conversation Agent - Normal inline mode */}
         <section className="relative z-10 py-2 md:py-6 px-4 md:px-12">
-          <div className="max-w-4xl mx-auto w-full overflow-hidden">
+          <div className="max-w-6xl mx-auto w-full overflow-hidden">
             <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-200/50 shadow-2xl shadow-purple-500/10 p-0 md:p-8 relative overflow-hidden w-full max-w-full">
               {/* Decorative Elements */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-purple-100/30 to-indigo-100/30 rounded-full blur-3xl -mr-32 -mt-32"></div>
