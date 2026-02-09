@@ -30,7 +30,8 @@ import {
   ChevronLeft,
   Mic,
   Volume2,
-  Square
+  Square,
+  ArrowUp as ArrowUpIcon
 } from 'lucide-react'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -249,6 +250,19 @@ interface TripInfo {
   travelType: string // solo, family, couple, friends
 }
 
+// LocalStorage key for saved trips
+const SAVED_TRIPS_KEY = 'travelzada_saved_trips'
+
+interface SavedTrip {
+  id: string
+  name: string
+  destination: string
+  createdAt: number
+  updatedAt: number
+  messages: Message[]
+  tripInfo: TripInfo
+}
+
 export default function ConversationAgent({ formData, setFormData, onTripDetailsRequest, isMobileChatMode, onCloseMobileChat, onOpenMobileChat }: ConversationAgentProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -308,6 +322,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
+
+  // LocalStorage: Saved trips state
+  const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([])
+  const [currentTripId, setCurrentTripId] = useState<string | null>(null)
+  const [showMobileHistory, setShowMobileHistory] = useState(false) // Mobile drawer for saved trips
   const [imageAnalysisResult, setImageAnalysisResult] = useState<{
     detectedLocation: string | null
     rawDetectedLocation: string | null
@@ -397,6 +416,111 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       handleSend()
     }
   }, [isListening, transcript]) // Removed handleSend from deps to avoid loop, but it's stable via useCallback usually
+
+  // LocalStorage: Load saved trips on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = localStorage.getItem(SAVED_TRIPS_KEY)
+      if (stored) {
+        const trips: SavedTrip[] = JSON.parse(stored)
+        setSavedTrips(trips.sort((a, b) => b.updatedAt - a.updatedAt))
+      }
+    } catch (e) {
+      console.error('Error loading saved trips:', e)
+    }
+  }, [])
+
+  // LocalStorage: Auto-save current trip when messages or tripInfo change
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (messages.length === 0) return // Don't save empty conversations
+
+    // Only save if there's at least one user message
+    const userMessages = messages.filter(m => m.role === 'user')
+    if (userMessages.length === 0) return
+
+    // Generate trip name: destination > first user message > fallback
+    const firstUserMessage = userMessages[0]?.content || ''
+    const tripName = tripInfo.destination
+      || (firstUserMessage.length > 30 ? firstUserMessage.slice(0, 30) + '...' : firstUserMessage)
+      || 'New Trip'
+    const now = Date.now()
+
+    setSavedTrips(prev => {
+      let updated: SavedTrip[]
+
+      if (currentTripId) {
+        // Update existing trip
+        updated = prev.map(t =>
+          t.id === currentTripId
+            ? { ...t, name: tripName, destination: tripInfo.destination, updatedAt: now, messages, tripInfo }
+            : t
+        )
+      } else {
+        // Create new trip
+        const newId = `trip_${now}`
+        setCurrentTripId(newId)
+        const newTrip: SavedTrip = {
+          id: newId,
+          name: tripName,
+          destination: tripInfo.destination,
+          createdAt: now,
+          updatedAt: now,
+          messages,
+          tripInfo
+        }
+        updated = [newTrip, ...prev]
+      }
+
+      // Save to localStorage
+      localStorage.setItem(SAVED_TRIPS_KEY, JSON.stringify(updated.slice(0, 20))) // Keep max 20 trips
+      return updated.sort((a, b) => b.updatedAt - a.updatedAt)
+    })
+  }, [messages, tripInfo.destination])
+
+  // Load a saved trip
+  const loadTrip = useCallback((trip: SavedTrip) => {
+    setCurrentTripId(trip.id)
+    setMessages(trip.messages)
+    setTripInfo(trip.tripInfo)
+    setCurrentQuestion('destination') // Reset question flow
+    if (trip.tripInfo.destination) setCurrentQuestion('complete')
+  }, [])
+
+  // Start new trip (reset state)
+  const startNewTrip = useCallback(() => {
+    setCurrentTripId(null)
+    setMessages([])
+    setTripInfo({
+      destination: '',
+      travelDate: '',
+      days: '',
+      budget: '',
+      hotelType: '',
+      preferences: [],
+      travelType: '',
+    })
+    setCurrentQuestion('destination')
+    setConversationPhase('collecting-info')
+    setShownPackageIds([])
+    setShownPackages([])
+    setChatResetKey(prev => prev + 1)
+  }, [])
+
+  // Delete a saved trip
+  const deleteTrip = useCallback((tripId: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent loading the trip when clicking delete
+    setSavedTrips(prev => {
+      const updated = prev.filter(t => t.id !== tripId)
+      localStorage.setItem(SAVED_TRIPS_KEY, JSON.stringify(updated))
+      return updated
+    })
+    // If deleting current trip, reset state
+    if (currentTripId === tripId) {
+      startNewTrip()
+    }
+  }, [currentTripId, startNewTrip])
 
   // Fetch packages from Firestore on component mount
   useEffect(() => {
@@ -2607,12 +2731,12 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     <div
       className={`bg-white overflow-hidden relative w-full max-w-full ${isMobileChatMode
         ? 'fixed inset-0 z-50 flex flex-col rounded-none'
-        : 'rounded-3xl shadow-xl border border-gray-200/50 cursor-pointer'
+        : 'h-[92vh] w-full max-w-[1600px] mx-auto rounded-2xl shadow-2xl border border-gray-200/50 flex flex-row overflow-hidden md:h-[85vh]'
         }`}
       style={isMobileChatMode ? { height: '100dvh', maxHeight: '-webkit-fill-available' } : undefined}
       onClick={() => {
-        // Open mobile chat mode when clicking anywhere on the chat area (only when not in mobile chat mode)
-        if (!isMobileChatMode && onOpenMobileChat) {
+        // On mobile (when not in mobile chat mode), clicking anywhere opens full-screen chat
+        if (!isMobileChatMode && onOpenMobileChat && window.innerWidth < 768) {
           onOpenMobileChat()
         }
       }}
@@ -2643,162 +2767,264 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-50/50 to-transparent pointer-events-none"></div>
       )}
 
-      {/* Mobile Chat Header - Only visible in mobile chat mode */}
-      {isMobileChatMode && (
-        <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white safe-area-top">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onCloseMobileChat?.()
-            }}
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors active:scale-95"
-            aria-label="Go back"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-semibold truncate">AI Trip Planner</h2>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              <p className="text-xs text-white/80">Online • Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS}</p>
-            </div>
-          </div>
-          {/* New Chat Button - Mobile */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleNewChat()
-            }}
-            className="w-10 h-10 rounded-full border-2 border-white/30 flex items-center justify-center hover:bg-white/20 transition-colors active:scale-95"
-            aria-label="Start new chat"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Progress Bar - Only visible in non-mobile chat mode */}
+      {/* Desktop Sidebar (Visual Placeholder for Portal Feel) */}
       {!isMobileChatMode && (
-        <div className="px-4 md:px-6 pt-4 md:pt-6 sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs md:text-sm text-gray-900 font-semibold truncate">AI Trip Planner</p>
-                <p className="text-[10px] md:text-xs text-gray-600 font-medium whitespace-nowrap overflow-visible">
-                  Step {Math.min(completedSteps + 1, TOTAL_STEPS)} of {TOTAL_STEPS} • {Math.round(progress)}% complete
-                </p>
-              </div>
+        <div className="hidden lg:flex w-64 bg-gray-50 border-r border-gray-100 flex-col p-4">
+          <div className="flex items-center gap-3 mb-8 px-2">
+            <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
+              <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
             </div>
-            {/* New Chat Button */}
+            <span className="font-semibold text-gray-700">Trip Planner</span>
+          </div>
+
+          <div className="space-y-1 flex-1 overflow-hidden flex flex-col">
             <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleNewChat()
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm font-medium text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
-              aria-label="Start new chat"
+              onClick={startNewTrip}
+              className="w-full text-left px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-800 flex items-center gap-2 hover:bg-gray-50 transition-colors"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">New Chat</span>
+              <span className="w-2 h-2 rounded-full bg-green-500"></span>
+              New Trip Plan
             </button>
-          </div>
-          <div className="bg-gray-100 h-2.5 md:h-2.5 rounded-full overflow-hidden shadow-inner">
-            <div
-              className="bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 h-full transition-all duration-500 rounded-full relative overflow-hidden"
-              style={{ width: `${progress}%` }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Voice Output Indicator/Stop Button */}
-      <AnimatePresence>
-        {isSpeaking && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-sm cursor-pointer hover:bg-black/90 transition-all"
-            onClick={(e) => {
-              e.stopPropagation()
-              stopSpeaking()
-            }}
-          >
-            <div className="flex gap-1 items-center">
-              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full" />
-              <span className="animate-pulse w-1 h-5 bg-white/80 rounded-full delay-75" />
-              <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full delay-150" />
-            </div>
-            <span className="text-xs font-medium whitespace-nowrap">Speaking... Click to Stop</span>
-            <Square className="w-3 h-3 ml-1 fill-white" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <div className="px-3 py-2 text-xs font-semibold text-gray-400 mt-4 uppercase tracking-wider">Recent</div>
 
-      {/* Scrollable Content Area - Contains messages AND all selectors */}
-      {/* This is the middle section that scrolls, like WhatsApp */}
-      <div
-        ref={messagesContainerRef}
-        className={`overflow-y-auto relative z-10 ${isMobileChatMode
-          ? 'flex-1 min-h-0'
-          : 'h-[400px] md:h-[500px]'
-          }`}
-        style={{ scrollPaddingTop: '80px' }}
-      >
-        {/* Messages */}
-        <div className="p-4 md:p-6 pb-40 space-y-3 md:space-y-4">
-          <AnimatePresence mode="popLayout">
-            {messages.map((message, index) => (
-              <motion.div
-                key={index}
-                variants={fadeIn}
-                initial="hidden"
-                animate="visible"
-                layout
-                className="flex flex-col gap-2 w-full"
-              >
-                <div
-                  className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2-386l-.548-.547z" />
-                      </svg>
-                    </div>
-                  )}
-                  {message.role === 'assistant' && message.packageMatch ? (
-                    <div className="group relative max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 text-gray-800 shadow-sm">
-                      <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
-                      {/* Speaker Button for Package Match messages */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          isSpeaking ? stopSpeaking() : speakText(message.content)
-                        }}
-                        className="absolute -bottom-6 right-0 p-1.5 text-gray-400 hover:text-[#008080] opacity-0 group-hover:opacity-100 transition-all"
-                        title="Read aloud"
-                      >
-                        {isSpeaking ? <Square className="w-3 h-3 fill-current" /> : <Volume2 className="w-3 h-3" />}
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className={`group relative max-w-[85%] md:max-w-[80%] rounded-2xl px-4 md:px-5 py-3 md:py-4 shadow-sm ${message.role === 'user'
-                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
-                        : 'bg-gray-50 border border-gray-100 text-gray-800'
+            <div className="flex-1 overflow-y-auto space-y-1">
+              {savedTrips.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-gray-400 italic">No saved trips yet</p>
+              ) : (
+                savedTrips.slice(0, 10).map((trip) => (
+                  <div
+                    key={trip.id}
+                    className={`group flex items-center gap-1 rounded-lg transition-colors ${currentTripId === trip.id
+                      ? 'bg-purple-50 border border-purple-100'
+                      : 'hover:bg-gray-100'
+                      }`}
+                  >
+                    <button
+                      onClick={() => loadTrip(trip)}
+                      className={`flex-1 text-left px-3 py-2 text-sm truncate ${currentTripId === trip.id ? 'text-purple-700' : 'text-gray-500'
                         }`}
                     >
-                      <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{message.content}</p>
+                      {trip.name || 'New Trip'}
+                    </button>
+                    <button
+                      onClick={(e) => deleteTrip(trip.id, e)}
+                      className="p-1 mr-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 text-gray-400 hover:text-red-500 transition-all"
+                      title="Delete trip"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="mt-auto">
+            <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
+              <p className="text-xs text-purple-800 font-medium mb-1">Upgrade Plan</p>
+              <p className="text-[10px] text-purple-600">Get unlimited AI trip generations.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col relative bg-white">
+
+        {/* Mobile History Drawer */}
+        <AnimatePresence>
+          {showMobileHistory && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 z-50"
+                onClick={() => setShowMobileHistory(false)}
+              />
+              {/* Drawer */}
+              <motion.div
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed left-0 top-0 bottom-0 w-72 bg-white z-50 shadow-2xl flex flex-col"
+              >
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45" />
+                    <span className="font-semibold text-gray-800">Chat History</span>
+                  </div>
+                  <button
+                    onClick={() => setShowMobileHistory(false)}
+                    className="p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* New Trip Button */}
+                <div className="p-3">
+                  <button
+                    onClick={() => {
+                      startNewTrip()
+                      setShowMobileHistory(false)
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-purple-50 border border-purple-100 text-sm font-medium text-purple-700 flex items-center gap-2"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    New Trip Plan
+                  </button>
+                </div>
+
+                {/* Saved Trips List */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                  {savedTrips.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4">No saved trips yet</p>
+                  ) : (
+                    savedTrips.map((trip) => (
+                      <div
+                        key={trip.id}
+                        className={`group flex items-center gap-1 rounded-lg transition-colors ${currentTripId === trip.id
+                            ? 'bg-purple-50 border border-purple-100'
+                            : 'hover:bg-gray-50'
+                          }`}
+                      >
+                        <button
+                          onClick={() => {
+                            loadTrip(trip)
+                            setShowMobileHistory(false)
+                          }}
+                          className={`flex-1 text-left px-3 py-2.5 text-sm truncate ${currentTripId === trip.id ? 'text-purple-700' : 'text-gray-600'
+                            }`}
+                        >
+                          {trip.name || 'New Trip'}
+                        </button>
+                        <button
+                          onClick={(e) => deleteTrip(trip.id, e)}
+                          className="p-1.5 mr-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+
+        {/* Header - Clean & Minimal */}
+        <div className="flex-shrink-0 h-16 border-b border-gray-100 flex items-center justify-between px-6 bg-white z-10">
+          <div className="flex items-center gap-3">
+            {isMobileChatMode && (
+              <button onClick={onCloseMobileChat} className="p-1 -ml-1">
+                <ChevronLeft className="w-6 h-6 text-gray-600" />
+              </button>
+            )}
+            <div>
+              <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                {!isMobileChatMode && <span className="lg:hidden">Trip Planner</span>}
+                {isMobileChatMode && "AI Trip Planner"}
+                <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold tracking-wide uppercase">Beta</span>
+              </h2>
+              <p className="text-xs text-gray-400">Powered by Claude 4.5 Sonnet & ChatGPT 5.2</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* History button for mobile - shows saved trips drawer */}
+            {isMobileChatMode && savedTrips.length > 0 && (
+              <button
+                onClick={() => setShowMobileHistory(true)}
+                className="p-2 rounded-full bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+                title="Chat History"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
+            <button
+              onClick={handleNewChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-600 text-xs font-medium hover:bg-gray-100 border border-gray-200 transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>New Chat</span>
+            </button>
+          </div>
+        </div>
+        {/* Voice Output Indicator/Stop Button */}
+        <AnimatePresence>
+          {isSpeaking && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-sm cursor-pointer hover:bg-black/90 transition-all"
+              onClick={(e) => {
+                e.stopPropagation()
+                stopSpeaking()
+              }}
+            >
+              <div className="flex gap-1 items-center">
+                <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full" />
+                <span className="animate-pulse w-1 h-5 bg-white/80 rounded-full delay-75" />
+                <span className="animate-pulse w-1 h-3 bg-white/50 rounded-full delay-150" />
+              </div>
+              <span className="text-xs font-medium whitespace-nowrap">Speaking... Click to Stop</span>
+              <Square className="w-3 h-3 ml-1 fill-white" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Scrollable Content Area - Contains messages AND all selectors */}
+        {/* This is the middle section that scrolls, like WhatsApp */}
+        <div
+          ref={messagesContainerRef}
+          className={`overflow-y-auto relative z-10 flex-1 min-h-0 pb-40`}
+          style={{ scrollPaddingTop: '80px' }}
+        >
+          {/* Messages */}
+          <div className="p-4 md:p-6 pb-40 space-y-3 md:space-y-4">
+            <AnimatePresence mode="popLayout">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  variants={fadeIn}
+                  initial="hidden"
+                  animate="visible"
+                  layout
+                  className="flex flex-col gap-2 w-full"
+                >
+                  <div
+                    className={`flex items-start gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                        <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
+                      </div>
+                    )}
+
+                    <div
+                      className={`group relative max-w-[85%] md:max-w-[75%] rounded-2xl px-5 py-3.5 shadow-sm text-sm md:text-base leading-relaxed ${message.role === 'user'
+                        ? 'bg-black text-white rounded-tr-sm'
+                        : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
+                        }`}
+                    >
+                      <p className="whitespace-pre-line">{message.content}</p>
+
                       {/* Speaker Button for AI messages */}
                       {message.role === 'assistant' && (
                         <button
@@ -2806,791 +3032,767 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                             e.stopPropagation()
                             isSpeaking ? stopSpeaking() : speakText(message.content)
                           }}
-                          className="absolute -bottom-6 right-0 p-1.5 text-gray-400 hover:text-[#008080] opacity-0 group-hover:opacity-100 transition-all"
+                          className="absolute -bottom-5 left-0 p-1 text-gray-400 hover:text-purple-600 opacity-0 group-hover:opacity-100 transition-all"
                           title="Read aloud"
                         >
                           {isSpeaking ? <Square className="w-3 h-3 fill-current" /> : <Volume2 className="w-3 h-3" />}
                         </button>
                       )}
                     </div>
-                  )}
-                  {message.role === 'user' && (
-                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                      <svg className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
 
-                {/* Render Recommended Packages if present */}
-                {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
-                  <div className="pl-0 md:pl-11 w-full mt-2">
-                    <div className="bg-gray-50 rounded-xl p-3 md:p-4 border border-gray-100">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                        <div>
-                          <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Recommended for you</p>
-                          <p className="text-[10px] text-gray-500">Based on your preferences</p>
-                        </div>
+                    {message.role === 'user' && (
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 border border-gray-200">
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                       </div>
-                      <div className="grid grid-cols-1 gap-3 w-full">
-                        {message.recommendations.map((pkg) => {
-                          const pkgAny = pkg as any
-                          const imageUrl = pkgAny.Primary_Image_URL
-                            ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                            : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                    )}
+                  </div>
 
-                          const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
-                          const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
-                          const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
+                  {/* Render Recommended Packages if present */}
+                  {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
+                    <div className="pl-0 md:pl-11 w-full mt-2">
+                      <div className="bg-gray-50 rounded-xl p-3 md:p-4 border border-gray-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                          <div>
+                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Recommended for you</p>
+                            <p className="text-[10px] text-gray-500">Based on your preferences</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 w-full">
+                          {message.recommendations.map((pkg) => {
+                            const pkgAny = pkg as any
+                            const imageUrl = pkgAny.Primary_Image_URL
+                              ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                              : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
 
-                          return (
-                            <div
-                              key={pkgAny.Destination_ID || pkgAny.id}
-                              className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-md transition-all w-full"
-                            >
-                              <div className="flex flex-col sm:flex-row min-h-[8rem]">
-                                <div className="relative w-full sm:w-32 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
-                                  <img
-                                    src={imageUrl}
-                                    alt={pkgAny.Destination_Name}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                                    }}
-                                  />
-                                </div>
-                                <div className="flex-1 p-3 flex flex-col justify-between">
-                                  <div>
-                                    <div className="flex justify-between items-start gap-2">
-                                      <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{pkgAny.Destination_Name}</h4>
-                                      <span className="text-xs font-bold text-primary whitespace-nowrap">₹{pkgAny.Price_Range_INR}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1 mb-2">
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-md font-medium">{pkgAny.Duration}</span>
-                                      <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium">{pkgAny.Star_Category}</span>
-                                    </div>
-                                    <p className="text-[10px] text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
+                            const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
+                            const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
+                            const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
 
-                                    {/* Highlights Section */}
-                                    {(pkgAny.Highlights && (Array.isArray(pkgAny.Highlights) ? pkgAny.Highlights.length > 0 : typeof pkgAny.Highlights === 'string')) && (
-                                      <div className="mt-2 bg-purple-50/50 rounded-lg p-2 border border-purple-100/50">
-                                        <p className="text-[10px] font-semibold text-purple-900 mb-1.5 flex items-center gap-1">
-                                          <span className="text-xs">✨</span> Highlights
-                                        </p>
-                                        <ul className="space-y-1">
-                                          {(Array.isArray(pkgAny.Highlights)
-                                            ? pkgAny.Highlights
-                                            : String(pkgAny.Highlights).split(',')
-                                          ).slice(0, 3).map((highlight: string, idx: number) => (
-                                            <li key={idx} className="text-[10px] text-purple-800 flex items-start gap-1.5">
-                                              <span className="mt-1 w-1 h-1 rounded-full bg-purple-400 flex-shrink-0"></span>
-                                              <span className="line-clamp-1 leading-tight">{highlight.trim()}</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      </div>
-                                    )}
+                            return (
+                              <div
+                                key={pkgAny.Destination_ID || pkgAny.id}
+                                className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-md transition-all w-full"
+                              >
+                                <div className="flex flex-col sm:flex-row min-h-[8rem]">
+                                  <div className="relative w-full sm:w-32 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
+                                    <img
+                                      src={imageUrl}
+                                      alt={pkgAny.Destination_Name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                                      }}
+                                    />
                                   </div>
-                                  <Link
-                                    href={packageUrl}
-                                    className="mt-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:shadow-md hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-1 self-end"
-                                  >
-                                    View Details
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                  </Link>
+                                  <div className="flex-1 p-3 flex flex-col justify-between">
+                                    <div>
+                                      <div className="flex justify-between items-start gap-2">
+                                        <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{pkgAny.Destination_Name}</h4>
+                                        <span className="text-xs font-bold text-primary whitespace-nowrap">₹{pkgAny.Price_Range_INR}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1 mb-2">
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-md font-medium">{pkgAny.Duration}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium">{pkgAny.Star_Category}</span>
+                                      </div>
+                                      <p className="text-[10px] text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
+
+                                      {/* Highlights Section */}
+                                      {(pkgAny.Highlights && (Array.isArray(pkgAny.Highlights) ? pkgAny.Highlights.length > 0 : typeof pkgAny.Highlights === 'string')) && (
+                                        <div className="mt-2 bg-purple-50/50 rounded-lg p-2 border border-purple-100/50">
+                                          <p className="text-[10px] font-semibold text-purple-900 mb-1.5 flex items-center gap-1">
+                                            <span className="text-xs">✨</span> Highlights
+                                          </p>
+                                          <ul className="space-y-1">
+                                            {(Array.isArray(pkgAny.Highlights)
+                                              ? pkgAny.Highlights
+                                              : String(pkgAny.Highlights).split(',')
+                                            ).slice(0, 3).map((highlight: string, idx: number) => (
+                                              <li key={idx} className="text-[10px] text-purple-800 flex items-start gap-1.5">
+                                                <span className="mt-1 w-1 h-1 rounded-full bg-purple-400 flex-shrink-0"></span>
+                                                <span className="line-clamp-1 leading-tight">{highlight.trim()}</span>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <Link
+                                      href={packageUrl}
+                                      className="mt-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:shadow-md hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-1 self-end"
+                                    >
+                                      View Details
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                    </Link>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )
-                        })}
+                            )
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Render Quick Action Text Links (ChatGPT-style) if present */}
-                {message.role === 'assistant' && message.quickActions && message.quickActions.length > 0 && (
-                  <div className="pl-0 md:pl-11 w-full mt-3">
-                    <div className="flex flex-col gap-2">
-                      {message.quickActions.map((action, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => handleQuickAction(action.action, action.packageData)}
-                          className="text-left text-sm text-gray-700 hover:text-purple-700 hover:underline transition-all cursor-pointer bg-transparent border-none p-0 font-normal"
-                        >
-                          {action.label}
-                        </button>
-                      ))}
+                  {/* Render Quick Action Text Links (ChatGPT-style) if present */}
+                  {message.role === 'assistant' && message.quickActions && message.quickActions.length > 0 && (
+                    <div className="pl-0 md:pl-11 w-full mt-3">
+                      <div className="flex flex-col gap-2">
+                        {message.quickActions.map((action, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleQuickAction(action.action, action.packageData)}
+                            className="text-left text-sm text-gray-700 hover:text-purple-700 hover:underline transition-all cursor-pointer bg-transparent border-none p-0 font-normal"
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {isTyping && (
+              <div className="flex items-start gap-3 justify-start">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg animate-pulse">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl px-5 py-4 shadow-sm max-w-[85%] md:max-w-[80%]">
+                  <div className="flex items-center gap-3">
+                    <div className="flex space-x-1.5">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                    <p className="text-sm text-gray-600 font-medium animate-pulse">
+                      {thinkingMessages[thinkingMessage]}
+                    </p>
                   </div>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {isTyping && (
-            <div className="flex items-start gap-3 justify-start">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg animate-pulse">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl px-5 py-4 shadow-sm max-w-[85%] md:max-w-[80%]">
-                <div className="flex items-center gap-3">
-                  <div className="flex space-x-1.5">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                  </div>
-                  <p className="text-sm text-gray-600 font-medium animate-pulse">
-                    {thinkingMessages[thinkingMessage]}
-                  </p>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Quick Suggestions - Only show at start */}
-        {/* Quick Suggestions REMOVED for Text-Only Experience */}
+          {/* Quick Suggestions - Only show at start */}
+          {/* Quick Suggestions REMOVED for Text-Only Experience */}
 
-        {/* Animated Suggestion Rail REMOVED for Text-Only Experience */}
+          {/* Animated Suggestion Rail REMOVED for Text-Only Experience */}
 
-        <div className="hidden">
-          <div className="max-w-3xl mx-auto">
-            <AnimatePresence mode="wait">
-              {/* DATE CHIPS */}
-              {currentQuestion === 'date' && (
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
-                >
-                  <motion.button
-                    variants={{
-                      hidden: { y: 20, opacity: 0 },
-                      visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowCalendar(!showCalendar);
-                    }}
-                    className="flex-shrink-0 px-4 py-2 bg-white/90 backdrop-blur-md text-purple-700 text-sm font-medium border border-purple-200 rounded-full shadow-lg hover:bg-purple-50 transition-all flex items-center gap-2"
+          <div className="hidden">
+            <div className="max-w-3xl mx-auto">
+              <AnimatePresence mode="wait">
+                {/* DATE CHIPS */}
+                {currentQuestion === 'date' && (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
                   >
-                    <Calendar className="w-4 h-4" />
-                    {tripInfo.travelDate ? new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Select Date'}
-                  </motion.button>
-
-                  {[
-                    { label: 'Next Week', val: formatISODate(new Date(new Date().setDate(new Date().getDate() + 7))) },
-                    { label: 'In 2 Weeks', val: formatISODate(new Date(new Date().setDate(new Date().getDate() + 14))) },
-                    { label: 'Next Month', val: formatISODate(new Date(new Date().setMonth(new Date().getMonth() + 1))) }
-                  ].map((item, idx) => (
                     <motion.button
-                      key={idx}
-                      variants={slideUp}
-                      onClick={() => handleDateSelection(item.val)}
-                      className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:bg-white hover:text-purple-600 hover:border-purple-200 transition-all"
+                      variants={{
+                        hidden: { y: 20, opacity: 0 },
+                        visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCalendar(!showCalendar);
+                      }}
+                      className="flex-shrink-0 px-4 py-2 bg-white/90 backdrop-blur-md text-purple-700 text-sm font-medium border border-purple-200 rounded-full shadow-lg hover:bg-purple-50 transition-all flex items-center gap-2"
                     >
-                      {item.label}
+                      <Calendar className="w-4 h-4" />
+                      {tripInfo.travelDate ? new Date(tripInfo.travelDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Select Date'}
                     </motion.button>
-                  ))}
-                </motion.div>
-              )}
 
-              {/* DAYS CHIPS */}
-              {currentQuestion === 'days' && (
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
-                >
-                  {(destinationDayOptions.length > 0 ? destinationDayOptions : dayOptions).map((option) => (
-                    <motion.button
-                      key={option.value}
-                      variants={slideUp}
-                      onClick={() => handleDaySelect(option.label, option.value)}
-                      className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
-                    >
-                      {option.label}
-                      {option.label.match(/\d/) && !option.label.includes('Days') ? (parseInt(option.label) === 1 ? ' Day' : ' Days') : ''}
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
+                    {[
+                      { label: 'Next Week', val: formatISODate(new Date(new Date().setDate(new Date().getDate() + 7))) },
+                      { label: 'In 2 Weeks', val: formatISODate(new Date(new Date().setDate(new Date().getDate() + 14))) },
+                      { label: 'Next Month', val: formatISODate(new Date(new Date().setMonth(new Date().getMonth() + 1))) }
+                    ].map((item, idx) => (
+                      <motion.button
+                        key={idx}
+                        variants={slideUp}
+                        onClick={() => handleDateSelection(item.val)}
+                        className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:bg-white hover:text-purple-600 hover:border-purple-200 transition-all"
+                      >
+                        {item.label}
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
 
-              {/* HOTEL CHIPS */}
-              {currentQuestion === 'hotel' && (
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
-                >
-                  {(destinationHotelOptions.length > 0 ? destinationHotelOptions : hotelOptions).map((option) => (
-                    <motion.button
-                      key={option.value}
-                      variants={slideUp}
-                      onClick={() => handleHotelSelect(option.label, option.value)}
-                      className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
-                    >
-                      <span className="font-semibold">{option.label}</span>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
-
-              {/* TRAVEL TYPE CHIPS */}
-              {currentQuestion === 'travelType' && (
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
-                >
-                  {(destinationTravelTypeOptions.length > 0 ? destinationTravelTypeOptions : travelerOptions).map((option) => (
-                    <motion.button
-                      key={option.value}
-                      variants={slideUp}
-                      onClick={() => handleTravelTypeSelect(option.label, option.value)}
-                      className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
-                    >
-                      {option.label}
-                    </motion.button>
-                  ))}
-                </motion.div>
-              )}
-
-              {/* FEEDBACK CHIPS */}
-              {currentQuestion === 'feedback' && (
-                <motion.div
-                  variants={staggerContainer}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
-                >
-                  <motion.button
-                    variants={slideUp}
-                    onClick={async () => {
-                      setUserFeedback('Skip')
-                      setFeedbackAnswered(true)
-                      setAiResponseComplete(false)
-                      setCurrentQuestion('complete')
-                      appendMessage({ role: 'user', content: 'Skipped' })
-                      await generateRecommendation()
-                    }}
-                    className="flex-shrink-0 px-4 py-2 bg-gray-100/80 backdrop-blur-md text-gray-600 text-sm font-medium border border-transparent rounded-full shadow-sm hover:bg-gray-200 transition-all"
+                {/* DAYS CHIPS */}
+                {currentQuestion === 'days' && (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
                   >
-                    Skip
-                  </motion.button>
-                  {['Relaxing', 'Adventure', 'Romantic', 'Budget Friendly', 'Luxury'].map((tag) => (
+                    {(destinationDayOptions.length > 0 ? destinationDayOptions : dayOptions).map((option) => (
+                      <motion.button
+                        key={option.value}
+                        variants={slideUp}
+                        onClick={() => handleDaySelect(option.label, option.value)}
+                        className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
+                      >
+                        {option.label}
+                        {option.label.match(/\d/) && !option.label.includes('Days') ? (parseInt(option.label) === 1 ? ' Day' : ' Days') : ''}
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* HOTEL CHIPS */}
+                {currentQuestion === 'hotel' && (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
+                  >
+                    {(destinationHotelOptions.length > 0 ? destinationHotelOptions : hotelOptions).map((option) => (
+                      <motion.button
+                        key={option.value}
+                        variants={slideUp}
+                        onClick={() => handleHotelSelect(option.label, option.value)}
+                        className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
+                      >
+                        <span className="font-semibold">{option.label}</span>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* TRAVEL TYPE CHIPS */}
+                {currentQuestion === 'travelType' && (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
+                  >
+                    {(destinationTravelTypeOptions.length > 0 ? destinationTravelTypeOptions : travelerOptions).map((option) => (
+                      <motion.button
+                        key={option.value}
+                        variants={slideUp}
+                        onClick={() => handleTravelTypeSelect(option.label, option.value)}
+                        className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-gray-700 text-sm border border-gray-200 rounded-full shadow-sm hover:scale-105 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-all"
+                      >
+                        {option.label}
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* FEEDBACK CHIPS */}
+                {currentQuestion === 'feedback' && (
+                  <motion.div
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-2"
+                  >
                     <motion.button
-                      key={tag}
                       variants={slideUp}
                       onClick={async () => {
-                        const feedback = tag
-                        setUserFeedback(feedback)
+                        setUserFeedback('Skip')
                         setFeedbackAnswered(true)
                         setAiResponseComplete(false)
                         setCurrentQuestion('complete')
-                        appendMessage({ role: 'user', content: feedback })
+                        appendMessage({ role: 'user', content: 'Skipped' })
                         await generateRecommendation()
                       }}
-                      className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-purple-700 text-sm border border-purple-100 rounded-full shadow-sm hover:bg-purple-50 hover:border-purple-200 transition-all"
+                      className="flex-shrink-0 px-4 py-2 bg-gray-100/80 backdrop-blur-md text-gray-600 text-sm font-medium border border-transparent rounded-full shadow-sm hover:bg-gray-200 transition-all"
                     >
-                      <Sparkles className="w-3 h-3 inline-block mr-1" />
-                      {tag}
+                      Skip
                     </motion.button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* CALENDAR POPOVER */}
-            <AnimatePresence>
-              {showCalendar && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                  className="absolute bottom-20 left-4 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-4 w-72"
-                >
-                  {/* Calendar Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newDate = new Date(calendarViewDate);
-                        newDate.setMonth(newDate.getMonth() - 1);
-                        setCalendarViewDate(newDate);
-                      }}
-                      className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    <h4 className="text-sm font-bold text-gray-900">
-                      {calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newDate = new Date(calendarViewDate);
-                        newDate.setMonth(newDate.getMonth() + 1);
-                        setCalendarViewDate(newDate);
-                      }}
-                      className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Calendar Grid Logic (Copied from previous) */}
-                  <div className="grid grid-cols-7 gap-1 mb-2">
-                    {dayNames.map(day => (
-                      <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
-                        {day}
-                      </div>
+                    {['Relaxing', 'Adventure', 'Romantic', 'Budget Friendly', 'Luxury'].map((tag) => (
+                      <motion.button
+                        key={tag}
+                        variants={slideUp}
+                        onClick={async () => {
+                          const feedback = tag
+                          setUserFeedback(feedback)
+                          setFeedbackAnswered(true)
+                          setAiResponseComplete(false)
+                          setCurrentQuestion('complete')
+                          appendMessage({ role: 'user', content: feedback })
+                          await generateRecommendation()
+                        }}
+                        className="flex-shrink-0 px-4 py-2 bg-white/80 backdrop-blur-md text-purple-700 text-sm border border-purple-100 rounded-full shadow-sm hover:bg-purple-50 hover:border-purple-200 transition-all"
+                      >
+                        <Sparkles className="w-3 h-3 inline-block mr-1" />
+                        {tag}
+                      </motion.button>
                     ))}
-                  </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-                  <div className="grid grid-cols-7 gap-1">
-                    {Array.from({ length: getFirstDayOfMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => (
-                      <div key={`empty-${i}`} className="h-8 md:h-9"></div>
-                    ))}
+              {/* CALENDAR POPOVER */}
+              <AnimatePresence>
+                {showCalendar && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                    className="absolute bottom-20 left-4 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-4 w-72"
+                  >
+                    {/* Calendar Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setMonth(newDate.getMonth() - 1);
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                      >
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      <h4 className="text-sm font-bold text-gray-900">
+                        {calendarViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newDate = new Date(calendarViewDate);
+                          newDate.setMonth(newDate.getMonth() + 1);
+                          setCalendarViewDate(newDate);
+                        }}
+                        className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
+                    </div>
 
-                    {Array.from({ length: getDaysInMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => {
-                      const day = i + 1;
-                      const date = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
-                      const dateISO = formatISODate(date);
-                      const isToday = dateISO === todayISO;
-                      const isSelected = tripInfo.travelDate === dateISO;
-                      const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                    {/* Calendar Grid Logic (Copied from previous) */}
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {dayNames.map(day => (
+                        <div key={day} className="text-center text-xs font-medium text-gray-400 py-1">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
 
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          disabled={isPast}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDateSelection(dateISO);
-                            setShowCalendar(false);
-                          }}
-                          className={`
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: getFirstDayOfMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => (
+                        <div key={`empty-${i}`} className="h-8 md:h-9"></div>
+                      ))}
+
+                      {Array.from({ length: getDaysInMonth(calendarViewDate.getFullYear(), calendarViewDate.getMonth()) }).map((_, i) => {
+                        const day = i + 1;
+                        const date = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth(), day);
+                        const dateISO = formatISODate(date);
+                        const isToday = dateISO === todayISO;
+                        const isSelected = tripInfo.travelDate === dateISO;
+                        const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            disabled={isPast}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDateSelection(dateISO);
+                              setShowCalendar(false);
+                            }}
+                            className={`
                                     h-8 md:h-9 rounded-lg text-xs md:text-sm font-medium transition-all flex items-center justify-center relative
                                     ${isSelected
-                              ? 'bg-purple-600 text-white shadow-md'
-                              : isPast
-                                ? 'text-gray-300 cursor-not-allowed'
-                                : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
-                            }
+                                ? 'bg-purple-600 text-white shadow-md'
+                                : isPast
+                                  ? 'text-gray-300 cursor-not-allowed'
+                                  : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+                              }
                                     ${isToday && !isSelected ? 'border border-purple-200 text-purple-600 font-bold' : ''}
                                   `}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                  <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-xs text-gray-400">Select a date</span>
-                    <button onClick={() => setShowCalendar(false)} className="text-xs text-red-500 hover:text-red-700 font-medium">Close</button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-xs text-gray-400">Select a date</span>
+                      <button onClick={() => setShowCalendar(false)} className="text-xs text-red-500 hover:text-red-700 font-medium">Close</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
 
-        {/* Recommended Packages */}
+          {/* Recommended Packages */}
 
-        {/* Edit Trip Details Form */}
-        {isEditMode && (
-          <div
-            id="edit-trip-form"
-            className="border-t border-gray-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 px-4 md:px-6 py-4 md:py-6"
-          >
-            <div className="max-w-2xl mx-auto">
-              <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Edit Your Trip Details</h3>
-              <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200 shadow-sm space-y-3 md:space-y-4">
-                {/* Destination */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Destination</label>
-                  <select
-                    value={editTripInfo.destination}
-                    onChange={(e) => setEditTripInfo({ ...editTripInfo, destination: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select destination</option>
-                    {destinations.map((dest) => (
-                      <option key={dest.id || dest.name} value={dest.name}>
-                        {dest.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+          {/* Edit Trip Details Form */}
+          {isEditMode && (
+            <div
+              id="edit-trip-form"
+              className="border-t border-gray-200 bg-gradient-to-br from-purple-50/50 to-indigo-50/50 px-4 md:px-6 py-4 md:py-6"
+            >
+              <div className="max-w-2xl mx-auto">
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4">Edit Your Trip Details</h3>
+                <div className="bg-white rounded-xl p-4 md:p-6 border border-gray-200 shadow-sm space-y-3 md:space-y-4">
+                  {/* Destination */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Destination</label>
+                    <select
+                      value={editTripInfo.destination}
+                      onChange={(e) => setEditTripInfo({ ...editTripInfo, destination: e.target.value })}
+                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select destination</option>
+                      {destinations.map((dest) => (
+                        <option key={dest.id || dest.name} value={dest.name}>
+                          {dest.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Travel Date */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Date</label>
-                  <input
-                    type="date"
-                    min={todayISO}
-                    value={editTripInfo.travelDate || ''}
-                    onChange={(e) => setEditTripInfo({ ...editTripInfo, travelDate: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
+                  {/* Travel Date */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Date</label>
+                    <input
+                      type="date"
+                      min={todayISO}
+                      value={editTripInfo.travelDate || ''}
+                      onChange={(e) => setEditTripInfo({ ...editTripInfo, travelDate: e.target.value })}
+                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
 
-                {/* Days */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (Days)</label>
-                  <select
-                    value={editTripInfo.days}
-                    onChange={(e) => setEditTripInfo({ ...editTripInfo, days: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select days</option>
-                    {dayOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label} {opt.value === '1' ? 'day' : 'days'}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {/* Days */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (Days)</label>
+                    <select
+                      value={editTripInfo.days}
+                      onChange={(e) => setEditTripInfo({ ...editTripInfo, days: e.target.value })}
+                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select days</option>
+                      {dayOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} {opt.value === '1' ? 'day' : 'days'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Hotel Type */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Type</label>
-                  <select
-                    value={editTripInfo.hotelType}
-                    onChange={(e) => setEditTripInfo({ ...editTripInfo, hotelType: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select hotel type</option>
-                    <option value="3 Star">3★ Comfort</option>
-                    <option value="4 Star">4★ Premium</option>
-                    <option value="5 Star">5★ Luxury</option>
-                  </select>
-                </div>
+                  {/* Hotel Type */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Type</label>
+                    <select
+                      value={editTripInfo.hotelType}
+                      onChange={(e) => setEditTripInfo({ ...editTripInfo, hotelType: e.target.value })}
+                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select hotel type</option>
+                      <option value="3 Star">3★ Comfort</option>
+                      <option value="4 Star">4★ Premium</option>
+                      <option value="5 Star">5★ Luxury</option>
+                    </select>
+                  </div>
 
-                {/* Travel Type */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Traveling With</label>
-                  <select
-                    value={editTripInfo.travelType}
-                    onChange={(e) => setEditTripInfo({ ...editTripInfo, travelType: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Select travel type</option>
-                    {travelerOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {/* Travel Type */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Traveling With</label>
+                    <select
+                      value={editTripInfo.travelType}
+                      onChange={(e) => setEditTripInfo({ ...editTripInfo, travelType: e.target.value })}
+                      className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="">Select travel type</option>
+                      {travelerOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditMode(false)
-                      setEditTripInfo({
-                        destination: '',
-                        travelDate: '',
-                        days: '',
-                        budget: '',
-                        hotelType: '',
-                        preferences: [],
-                        travelType: '',
-                      })
-                    }}
-                    className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      // Validate required fields
-                      if (!editTripInfo.destination || !editTripInfo.travelDate || !editTripInfo.days || !editTripInfo.hotelType || !editTripInfo.travelType) {
-                        alert('Please fill in all required fields')
-                        return
-                      }
+                  {/* Action Buttons */}
+                  <div className="flex flex-col-reverse md:flex-row md:justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditMode(false)
+                        setEditTripInfo({
+                          destination: '',
+                          travelDate: '',
+                          days: '',
+                          budget: '',
+                          hotelType: '',
+                          preferences: [],
+                          travelType: '',
+                        })
+                      }}
+                      className="px-5 py-3 rounded-xl border border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        // Validate required fields
+                        if (!editTripInfo.destination || !editTripInfo.travelDate || !editTripInfo.days || !editTripInfo.hotelType || !editTripInfo.travelType) {
+                          alert('Please fill in all required fields')
+                          return
+                        }
 
-                      // Update trip info
-                      updateTripInfo(editTripInfo)
+                        // Update trip info
+                        updateTripInfo(editTripInfo)
 
-                      // Add a message to the conversation
-                      appendMessage({
-                        role: 'assistant',
-                        content: `Great! I've updated your trip details. Let me regenerate your personalized recommendations based on your new preferences.`
-                      })
+                        // Add a message to the conversation
+                        appendMessage({
+                          role: 'assistant',
+                          content: `Great! I've updated your trip details. Let me regenerate your personalized recommendations based on your new preferences.`
+                        })
 
-                      // Reset feedback to allow new feedback
-                      setUserFeedback('')
-                      setFeedbackAnswered(false)
+                        // Reset feedback to allow new feedback
+                        setUserFeedback('')
+                        setFeedbackAnswered(false)
 
-                      // Close edit mode
-                      setIsEditMode(false)
+                        // Close edit mode
+                        setIsEditMode(false)
 
-                      // Scroll to top of conversation to show the update message
-                      setTimeout(() => {
-                        messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
-                      }, 100)
+                        // Scroll to top of conversation to show the update message
+                        setTimeout(() => {
+                          messagesContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                        }, 100)
 
-                      // Regenerate recommendations
-                      setCurrentQuestion('complete')
-                      setAiResponseComplete(false)
-                      await generateRecommendation()
-                    }}
-                    className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition"
-                  >
-                    Save & Regenerate
-                  </button>
+                        // Regenerate recommendations
+                        setCurrentQuestion('complete')
+                        setAiResponseComplete(false)
+                        await generateRecommendation()
+                      }}
+                      className="px-6 py-3 rounded-xl bg-primary text-white font-semibold hover:bg-primary-dark transition"
+                    >
+                      Save & Regenerate
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
 
-        {/* Image Analysis Result Display */}
-        {imageAnalysisResult && (
-          <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
-            {uploadedImage && (
-              <div className="mb-4">
-                <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
-                <img
-                  src={uploadedImage}
-                  alt="Uploaded location"
-                  className="max-w-full max-h-48 rounded-lg border border-gray-200 shadow-sm object-cover"
-                />
-              </div>
-            )}
-            {imageAnalysisResult.detectedLocation ? (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 md:p-5">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div className="flex-1">
-                    {imageAnalysisResult.rawDetectedLocation && imageAnalysisResult.rawDetectedLocation !== imageAnalysisResult.detectedLocation && (
-                      <p className="text-xs md:text-sm text-green-800 mb-2">
-                        <span className="font-semibold">Location Identified:</span> {imageAnalysisResult.rawDetectedLocation}
-                      </p>
-                    )}
-                    <p className="text-sm md:text-base font-semibold text-green-900 mb-1">
-                      ✓ Perfect Match: {imageAnalysisResult.detectedLocation}
-                    </p>
-                    {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
-                      <p className="text-xs md:text-sm text-green-700 mb-2">
-                        I can see: {imageAnalysisResult.landmarks.join(', ')}
-                      </p>
-                    )}
-                    {imageAnalysisResult.description && (
-                      <p className="text-xs md:text-sm text-green-700 mb-3">{imageAnalysisResult.description}</p>
-                    )}
-                    <button
-                      onClick={() => {
-                        setTripInfo(prev => ({ ...prev, destination: imageAnalysisResult.detectedLocation! }))
-                        setCurrentQuestion('date')
-                        setProgress((1 / TOTAL_STEPS) * 100)
-                        setCompletedSteps(1)
-                        setImageAnalysisResult(null)
-                        setUploadedImage(null)
-                      }}
-                      className="text-xs md:text-sm font-semibold text-green-700 hover:text-green-900 underline"
-                    >
-                      Show packages for {imageAnalysisResult.detectedLocation} →
-                    </button>
-                  </div>
+          {/* Image Analysis Result Display */}
+          {imageAnalysisResult && (
+            <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
+              {uploadedImage && (
+                <div className="mb-4">
+                  <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
+                  <img
+                    src={uploadedImage}
+                    alt="Uploaded location"
+                    className="max-w-full max-h-48 rounded-lg border border-gray-200 shadow-sm object-cover"
+                  />
                 </div>
-              </div>
-            ) : imageAnalysisResult.rawDetectedLocation || (imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0) ? (
-              <div className="space-y-4">
-                {/* Show detected location first */}
-                {imageAnalysisResult.rawDetectedLocation && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
-                          Location Identified: {imageAnalysisResult.rawDetectedLocation}
+              )}
+              {imageAnalysisResult.detectedLocation ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 md:p-5">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="flex-1">
+                      {imageAnalysisResult.rawDetectedLocation && imageAnalysisResult.rawDetectedLocation !== imageAnalysisResult.detectedLocation && (
+                        <p className="text-xs md:text-sm text-green-800 mb-2">
+                          <span className="font-semibold">Location Identified:</span> {imageAnalysisResult.rawDetectedLocation}
                         </p>
-                        {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
-                          <p className="text-xs md:text-sm text-blue-700 mb-2">
-                            I can see: {imageAnalysisResult.landmarks.join(', ')}
-                          </p>
-                        )}
-                        {imageAnalysisResult.description && (
-                          <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
-                        )}
-                        <p className="text-xs md:text-sm text-blue-800 font-medium">
-                          Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
+                      )}
+                      <p className="text-sm md:text-base font-semibold text-green-900 mb-1">
+                        ✓ Perfect Match: {imageAnalysisResult.detectedLocation}
+                      </p>
+                      {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                        <p className="text-xs md:text-sm text-green-700 mb-2">
+                          I can see: {imageAnalysisResult.landmarks.join(', ')}
                         </p>
-                      </div>
+                      )}
+                      {imageAnalysisResult.description && (
+                        <p className="text-xs md:text-sm text-green-700 mb-3">{imageAnalysisResult.description}</p>
+                      )}
+                      <button
+                        onClick={() => {
+                          setTripInfo(prev => ({ ...prev, destination: imageAnalysisResult.detectedLocation! }))
+                          setCurrentQuestion('date')
+                          setProgress((1 / TOTAL_STEPS) * 100)
+                          setCompletedSteps(1)
+                          setImageAnalysisResult(null)
+                          setUploadedImage(null)
+                        }}
+                        className="text-xs md:text-sm font-semibold text-green-700 hover:text-green-900 underline"
+                      >
+                        Show packages for {imageAnalysisResult.detectedLocation} →
+                      </button>
                     </div>
                   </div>
-                )}
-
-                {/* Show similar locations if available */}
-                {imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 md:p-5">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      <div className="flex-1">
-                        <p className="text-sm md:text-base font-semibold text-yellow-900 mb-2">
-                          Similar Destinations We Offer
-                        </p>
-                        <p className="text-xs md:text-sm text-yellow-800 mb-3">
-                          Here are similar destinations from our available packages:
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {imageAnalysisResult.similarLocations.map((loc, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                setTripInfo(prev => ({ ...prev, destination: loc }))
-                                setCurrentQuestion('date')
-                                setProgress((1 / TOTAL_STEPS) * 100)
-                                setCompletedSteps(1)
-                                setImageAnalysisResult(null)
-                                setUploadedImage(null)
-                              }}
-                              className="px-3 py-1.5 text-xs md:text-sm font-semibold bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
-                            >
-                              {loc}
-                            </button>
-                          ))}
+                </div>
+              ) : imageAnalysisResult.rawDetectedLocation || (imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0) ? (
+                <div className="space-y-4">
+                  {/* Show detected location first */}
+                  {imageAnalysisResult.rawDetectedLocation && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
+                            Location Identified: {imageAnalysisResult.rawDetectedLocation}
+                          </p>
+                          {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
+                            <p className="text-xs md:text-sm text-blue-700 mb-2">
+                              I can see: {imageAnalysisResult.landmarks.join(', ')}
+                            </p>
+                          )}
+                          {imageAnalysisResult.description && (
+                            <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
+                          )}
+                          <p className="text-xs md:text-sm text-blue-800 font-medium">
+                            Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
+                          </p>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
-                <p className="text-sm md:text-base font-semibold text-gray-900 mb-2">
-                  Location Not Found
-                </p>
-                <p className="text-xs md:text-sm text-gray-600">
-                  We couldn't identify this location in our database. Please tell us which destination you'd like to visit.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      {/* End of Scrollable Content Area */}
+                  )}
 
-      {/* Input - Fixed at bottom (outside scrollable area) */}
-      <div className={`flex-shrink-0 bg-white/80 backdrop-blur-xl border-t border-white/20 p-3 md:p-4 relative z-30 shadow-[0_-5px_20px_-5px_rgba(0,0,0,0.05)] ${isMobileChatMode ? 'safe-area-bottom' : ''}`}>
-        <div className="flex gap-2 md:gap-3">
-          <input
-            type="file"
-            ref={imageInputRef}
-            accept="image/*"
-            onChange={handleImageInputChange}
-            className="hidden"
-            id="image-upload-input"
-          />
-          <label
-            htmlFor="image-upload-input"
-            className={`flex items-center justify-center px-3 md:px-4 py-2.5 md:py-3.5 rounded-xl border-2 border-gray-200 bg-white shadow-sm transition-all cursor-pointer hover:bg-gray-50 hover:border-purple-300 flex-shrink-0 ${isAnalyzingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title="Upload image to detect location"
-          >
-            {isAnalyzingImage ? (
-              <svg className="w-4 h-4 md:w-5 md:h-5 animate-spin text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 md:w-5 md:h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            )}
-          </label>
-
-          {/* Voice Input Button */}
-          {isVoiceSupported && (
-            <button
-              type="button"
-              onClick={isListening ? stopListening : startListening}
-              className={`flex items-center justify-center px-3 md:px-4 py-2.5 md:py-3.5 rounded-xl border-2 transition-all cursor-pointer flex-shrink-0 ${isListening
-                ? 'border-red-200 bg-red-50 text-red-500 animate-pulse'
-                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:border-purple-300'
-                }`}
-              title={isListening ? "Stop listening" : "Speak to chat"}
-            >
-              <Mic className={`w-4 h-4 md:w-5 md:h-5 ${isListening ? 'fill-current' : ''}`} />
-            </button>
+                  {/* Show similar locations if available */}
+                  {imageAnalysisResult.similarLocations && imageAnalysisResult.similarLocations.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 md:p-5">
+                      <div className="flex items-start gap-3">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm md:text-base font-semibold text-yellow-900 mb-2">
+                            Similar Destinations We Offer
+                          </p>
+                          <p className="text-xs md:text-sm text-yellow-800 mb-3">
+                            Here are similar destinations from our available packages:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {imageAnalysisResult.similarLocations.map((loc, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setTripInfo(prev => ({ ...prev, destination: loc }))
+                                  setCurrentQuestion('date')
+                                  setProgress((1 / TOTAL_STEPS) * 100)
+                                  setCompletedSteps(1)
+                                  setImageAnalysisResult(null)
+                                  setUploadedImage(null)
+                                }}
+                                className="px-3 py-1.5 text-xs md:text-sm font-semibold bg-yellow-100 hover:bg-yellow-200 text-yellow-900 rounded-lg transition-colors"
+                              >
+                                {loc}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5">
+                  <p className="text-sm md:text-base font-semibold text-gray-900 mb-2">
+                    Location Not Found
+                  </p>
+                  <p className="text-xs md:text-sm text-gray-600">
+                    We couldn't identify this location in our database. Please tell us which destination you'd like to visit.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
-
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            onFocus={() => {
-              // Trigger mobile chat mode when user focuses on input (app-like experience)
-              if (!isMobileChatMode && onOpenMobileChat) {
-                onOpenMobileChat()
-              }
-            }}
-            placeholder={
-              !tripInfo.destination
-                ? "Tell me where you want to travel or upload an image..."
-                : currentQuestion === 'date'
-                  ? "When are you traveling? (e.g., March 2024 or 15/03/2024)"
-                  : currentQuestion === 'days'
-                    ? "How many days? (e.g., 5 days)"
-                    : currentQuestion === 'hotel'
-                      ? "What hotel type? (3-star, 4-star, 5-star)"
-                      : currentQuestion === 'travelType'
-                        ? "Who are you traveling with? (solo, family, couple, friends)"
-                        : currentQuestion === 'feedback'
-                          ? "Any suggestions? (e.g., spa, yoga, adventure) or type 'skip'"
-                          : "Type your message..."
-            }
-            className="flex-1 px-3 md:px-4 py-2.5 md:py-3.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white shadow-sm transition-all text-sm"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isTyping}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 md:px-6 py-2.5 md:py-3.5 rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 flex-shrink-0"
-          >
-            {isTyping ? (
-              <svg className="w-4 h-4 md:w-5 md:h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
-            )}
-          </button>
         </div>
-        {isAnalyzingImage && (
-          <p className="text-xs text-gray-500 mt-2 text-center">Analyzing image to detect location...</p>
-        )}
+        {/* End of Scrollable Content Area */}
+
+        {/* Input Area - Floating Capsule */}
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white to-transparent pt-10">
+          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-2 flex items-end gap-2 relative z-20">
+            {/* Image Upload Button */}
+            <label
+              className={`flex items-center justify-center w-10 h-10 rounded-full bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-pointer flex-shrink-0 ${isAnalyzingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title="Upload image"
+            >
+              <input
+                type="file"
+                ref={imageInputRef}
+                accept="image/*"
+                onChange={handleImageInputChange}
+                className="hidden"
+              />
+              {isAnalyzingImage ? <span className="animate-spin">⌛</span> : <ImageIcon className="w-5 h-5" />}
+            </label>
+
+            {/* Input Field */}
+            <div className="flex-1 min-w-0">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder={!tripInfo.destination ? "Where do you want to go?" : "Ask follow-up questions..."}
+                className="w-full max-h-32 bg-transparent border-0 focus:ring-0 p-2 text-gray-800 placeholder-gray-400 resize-none text-sm md:text-base leading-relaxed"
+                rows={1}
+                style={{ minHeight: '40px' }}
+              />
+            </div>
+
+            {/* Voice Input */}
+            {isVoiceSupported && (
+              <button
+                onClick={isListening ? stopListening : startListening}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${isListening
+                  ? 'bg-red-100 text-red-500 animate-pulse'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+              >
+                <Mic className={`w-5 h-5 ${isListening ? 'fill-current' : ''}`} />
+              </button>
+            )}
+
+            {/* Send Button */}
+            <button
+              onClick={handleSend}
+              disabled={!input.trim() || isTyping}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isTyping ? <span className="animate-spin text-xs">...</span> : <ArrowUpIcon className="w-5 h-5" />}
+            </button>
+          </div>
+
+          <div className="text-center mt-3">
+            <p className="text-[10px] text-gray-400">AI can make mistakes. Please verify important travel info.</p>
+          </div>
+        </div>
+
+        {/* End of Main Chat Area div */}
       </div>
       <style jsx>{`
         @keyframes shimmer {
