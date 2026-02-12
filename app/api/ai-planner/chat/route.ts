@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import { searchSimilarPackages } from '@/lib/pinecone'
 
 // Initialize Anthropic (Claude) as primary
 const anthropic = process.env.ANTHROPIC_API_KEY
@@ -24,6 +25,11 @@ interface ShownPackage {
   inclusions?: string
 }
 
+// Check if semantic search is available (Pinecone configured)
+const isSemanticSearchEnabled = () => {
+  return !!process.env.PINECONE_API_KEY && !!process.env.PINECONE_INDEX
+}
+
 export async function POST(request: Request) {
   // Check if at least one API is available
   if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
@@ -43,6 +49,18 @@ export async function POST(request: Request) {
       )
     }
 
+    // 🔍 SEMANTIC SEARCH: Find relevant packages based on user query
+    let semanticResults: any[] = []
+    if (isSemanticSearchEnabled()) {
+      try {
+        console.log('[AI Planner] Running semantic search for:', prompt.slice(0, 50))
+        semanticResults = await searchSimilarPackages(prompt, 5)
+        console.log(`[AI Planner] Found ${semanticResults.length} semantically similar packages`)
+      } catch (semanticError: any) {
+        console.warn('[AI Planner] Semantic search failed (continuing without it):', semanticError.message)
+      }
+    }
+
     // Increase history to 12 messages for better context retention
     const history = Array.isArray(conversation)
       ? conversation
@@ -60,6 +78,21 @@ export async function POST(request: Request) {
 
     // Build system prompt with available destinations context
     let systemPrompt = 'You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.'
+
+    // 🔍 Add semantic search results context (most relevant packages based on query meaning)
+    if (semanticResults.length > 0) {
+      systemPrompt += `\n\n=== SEMANTIC SEARCH RESULTS (HIGHLY RELEVANT PACKAGES) ===`
+      systemPrompt += `\nThese packages were found using AI semantic search and are highly relevant to the user's query:`
+      semanticResults.forEach((pkg, index) => {
+        systemPrompt += `\n\n${index + 1}. "${pkg.destinationName}" (${Math.round(pkg.score * 100)}% match)`
+        if (pkg.duration) systemPrompt += `\n   • Duration: ${pkg.duration}`
+        if (pkg.priceRange) systemPrompt += `\n   • Price: ${pkg.priceRange}`
+        if (pkg.starCategory) systemPrompt += `\n   • Hotel: ${pkg.starCategory}`
+        if (pkg.travelType) systemPrompt += `\n   • Type: ${pkg.travelType}`
+        if (pkg.overview) systemPrompt += `\n   • About: ${pkg.overview.slice(0, 100)}...`
+      })
+      systemPrompt += `\n\nPRIORITIZE recommending these semantically matched packages when relevant to the conversation.`
+    }
 
     // Add available destinations context if provided
     if (Array.isArray(availableDestinations) && availableDestinations.length > 0) {

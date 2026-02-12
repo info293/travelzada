@@ -64,7 +64,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const travelData = travelDatabase as any
-type DestinationPackage = (typeof destinationPackages)[0] & { id?: string }
+type DestinationPackage = any
 
 const monthNames = [
   'january',
@@ -229,6 +229,7 @@ interface Message {
   packageMatch?: DestinationPackage
   recommendations?: DestinationPackage[]
   quickActions?: Array<{ label: string; action: string; packageData?: DestinationPackage }>
+  startNewSearch?: boolean
 }
 
 interface ConversationAgentProps {
@@ -267,6 +268,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [semanticScores, setSemanticScores] = useState<any[]>([]) // Store semantic search results
   const [thinkingMessage, setThinkingMessage] = useState(0)
   const [progress, setProgress] = useState(0)
   const [completedSteps, setCompletedSteps] = useState(0)
@@ -1459,6 +1461,17 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         const aDiff = !isNaN(requestedDays) ? Math.abs(aDays - requestedDays) : 999
         const bDiff = !isNaN(requestedDays) ? Math.abs(bDays - requestedDays) : 999
 
+        // ZERO: Semantic Score Boost (if available) - Integrating Hybrid Search
+        // Apply semantic boost to base score before other strict sorting
+        let aScore = a.score
+        let bScore = b.score
+
+        const aSemantic = semanticScores.find((s: any) => s.packageId === (aPkgAny.Destination_ID || aPkgAny.id))
+        const bSemantic = semanticScores.find((s: any) => s.packageId === (bPkgAny.Destination_ID || bPkgAny.id))
+
+        if (aSemantic) aScore += aSemantic.score * 50
+        if (bSemantic) bScore += bSemantic.score * 50
+
         // FIRST: Prioritize exact hotel/star rating matches (HIGHEST PRIORITY)
         // If user selected a star rating, show matching packages first
         if (tripInfo.hotelType) {
@@ -1504,9 +1517,9 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           }
         }
 
-        // FOURTH: Sort by total score (includes all factors including feedback boost)
-        if (b.score !== a.score) {
-          return b.score - a.score
+        // FOURTH: Sort by total score (including semantic boost)
+        if (bScore !== aScore) {
+          return bScore - aScore
         }
 
         // FIFTH: Prefer packages that match travel type exactly
@@ -1567,10 +1580,68 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
   const generateRecommendation = useCallback(async () => {
     const currentInfo = tripInfoRef.current
-    const bestMatch = rankedPackages[0]?.pkg
+    let bestMatch = rankedPackages[0]?.pkg
+    let semanticMatches: any[] = []
+
+    // 🔍 SEMANTIC SEARCH INTEGRATION (Hybrid Search)
+    try {
+      // Construct a rich natural language query from user preferences
+      const searchQuery = `I want a ${currentInfo.days}-day ${currentInfo.travelType} trip to ${currentInfo.destination} with a budget of ₹${currentInfo.budget}. Preference: ${userFeedback || 'Best experience'}. Hotel: ${currentInfo.hotelType}.`
+
+      console.log('🔍 Running hybrid semantic search for:', searchQuery)
+
+      const response = await fetch('/api/semantic-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: searchQuery,
+          topK: 10, // Get top 10 matches to boost ranking
+          filter: currentInfo.destination ? { destinationName: currentInfo.destination } : undefined
+        }),
+      })
+
+      const data = await response.json()
+      if (data.success && data.results) {
+        semanticMatches = data.results
+        setSemanticScores(data.results) // Update state for future re-renders (e.g. show alternatives)
+
+        // Re-rank packages based on semantic scores locally for immediate use
+        if (rankedPackages.length > 0) {
+          const hybridRanked = [...rankedPackages].map(item => {
+            const semanticMatch = semanticMatches.find((sm: any) => sm.packageId === (item.pkg.id || (item.pkg as any).Destination_ID))
+            let semanticBoost = 0
+            if (semanticMatch) {
+              semanticBoost = semanticMatch.score * 50 // Boost score by up to 50 points based on semantic relevance
+            }
+            return { ...item, score: item.score + semanticBoost, semanticScore: semanticMatch?.score }
+          }).sort((a, b) => b.score - a.score)
+
+          bestMatch = hybridRanked[0]?.pkg
+          console.log('✨ Hybrid ranking applied. Top match:', (bestMatch as any)?.Destination_Name)
+        }
+      }
+    } catch (error) {
+      console.error('❌ Semantic search failed:', error)
+      // Continue with rule-based bestMatch
+    }
 
     // Reset the flag before sending AI response
     setAiResponseComplete(false)
+
+    if (!bestMatch) {
+      // 🧠 SMART FALLBACK: If strict filters found nothing, use pure Semantic Search results
+      if (semanticMatches.length > 0) {
+        console.log('💡 Smart Fallback: Using semantic matches (strict filters failed)')
+        const fallbackMatch = semanticMatches[0]
+        // Find the full package object for this fallback result
+        const fullPackage = allPackages.find(p => (p.id === fallbackMatch.packageId) || ((p as any).Destination_ID === fallbackMatch.packageId))
+
+        if (fullPackage) {
+          bestMatch = fullPackage
+          // We found a semantic match! Proceed with it but mention it might vary slightly.
+        }
+      }
+    }
 
     if (!bestMatch) {
       if (currentInfo.destination) {
@@ -1640,7 +1711,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
           if (suggestions.length > 0) {
             await sendAssistantPrompt(
-              withStyle(`I couldn't find an exact match for your preferences. Suggestions: ${suggestions.join(', ')}. Would you like me to adjust your search?`, 60)
+              withStyle(`I couldn't find an exact match for your preferences, but I found some similar options! Suggestions: ${suggestions.join(', ')}. Would you like to see these?`, 60)
             )
           } else {
             await sendAssistantPrompt(
@@ -1743,9 +1814,21 @@ Craft a natural, engaging response that highlights why this package fits their n
         if (alternatives.length > 0) {
           // AI generates contextual introduction for alternatives
           const altNames = alternatives.map((p: any) => p.Destination_Name).join(' and ')
+
+          // Construct context about WHY these are good alternatives using semantic scores
+          let contextInfo = ''
+          alternatives.forEach((pkg: any) => {
+            const score = semanticScores.find(s => s.packageId === (pkg.Destination_ID || pkg.id))
+            if (score && score.score > 0.75) {
+              contextInfo += `- ${pkg.Destination_Name}: Strong match (${Math.round(score.score * 100)}%) for their vibe/preferences.\n`
+            }
+          })
+
           const prompt = withStyle(
-            `The user wants to see alternative packages. Introduce these options naturally: ${altNames}. Keep it brief and enthusiastic, mentioning they're also great matches for their ${tripInfo.travelType} trip to ${tripInfo.destination}.`,
-            40
+            `The user wants to see alternative packages. Introduce these options naturally: ${altNames}. 
+            ${contextInfo ? `Mention why they fit their vibe based on this data:\n${contextInfo}` : ''}
+            Keep it brief and enthusiastic, mentioning they're also great matches for their ${tripInfo.travelType} trip to ${tripInfo.destination}.`,
+            60
           )
 
           const firstAltName = (alternatives[0] as any).Destination_Name || tripInfo.destination
@@ -2108,6 +2191,95 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         // User wants itinerary
         await handleQuickAction('show-itinerary', lastPackage)
         return
+      }
+
+      // FEATURE VERIFICATION: Check if user is asking about specific features (e.g., "Does it have a pool?")
+      const isFeatureQuestion = (userInputLower.includes('does it have') || userInputLower.includes('is there') ||
+        userInputLower.includes('do they have') || userInputLower.includes('wifi') ||
+        userInputLower.includes('pool') || userInputLower.includes('breakfast') ||
+        userInputLower.includes('gym') || userInputLower.includes('spa') ||
+        userInputLower.includes('balcony') || userInputLower.includes('view')) && lastPackage
+
+      if (isFeatureQuestion && lastPackage) {
+        // 1. Check if CURRENT package has the feature
+        // Remove common question words to get the feature term
+        const featureTerm = userInputLower
+          .replace('does it have', '')
+          .replace('is there', '')
+          .replace('do they have', '')
+          .replace(' a ', ' ')
+          .replace(' an ', ' ')
+          .replace(' the ', ' ')
+          .replace('?', '')
+          .trim()
+
+        const matchScore = searchPackageByFeedback(lastPackage, featureTerm)
+
+        if (matchScore > 20) { // Threshold for "Yes"
+          const prompt = withStyle(
+            `The user asked: "${userInput}". The current package "${(lastPackage as any).Destination_Name}" DOES have "${featureTerm}" (Match Score: ${matchScore}). 
+            Confirm this enthusiastically and mention the specific details from the package description: ${(lastPackage as any).Overview} or inclusions: ${(lastPackage as any).Inclusions}.`,
+            80
+          )
+          await sendAssistantPrompt(prompt)
+          return
+        } else {
+          // 2. If current package doesn't have it, search strictly for this feature in OTHER packages
+          // We use the semantic search API to find the best match for this specific feature
+          try {
+            const searchQuery = `${featureTerm} in ${tripInfo.destination}`
+            const response = await fetch('/api/semantic-search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                query: searchQuery,
+                topK: 3,
+                filter: { destinationName: tripInfo.destination }
+              }),
+            })
+
+            const data = await response.json()
+            const bestAlternative = data.results && data.results.length > 0 ? data.results[0] : null
+
+            if (bestAlternative && bestAlternative.score > 0.78) {
+              // Found a better match!
+              const altPackage = allPackages.find(p => (p.id === bestAlternative.packageId) || ((p as any).Destination_ID === bestAlternative.packageId))
+
+              if (altPackage && (altPackage as any).Destination_Name !== (lastPackage as any).Destination_Name) {
+                const prompt = withStyle(
+                  `The user asked: "${userInput}". The current package "${(lastPackage as any).Destination_Name}" does NOT appear to have "${featureTerm}". 
+                      HOWEVER, I found another package "${(altPackage as any).Destination_Name}" that DOES seem to have it (Match: ${Math.round(bestAlternative.score * 100)}%).
+                      
+                      Politely inform the user that the current package might not meet this specific request, and offer to show them "${(altPackage as any).Destination_Name}" instead.`,
+                  100
+                )
+
+                await sendAssistantPrompt(prompt, {
+                  startNewSearch: true, // Signal to UI to potentially clear previous context if needed
+                  recommendations: [altPackage],
+                  quickActions: [
+                    { label: `Show me ${(altPackage as any).Destination_Name}`, action: "package-details", packageData: altPackage },
+                    { label: "Keep looking at current package", action: "package-details", packageData: lastPackage }
+                  ]
+                })
+                return
+              }
+            }
+          } catch (e) {
+            console.error("Feature search failed", e)
+          }
+
+          // Double check: maybe it IS in the current package but fuzzy match failed? 
+          // Let AI handle the "No" gracefully if no alternative found
+          const prompt = withStyle(
+            `The user asked: "${userInput}". I couldn't find a strong mention of "${featureTerm}" in "${(lastPackage as any).Destination_Name}". 
+            Answer honestly based on: ${(lastPackage as any).Overview} and Inclusions: ${(lastPackage as any).Inclusions}. 
+            If it's truly not there, apologize and ask if this is a deal-breaker.`,
+            60
+          )
+          await sendAssistantPrompt(prompt)
+          return
+        }
       }
 
       // COMPARISON DETECTION: Check if user wants to compare packages
@@ -2822,12 +2994,12 @@ Present this in an engaging way, highlighting activities that would appeal to a 
             </div>
           </div>
 
-          <div className="mt-auto">
+          {/* <div className="mt-auto">
             <div className="p-3 bg-purple-50 rounded-xl border border-purple-100">
               <p className="text-xs text-purple-800 font-medium mb-1">Upgrade Plan</p>
               <p className="text-[10px] text-purple-600">Get unlimited AI trip generations.</p>
             </div>
-          </div>
+          </div> */}
         </div>
       )}
 
@@ -2893,8 +3065,8 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                       <div
                         key={trip.id}
                         className={`group flex items-center gap-1 rounded-lg transition-colors ${currentTripId === trip.id
-                            ? 'bg-purple-50 border border-purple-100'
-                            : 'hover:bg-gray-50'
+                          ? 'bg-purple-50 border border-purple-100'
+                          : 'hover:bg-gray-50'
                           }`}
                       >
                         <button
@@ -2939,7 +3111,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                 {isMobileChatMode && "AI Trip Planner"}
                 <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold tracking-wide uppercase">Beta</span>
               </h2>
-              <p className="text-xs text-gray-400">Powered by Claude 4.5 Sonnet & ChatGPT 5.2</p>
+              {/* <p className="text-xs text-gray-400">Powered by Claude 4.5 Sonnet & ChatGPT 5.2</p> */}
             </div>
           </div>
 
