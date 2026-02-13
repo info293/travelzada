@@ -14,6 +14,7 @@ import travelDatabase from '@/data/travel-database.json'
 import destinationPackages from '@/data/destination_package.json'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import LeadForm from '@/components/LeadForm'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import {
   Calendar,
@@ -193,6 +194,12 @@ const parseFlexibleDate = (text: string) => {
 
   const parsed = new Date(text)
   if (!isNaN(parsed.getTime())) {
+    // Check if date is in the past
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (parsed < today) {
+      return null // Reject past dates
+    }
     return formatISODate(parsed)
   }
 
@@ -337,6 +344,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     description?: string
     landmarks?: string[]
   } | null>(null)
+  const [showLeadForm, setShowLeadForm] = useState(false)
+  const [leadFormPackage, setLeadFormPackage] = useState<DestinationPackage | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const tripDetailsAutoOpenedRef = useRef(false)
   const messagesRef = useRef<Message[]>([])
@@ -746,7 +755,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   }, [])
 
   const sendAssistantPrompt = useCallback(
-    async (prompt: string, extra: Partial<Message> = {}, availableDestinationsForContext?: string[]) => {
+    async (prompt: string, extra: Partial<Message> = {}, availableDestinationsForContext?: string[], availableDayOptions?: string[]) => {
       setIsTyping(true)
       setThinkingMessage(0)
 
@@ -769,6 +778,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
             prompt,
             conversation: messagesRef.current.slice(-12), // Increased from 6 to 12 for better context
             shownPackages: shownPackagesRef.current, // Use ref for stable reference
+            currentDestination: tripInfoRef.current.destination, // Add current destination for context
+            availableDayOptions: availableDayOptions, // Add available day options for destination
           }),
         })
         const data = await response.json()
@@ -1080,6 +1091,17 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       .toLowerCase()
       .replace(/[^a-z0-9]/g, ' ')
       .trim()
+
+  // Simple markdown renderer for AI messages
+  const renderMarkdown = (text: string) => {
+    // Replace **bold** with <strong>bold</strong>
+    let html = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // Replace *italic* with <em>italic</em>
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Replace newlines with <br/>
+    html = html.replace(/\n/g, '<br/>')
+    return html
+  }
 
   const extractDaysFromDuration = (duration: string) => {
     const match = duration.match(/(\d+)\s*Days?/i)
@@ -2000,7 +2022,12 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         ? destinations.map(d => d.name)
         : []
 
-      await sendAssistantPrompt(questionPrompt, {}, availableDests)
+      // Get available day options for current destination (if on days question)
+      const availableDayOptions = currentQuestion === 'days' && destinationDayOptions.length > 0
+        ? destinationDayOptions.map(opt => opt.label)
+        : []
+
+      await sendAssistantPrompt(questionPrompt, {}, availableDests, availableDayOptions)
     },
     [currentQuestion, generateRecommendation, sendAssistantPrompt, destinationTravelTypeOptions, updateTripInfo, appendMessage, destinations]
   )
@@ -2155,11 +2182,16 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         return
       }
 
-      // 2. Check for explicit "Book" intent
-      if ((userInputLower.includes('book') || userInputLower.includes('booking')) && lastPackage) {
-        // For now, booking intent also goes to details or we can add a specific booking action later
-        // Let's show details first as that's where the "Book Now" button usually is in these flows
-        await handleQuickAction('package-details', lastPackage)
+      // 2. Check for explicit "Book" intent - SHOW LEAD FORM
+      if ((userInputLower.includes('book') || userInputLower.includes('booking') ||
+        userInputLower.includes('ready to book') || userInputLower.includes('want to book')) && lastPackage) {
+        // Show lead form for booking intent
+        setLeadFormPackage(lastPackage)
+        setShowLeadForm(true)
+        appendMessage({
+          role: 'assistant',
+          content: "Great! Let me collect your details so our travel expert can assist you with booking."
+        })
         return
       }
 
@@ -2468,13 +2500,31 @@ Present this in an engaging way, highlighting activities that would appeal to a 
       }
 
       if (extractedData.travelDate && !latestInfo.travelDate) {
+        // PAST DATE VALIDATION: Check if the extracted date is in the past
+        const extractedDate = new Date(extractedData.travelDate)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0) // Reset to start of day for accurate comparison
+
+        if (extractedDate < today) {
+          // Date is in the past - reject it and ask for a future date
+          const prompt = withStyle(
+            `I noticed you mentioned a past date. Please provide a travel date in the future. When are you planning to travel?`,
+            35
+          )
+          await sendAssistantPrompt(prompt)
+          return // Stop processing and wait for new input
+        }
+
         updates.travelDate = extractedData.travelDate
         hasUpdates = true
       }
 
       if (extractedData.days && !latestInfo.days) {
-        updates.days = extractedData.days
-        hasUpdates = true
+        const dayNum = parseInt(extractedData.days, 10)
+        if (!isNaN(dayNum) && dayNum > 0 && dayNum <= 60) {
+          updates.days = extractedData.days
+          hasUpdates = true
+        }
       }
 
       if (extractedData.hotelType && !latestInfo.hotelType) {
@@ -2658,9 +2708,12 @@ Present this in an engaging way, highlighting activities that would appeal to a 
       }
       const days = extractNumber(userInput)
       if (days) {
-        const nextInfo = updateTripInfo({ days })
-        await askNextQuestion(nextInfo)
-        return
+        const dayNum = parseInt(days, 10)
+        if (!isNaN(dayNum) && dayNum > 0 && dayNum <= 60) {
+          const nextInfo = updateTripInfo({ days })
+          await askNextQuestion(nextInfo)
+          return
+        }
       }
     }
 
@@ -3195,7 +3248,14 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                         : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
                         }`}
                     >
-                      <p className="whitespace-pre-line">{message.content}</p>
+                      {message.role === 'assistant' ? (
+                        <div
+                          className="markdown-content"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
+                        />
+                      ) : (
+                        <p className="whitespace-pre-line">{message.content}</p>
+                      )}
 
                       {/* Speaker Button for AI messages */}
                       {message.role === 'assistant' && (
@@ -3979,6 +4039,19 @@ Present this in an engaging way, highlighting activities that would appeal to a 
           animation: shimmer 2s infinite;
         }
       `}</style>
+
+      {/* Lead Form Modal - Shows when user expresses booking intent */}
+      {showLeadForm && (
+        <LeadForm
+          isOpen={showLeadForm}
+          onClose={() => {
+            setShowLeadForm(false)
+            setLeadFormPackage(null)
+          }}
+          packageName={leadFormPackage ? (leadFormPackage as any).Destination_Name : undefined}
+          sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
+        />
+      )}
     </div>
   )
 }

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, conversation = [], availableDestinations = [], shownPackages = [] } = await request.json()
+    const { prompt, conversation = [], availableDestinations = [], shownPackages = [], currentDestination, availableDayOptions } = await request.json()
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -76,8 +76,32 @@ export async function POST(request: Request) {
         }))
       : []
 
-    // Build system prompt with available destinations context
-    let systemPrompt = 'You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.'
+    // Build system prompt with date validation and available destinations context
+    const today = new Date()
+    const todayISO = today.toISOString().split('T')[0]
+
+    // Calculate minimum booking date (1 week from today)
+    const minDate = new Date(today)
+    minDate.setDate(minDate.getDate() + 7)
+    const minDateISO = minDate.toISOString().split('T')[0]
+
+    let systemPrompt = `You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.
+
+=== CRITICAL DATE VALIDATION ===
+TODAY: ${todayISO}
+MINIMUM BOOKING DATE: ${minDateISO}
+
+IMPORTANT: When user mentions a travel date, if it is BEFORE ${minDateISO}, IMMEDIATELY say: "Travel bookings require at least one week advance notice. Please select a date from next week onwards." DO NOT proceed to next question until valid date is given.`
+
+    // CRITICAL: Add current destination context to avoid confusion
+    if (currentDestination) {
+      systemPrompt += `\n\n🎯 CURRENT CONTEXT: The user is planning a trip to **${currentDestination}**. All your responses should be relevant to ${currentDestination}. Do not mention other destinations unless the user explicitly asks to change destinations.`
+    }
+
+    // CRITICAL: Add available day options for the destination
+    if (availableDayOptions && availableDayOptions.length > 0) {
+      systemPrompt += `\n\n📅 AVAILABLE DURATIONS for ${currentDestination || 'this destination'}: We only have packages for these durations: ${availableDayOptions.join(', ')} days. **IMPORTANT**: Only suggest these specific durations to the user. Do NOT mention other day counts that are not in this list.`
+    }
 
     // 🔍 Add semantic search results context (most relevant packages based on query meaning)
     if (semanticResults.length > 0) {
@@ -124,6 +148,12 @@ YOU MUST DO ALL OF THE FOLLOWING:
 4. Highlight what makes each unique
 5. If user mentions preferences (religious, spa, adventure, budget), match packages to those needs
 6. END with a clear recommendation: "Based on your preferences, I recommend [Package Name] because..."
+
+=== STYLE GUIDELINES ===
+- Use markdown formatting: **bold** for emphasis, not **package names repeatedly**
+- When referring to packages after first mention, use "this package" or "it" instead of repeating the full name
+- Keep responses concise and avoid redundant phrasing
+- Format options like: "Options: 3 days, 5 days, 7 days" (bold the word "Options")
 
 EXAMPLE FORMAT:
 "Let me compare all 3 packages for you:
