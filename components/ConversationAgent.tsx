@@ -1765,14 +1765,46 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     // Pass the top 1 suggestion to be rendered with the message
     const suggestions = rankedPackages.slice(0, 1).map(({ pkg }) => pkg)
 
-    // Create dynamic quick action text (ChatGPT-style) for post-recommendation interaction
-    const packageName = bestMatchAny.Destination_Name || tripInfo.destination
-    const quickActions = [
-      { label: `1. Tell me more about ${packageName}`, action: "package-details", packageData: bestMatch },
-      { label: `2. Show me other packages for ${tripInfo.destination}`, action: "show-alternatives" },
-      { label: `3. What's included in ${packageName}?`, action: "show-inclusions", packageData: bestMatch },
-      { label: `4. Show day-wise itinerary for ${packageName}`, action: "show-itinerary", packageData: bestMatch },
-    ]
+    // Generate smart, dynamic suggestions based on package content
+    const generateSmartSuggestions = (pkg: any) => {
+      const suggestions = []
+      const overview = (pkg.Overview || '').toLowerCase()
+      const inclusions = (pkg.Inclusions || '').toLowerCase()
+      const type = (pkg.Travel_Type || '').toLowerCase()
+      const name = pkg.Destination_Name || 'this package'
+
+      // 1. Highlight-based question
+      if (overview.includes('pool') && overview.includes('private')) {
+        suggestions.push({ label: `Tell me about the Private Pool \uD83C\uDFCA\u200D\u2642\uFE0F`, action: "package-details", packageData: pkg })
+      } else if (overview.includes('adventure') || overview.includes('sport')) {
+        suggestions.push({ label: `What adventure activities are included? \uD83C\uDFC4\u200D\u2642\uFE0F`, action: "package-details", packageData: pkg })
+      } else if (overview.includes('romantic') || type.includes('couple')) {
+        suggestions.push({ label: `Is this good for a honeymoon? \uD83D\uDC70\u200D\u2640\uFE0F`, action: "package-details", packageData: pkg })
+      } else if (overview.includes('family') || type.includes('family')) {
+        suggestions.push({ label: `Is this kid-friendly? \uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66`, action: "package-details", packageData: pkg })
+      } else {
+        suggestions.push({ label: `Tell me more about ${name} \u2728`, action: "package-details", packageData: pkg })
+      }
+
+      // 2. Comparison/Value question
+      suggestions.push({ label: `Show me similar packages for ${tripInfo.destination} \uD83D\uDD04`, action: "show-alternatives" })
+
+      // 3. Inclusions/Specifics
+      if (inclusions.includes('candle') || inclusions.includes('dinner')) {
+        suggestions.push({ label: `Tell me about the Candle Light Dinner \uD83D\uDD6F\uFE0F`, action: "show-inclusions", packageData: pkg })
+      } else if (inclusions.includes('cruise')) {
+        suggestions.push({ label: `What's included in the Cruise? \uD83D\uDEA2`, action: "show-inclusions", packageData: pkg })
+      } else {
+        suggestions.push({ label: `What's included in the price? \uD83D\uDCB0`, action: "show-inclusions", packageData: pkg })
+      }
+
+      // 4. Itinerary (Always useful)
+      suggestions.push({ label: `Show day-wise plan for ${name} \uD83D\uDCC5`, action: "show-itinerary", packageData: pkg })
+
+      return suggestions
+    }
+
+    const quickActions = generateSmartSuggestions(bestMatchAny)
 
     await sendAssistantPrompt(prompt, {
       packageMatch: bestMatch,
@@ -1854,12 +1886,25 @@ Craft a natural, engaging response that highlights why this package fits their n
           )
 
           const firstAltName = (alternatives[0] as any).Destination_Name || tripInfo.destination
+          // Generate context-aware actions for alternatives view
+          // 1. Details for first option
+          // 2. Booking options for EACH alternative shown
+          const altActions: Array<{ label: string, action: string, packageData?: any }> = [
+            { label: `Tell me more about ${firstAltName} \u2728`, action: "package-details", packageData: alternatives[0] }
+          ]
+
+          // Add booking buttons for each alternative
+          alternatives.forEach((pkg: any) => {
+            const name = (pkg as any).Destination_Name
+            altActions.push({ label: `Ready to Book ${name} \uD83D\uDCC5`, action: "book-package", packageData: pkg })
+          })
+
+          // Add option to see even more
+          altActions.push({ label: `Show me even more options \uD83D\uDD04`, action: "show-alternatives" })
+
           await sendAssistantPrompt(prompt, {
             recommendations: alternatives,
-            quickActions: [
-              { label: `1. Tell me more about ${firstAltName}`, action: "package-details", packageData: alternatives[0] },
-              { label: `2. What's included in ${firstAltName}?`, action: "show-inclusions", packageData: alternatives[0] },
-            ]
+            quickActions: altActions
           })
 
           // Track shown packages - IDs
@@ -1900,6 +1945,24 @@ Present this information in a clear, organized way. Group similar items together
         } else {
           const prompt = withStyle(
             `Apologize that detailed inclusions for "${pkg.Destination_Name}" aren't available in the system right now. Offer to connect them with a travel advisor who can provide complete details, or suggest they can check other packages.`,
+            40
+          )
+          await sendAssistantPrompt(prompt)
+        }
+        break
+
+      case 'book-package':
+        if (pkg) {
+          // Trigger lead form directly for booking intent
+          setLeadFormPackage(pkg)
+          setShowLeadForm(true)
+
+          // Add AI confirmation message that encourages action
+          const prompt = withStyle(
+            `User wants to book "${pkg.Destination_Name}". Respond enthusiastically:
+            - Confirm excellent choice
+            - Say you're opening the secure booking form
+            - Ask them to fill in their details so an expert can contact them right away.`,
             40
           )
           await sendAssistantPrompt(prompt)
