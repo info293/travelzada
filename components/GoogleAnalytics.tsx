@@ -6,7 +6,7 @@ import { useEffect, Suspense } from 'react'
 
 // Google Analytics Account ID: 375765240
 // Using GA4 Measurement ID format (G-XXXXXXXXXX)
-const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-375765240'
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || 'G-5JQNQ4BRCJ'
 
 // Separate component for page tracking that uses useSearchParams
 // This MUST be wrapped in Suspense to prevent SSR bailout
