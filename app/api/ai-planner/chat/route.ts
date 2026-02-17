@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import { searchSimilarPackages } from '@/lib/pinecone'
+import { detectUserIntent } from '@/lib/agent-brain'
 
 // Initialize Anthropic (Claude) as primary
 const anthropic = process.env.ANTHROPIC_API_KEY
@@ -49,18 +50,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // 🔍 SEMANTIC SEARCH: Find relevant packages based on user query
-    let semanticResults: any[] = []
-    if (isSemanticSearchEnabled()) {
-      try {
-        console.log('[AI Planner] Running semantic search for:', prompt.slice(0, 50))
-        semanticResults = await searchSimilarPackages(prompt, 5)
-        console.log(`[AI Planner] Found ${semanticResults.length} semantically similar packages`)
-      } catch (semanticError: any) {
-        console.warn('[AI Planner] Semantic search failed (continuing without it):', semanticError.message)
-      }
-    }
-
     // Increase history to 12 messages for better context retention
     const history = Array.isArray(conversation)
       ? conversation
@@ -76,6 +65,50 @@ export async function POST(request: Request) {
         }))
       : []
 
+    // 🧠 AGENT REASONING STEP
+    // instead of blindly searching, we ask the Brain: "What does the user want?"
+    let decision = {
+      intent: 'GENERAL_CHAT',
+      searchQuery: prompt,
+      filters: {},
+      reasoning: 'Default fallback'
+    }
+
+    try {
+      // We only use the brain if Pinecone is configured, otherwise it's just a chat bot
+      if (isSemanticSearchEnabled()) {
+        console.log('[Agent] 🤔 Thinking about user intent...')
+        // @ts-ignore
+        decision = await detectUserIntent(prompt, history)
+        console.log('[Agent] 💡 Decision:', JSON.stringify(decision, null, 2))
+      }
+    } catch (e) {
+      console.error('[Agent] ❌ Brain freeze:', e)
+    }
+
+    // 🔍 EXECUTE SEARCH (Only if the Agent decided to search)
+    let semanticResults: any[] = []
+    // @ts-ignore
+    if (decision.intent === 'SEARCH_PACKAGES' && isSemanticSearchEnabled()) {
+      try {
+        console.log('[Agent] 🔍 Searching Pinecone for:', decision.searchQuery)
+
+        // Convert filters to Pinecone syntax if needed (e.g. price ranges)
+        // For now, we pass the filters object. We will refine this in lib/pinecone.ts next.
+        // @ts-ignore
+        semanticResults = await searchSimilarPackages(decision.searchQuery, 4, decision.filters)
+
+        console.log(`[Agent] ✅ Found ${semanticResults.length} relevant packages`)
+      } catch (semanticError: any) {
+        console.warn('[Agent] ⚠️ Search failed:', semanticError.message)
+      }
+    } else {
+      // @ts-ignore
+      console.log('[Agent] ⏭️ Skipping search (Intent: ' + decision.intent + ')')
+    }
+
+
+
     // Build system prompt with date validation and available destinations context
     const today = new Date()
     const todayISO = today.toISOString().split('T')[0]
@@ -85,13 +118,37 @@ export async function POST(request: Request) {
     minDate.setDate(minDate.getDate() + 7)
     const minDateISO = minDate.toISOString().split('T')[0]
 
-    let systemPrompt = `You are Travelzada, a warm and concise AI trip planner. Keep responses under 120 words, ask one question at a time, and use Indian English nuances when helpful.
+    let systemPrompt = `You are Travelzada, a smart AI travel planner.
+    
+    === AGENT CONTEXT ===
+    User Intent: ${decision.intent}
+    Reasoning: ${decision.reasoning}
+    Active Filters: ${JSON.stringify(decision.filters)}
+    
+    === CRITICAL RULES ===
+    1. Keep responses under 120 words.
+    2. Ask ONE clarifying question at a time.
+    3. Use Indian English nuances.
+    4. TODAY: ${todayISO}. Bookings start after: ${minDateISO}.
+    `
 
-=== CRITICAL DATE VALIDATION ===
-TODAY: ${todayISO}
-MINIMUM BOOKING DATE: ${minDateISO}
-
-IMPORTANT: When user mentions a travel date, if it is BEFORE ${minDateISO}, IMMEDIATELY say: "Travel bookings require at least one week advance notice. Please select a date from next week onwards." DO NOT proceed to next question until valid date is given.`
+    // Inject Search Results
+    if (semanticResults.length > 0) {
+      systemPrompt += `\n\n=== RELEVANT PACKAGES FOUND ===`
+      systemPrompt += `\nUse these to answer the user. Do NOT hallucinate prices or details.`
+      semanticResults.forEach((pkg, index) => {
+        systemPrompt += `\n\n${index + 1}. "${pkg.Destination_Name}"`
+        if (pkg.Price_Range_INR) systemPrompt += ` | Price: ${pkg.Price_Range_INR}`
+        if (pkg.Duration) systemPrompt += ` | Duration: ${pkg.Duration}`
+        // Injecting the "Overview" or "Inclusions" gives the AI the "Small Things" it needs
+        if (pkg.Overview) systemPrompt += `\n   Summary: ${pkg.Overview.slice(0, 300)}...`
+        if (pkg.Inclusions && Array.isArray(pkg.Inclusions)) systemPrompt += `\n   Includes: ${pkg.Inclusions.slice(0, 5).join(', ')}`
+      })
+      systemPrompt += `\n\nGuidance: Recommend the best match. Mention strict price/inclusions if asked.`
+    } else if (decision.intent === 'SEARCH_PACKAGES') {
+      systemPrompt += `\n\n[SYSTEM NOTE]: You tried to search but found NO packages matching "${decision.searchQuery}" with filters ${JSON.stringify(decision.filters)}.
+        Politely tell the user you couldn't find exactly that, and ask for broader criteria (e.g. different budget or location).`
+    }
 
     // CRITICAL: Add current destination context to avoid confusion
     if (currentDestination) {
@@ -101,21 +158,6 @@ IMPORTANT: When user mentions a travel date, if it is BEFORE ${minDateISO}, IMME
     // CRITICAL: Add available day options for the destination
     if (availableDayOptions && availableDayOptions.length > 0) {
       systemPrompt += `\n\n📅 AVAILABLE DURATIONS for ${currentDestination || 'this destination'}: We only have packages for these durations: ${availableDayOptions.join(', ')} days. **IMPORTANT**: Only suggest these specific durations to the user. Do NOT mention other day counts that are not in this list.`
-    }
-
-    // 🔍 Add semantic search results context (most relevant packages based on query meaning)
-    if (semanticResults.length > 0) {
-      systemPrompt += `\n\n=== SEMANTIC SEARCH RESULTS (HIGHLY RELEVANT PACKAGES) ===`
-      systemPrompt += `\nThese packages were found using AI semantic search and are highly relevant to the user's query:`
-      semanticResults.forEach((pkg, index) => {
-        systemPrompt += `\n\n${index + 1}. "${pkg.destinationName}" (${Math.round(pkg.score * 100)}% match)`
-        if (pkg.duration) systemPrompt += `\n   • Duration: ${pkg.duration}`
-        if (pkg.priceRange) systemPrompt += `\n   • Price: ${pkg.priceRange}`
-        if (pkg.starCategory) systemPrompt += `\n   • Hotel: ${pkg.starCategory}`
-        if (pkg.travelType) systemPrompt += `\n   • Type: ${pkg.travelType}`
-        if (pkg.overview) systemPrompt += `\n   • About: ${pkg.overview.slice(0, 100)}...`
-      })
-      systemPrompt += `\n\nPRIORITIZE recommending these semantically matched packages when relevant to the conversation.`
     }
 
     // Add available destinations context if provided
@@ -190,7 +232,7 @@ My recommendation: Package B suits you best because..."`
         const textContent = claudeResponse.content.find(block => block.type === 'text') as any
         message = textContent?.text ?? 'I am here to help you plan your trip!'
 
-        return NextResponse.json({ message, provider: 'claude' })
+        return NextResponse.json({ message, provider: 'claude', recommendations: semanticResults })
       } catch (claudeError: any) {
         console.error('[AI Planner] Claude failed, falling back to ChatGPT:', claudeError.message)
         // Fall through to OpenAI
@@ -215,7 +257,7 @@ My recommendation: Package B suits you best because..."`
 
       message = completion.choices[0]?.message?.content ?? 'I am here to help you plan your trip!'
 
-      return NextResponse.json({ message, provider: 'openai' })
+      return NextResponse.json({ message, provider: 'openai', recommendations: semanticResults })
     }
 
     // If we get here, no AI worked

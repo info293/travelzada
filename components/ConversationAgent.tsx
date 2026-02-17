@@ -402,6 +402,16 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     fetchDestinationsFromFirestore()
   }, [])
 
+  // Centralized source of truth for available destinations
+  // Merges Firestore data (dynamic) with travelDatabase (static fallback)
+  const allDestinations = useMemo(() => {
+    const merged = new Set([
+      ...destinations.map(d => d.name),
+      ...(travelData.destinations as any[]).map(d => d.name)
+    ])
+    return Array.from(merged).map(name => ({ name }))
+  }, [destinations])
+
   // Initialize Voice Chat
   const {
     isListening,
@@ -767,9 +777,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
       try {
         // Get available destinations from database
         const destinationsToSend = availableDestinationsForContext ||
-          (destinations.length > 0
-            ? destinations.map(d => d.name)
-            : [])
+          allDestinations.map(d => d.name)
 
         const response = await fetch('/api/ai-planner/chat', {
           method: 'POST',
@@ -784,9 +792,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         })
         const data = await response.json()
         const content = data?.message || prompt
+        const recommendations = data?.recommendations || []
+
         appendMessage({
           role: 'assistant',
           content,
+          recommendations,
           ...extra,
         })
       } catch (error) {
@@ -824,9 +835,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         setUploadedImage(base64String)
 
         // Get available destinations
-        const availableDestinations = destinations.length > 0
-          ? destinations.map(d => d.name)
-          : []
+        const availableDestinations = allDestinations.map(d => d.name)
 
         // Call image analysis API
         const response = await fetch('/api/ai-planner/analyze-image', {
@@ -930,7 +939,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
 
     sendAssistantPrompt(
       withStyle(
-        `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
+        `Greet them briefly and ask which destination they want to plan.`,
         30
       ),
       {},
@@ -1494,6 +1503,24 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         if (aSemantic) aScore += aSemantic.score * 50
         if (bSemantic) bScore += bSemantic.score * 50
 
+        // PRICE CHECK (CRITICAL)
+        // Penalize packages that exceed user's budget
+        if (tripInfo.budget) {
+          const maxBudget = parseInt(tripInfo.budget, 10)
+          const extractPrice = (p: any) => {
+            if (!p.Price_Range_INR) return 0
+            // Extract first number: "Rs. 15,000" -> 15000
+            const match = String(p.Price_Range_INR).match(/([\d,]+)/)
+            return match ? parseInt(match[1].replace(/,/g, ''), 10) : 0
+          }
+          const aPrice = extractPrice(aPkgAny)
+          const bPrice = extractPrice(bPkgAny)
+
+          // Significant penalty for being over budget
+          if (aPrice > maxBudget) aScore -= 100
+          if (bPrice > maxBudget) bScore -= 100
+        }
+
         // FIRST: Prioritize exact hotel/star rating matches (HIGHEST PRIORITY)
         // If user selected a star rating, show matching packages first
         if (tripInfo.hotelType) {
@@ -2002,10 +2029,8 @@ Present this in an engaging way, highlighting activities that would appeal to a 
       let questionPrompt = ''
 
       if (!currentInfo.destination) {
-        // Get available destinations (only Bali for now)
-        const availableDests = destinations.length > 0
-          ? destinations.map(d => d.name)
-          : []
+        // Get available destinations
+        const availableDests = allDestinations.map(d => d.name)
 
         questionPrompt = withStyle(
           `Greet them briefly and ask which destination they want to plan. Only mention these available destinations: ${availableDests.join(', ')}. Do not suggest any other destinations.`,
@@ -2122,9 +2147,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
 
     try {
       // Get available destinations for context
-      const availableDestinations = destinations.length > 0
-        ? destinations.map(d => d.name)
-        : travelData.destinations.map((d: any) => d.name)
+      const availableDestinations = allDestinations.map(d => d.name)
 
       const response = await fetch('/api/ai-planner/extract', {
         method: 'POST',
@@ -2163,7 +2186,11 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     const userInput = input.trim()
     setInput('')
 
-    appendMessage({ role: 'user', content: userInput })
+    const userMsgObj = { role: 'user' as const, content: userInput }
+    // CRITICAL: Update ref immediately so subsequent API calls (sendAssistantPrompt/extractDataWithAI) 
+    // see this new message in the 'conversation' history context.
+    messagesRef.current = [...messagesRef.current, userMsgObj]
+    appendMessage(userMsgObj)
 
     const latestInfo = tripInfoRef.current
 
@@ -2171,9 +2198,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
 
     // INTENT DETECTION: Priority check for context switching (New Destination)
     // If user mentions a new destination, we must prioritize that over current flow
-    const availableDestinations = destinations.length > 0
-      ? destinations
-      : (travelData.destinations as any[])
+    const availableDestinations = allDestinations
 
     const foundNewDest = availableDestinations.find(d =>
       userInputLower.includes(d.name.toLowerCase())
@@ -2181,7 +2206,10 @@ Present this in an engaging way, highlighting activities that would appeal to a 
 
     if (foundNewDest) {
       // Check if it's actually a switch (different from current or we are in post-rec phase)
-      if (foundNewDest.name !== latestInfo.destination || conversationPhase === 'post-recommendation') {
+      // CRITICAL FIX: Only treat as "Switch" if we ALREADY had a destination.
+      // If we are starting fresh (empty destination), let the standard extraction handle it
+      // so we can capture multiple details (e.g. "Bali for 5 days") in one go.
+      if ((foundNewDest.name !== latestInfo.destination || conversationPhase === 'post-recommendation') && latestInfo.destination) {
         const newDestName = foundNewDest.name
 
         // Reset necessary state for new destination
@@ -3346,80 +3374,115 @@ Present this in an engaging way, highlighting activities that would appeal to a 
 
                   {/* Render Recommended Packages if present */}
                   {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
-                    <div className="pl-0 md:pl-11 w-full mt-2">
-                      <div className="bg-gray-50 rounded-xl p-3 md:p-4 border border-gray-100">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                          <div>
-                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Recommended for you</p>
-                            <p className="text-[10px] text-gray-500">Based on your preferences</p>
-                          </div>
+                    <div className="pl-0 md:pl-11 w-full mt-4 mb-2">
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden w-full max-w-3xl mx-auto">
+                        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Recommended for you</span>
+                          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline-block">Based on your preferences</span>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 w-full">
-                          {message.recommendations.map((pkg) => {
+
+                        <div className="divide-y divide-gray-100">
+                          {message.recommendations.slice(0, 1).map((pkg) => {
                             const pkgAny = pkg as any
                             const imageUrl = pkgAny.Primary_Image_URL
                               ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
                               : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
 
+                            const slugify = (text: string) => {
+                              return text
+                                .toString()
+                                .toLowerCase()
+                                .replace(/\s+/g, '-')
+                                .replace(/[^\w\-]+/g, '')
+                                .replace(/\-\-+/g, '-')
+                                .replace(/^-+/, '')
+                                .replace(/-+$/, '')
+                            }
+
                             const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
                             const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
-                            const packageUrl = `/destinations/${encodeURIComponent(destinationName)}/${encodeURIComponent(packageId)}`
+                            const destSlug = slugify(destinationName)
+                            const finalDestSlug = destSlug.endsWith('-packages') ? destSlug : `${destSlug}-packages`
+                            const packageSlug = pkgAny.Slug || slugify(pkgAny.Title || pkgAny.Package_Name || pkgAny.Destination_Name + '-' + packageId)
+                            const finalPackageId = packageSlug
+                            const packageUrl = `/destinations/${finalDestSlug}/${finalPackageId}`
 
                             return (
-                              <div
-                                key={pkgAny.Destination_ID || pkgAny.id}
-                                className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-purple-300 hover:shadow-md transition-all w-full"
-                              >
-                                <div className="flex flex-col sm:flex-row min-h-[8rem]">
-                                  <div className="relative w-full sm:w-32 h-32 sm:h-auto flex-shrink-0 bg-gray-100">
+                              <div key={pkgAny.Destination_ID || pkgAny.id} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                                <div className="flex flex-col sm:flex-row">
+                                  {/* Image Section - Left Side */}
+                                  <div className="relative w-full sm:w-56 h-48 sm:h-auto flex-shrink-0">
                                     <img
                                       src={imageUrl}
                                       alt={pkgAny.Destination_Name}
-                                      className="w-full h-full object-cover"
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                       onError={(e) => {
                                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
                                       }}
                                     />
-                                  </div>
-                                  <div className="flex-1 p-3 flex flex-col justify-between">
-                                    <div>
-                                      <div className="flex justify-between items-start gap-2">
-                                        <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{pkgAny.Destination_Name}</h4>
-                                        <span className="text-xs font-bold text-primary whitespace-nowrap">₹{pkgAny.Price_Range_INR}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2 mt-1 mb-2">
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-md font-medium">{pkgAny.Duration}</span>
-                                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium">{pkgAny.Star_Category}</span>
-                                      </div>
-                                      <p className="text-[10px] text-gray-600 line-clamp-2">{pkgAny.Overview}</p>
-
-                                      {/* Highlights Section */}
-                                      {(pkgAny.Highlights && (Array.isArray(pkgAny.Highlights) ? pkgAny.Highlights.length > 0 : typeof pkgAny.Highlights === 'string')) && (
-                                        <div className="mt-2 bg-purple-50/50 rounded-lg p-2 border border-purple-100/50">
-                                          <p className="text-[10px] font-semibold text-purple-900 mb-1.5 flex items-center gap-1">
-                                            <span className="text-xs">✨</span> Highlights
-                                          </p>
-                                          <ul className="space-y-1">
-                                            {(Array.isArray(pkgAny.Highlights)
-                                              ? pkgAny.Highlights
-                                              : String(pkgAny.Highlights).split(',')
-                                            ).slice(0, 3).map((highlight: string, idx: number) => (
-                                              <li key={idx} className="text-[10px] text-purple-800 flex items-start gap-1.5">
-                                                <span className="mt-1 w-1 h-1 rounded-full bg-purple-400 flex-shrink-0"></span>
-                                                <span className="line-clamp-1 leading-tight">{highlight.trim()}</span>
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
+                                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:opacity-40" />
+                                    <div className="absolute bottom-3 left-3 text-white sm:hidden">
+                                      <p className="font-bold text-lg">₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}</p>
                                     </div>
-                                    <Link
-                                      href={packageUrl}
-                                      className="mt-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold shadow-sm hover:shadow-md hover:from-purple-700 hover:to-indigo-700 transition-all flex items-center gap-1 self-end"
-                                    >
-                                      View Details
-                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                    </Link>
+                                    {/* Best Match Badge */}
+                                    <div className="absolute top-3 left-3">
+                                      <span className="bg-white/95 backdrop-blur text-purple-700 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3 text-purple-600" />
+                                        Best Match
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Content Section - Right Side */}
+                                  <div className="flex-1 p-5 flex flex-col justify-between relative">
+                                    <div>
+                                      <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                          <h4 className="text-xl font-bold text-gray-900 line-clamp-1 group-hover:text-purple-700 transition-colors">
+                                            {pkgAny.Destination_Name}
+                                          </h4>
+                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">
+                                            {pkgAny.Duration || 'Flexible Duration'}
+                                          </p>
+                                        </div>
+                                        <div className="hidden sm:block text-right">
+                                          <p className="text-xl font-bold text-purple-700">
+                                            ₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}
+                                          </p>
+                                          <p className="text-[10px] text-gray-400 font-medium">per person</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-2 mb-3">
+                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100">
+                                          <Building className="w-3 h-3 mr-1.5 text-gray-400" />
+                                          {pkgAny.Star_Category || 'Premium Stay'}
+                                        </span>
+                                        {pkgAny.Travel_Type && (
+                                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100">
+                                            <Users className="w-3 h-3 mr-1.5 text-gray-400" />
+                                            {pkgAny.Travel_Type}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-4">
+                                        {pkgAny.Overview || 'Experience the magic of this destination with our curated package designed for relaxation and adventure.'}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50">
+                                      <div className="text-xs text-gray-400 font-medium">
+                                        Includes Hotels, Meals & Transfers
+                                      </div>
+                                      <Link
+                                        href={packageUrl}
+                                        className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                                      >
+                                        View Details
+                                        <ChevronRight className="ml-1.5 -mr-0.5 w-4 h-4" />
+                                      </Link>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -3433,15 +3496,16 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                   {/* Render Quick Action Text Links (ChatGPT-style) if present */}
                   {message.role === 'assistant' && message.quickActions && message.quickActions.length > 0 && (
                     <div className="pl-0 md:pl-11 w-full mt-3">
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {message.quickActions.map((action, idx) => (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => handleQuickAction(action.action, action.packageData)}
-                            className="text-left text-sm text-gray-700 hover:text-purple-700 hover:underline transition-all cursor-pointer bg-transparent border-none p-0 font-normal"
+                            className="text-left text-sm px-4 py-3 bg-white border border-gray-200 rounded-xl hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-all shadow-sm font-medium flex-grow md:flex-grow-0 min-w-[45%] md:min-w-0 flex items-center justify-between group"
                           >
-                            {action.label}
+                            <span>{action.label}</span>
+                            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-purple-400 transition-colors" />
                           </button>
                         ))}
                       </div>
@@ -4104,17 +4168,19 @@ Present this in an engaging way, highlighting activities that would appeal to a 
       `}</style>
 
       {/* Lead Form Modal - Shows when user expresses booking intent */}
-      {showLeadForm && (
-        <LeadForm
-          isOpen={showLeadForm}
-          onClose={() => {
-            setShowLeadForm(false)
-            setLeadFormPackage(null)
-          }}
-          packageName={leadFormPackage ? (leadFormPackage as any).Destination_Name : undefined}
-          sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
-        />
-      )}
-    </div>
+      {
+        showLeadForm && (
+          <LeadForm
+            isOpen={showLeadForm}
+            onClose={() => {
+              setShowLeadForm(false)
+              setLeadFormPackage(null)
+            }}
+            packageName={leadFormPackage ? (leadFormPackage as any).Destination_Name : undefined}
+            sourceUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          />
+        )
+      }
+    </div >
   )
 }

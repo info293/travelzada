@@ -24,53 +24,60 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 export function formatPackageForEmbedding(pkg: any): string {
     const parts: string[] = []
 
-    // Add destination name
-    if (pkg.Destination_Name) {
-        parts.push(`Destination: ${pkg.Destination_Name}`)
-    }
+    // 1. Core Identity
+    if (pkg.Destination_Name) parts.push(`Destination: ${pkg.Destination_Name}`)
+    if (pkg.Theme) parts.push(`Theme: ${pkg.Theme}`)
+    if (pkg.Mood) parts.push(`Mood: ${pkg.Mood}`)
+    if (pkg.Occasion) parts.push(`Occasion: ${pkg.Occasion}`)
+    if (pkg.Travel_Type) parts.push(`Travel Type: ${pkg.Travel_Type}`)
+    if (pkg.Budget_Category) parts.push(`Category: ${pkg.Budget_Category}`)
 
-    // Add overview/description
-    if (pkg.Overview) {
-        parts.push(pkg.Overview)
-    }
+    // 2. Descriptive Content
+    if (pkg.Overview) parts.push(pkg.Overview)
 
-    // Add highlights
-    if (pkg.Tour_Highlights) {
-        const highlights = Array.isArray(pkg.Tour_Highlights)
-            ? pkg.Tour_Highlights.join(', ')
-            : pkg.Tour_Highlights
+    // 3. Highlights
+    if (pkg.Tour_Highlights || pkg.Highlights) {
+        const highlights = Array.isArray(pkg.Highlights || pkg.Tour_Highlights)
+            ? (pkg.Highlights || pkg.Tour_Highlights).join(', ')
+            : (pkg.Highlights || pkg.Tour_Highlights)
         parts.push(`Highlights: ${highlights}`)
     }
 
-    // Add travel type (solo, couple, family, friends)
-    if (pkg.Travel_Type) {
-        parts.push(`Travel type: ${pkg.Travel_Type}`)
-    }
-
-    // Add star category
-    if (pkg.Star_Category) {
-        parts.push(`Hotel: ${pkg.Star_Category}`)
-    }
-
-    // Add duration
-    if (pkg.Duration) {
-        parts.push(`Duration: ${pkg.Duration}`)
-    }
-
-    // Add activities if available
-    if (pkg.Activities) {
-        const activities = Array.isArray(pkg.Activities)
-            ? pkg.Activities.join(', ')
-            : pkg.Activities
-        parts.push(`Activities: ${activities}`)
-    }
-
-    // Add inclusions for context
+    // 4. Inclusions (New)
     if (pkg.Inclusions) {
         const inclusions = Array.isArray(pkg.Inclusions)
-            ? pkg.Inclusions.slice(0, 5).join(', ')
+            ? pkg.Inclusions.join(', ')
             : pkg.Inclusions
-        parts.push(`Includes: ${inclusions}`)
+        parts.push(`Inclusions: ${inclusions}`)
+    }
+
+    // 5. Exclusions (New - helpful for negative search)
+    if (pkg.Exclusions) {
+        const exclusions = Array.isArray(pkg.Exclusions)
+            ? pkg.Exclusions.join(', ')
+            : pkg.Exclusions
+        parts.push(`Exclusions: ${exclusions}`)
+    }
+
+    // 6. Hotel Info
+    if (pkg.Star_Category) parts.push(`Hotel Tier: ${pkg.Star_Category}`)
+    if (pkg.Stay_Type) parts.push(`Stay Type: ${pkg.Stay_Type}`)
+
+    // 7. Duration
+    if (pkg.Duration) parts.push(`Duration: ${pkg.Duration}`)
+
+    // 8. Condensed Itinerary (Day Titles & Details) - Critical for activity search
+    if (pkg.Day_Wise_Itinerary_Details && Array.isArray(pkg.Day_Wise_Itinerary_Details)) {
+        const itineraryText = pkg.Day_Wise_Itinerary_Details
+            .map((d: any) => `Day ${d.day}: ${d.title}. ${d.description || ''}`)
+            .join(' | ')
+        parts.push(`Itinerary: ${itineraryText}`)
+    } else if (pkg.Day_Wise_Itinerary && Array.isArray(pkg.Day_Wise_Itinerary)) {
+        // Fallback for older format
+        const itineraryText = pkg.Day_Wise_Itinerary
+            .map((d: any) => `Day ${d.day}: ${d.title || d.description}`)
+            .join(' | ')
+        parts.push(`Itinerary: ${itineraryText}`)
     }
 
     return parts.join('. ')
