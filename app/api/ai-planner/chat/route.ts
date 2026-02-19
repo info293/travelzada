@@ -58,7 +58,7 @@ export async function POST(request: Request) {
             typeof msg?.content === 'string' &&
             (msg?.role === 'assistant' || msg?.role === 'user')
         )
-        .slice(-12) // Keep last 12 messages for better context
+        .slice(-50) // Keep last 50 messages for better context retention
         .map((msg: any) => ({
           role: msg.role === 'assistant' ? 'assistant' : 'user',
           content: msg.content as string,
