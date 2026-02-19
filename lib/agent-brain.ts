@@ -13,8 +13,9 @@ export interface AgentDecision {
         destination?: string
         theme?: string
         mood?: string
-        duration?: string
+        duration?: { min: number; max: number }
         travelType?: string
+        hotel?: { minStar?: number; category?: string }
     }
 }
 
@@ -48,12 +49,14 @@ OUTPUT FORMAT:
 Return a PURE JSON object (no markdown):
 {
   "intent": "SEARCH_PACKAGES",
-  "reasoning": "User asked for a honeymoon trip to Bali under 1 lakh",
+  "reasoning": "User asked for a honeymoon trip to Bali under 1 lakh with 5 star hotel",
   "searchQuery": "Bali honeymoon premium resort private pool",
   "filters": {
     "destination": "Bali",
     "theme": "Honeymoon",
-    "budget": { "max": 100000 }
+    "budget": { "max": 100000 },
+    "duration": { "min": 6, "max": 8 },
+    "hotel": { "minStar": 5, "category": "Luxury" }
   }
 }
 `

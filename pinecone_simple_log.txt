@@ -1,0 +1,36 @@
+Loaded env from F:\Freelacing Projects\travelingproject\.env
+Importing pinecone...
+Targeting index: travelzada-packages
+Fetching index stats...
+Index Stats: {"namespaces":{"__default__":{"recordCount":86}},"dimension":1536,"indexFullness":0,"totalRecordCount":86}
+Querying for Duration_Days == 5...
+Found 29 matches with Duration_Days == 5.
+ID: BjYJW5AzVPeQluKwsU29, Name: "Phuket-Krabi Couple Special", Duration: 4 Nights / 5 Days
+ID: yXOIBntzMNGKmg4RfuxK, Name: "Royal Kerala Honeymoon Retreat", Duration: 4 Nights / 5 Days
+ID: 6jNXOMNIh4sbylo3Wnmy, Name: "Phuket-Krabi Newlywed Special", Duration: 4 Nights / 5 Days
+ID: Y99iqffItL1lyRRUCEpZ, Name: "Grand Signature Kerala Honeymoon", Duration: 4 Nights / 5 Days
+ID: CH3dj1utFsZIb0qRGWmE, Name: "Phuket-Krabi Honeymoon Delight", Duration: 4 Nights / 5 Days
+ID: VuwvxnkgkI0UegSodiTc, Name: "Majestic Kerala Honeymoon Experience", Duration: 4 Nights / 5 Days
+ID: OGp2Q1cFDZyY6NSVO0lq, Name: "Perfect Honeymoon in Kerala", Duration: 4 Nights / 5 Days
+ID: UlVh1o6T83ifl4LfC3Vf, Name: "Best of Singapore Leisure Package", Duration: 4 Nights / 5 Days
+ID: J7JOmBrSZs2jb113gDJk, Name: "Signature Singapore Grand Escape", Duration: 4 Nights / 5 Days
+ID: 90mTsMJP2iLg6ezXG3xF, Name: "Andaman Blue Water Escape", Duration: 4 Nights / 5 Days
+ID: RsQ2bGPGwzwudxghIli8, Name: "Luxury Honeymoon Edition", Duration: 4 Nights / 5 Days
+ID: zYfaM4KSVcKdbPRGgEw9, Name: "Signature Luxury Honeymoon", Duration: 4 Nights / 5 Days
+ID: mutwYsZjK9JtS5uMHLXw, Name: "Andaman Sunny Island Tour", Duration: 4 Nights / 5 Days
+ID: GGrGeubYWHTfmeqRr548, Name: "Royal Signature Kashmir Honeymoon", Duration: 4 Nights / 5 Days
+ID: lFt3RUq9mJnT2IyMFsiv, Name: "Signature Singapore Private Romantic Experience", Duration: 4 Nights / 5 Days
+ID: gVpIgbLR8j9r0nBjywsE, Name: "Kerala – Alleppey, Thekkady & Munnar", Duration: 4 Nights / 5 Days
+ID: PypVsVjZQifB6IfxeihW, Name: "Andaman Coral Coast Experience", Duration: 4 Nights / 5 Days
+ID: eRiEIaAGLCwpAa9wd8Si, Name: "Singapore Highlights Tour for Couples", Duration: 4 Nights / 5 Days
+ID: RPQwSFme0paDoW0ZIbAx, Name: "Singapore Premium Couple Experience", Duration: 4 Nights / 5 Days
+ID: ibrym6hTr2v7NnAWx1th, Name: "Kerala – Munnar, Thekkady & Alleppey", Duration: 4 Nights / 5 Days
+ID: JewVm9j0H9UebYHVMPM8, Name: "Singapore City Highlights Tour", Duration: 4 Nights / 5 Days
+ID: RBLDwmQXdzeuiWudnG9E, Name: "Blissful Kerala Honeymoon Escape", Duration: 4 Nights / 5 Days
+ID: GOnxHLRKYVQ4uMuNj7TS, Name: "Kashmir Valley Love Escape", Duration: 4 Nights / 5 Days
+ID: CY6fbG01Jrfvi8Imfnj7, Name: "Snowfall Romance in Kashmir", Duration: 4 Nights / 5 Days
+ID: t6i08iOz8Ra1NJM5mSi2, Name: "Kashmir Romantic Getaway", Duration: 4 Nights / 5 Days
+ID: rhrJeSNX3NjGbB45nfpQ, Name: "Snow-Kissed Kashmir Romance", Duration: 4 Nights / 5 Days
+ID: atcgd2dxW4Eowyoh5YiW, Name: "Luxury Honeymoon in Baku", Duration: 4 Nights / 5 Days
+ID: mqjYXRXxIu0weAOe5PY9, Name: "European Feels in Baku", Duration: 4 Nights / 5 Days
+ID: dBDkuPcf1Jwhq0qazMxt, Name: "Baku Adventure Couple Tour", Duration: 4 Nights / 5 Days

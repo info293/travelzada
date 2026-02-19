@@ -1,0 +1,55 @@
+🚀 Starting check-pinecone-data.ts
+✅ Loaded env from F:\Freelacing Projects\travelingproject\.env
+📦 Importing Pinecone lib...
+🌲 Targeting Pinecone Index: travelzada-packages
+🔍 Generating embedding for 'Bali'...
+✨ Generated embedding with length: 1536
+✨ Querying index with vector...
+✅ Found 5 matches.
+
+--- Match 1 (Score: 0.5713) ---
+ID: hyYbgs40K5Won7DTFeWP
+Name: Bali Relaxing Trip
+Duration: "7 Nights / 8 Days"
+Duration_Days: 8 (Type: number)
+Star_Rating: 5 (Type: number)
+Price: 62000
+Travel_Type: Couple
+
+--- Match 2 (Score: 0.5647) ---
+ID: WOsz9HrLtWnWPrEbsEkS
+Name: Bali Rejuvenation with Spa
+Duration: "6 Nights / 7 Days"
+Duration_Days: 7 (Type: number)
+Star_Rating: 4 (Type: number)
+Price: 43000
+Travel_Type: Couple
+
+--- Match 3 (Score: 0.5574) ---
+ID: 9OGD2ekY42wDkqNUYwqh
+Name: Bali Birthday Special
+Duration: "5 Nights / 6 Days"
+Duration_Days: 6 (Type: number)
+Star_Rating: 4 (Type: number)
+Price: 37500
+Travel_Type: Couple
+
+--- Match 4 (Score: 0.5568) ---
+ID: jatrg5JgOnAkbuCz688p
+Name: Bali with Nusa Penida
+Duration: "7 Nights / 8 Days"
+Duration_Days: 8 (Type: number)
+Star_Rating: 4 (Type: number)
+Price: 54000
+Travel_Type: Couple
+
+--- Match 5 (Score: 0.5540) ---
+ID: n1coE2ia8Hi8X7PGjlPb
+Name: Bali Temple Tour with Sari Timbul
+Duration: "6 Nights / 7 Days"
+Duration_Days: 7 (Type: number)
+Star_Rating: 4 (Type: number)
+Price: 48000
+Travel_Type: Couple
+
+🏁 Done.

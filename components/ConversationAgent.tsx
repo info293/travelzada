@@ -3324,6 +3324,127 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                   layout
                   className="flex flex-col gap-2 w-full"
                 >
+                  {/* REORDERED: Render Recommended Packages FIRST if present */}
+                  {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
+                    <div className="pl-0 md:pl-11 w-full mb-2">
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden w-full max-w-3xl mx-auto">
+                        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Recommended for you</span>
+                          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline-block">Based on your preferences</span>
+                        </div>
+
+                        <div className="divide-y divide-gray-100">
+                          {message.recommendations.slice(0, 1).map((pkg) => {
+                            const pkgAny = pkg as any
+                            const imageUrl = pkgAny.Primary_Image_URL
+                              ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+                              : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+
+                            const slugify = (text: string) => {
+                              return text
+                                .toString()
+                                .toLowerCase()
+                                .replace(/\s+/g, '-')
+                                .replace(/[^\w\-]+/g, '')
+                                .replace(/\-\-+/g, '-')
+                                .replace(/^-+/, '')
+                                .replace(/-+$/, '')
+                            }
+
+                            const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
+                            const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
+                            const destSlug = slugify(destinationName)
+                            const finalDestSlug = destSlug.endsWith('-packages') ? destSlug : `${destSlug}-packages`
+                            const packageSlug = pkgAny.Slug || slugify(pkgAny.Title || pkgAny.Package_Name || pkgAny.Destination_Name + '-' + packageId)
+                            const finalPackageId = packageSlug
+                            const packageUrl = `/destinations/${finalDestSlug}/${finalPackageId}`
+
+                            return (
+                              <div key={pkgAny.Destination_ID || pkgAny.id} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                                <div className="flex flex-col sm:flex-row">
+                                  {/* Image Section - Left Side */}
+                                  <div className="relative w-full sm:w-40 h-32 sm:h-auto flex-shrink-0">
+                                    <img
+                                      src={imageUrl}
+                                      alt={pkgAny.Destination_Name}
+                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
+                                      }}
+                                    />
+                                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:opacity-40" />
+                                    <div className="absolute bottom-2 left-3 text-white sm:hidden">
+                                      <p className="font-bold text-base">₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}</p>
+                                    </div>
+                                    {/* Best Match Badge */}
+                                    <div className="absolute top-2 left-2">
+                                      <span className="bg-white/95 backdrop-blur text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                                        <Sparkles className="w-3 h-3 text-purple-600" />
+                                        Best Match
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Content Section - Right Side */}
+                                  <div className="flex-1 p-3 flex flex-col justify-between relative">
+                                    <div>
+                                      <div className="flex justify-between items-start mb-1">
+                                        <div>
+                                          <h4 className="text-base font-bold text-gray-900 line-clamp-1 group-hover:text-purple-700 transition-colors">
+                                            {pkgAny.Destination_Name}
+                                          </h4>
+                                          <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wide mt-0.5">
+                                            {pkgAny.Duration || 'Flexible Duration'}
+                                          </p>
+                                        </div>
+                                        <div className="hidden sm:block text-right">
+                                          <p className="text-lg font-bold text-purple-700">
+                                            ₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}
+                                          </p>
+                                          <p className="text-[9px] text-gray-400 font-medium">per person</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-wrap gap-1.5 mb-2">
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100">
+                                          <Building className="w-2.5 h-2.5 mr-1 text-gray-400" />
+                                          {pkgAny.Star_Category || 'Premium Stay'}
+                                        </span>
+                                        {pkgAny.Travel_Type && (
+                                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-50 text-gray-600 border border-gray-100">
+                                            <Users className="w-2.5 h-2.5 mr-1 text-gray-400" />
+                                            {pkgAny.Travel_Type}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <p className="text-xs text-gray-600 line-clamp-1 leading-relaxed mb-2">
+                                        {pkgAny.Overview || 'Experience the magic of this destination with our curated package designed for relaxation and adventure.'}
+                                      </p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50">
+                                      <div className="text-[10px] text-gray-400 font-medium">
+                                        Includes Hotels, Meals & Transfers
+                                      </div>
+                                      <Link
+                                        href={packageUrl}
+                                        className="inline-flex items-center justify-center px-4 py-1.5 border border-transparent text-xs font-bold rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                                      >
+                                        View Details
+                                        <ChevronRight className="ml-1 -mr-0.5 w-3 h-3" />
+                                      </Link>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div
                     className={`flex items-start gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
@@ -3371,127 +3492,6 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                       </div>
                     )}
                   </div>
-
-                  {/* Render Recommended Packages if present */}
-                  {message.role === 'assistant' && message.recommendations && message.recommendations.length > 0 && (
-                    <div className="pl-0 md:pl-11 w-full mt-4 mb-2">
-                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden w-full max-w-3xl mx-auto">
-                        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Recommended for you</span>
-                          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline-block">Based on your preferences</span>
-                        </div>
-
-                        <div className="divide-y divide-gray-100">
-                          {message.recommendations.slice(0, 1).map((pkg) => {
-                            const pkgAny = pkg as any
-                            const imageUrl = pkgAny.Primary_Image_URL
-                              ? pkgAny.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                              : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-
-                            const slugify = (text: string) => {
-                              return text
-                                .toString()
-                                .toLowerCase()
-                                .replace(/\s+/g, '-')
-                                .replace(/[^\w\-]+/g, '')
-                                .replace(/\-\-+/g, '-')
-                                .replace(/^-+/, '')
-                                .replace(/-+$/, '')
-                            }
-
-                            const packageId = pkgAny.Destination_ID || pkgAny.id || 'package'
-                            const destinationName = tripInfo.destination || pkgAny.Destination_Name || 'Bali'
-                            const destSlug = slugify(destinationName)
-                            const finalDestSlug = destSlug.endsWith('-packages') ? destSlug : `${destSlug}-packages`
-                            const packageSlug = pkgAny.Slug || slugify(pkgAny.Title || pkgAny.Package_Name || pkgAny.Destination_Name + '-' + packageId)
-                            const finalPackageId = packageSlug
-                            const packageUrl = `/destinations/${finalDestSlug}/${finalPackageId}`
-
-                            return (
-                              <div key={pkgAny.Destination_ID || pkgAny.id} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                                <div className="flex flex-col sm:flex-row">
-                                  {/* Image Section - Left Side */}
-                                  <div className="relative w-full sm:w-56 h-48 sm:h-auto flex-shrink-0">
-                                    <img
-                                      src={imageUrl}
-                                      alt={pkgAny.Destination_Name}
-                                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                      onError={(e) => {
-                                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                                      }}
-                                    />
-                                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 sm:opacity-40" />
-                                    <div className="absolute bottom-3 left-3 text-white sm:hidden">
-                                      <p className="font-bold text-lg">₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}</p>
-                                    </div>
-                                    {/* Best Match Badge */}
-                                    <div className="absolute top-3 left-3">
-                                      <span className="bg-white/95 backdrop-blur text-purple-700 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm flex items-center gap-1">
-                                        <Sparkles className="w-3 h-3 text-purple-600" />
-                                        Best Match
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  {/* Content Section - Right Side */}
-                                  <div className="flex-1 p-5 flex flex-col justify-between relative">
-                                    <div>
-                                      <div className="flex justify-between items-start mb-2">
-                                        <div>
-                                          <h4 className="text-xl font-bold text-gray-900 line-clamp-1 group-hover:text-purple-700 transition-colors">
-                                            {pkgAny.Destination_Name}
-                                          </h4>
-                                          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mt-1">
-                                            {pkgAny.Duration || 'Flexible Duration'}
-                                          </p>
-                                        </div>
-                                        <div className="hidden sm:block text-right">
-                                          <p className="text-xl font-bold text-purple-700">
-                                            ₹{pkgAny.Price_Range_INR ? String(pkgAny.Price_Range_INR).replace(/[^0-9]/g, '') : 'On Request'}
-                                          </p>
-                                          <p className="text-[10px] text-gray-400 font-medium">per person</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="flex flex-wrap gap-2 mb-3">
-                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100">
-                                          <Building className="w-3 h-3 mr-1.5 text-gray-400" />
-                                          {pkgAny.Star_Category || 'Premium Stay'}
-                                        </span>
-                                        {pkgAny.Travel_Type && (
-                                          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-50 text-gray-600 border border-gray-100">
-                                            <Users className="w-3 h-3 mr-1.5 text-gray-400" />
-                                            {pkgAny.Travel_Type}
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed mb-4">
-                                        {pkgAny.Overview || 'Experience the magic of this destination with our curated package designed for relaxation and adventure.'}
-                                      </p>
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 mt-auto border-t border-gray-50">
-                                      <div className="text-xs text-gray-400 font-medium">
-                                        Includes Hotels, Meals & Transfers
-                                      </div>
-                                      <Link
-                                        href={packageUrl}
-                                        className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-bold rounded-xl text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                                      >
-                                        View Details
-                                        <ChevronRight className="ml-1.5 -mr-0.5 w-4 h-4" />
-                                      </Link>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Render Quick Action Text Links (ChatGPT-style) if present */}
                   {message.role === 'assistant' && message.quickActions && message.quickActions.length > 0 && (

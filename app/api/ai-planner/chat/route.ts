@@ -99,6 +99,9 @@ export async function POST(request: Request) {
         semanticResults = await searchSimilarPackages(decision.searchQuery, 4, decision.filters)
 
         console.log(`[Agent] ✅ Found ${semanticResults.length} relevant packages`)
+        if (semanticResults.length > 0) {
+          console.log('[Agent] 📦 Packages Found:', semanticResults.map((p: any) => p.Destination_Name).join(', '))
+        }
       } catch (semanticError: any) {
         console.warn('[Agent] ⚠️ Search failed:', semanticError.message)
       }
