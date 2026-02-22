@@ -1,6 +1,5 @@
-'use client'
-
-import { useEffect } from 'react'
+// Server Component — no 'use client' needed
+// Renders JSON-LD schema as a <script> tag on the server
 
 interface OrganizationSchema {
   '@context': string
@@ -88,30 +87,13 @@ interface SchemaMarkupProps {
 }
 
 export default function SchemaMarkup({ schema, id = 'schema-markup' }: SchemaMarkupProps) {
-  useEffect(() => {
-    // Add schema to page
-    const script = document.createElement('script')
-    script.type = 'application/ld+json'
-    script.id = id
-    script.text = JSON.stringify(schema)
-    
-    // Remove existing schema if present
-    const existingScript = document.getElementById(id)
-    if (existingScript) {
-      existingScript.remove()
-    }
-    
-    document.head.appendChild(script)
-    
-    return () => {
-      const scriptToRemove = document.getElementById(id)
-      if (scriptToRemove) {
-        scriptToRemove.remove()
-      }
-    }
-  }, [schema, id])
-
-  return null
+  return (
+    <script
+      id={id}
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
 }
 
 // Helper function to generate Organization schema
@@ -133,13 +115,13 @@ export function generateOrganizationSchema(data: {
     description: data.description || 'Plan your perfect trip in seconds with Travelzada. AI-powered travel planning with human expertise.',
     ...(data.email || data.phone
       ? {
-          contactPoint: {
-            '@type': 'ContactPoint',
-            ...(data.phone ? { telephone: data.phone } : {}),
-            ...(data.email ? { email: data.email } : {}),
-            contactType: 'Customer Service',
-          },
-        }
+        contactPoint: {
+          '@type': 'ContactPoint',
+          ...(data.phone ? { telephone: data.phone } : {}),
+          ...(data.email ? { email: data.email } : {}),
+          contactType: 'Customer Service',
+        },
+      }
       : {}),
     ...(data.socialMedia && data.socialMedia.length > 0
       ? { sameAs: data.socialMedia }
@@ -167,16 +149,16 @@ export function generateTravelPackageSchema(data: {
     image: data.image,
     ...(data.duration
       ? {
-          duration: data.duration,
-        }
+        duration: data.duration,
+      }
       : {}),
     ...(data.destination
       ? {
-          destination: {
-            '@type': 'Place',
-            name: data.destination,
-          },
-        }
+        destination: {
+          '@type': 'Place',
+          name: data.destination,
+        },
+      }
       : {}),
     provider: {
       '@type': 'TravelAgency',
@@ -184,15 +166,15 @@ export function generateTravelPackageSchema(data: {
     },
     ...(data.price || data.priceRange
       ? {
-          offers: {
-            '@type': 'Offer',
-            priceCurrency: data.currency || 'INR',
-            ...(data.price ? { price: data.price } : {}),
-            ...(data.priceRange ? { priceRange: data.priceRange } : {}),
-            availability: 'https://schema.org/InStock',
-            ...(data.url ? { url: data.url } : {}),
-          },
-        }
+        offers: {
+          '@type': 'Offer',
+          priceCurrency: data.currency || 'INR',
+          ...(data.price ? { price: data.price } : {}),
+          ...(data.priceRange ? { priceRange: data.priceRange } : {}),
+          availability: 'https://schema.org/InStock',
+          ...(data.url ? { url: data.url } : {}),
+        },
+      }
       : {}),
   }
 }
@@ -214,11 +196,11 @@ export function generateArticleSchema(data: {
     image: data.image,
     ...(data.author
       ? {
-          author: {
-            '@type': 'Person',
-            name: data.author,
-          },
-        }
+        author: {
+          '@type': 'Person',
+          name: data.author,
+        },
+      }
       : {}),
     ...(data.datePublished ? { datePublished: data.datePublished } : {}),
     ...(data.dateModified ? { dateModified: data.dateModified } : {}),
