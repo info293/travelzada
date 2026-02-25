@@ -1,15 +1,36 @@
-'use client'
-
-import { useState, useEffect } from 'react'
+import { Metadata } from 'next'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import DestinationCard from '@/components/DestinationCard'
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import DestinationsClient from './DestinationsClient'
 import travelDatabase from '@/data/travel-database.json'
 
 const travelData = travelDatabase as any
+
+// Removed 'use client' and static firebase imports for SSR safety
+
+export const metadata: Metadata = {
+  title: 'Explore Destinations | Travelzada - Travel Packages Worldwide',
+  description: 'Discover amazing travel destinations worldwide. Browse Bali, Thailand, Maldives, Europe and more. Find curated travel packages and itineraries.',
+  alternates: {
+    canonical: 'https://www.travelzada.com/destinations',
+  },
+  openGraph: {
+    title: 'Explore Destinations | Travelzada',
+    description: 'Discover amazing travel destinations worldwide with curated packages.',
+    url: 'https://www.travelzada.com/destinations',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Explore Destinations | Travelzada',
+    description: 'Discover amazing travel destinations worldwide with curated packages.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+}
 
 interface Destination {
   id?: string
@@ -22,76 +43,47 @@ interface Destination {
   packageIds?: string[]
 }
 
-export default function DestinationsPage() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filterCountry, setFilterCountry] = useState('all')
-  const [destinations, setDestinations] = useState<Destination[]>([])
-  const [loading, setLoading] = useState(true)
+// Fetch destinations server-side
+async function fetchDestinations(): Promise<Destination[]> {
+  try {
+    // Dynamic import to prevent SSR side-effects
+    const { db } = await import('@/lib/firebase')
+    const { collection, getDocs } = await import('firebase/firestore')
 
-  useEffect(() => {
-    // Set page SEO
-    document.title = 'Explore Destinations | Travelzada - Travel Packages Worldwide'
-    const metaDescription = document.querySelector('meta[name="description"]')
-    if (metaDescription) {
-      metaDescription.setAttribute('content', 'Discover amazing travel destinations worldwide. Browse Bali, Thailand, Maldives, Europe and more. Find curated travel packages and itineraries.')
+    if (!db) {
+      // Fallback to JSON data if Firebase is not initialized
+      return travelData.destinations.filter((d: any) =>
+        d.name.toLowerCase() === 'bali'
+      )
     }
 
-    const fetchDestinations = async () => {
-      if (typeof window === 'undefined' || !db) {
-        // Fallback to JSON data
-        const allDestinations = travelData.destinations.filter((d: any) =>
-          d.name.toLowerCase() === 'bali'
-        )
-        setDestinations(allDestinations)
-        setLoading(false)
-        return
-      }
+    const destinationsRef = collection(db, 'destinations')
+    const querySnapshot = await getDocs(destinationsRef)
+    const destinationsData: Destination[] = []
 
-      try {
-        const destinationsRef = collection(db, 'destinations')
-        const querySnapshot = await getDocs(destinationsRef)
-        const destinationsData: Destination[] = []
+    querySnapshot.forEach((doc) => {
+      destinationsData.push({ id: doc.id, ...doc.data() } as Destination)
+    })
 
-        querySnapshot.forEach((doc) => {
-          destinationsData.push({ id: doc.id, ...doc.data() } as Destination)
-        })
-
-        // If no destinations in Firestore, fallback to JSON
-        if (destinationsData.length === 0) {
-          const allDestinations = travelData.destinations.filter((d: any) =>
-            d.name.toLowerCase() === 'bali'
-          )
-          setDestinations(allDestinations)
-        } else {
-          setDestinations(destinationsData)
-        }
-      } catch (error) {
-        console.error('Error fetching destinations:', error)
-        // Fallback to JSON data
-        const allDestinations = travelData.destinations.filter((d: any) =>
-          d.name.toLowerCase() === 'bali'
-        )
-        setDestinations(allDestinations)
-      } finally {
-        setLoading(false)
-      }
+    // If no destinations in Firestore, fallback to JSON
+    if (destinationsData.length === 0) {
+      return travelData.destinations.filter((d: any) =>
+        d.name.toLowerCase() === 'bali'
+      )
     }
 
-    fetchDestinations()
-  }, [])
+    return destinationsData
+  } catch (error) {
+    console.error('Error fetching destinations:', error)
+    // Fallback to JSON data
+    return travelData.destinations.filter((d: any) =>
+      d.name.toLowerCase() === 'bali'
+    )
+  }
+}
 
-
-  const countrySet = new Set<string>(destinations.map((d) => d.country))
-  const countries: string[] = ['all', ...Array.from(countrySet)]
-
-  // Filter destinations
-  const filteredDestinations = destinations.filter((destination) => {
-    const matchesSearch = destination.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      destination.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      destination.country.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCountry = filterCountry === 'all' || destination.country === filterCountry
-    return matchesSearch && matchesCountry
-  })
+export default async function DestinationsPage() {
+  const destinations = await fetchDestinations()
 
   return (
     <main className="min-h-screen bg-white">
@@ -118,82 +110,8 @@ export default function DestinationsPage() {
         </div>
       </section>
 
-      {/* Search and Filter Section */}
-      <section className="py-4 px-4 md:px-12 bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="Search destinations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
-              />
-            </div>
-
-            {/* Country Filter */}
-            <div className="md:w-64 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <select
-                value={filterCountry}
-                onChange={(e) => setFilterCountry(e.target.value)}
-                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none bg-white transition-all shadow-sm"
-              >
-                {countries.map((country) => (
-                  <option key={country} value={country}>
-                    {country === 'all' ? 'All Countries' : country}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Results Count */}
-          <div className="mt-4 text-sm text-gray-600">
-            Showing {filteredDestinations.length} of {destinations.length} destinations
-          </div>
-        </div>
-      </section>
-
-      {/* Destinations Grid */}
-      <section className="py-8 md:py-16 px-4 md:px-12">
-        <div className="max-w-6xl mx-auto">
-          {loading ? (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading destinations...</p>
-            </div>
-          ) : filteredDestinations.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredDestinations.map((destination, index) => (
-                <DestinationCard key={destination.id || index} destination={destination} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">No destinations found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Client Component for Interactive Features */}
+      <DestinationsClient initialDestinations={destinations} />
 
       <Footer />
     </main>
