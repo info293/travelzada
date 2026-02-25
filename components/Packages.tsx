@@ -1,12 +1,7 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 import { getDestinationSlugFromPackage, getPackageIdFromPackage } from '@/lib/destinationSlugMapper'
 
-interface FirestorePackage {
+export interface FirestorePackage {
   id?: string
   Destination_Name: string
   Duration: string
@@ -15,110 +10,84 @@ interface FirestorePackage {
   Star_Category?: string
   Travel_Type?: string
   Destination_ID?: string
+  createdAt?: any
 }
 
-export default function Packages() {
-  const [packages, setPackages] = useState<FirestorePackage[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchPackages = async () => {
-      if (typeof window === 'undefined' || !db) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        // Fetch all packages from Firestore and filter for Bali
-        const packagesRef = collection(db, 'packages')
-        const allPackagesSnapshot = await getDocs(packagesRef)
-        const packagesData: FirestorePackage[] = []
-
-        allPackagesSnapshot.forEach((doc) => {
-          const data = doc.data() as FirestorePackage
-          const destinationId = (data.Destination_ID || '').toLowerCase()
-          const destinationName = (data.Destination_Name || '').toLowerCase()
-
-          // Check if "bali" appears in Destination_ID or Destination_Name
-          if (destinationId.includes('bali') || destinationName.includes('bali')) {
-            packagesData.push({ id: doc.id, ...data })
-          }
-        })
-
-        // Sort by createdAt if available, otherwise keep original order
-        packagesData.sort((a, b) => {
-          const aDate = (a as any).createdAt || 0
-          const bDate = (b as any).createdAt || 0
-          return bDate - aDate // Newest first
-        })
-
-        // Take first 4 Bali packages
-        setPackages(packagesData.slice(0, 4))
-      } catch (error) {
-        console.error('Error fetching packages:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPackages()
-  }, [])
-
-  // Helper function to extract image URL from markdown format
-  const getImageUrl = (imageUrl: string | undefined): string => {
-    if (!imageUrl) {
-      return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80'
-    }
-    // Handle markdown format: [alt text](url)
-    return imageUrl.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+// Helper function to extract image URL from markdown format
+const getImageUrl = (imageUrl: string | undefined): string => {
+  if (!imageUrl) {
+    return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80'
   }
+  // Handle markdown format: [alt text](url)
+  return imageUrl.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+}
 
-  // Helper function to format price
-  const formatPrice = (priceRange: string | number | undefined): string => {
-    if (!priceRange) return 'Contact for price'
+// Helper function to format price
+const formatPrice = (priceRange: string | number | undefined): string => {
+  if (!priceRange) return 'Contact for price'
 
-    const priceStr = String(priceRange)
+  const priceStr = String(priceRange)
 
-    // If it's already formatted, return as is
-    if (priceStr.includes('₹') || priceStr.includes('INR')) {
-      return priceStr
-    }
-    // Otherwise, try to extract first number and format
-    const match = priceStr.match(/(\d+)/)
-    if (match) {
-      return `₹${parseInt(match[1]).toLocaleString('en-IN')}`
-    }
+  // If it's already formatted, return as is
+  if (priceStr.includes('₹') || priceStr.includes('INR')) {
     return priceStr
   }
-
-  // Helper function to get badge
-  const getBadge = (pkg: FirestorePackage): string | undefined => {
-    if (pkg.Star_Category) {
-      return pkg.Star_Category
-    }
-    if (pkg.Travel_Type) {
-      return pkg.Travel_Type
-    }
-    return undefined
+  // Otherwise, try to extract first number and format
+  const match = priceStr.match(/(\d+)/)
+  if (match) {
+    return `₹${parseInt(match[1]).toLocaleString('en-IN')}`
   }
+  return priceStr
+}
 
-  // Using centralized mapper functions from lib/destinationSlugMapper
-
-  if (loading) {
-    return (
-      <section className="py-24 px-4 md:px-8 lg:px-12 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-[#fef6f1] to-white"></div>
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading packages...</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    )
+// Helper function to get badge
+const getBadge = (pkg: FirestorePackage): string | undefined => {
+  if (pkg.Star_Category) {
+    return pkg.Star_Category
   }
+  if (pkg.Travel_Type) {
+    return pkg.Travel_Type
+  }
+  return undefined
+}
+
+async function fetchPackages(): Promise<FirestorePackage[]> {
+  try {
+    const { db } = await import('@/lib/firebase')
+    const { collection, getDocs } = await import('firebase/firestore')
+
+    const packagesRef = collection(db, 'packages')
+    const allPackagesSnapshot = await getDocs(packagesRef)
+    const packagesData: FirestorePackage[] = []
+
+    allPackagesSnapshot.forEach((doc) => {
+      const data = doc.data() as FirestorePackage
+      const destinationId = (data.Destination_ID || '').toLowerCase()
+      const destinationName = (data.Destination_Name || '').toLowerCase()
+
+      // Check if "bali" appears in Destination_ID or Destination_Name
+      if (destinationId.includes('bali') || destinationName.includes('bali')) {
+        packagesData.push({ id: doc.id, ...data })
+      }
+    })
+
+    // Sort by createdAt if available, otherwise keep original order
+    packagesData.sort((a, b) => {
+      const aDate = a.createdAt || 0
+      const bDate = b.createdAt || 0
+      return bDate - aDate // Newest first
+    })
+
+    // Take first 4 Bali packages
+    return packagesData.slice(0, 4)
+  } catch (error) {
+    console.error('Error fetching packages:', error)
+    return []
+  }
+}
+
+export default async function Packages() {
+  const packages = await fetchPackages()
 
   if (packages.length === 0) {
     return null // Don't show section if no packages
@@ -147,7 +116,7 @@ export default function Packages() {
             const destinationSlug = getDestinationSlugFromPackage(pkg)
             const packageId = getPackageIdFromPackage(pkg)
             const badge = getBadge(pkg)
-            const price = formatPrice(pkg.Price_Range_INR)
+            // const price = formatPrice(pkg.Price_Range_INR)
 
             return (
               <Link
@@ -160,9 +129,6 @@ export default function Packages() {
                     src={imageUrl}
                     alt={pkg.Destination_Name}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80'
-                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                   {badge && (
@@ -174,7 +140,6 @@ export default function Packages() {
                 <div className="p-3 md:p-5 text-left">
                   <div className="flex items-center justify-between mb-1 md:mb-2">
                     <span className="text-[10px] md:text-xs text-gray-500 uppercase tracking-wide">{pkg.Duration || 'Custom'}</span>
-                    {/* <span className="text-sm font-semibold text-orange-500">{price}</span> */}
                   </div>
                   <h3 className="text-sm md:text-lg font-semibold text-gray-900 mb-0.5 md:mb-1 line-clamp-1">{pkg.Destination_Name}</h3>
                   <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-4 line-clamp-1">{destinationSlug}</p>
