@@ -1,6 +1,6 @@
 'use client'
 
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, Polyline, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { useEffect, useState, useRef, useMemo } from 'react'
@@ -31,6 +31,24 @@ const customDotIcon = L.divIcon({
     popupAnchor: [0, -12],
 })
 
+// Create a numbered circle icon
+const createNumberedIcon = (numStr: string, isBase: boolean = false) => {
+    return L.divIcon({
+        className: 'custom-map-marker',
+        html: `
+            <div class="relative flex items-center justify-center w-10 h-10 transition-transform duration-200 hover:scale-110">
+                <div class="absolute w-8 h-8 ${isBase ? 'bg-indigo-500' : 'bg-primary'} rounded-full shadow-lg border-2 border-white z-10 flex items-center justify-center cursor-pointer">
+                    <span class="text-white font-bold text-xs">${numStr}</span>
+                </div>
+                ${isBase ? '<div class="absolute w-8 h-8 bg-indigo-500 rounded-full animate-ping opacity-50 pointer-events-none"></div>' : ''}
+            </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20],
+    })
+}
+
 // User Location icon (Green pulse)
 const userLocationIcon = L.divIcon({
     className: 'user-location-marker',
@@ -46,18 +64,22 @@ const userLocationIcon = L.divIcon({
 })
 
 // Auto-bounds hook to adjust map view when points change
-function MapBounds({ positions }: { positions: [number, number][] }) {
+function MapBounds({ positions, focusZoom = 6 }: { positions: [number, number][], focusZoom?: number }) {
     const map = useMap()
 
+    // Stabilize positions to prevent map bounce on every render
+    const stablePositions = useMemo(() => JSON.stringify(positions), [positions])
+
     useEffect(() => {
-        if (positions.length > 0) {
-            const bounds = L.latLngBounds(positions)
-            map.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 })
+        const parsedPositions = JSON.parse(stablePositions) as [number, number][]
+        if (parsedPositions.length > 0) {
+            const bounds = L.latLngBounds(parsedPositions)
+            map.fitBounds(bounds, { padding: [50, 50], maxZoom: focusZoom })
         } else {
             // Default center if no points
             map.setView([20, 0], 2)
         }
-    }, [positions, map])
+    }, [stablePositions, map, focusZoom])
 
     return null
 }
@@ -250,11 +272,12 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
 
 interface MapProps {
     mainDestination?: string;
+    mainDestinationSubtitle?: string;
     itinerary?: { title: string; day?: string }[];
     hideCarAnimation?: boolean;
 }
 
-export default function LeafletMap({ mainDestination, itinerary = [], hideCarAnimation = false }: MapProps) {
+export default function LeafletMap({ mainDestination, mainDestinationSubtitle, itinerary = [], hideCarAnimation = false }: MapProps) {
     const [coordinates, setCoordinates] = useState<{ [key: string]: [number, number] }>({})
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -296,21 +319,55 @@ export default function LeafletMap({ mainDestination, itinerary = [], hideCarAni
     // 2. Fetch Destination Coordinates
     useEffect(() => {
         const fetchCoordinates = async () => {
-            const placesToGeocode = new Set<string>();
-            if (mainDestination) placesToGeocode.add(mainDestination);
-            itinerary.forEach(item => {
-                if (item.title) placesToGeocode.add(item.title);
-            });
-
-            if (placesToGeocode.size === 0) return
-
+            setIsLoading(true)
             let hasChanges = false
             const newCoords: { [key: string]: [number, number] } = { ...coordinates }
+
+            // 2A. Try Smart AI Geocoding first for itinerary points
+            if (itinerary.length > 0) {
+                try {
+                    const pendingItinerary = itinerary.filter(item => item.title && !newCoords[item.title]);
+                    if (pendingItinerary.length > 0) {
+                        const res = await fetch('/api/tailored-travel/geocode-itinerary', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                mainDestination: mainDestination || '',
+                                itinerary: pendingItinerary
+                            })
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.coordinates) {
+                                for (const [title, coords] of Object.entries(data.coordinates)) {
+                                    newCoords[title] = coords as [number, number];
+                                    hasChanges = true;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("AI Geocoding failed, falling back", e);
+                }
+            }
+
+            // 2B. Normal Nominatim Geocoding for anything remaining (like mainDestination or failed AI points)
+            const placesToGeocode = new Set<string>();
+            if (mainDestination && !newCoords[mainDestination]) placesToGeocode.add(mainDestination);
+            itinerary.forEach(item => {
+                if (item.title && !newCoords[item.title]) placesToGeocode.add(item.title);
+            });
+
+            if (placesToGeocode.size === 0) {
+                if (hasChanges) setCoordinates(newCoords)
+                setIsLoading(false)
+                return
+            }
 
             for (const place of Array.from(placesToGeocode)) {
                 if (newCoords[place] || !place.trim()) continue;
 
-                setIsLoading(true)
                 try {
                     // Smart Query: Append main destination to itinerary items to ensure accurate geocoding
                     let searchQuery = place;
@@ -428,9 +485,20 @@ export default function LeafletMap({ mainDestination, itinerary = [], hideCarAni
 
     // Determine all bounds
     const allPositions: [number, number][] = [];
-    if (userLocation) allPositions.push(userLocation);
-    if (mainDestPos) allPositions.push(mainDestPos);
-    validItineraryPoints.forEach(pt => allPositions.push(pt.pos));
+    let focusZoom = 6;
+
+    if (hideCarAnimation) {
+        // Wizard Mode: Show macro view including starting user location
+        if (userLocation) allPositions.push(userLocation);
+        if (mainDestPos) allPositions.push(mainDestPos);
+        validItineraryPoints.forEach(pt => allPositions.push(pt.pos));
+        focusZoom = 6;
+    } else {
+        // Results Mode: Micro view focusing entirely on the destination & itinerary points
+        if (mainDestPos) allPositions.push(mainDestPos);
+        validItineraryPoints.forEach(pt => allPositions.push(pt.pos));
+        focusZoom = 13; // Zoom in much closer because temples/hotels are close together
+    }
 
     return (
         <div className="w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-inner relative z-0">
@@ -445,15 +513,16 @@ export default function LeafletMap({ mainDestination, itinerary = [], hideCarAni
                 center={[20, 0]}
                 zoom={2}
                 style={{ height: '100%', width: '100%', background: '#111827' }} // dark gray background initially
-                zoomControl={false}
+                zoomControl={true}
                 attributionControl={false}
+                scrollWheelZoom={true} // Re-enable user scroll
             >
                 {/* Standard colorful OpenStreetMap base map */}
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                <MapBounds positions={allPositions} />
+                <MapBounds positions={allPositions} focusZoom={focusZoom} />
 
                 {/* The Flight Path Line */}
                 {flightPath.length > 1 && (
@@ -483,23 +552,29 @@ export default function LeafletMap({ mainDestination, itinerary = [], hideCarAni
 
                 {/* Main Destination Marker */}
                 {mainDestPos && (
-                    <Marker position={mainDestPos} icon={customDotIcon}>
-                        <Popup className="custom-popup">
-                            <div className="font-bold text-gray-900">{mainDestination}</div>
-                            <div className="text-sm text-gray-600">Base Destination</div>
+                    <Marker position={mainDestPos} icon={createNumberedIcon("★", true)}>
+                        <Popup className="custom-popup" closeButton={false}>
+                            <div className="tooltip-card p-2 text-center">
+                                <div className="font-bold text-gray-900">{mainDestination}</div>
+                                <div className="text-xs text-gray-600 font-medium mt-1">{mainDestinationSubtitle || "Base Destination"}</div>
+                            </div>
                         </Popup>
                     </Marker>
                 )}
 
                 {/* Itinerary Destination Markers */}
                 {validItineraryPoints.map((item, index) => {
+                    // Extract just the number from "Day X"
+                    const dayNum = item.day ? item.day.replace(/[^0-9]/g, '') : `${index + 1}`
                     return (
-                        <Marker key={`itinerary-${index}`} position={item.pos} icon={customDotIcon}>
-                            <Popup className="custom-popup">
-                                <div className="font-bold text-gray-900">{item.title}</div>
-                                {item.day && (
-                                    <div className="text-sm text-primary font-bold">{item.day}</div>
-                                )}
+                        <Marker key={`itinerary-${index}`} position={item.pos} icon={createNumberedIcon(dayNum)}>
+                            <Popup className="custom-popup" closeButton={false}>
+                                <div className="tooltip-card p-2 text-center max-w-[250px] whitespace-normal">
+                                    <div className="font-bold text-gray-900 leading-tight">{item.title}</div>
+                                    {item.day && (
+                                        <div className="text-xs text-primary font-bold mt-2">{item.day}</div>
+                                    )}
+                                </div>
                             </Popup>
                         </Marker>
                     )

@@ -20,6 +20,7 @@ body {
 }
 
 @layer base {
+
   h1,
   h2,
   h3,
@@ -67,6 +68,7 @@ html {
     transform: translateY(-100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -78,6 +80,7 @@ html {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -88,6 +91,7 @@ html {
   0% {
     background-position: -1000px 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -97,18 +101,36 @@ html {
   animation: fadeInUp 0.6s ease-out backwards;
 }
 
-.header-nav-item:nth-child(1) { animation-delay: 0.1s; }
-.header-nav-item:nth-child(2) { animation-delay: 0.15s; }
-.header-nav-item:nth-child(3) { animation-delay: 0.2s; }
-.header-nav-item:nth-child(4) { animation-delay: 0.25s; }
-.header-nav-item:nth-child(5) { animation-delay: 0.3s; }
-.header-nav-item:nth-child(6) { animation-delay: 0.35s; }
+.header-nav-item:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.header-nav-item:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.header-nav-item:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.header-nav-item:nth-child(4) {
+  animation-delay: 0.25s;
+}
+
+.header-nav-item:nth-child(5) {
+  animation-delay: 0.3s;
+}
+
+.header-nav-item:nth-child(6) {
+  animation-delay: 0.35s;
+}
 
 /* Rotating globe animation */
 @keyframes spin-slow {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -140,10 +162,13 @@ html {
 
 /* Additional sparkle animation */
 @keyframes sparkle {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1) rotate(0deg);
   }
+
   50% {
     opacity: 0.7;
     transform: scale(1.2) rotate(180deg);
@@ -160,6 +185,7 @@ html {
     transform: translateY(0);
     opacity: 1;
   }
+
   100% {
     transform: translateY(-100%);
     opacity: 0;
@@ -172,6 +198,7 @@ html {
     transform: translateY(100%);
     opacity: 0;
   }
+
   100% {
     transform: translateY(0);
     opacity: 1;
@@ -189,9 +216,12 @@ html {
 
 /* Floating animation */
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-20px);
   }
@@ -203,10 +233,13 @@ html {
 
 /* Twinkle animation */
 @keyframes twinkle {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.5;
     transform: scale(0.8);
@@ -223,9 +256,11 @@ html {
     transform: translateY(-10px) translateX(0);
     opacity: 0;
   }
+
   10% {
     opacity: 1;
   }
+
   100% {
     transform: translateY(100vh) translateX(20px);
     opacity: 0;
@@ -236,3 +271,58 @@ html {
   animation: snow-fall 10s linear infinite;
 }
 
+/* Custom Leaflet Tooltip Styling - Base Container */
+.leaflet-tooltip.custom-tooltip {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+  /* Allow hover */
+}
+
+.leaflet-tooltip-top.custom-tooltip::before,
+.leaflet-tooltip-bottom.custom-tooltip::before,
+.leaflet-tooltip-left.custom-tooltip::before,
+.leaflet-tooltip-right.custom-tooltip::before {
+  display: none !important;
+  /* Hide default leaflet caret */
+}
+
+/* The actual visual card inside the tooltip */
+.custom-tooltip .tooltip-card {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  font-family: 'Inter', sans-serif;
+  color: #1f1b2c;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: normal;
+  max-width: 250px;
+  text-align: center;
+}
+
+/* Custom Leaflet Popup Styling to match Tooltips */
+.leaflet-popup-content-wrapper {
+  background-color: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+  border-radius: 0.75rem;
+  padding: 0;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.leaflet-popup-tip {
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15);
+}
