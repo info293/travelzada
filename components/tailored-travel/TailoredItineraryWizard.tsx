@@ -5,7 +5,6 @@ import Step1Destinations from './Step1Destinations'
 import Step2Route from './Step2Route'
 import Step3Group from './Step3Group'
 import Step4Stay from './Step4Stay'
-import Step5Contact from './Step5Contact'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '@/lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
@@ -34,9 +33,7 @@ export default function TailoredItineraryWizard() {
             adults: 2,
             kids: 0,
             rooms: 1
-        },
-        contactName: '',
-        contactPhone: ''
+        }
     })
 
     const updateData = (newData: Partial<typeof wizardData>) => {
@@ -53,35 +50,20 @@ export default function TailoredItineraryWizard() {
         setCurrentStep(prev => prev - 1)
     }
 
-    // Submits lead to Firebase
-    const handleSubmit = async () => {
+    // Redirects to the AI Results Page
+    const handleGenerateItinerary = () => {
         setIsSubmitting(true)
-        setError(null)
 
-        try {
-            const leadId = uuidv4()
-            await addDoc(collection(db, 'tailored_leads'), {
-                leadId,
-                status: 'new',
-                ...wizardData,
-                createdAt: serverTimestamp(),
-                source: 'tailored_travel_wizard'
-            })
-
-            // Assuming we just want to save it as a lead for now based on user instruction
-            // Route to a success page or back home with a success state
-            alert("Success! Your itinerary request has been submitted. Our team will contact you shortly on WhatsApp.")
-            router.push('/')
-
-        } catch (err: any) {
-            console.error("Error submitting tailored itinerary lead:", err)
-            setError("Something went wrong saving your request. Please try again.")
-            setIsSubmitting(false)
+        // Save preferences to session storage for the results page to pick up
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('tailored_wizard_data', JSON.stringify(wizardData))
         }
+
+        router.push('/tailored-travel/results')
     }
 
-    // Calculate Progress Percent
-    const progressPercent = ((currentStep - 1) / 4) * 100
+    // Calculate Progress Percent (Now out of 3 steps, since step 4 is the final screen)
+    const progressPercent = ((currentStep - 1) / 3) * 100
 
     return (
         <div className="w-full max-w-[90rem] mx-auto py-4 md:py-8 px-4 md:px-8 flex-1 flex flex-col">
@@ -98,7 +80,6 @@ export default function TailoredItineraryWizard() {
                                 <span className={`transition-colors ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
                                 <span className={`transition-colors ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group</span>
                                 <span className={`transition-colors ${currentStep >= 4 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Stay</span>
-                                <span className={`transition-colors ${currentStep >= 5 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Finish</span>
                             </div>
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
                                 <div
@@ -172,17 +153,9 @@ export default function TailoredItineraryWizard() {
                                         <Step4Stay
                                             data={wizardData}
                                             updateData={updateData}
-                                            onNext={handleNext}
+                                            onNext={handleGenerateItinerary}
                                             onPrev={handlePrev}
-                                        />
-                                    )}
-                                    {currentStep === 5 && (
-                                        <Step5Contact
-                                            data={wizardData}
-                                            updateData={updateData}
-                                            onSubmit={handleSubmit}
-                                            onPrev={handlePrev}
-                                            isSubmitting={isSubmitting}
+                                            isSubmitting={isSubmitting} // Need to pass to Step 4 now
                                         />
                                     )}
                                 </motion.div>

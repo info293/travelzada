@@ -48,7 +48,11 @@ export default function WizardSidePanel({
                 </div>
 
                 <div className="relative w-full flex-1">
-                    <MapComponent routeItems={routeItems} />
+                    <MapComponent
+                        mainDestination={routeItems[0]?.destination}
+                        itinerary={routeItems.length > 1 ? routeItems.slice(1).map((item: any) => ({ title: item.destination })) : []}
+                        hideCarAnimation={true}
+                    />
                 </div>
             </div>
         </div>
