@@ -2,6 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Sparkles } from 'lucide-react'
+import { marked } from 'marked'
+
+const SparkleIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+    <span
+        className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
+    />
+)
 
 interface Message {
     role: 'user' | 'assistant'
@@ -82,8 +89,8 @@ export default function TailoredResultsChat({ initialPackages, wizardData }: Tai
         <div className="flex flex-col h-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
             {/* Chat Header */}
             <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                    <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
+                    <SparkleIcon className="w-5 h-5" />
                 </div>
                 <div>
                     <h3 className="font-bold text-gray-900 leading-tight">Travelzada AI</h3>
@@ -101,10 +108,17 @@ export default function TailoredResultsChat({ initialPackages, wizardData }: Tai
                         <div
                             className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user'
                                 ? 'bg-gray-900 text-white rounded-tr-sm'
-                                : 'bg-gray-100 text-gray-800 rounded-tl-sm'
+                                : 'bg-gray-100 text-gray-800 rounded-tl-sm prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-bold prose-strong:font-bold prose-strong:text-gray-900'
                                 }`}
                         >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            {msg.role === 'user' ? (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            ) : (
+                                <div
+                                    className="text-sm"
+                                    dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
+                                />
+                            )}
                         </div>
                     </div>
                 ))}

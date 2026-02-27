@@ -51,56 +51,56 @@ export default function Step4Stay({
 
     return (
         <div className="animate-fade-in-up">
-            <div className="text-center mb-10">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
+            <div className="text-center mb-6">
+                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight drop-shadow-sm">
                     Stay Preferences
                 </h2>
-                <p className="text-lg text-gray-700 font-medium">Tell us what kind of accommodations you prefer and who is staying.</p>
+                <p className="text-base text-gray-700 font-medium">Tell us what kind of accommodations you prefer and who is staying.</p>
             </div>
 
-            <div className="max-w-3xl mx-auto space-y-8">
+            <div className="max-w-3xl mx-auto space-y-6">
 
                 {/* Room Configuration */}
-                <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-xl border border-gray-200/50">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest mb-6">
+                <div className="bg-white/40 backdrop-blur-xl rounded-2xl p-5 md:p-6 shadow-xl border border-gray-200/50">
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-4">
                         Travellers & Rooms
                     </label>
 
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                         {/* Row for Adults */}
-                        <div className="flex items-center justify-between pb-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                             <div>
-                                <h4 className="font-bold text-xl text-gray-900">Adults</h4>
-                                <p className="text-sm text-gray-500 font-medium">Ages 12 or above</p>
+                                <h4 className="font-bold text-lg text-gray-900">Adults</h4>
+                                <p className="text-xs text-gray-500 font-medium">Ages 12 or above</p>
                             </div>
-                            <div className="flex items-center bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                            <div className="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                                 <button
                                     onClick={() => updateCounter('adults', -1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >-</button>
-                                <span className="w-10 text-center font-bold text-lg text-gray-900">{data.passengers?.adults || 2}</span>
+                                <span className="w-8 text-center font-bold text-base text-gray-900">{data.passengers?.adults || 2}</span>
                                 <button
                                     onClick={() => updateCounter('adults', 1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >+</button>
                             </div>
                         </div>
 
                         {/* Row for Kids */}
-                        <div className="flex items-center justify-between pb-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                             <div>
-                                <h4 className="font-bold text-xl text-gray-900">Children</h4>
-                                <p className="text-sm text-gray-500 font-medium">Ages 2 - 11</p>
+                                <h4 className="font-bold text-lg text-gray-900">Children</h4>
+                                <p className="text-xs text-gray-500 font-medium">Ages 2 - 11</p>
                             </div>
-                            <div className="flex items-center bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                            <div className="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                                 <button
                                     onClick={() => updateCounter('kids', -1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >-</button>
-                                <span className="w-10 text-center font-bold text-lg text-gray-900">{data.passengers?.kids || 0}</span>
+                                <span className="w-8 text-center font-bold text-base text-gray-900">{data.passengers?.kids || 0}</span>
                                 <button
                                     onClick={() => updateCounter('kids', 1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >+</button>
                             </div>
                         </div>
@@ -108,18 +108,18 @@ export default function Step4Stay({
                         {/* Row for Rooms */}
                         <div className="flex items-center justify-between">
                             <div>
-                                <h4 className="font-bold text-xl text-gray-900">Rooms</h4>
-                                <p className="text-sm text-gray-500 font-medium">Total rooms needed</p>
+                                <h4 className="font-bold text-lg text-gray-900">Rooms</h4>
+                                <p className="text-xs text-gray-500 font-medium">Total rooms needed</p>
                             </div>
-                            <div className="flex items-center bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                            <div className="flex items-center bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                                 <button
                                     onClick={() => updateCounter('rooms', -1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >-</button>
-                                <span className="w-10 text-center font-bold text-lg text-gray-900">{data.passengers?.rooms || 1}</span>
+                                <span className="w-8 text-center font-bold text-base text-gray-900">{data.passengers?.rooms || 1}</span>
                                 <button
                                     onClick={() => updateCounter('rooms', 1)}
-                                    className="w-12 h-12 flex items-center justify-center text-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                                    className="w-10 h-10 flex items-center justify-center text-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
                                 >+</button>
                             </div>
                         </div>
@@ -127,24 +127,24 @@ export default function Step4Stay({
                 </div>
 
                 {/* Hotel Category */}
-                <div className="bg-white/40 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-xl border border-gray-200/50">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest mb-5">
+                <div className="bg-white/40 backdrop-blur-xl rounded-2xl p-5 md:p-6 shadow-xl border border-gray-200/50">
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-4">
                         Select Hotel Category
                     </label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {HOTEL_OPTIONS.map((item) => {
                             const isSelected = data.hotelTypes.includes(item.id)
                             return (
                                 <button
                                     key={item.id}
                                     onClick={() => toggleHotel(item.id)}
-                                    className={`relative overflow-hidden flex flex-col items-center justify-center text-center gap-2 p-6 rounded-2xl border transition-all duration-300 group ${isSelected
-                                        ? 'bg-primary/5 border-primary shadow-md scale-105'
+                                    className={`relative overflow-hidden flex flex-col items-center justify-center text-center gap-1.5 p-4 rounded-xl border transition-all duration-300 group ${isSelected
+                                        ? 'bg-primary/5 border-primary shadow-md scale-[1.02]'
                                         : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
                                         }`}
                                 >
-                                    <span className={`text-3xl tracking-widest transition-transform ${isSelected ? 'scale-110 drop-shadow-md' : 'grayscale opacity-70 group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100'}`}>{item.icon}</span>
-                                    <span className={`font-bold mt-2 text-lg transition-colors ${isSelected ? 'text-primary' : 'text-gray-900 group-hover:text-primary'}`}>{item.label}</span>
+                                    <span className={`text-2xl tracking-widest transition-transform ${isSelected ? 'scale-110 drop-shadow-md' : 'grayscale opacity-70 group-hover:scale-110 group-hover:grayscale-0 group-hover:opacity-100'}`}>{item.icon}</span>
+                                    <span className={`font-bold mt-1 text-base transition-colors ${isSelected ? 'text-primary' : 'text-gray-900 group-hover:text-primary'}`}>{item.label}</span>
                                     <span className="text-xs text-gray-500 font-medium">{item.desc}</span>
                                 </button>
                             )
@@ -154,7 +154,7 @@ export default function Step4Stay({
 
             </div>
 
-            <div className="mt-12 flex justify-center gap-4">
+            <div className="mt-8 flex justify-center gap-3">
                 <button
                     onClick={onPrev}
                     disabled={isSubmitting}
