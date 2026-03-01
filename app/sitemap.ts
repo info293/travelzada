@@ -90,6 +90,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             const destName = (data as any).name
             if (destName) destinationMap.set(destName.toLowerCase(), slug) // Match by name
 
+            // Map packages from this destination to the slug directly using packageIds!
+            const packageIds = (data as any).packageIds
+            if (Array.isArray(packageIds)) {
+                packageIds.forEach((pkgId: string) => {
+                    destinationMap.set(pkgId, slug)
+                })
+            }
+
             console.log(`Sitemap: Destination ${doc.id} (${destName}) -> ${slug}`)
 
             return {
@@ -108,8 +116,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             const data = doc.data() as DestinationPackage
             let destinationSlug = 'unknown'
 
+            // STRATEGY 0: Direct match by Package ID - This matches the package to its
+            // exact parent Destination where this packageId resides in `.packageIds`
+            if (destinationMap.has(doc.id)) {
+                destinationSlug = destinationMap.get(doc.id)!
+            }
             // Strategy 1: Direct match by Destination_ID (if it matches a destination doc ID)
-            if (destinationMap.has(data.Destination_ID)) {
+            else if (destinationMap.has(data.Destination_ID)) {
                 destinationSlug = destinationMap.get(data.Destination_ID)!
             }
             // Strategy 2: Match by Destination_Name
@@ -124,7 +137,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
                     // Manual Fallback Map for common codes to match typical destination slugs
                     const prefixMap: Record<string, string> = {
-                        'BAL': 'bali-packages', // Updated to match likely slug based on user xml
+                        'BAL': 'bali-packages',
                         'KER': 'kerala',
                         'GOA': 'goa',
                         'KASH': 'kashmir',
@@ -152,10 +165,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 }
             }
 
+            // FIX: If destinationSlug is STILL unknown, generate a slug from the package data itself instead of dropping it
+            // This mirrors how the frontend gracefully handles missing destination documents
             if (destinationSlug === 'unknown') {
-                console.warn(`Sitemap: Package ${doc.id} (DestID: ${data.Destination_ID}) could not be linked to a destination.`)
-                // Fallback: If we really can't find a destination, maybe use a default or skip? 
-                // For now, we will still filter it out but we tried harder.
+                if ((data as any).Destination_Name) {
+                    // Convert "Singapore" to "singapore-packages"
+                    const baseName = (data as any).Destination_Name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                    destinationSlug = `${baseName}-packages`;
+                } else if (data.Destination_ID) {
+                    const prefix = data.Destination_ID.split('_')[0].toLowerCase();
+                    destinationSlug = `${prefix}-packages`;
+                } else {
+                    destinationSlug = 'general-packages'; // Ultimate fallback
+                }
+                console.warn(`Sitemap: Package ${doc.id} (DestID: ${data.Destination_ID}) could not be linked strictly to a destination doc. Generated fallback slug: ${destinationSlug}`)
             }
 
             // Use the package's custom Slug if available, otherwise fallback to ID
@@ -167,7 +190,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 changeFrequency: 'weekly' as const,
                 priority: 1.0,
             }
-        }).filter(route => !route.url.includes('/unknown/'))
+        })
 
     } catch (error) {
         console.error('Error generating sitemap:', error)
