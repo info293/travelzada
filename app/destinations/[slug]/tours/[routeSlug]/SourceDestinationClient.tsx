@@ -1,17 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter, notFound } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import travelDatabase from '@/data/travel-database.json'
-import { collection, getDocs } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 import Image from 'next/image'
 import LeadForm from '@/components/LeadForm'
-
-const travelData = travelDatabase as any
 
 interface DestinationPackage {
     id?: string
@@ -33,9 +28,11 @@ interface DestinationPackage {
 
 interface PageProps {
     params: { slug: string; routeSlug: string }
+    initialDestination?: any
+    initialPackages?: DestinationPackage[]
 }
 
-export default function SourceDestinationClient({ params }: PageProps) {
+export default function SourceDestinationClient({ params, initialDestination, initialPackages }: PageProps) {
     const router = useRouter()
     const destinationSlug = decodeURIComponent(params.slug)
     const routeSlug = decodeURIComponent(params.routeSlug)
@@ -52,96 +49,13 @@ export default function SourceDestinationClient({ params }: PageProps) {
     // Capitalize destination for display
     const destNameDisplay = destinationSlug.charAt(0).toUpperCase() + destinationSlug.slice(1)
 
-    const [destinationPackages, setDestinationPackages] = useState<DestinationPackage[]>([])
-    const [destination, setDestination] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+    const [destinationPackages, setDestinationPackages] = useState<DestinationPackage[]>(initialPackages || [])
+    const [destination, setDestination] = useState<any>(initialDestination || null)
+    const [loading, setLoading] = useState(false)
     const [activeAccordion, setActiveAccordion] = useState<number | null>(0)
     const [isLeadFormOpen, setIsLeadFormOpen] = useState(false)
 
-    useEffect(() => {
-        const fetchDestinationAndPackages = async () => {
-            if (typeof window === 'undefined' || !db) {
-                const found = travelData.destinations.find(
-                    (d: any) => d.name.toLowerCase() === destinationSlug.toLowerCase() ||
-                        d.name.toLowerCase().replace(/\s+/g, '-') === destinationSlug.toLowerCase()
-                )
-                setDestination(found)
-                setLoading(false)
-                return
-            }
-
-            try {
-                setLoading(true)
-                const normalizedDestination = destinationSlug.toLowerCase()
-
-                const destinationsRef = collection(db, 'destinations')
-                const destinationsSnapshot = await getDocs(destinationsRef)
-                let foundDestination: any = null
-
-                destinationsSnapshot.forEach((doc) => {
-                    const data = doc.data()
-                    const destSlug = data.slug?.toLowerCase() || ''
-                    const destName = data.name?.toLowerCase() || ''
-
-                    if (destSlug === normalizedDestination ||
-                        destName === normalizedDestination ||
-                        destSlug.includes(normalizedDestination) ||
-                        normalizedDestination.includes(destSlug)) {
-                        foundDestination = { id: doc.id, ...data }
-                    }
-                })
-
-                if (!foundDestination) {
-                    const found = travelData.destinations.find(
-                        (d: any) => d.name.toLowerCase() === destinationSlug.toLowerCase() ||
-                            d.name.toLowerCase().replace(/\s+/g, '-') === destinationSlug.toLowerCase()
-                    )
-                    foundDestination = found
-                }
-
-                setDestination(foundDestination)
-
-                if (foundDestination) {
-                    const packagesRef = collection(db, 'packages')
-                    const allPackagesSnapshot = await getDocs(packagesRef)
-                    const packagesData: DestinationPackage[] = []
-                    const linkedPackageIds = foundDestination.packageIds || []
-                    const hasLinkedPackages = Array.isArray(linkedPackageIds) && linkedPackageIds.length > 0
-
-                    allPackagesSnapshot.forEach((doc) => {
-                        const data = doc.data() as DestinationPackage
-                        const pkgId = data.Destination_ID || ''
-                        let shouldInclude = false
-
-                        if (hasLinkedPackages) {
-                            shouldInclude = linkedPackageIds.includes(pkgId)
-                        } else {
-                            const pkgName = data.Destination_Name?.toLowerCase() || ''
-                            const normalizedPkgId = pkgId.toLowerCase()
-                            shouldInclude = pkgName.includes(normalizedDestination) ||
-                                normalizedDestination.includes(pkgName) ||
-                                pkgName === normalizedDestination ||
-                                normalizedPkgId.includes(normalizedDestination) ||
-                                normalizedDestination.includes(normalizedPkgId)
-                        }
-
-                        if (shouldInclude) {
-                            packagesData.push({ id: doc.id, ...data })
-                        }
-                    })
-                    setDestinationPackages(packagesData)
-                }
-
-            } catch (error) {
-                console.error('Error fetching data:', error)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        fetchDestinationAndPackages()
-    }, [destinationSlug])
-
+    // No need for client-side fetch since data is prefetched during SSR
     const getDestinationImage = (dest: any) => {
         if (dest?.image) return dest.image
         const imageMap: { [key: string]: string } = {
