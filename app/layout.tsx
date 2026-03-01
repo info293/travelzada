@@ -38,9 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} ${playfair.variable}`}>
-        <Suspense fallback={null}>
-          <GoogleAnalytics />
-        </Suspense>
+        <GoogleAnalytics />
         <Script
           id="microsoft-clarity"
           strategy="afterInteractive"
