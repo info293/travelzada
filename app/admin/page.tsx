@@ -673,7 +673,7 @@ export default function AdminDashboard() {
       })
 
       // Map AI Planner Leads into the same structure
-      aiLeadsSnapshot.forEach((doc) => {
+      aiLeadsSnapshot.forEach((doc: any) => {
         const data = doc.data()
         leadsData.push({
           id: doc.id,
@@ -2710,6 +2710,22 @@ export default function AdminDashboard() {
                 </div>
               </button>
             )}
+
+            {/* AI Planner Chats — opens dedicated page */}
+            <button
+              onClick={() => router.push('/admin/ai-chats')}
+              className="group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all border-purple-200 bg-white hover:border-purple-500 hover:shadow-sm"
+            >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-700 group-hover:text-purple-600 transition-colors">AI Chats</div>
+                <div className="text-xs text-purple-400 mt-0.5">↗ New Page</div>
+              </div>
+            </button>
           </div>
         </div>
 

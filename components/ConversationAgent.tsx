@@ -12,7 +12,7 @@ import {
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
 import destinationPackages from '@/data/destination_package.json'
-import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, addDoc, serverTimestamp, setDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import LeadForm from '@/components/LeadForm'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
@@ -359,6 +359,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const shownPackagesRef = useRef<typeof shownPackages>([])
   const dateInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
+  // Unique session ID for grouping this page load's conversation in Firestore
+  const chatSessionIdRef = useRef<string>(`ai_chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)
   const todayISO = useMemo(() => formatISODate(new Date()), [])
   const initialPromptSentRef = useRef(false)
 
@@ -375,6 +377,34 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   useEffect(() => {
     shownPackagesRef.current = shownPackages
   }, [shownPackages])
+
+  // Auto-save the chat session to Firestore after every message
+  const saveChatSession = useCallback(async (latestMessages: Message[]) => {
+    if (!db || latestMessages.length === 0) return
+    try {
+      const sessionRef = doc(db, 'ai_planner_chats', chatSessionIdRef.current)
+      await setDoc(sessionRef, {
+        sessionId: chatSessionIdRef.current,
+        messages: latestMessages.map(m => ({
+          role: m.role,
+          content: m.content,
+        })),
+        tripInfo: tripInfoRef.current,
+        sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+        messageCount: latestMessages.length,
+        lastMessageAt: serverTimestamp(),
+        // Only set startedAt on first save
+        ...(latestMessages.length === 1 ? { startedAt: serverTimestamp() } : {}),
+      }, { merge: true })
+    } catch (e) {
+      // Silently fail — don't disrupt the user experience
+      console.warn('[Chat Log] Failed to save session:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    saveChatSession(messages)
+  }, [messages, saveChatSession])
 
   // Fetch destinations from Firestore on component mount
   useEffect(() => {
