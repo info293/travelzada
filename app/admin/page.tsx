@@ -225,6 +225,8 @@ interface Lead {
   travelType?: string
   budget?: string
   notes?: string
+  source?: string
+  _collection?: string
 }
 
 interface Job {
@@ -609,17 +611,34 @@ export default function AdminDashboard() {
   const fetchLeads = async () => {
     try {
       const dbInstance = getDbInstance()
-      let querySnapshot
+
+      // Fetch standard leads
+      let leadsSnapshot
       try {
-        const q = query(collection(dbInstance, 'leads'), orderBy('createdAt', 'desc'))
-        querySnapshot = await getDocs(q)
-      } catch (orderError) {
-        console.log('OrderBy failed for leads, fetching without order:', orderError)
-        querySnapshot = await getDocs(collection(dbInstance, 'leads'))
+        leadsSnapshot = await getDocs(query(collection(dbInstance, 'leads'), orderBy('createdAt', 'desc')))
+      } catch {
+        leadsSnapshot = await getDocs(collection(dbInstance, 'leads'))
+      }
+
+      // Fetch AI planner leads independently so a rules error doesn't kill both
+      let aiLeadsSnapshot
+      try {
+        aiLeadsSnapshot = await getDocs(query(collection(dbInstance, 'ai_planner_leads'), orderBy('createdAt', 'desc')))
+        console.log('[Admin] AI Planner Leads fetched:', aiLeadsSnapshot.size)
+      } catch (aiError) {
+        console.error('[Admin] Failed to fetch AI planner leads:', aiError)
+        try {
+          aiLeadsSnapshot = await getDocs(collection(dbInstance, 'ai_planner_leads'))
+          console.log('[Admin] AI Planner Leads (no-order) fetched:', aiLeadsSnapshot.size)
+        } catch (aiError2) {
+          console.error('[Admin] AI planner leads completely failed (check Firestore rules):', aiError2)
+          aiLeadsSnapshot = { forEach: () => { }, size: 0 } as any
+        }
       }
 
       const leadsData: Lead[] = []
-      querySnapshot.forEach((doc) => {
+
+      leadsSnapshot.forEach((doc) => {
         const data = doc.data()
         const travelersCountValue =
           typeof data.travelersCount === 'number'
@@ -648,6 +667,25 @@ export default function AdminDashboard() {
           travelType: data.travelType || '',
           budget: data.budget || '',
           notes: data.notes || data.message || '',
+          source: 'System',
+          _collection: 'leads'
+        })
+      })
+
+      // Map AI Planner Leads into the same structure
+      aiLeadsSnapshot.forEach((doc) => {
+        const data = doc.data()
+        leadsData.push({
+          id: doc.id,
+          name: data.name || '',
+          mobile: data.mobile || '',
+          sourceUrl: data.sourceUrl || '',
+          packageName: data.packageContext || '',
+          status: data.status || 'new',
+          createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt || new Date().toISOString(),
+          read: data.read || false,
+          source: 'AI Planner',
+          _collection: 'ai_planner_leads'
         })
       })
 
@@ -859,7 +897,7 @@ export default function AdminDashboard() {
         updatePayload.travelersCount = deleteField()
       }
 
-      await updateDoc(doc(dbInstance, 'leads', editingLead.id), updatePayload)
+      await updateDoc(doc(dbInstance, editingLead._collection || 'leads', editingLead.id), updatePayload)
       await fetchLeads()
       cancelLeadDetailsEdit()
       alert('Lead details updated successfully!')
@@ -4760,7 +4798,12 @@ export default function AdminDashboard() {
                           className={`hover:bg-gray-50 ${!lead.read ? 'bg-blue-50' : ''}`}
                         >
                           <td className="px-6 py-4">
-                            <div className="font-medium text-gray-900">{lead.name}</div>
+                            <div className="font-medium text-gray-900 flex items-center gap-2">
+                              {lead.name}
+                              {lead.source === 'AI Planner' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">AI</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="text-sm text-gray-900">{lead.mobile}</div>
@@ -4849,7 +4892,7 @@ export default function AdminDashboard() {
                                   // Mark as read
                                   if (lead.id && !lead.read) {
                                     const dbInstance = getDbInstance()
-                                    updateDoc(doc(dbInstance, 'leads', lead.id), {
+                                    updateDoc(doc(dbInstance, lead._collection || 'leads', lead.id), {
                                       read: true,
                                       status: lead.status === 'new' ? 'contacted' : lead.status,
                                     }).then(() => {
@@ -4868,7 +4911,7 @@ export default function AdminDashboard() {
                                   if (lead.id) {
                                     try {
                                       const dbInstance = getDbInstance()
-                                      await updateDoc(doc(dbInstance, 'leads', lead.id), {
+                                      await updateDoc(doc(dbInstance, lead._collection || 'leads', lead.id), {
                                         status: lead.status === 'new' ? 'contacted' : lead.status === 'contacted' ? 'converted' : 'new',
                                       })
                                       fetchLeads()
@@ -4887,7 +4930,7 @@ export default function AdminDashboard() {
                                   if (lead.id && confirm('Are you sure you want to delete this lead?')) {
                                     try {
                                       const dbInstance = getDbInstance()
-                                      await deleteDoc(doc(dbInstance, 'leads', lead.id))
+                                      await deleteDoc(doc(dbInstance, lead._collection || 'leads', lead.id))
                                       fetchLeads()
                                       alert('Lead deleted successfully!')
                                     } catch (error) {

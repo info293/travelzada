@@ -235,7 +235,7 @@ My recommendation: Package B suits you best because..."`
         const textContent = claudeResponse.content.find(block => block.type === 'text') as any
         message = textContent?.text ?? 'I am here to help you plan your trip!'
 
-        return NextResponse.json({ message, provider: 'claude', recommendations: semanticResults })
+        return NextResponse.json({ message, provider: 'claude', recommendations: semanticResults, noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0 })
       } catch (claudeError: any) {
         console.error('[AI Planner] Claude failed, falling back to ChatGPT:', claudeError.message)
         // Fall through to OpenAI
@@ -260,7 +260,7 @@ My recommendation: Package B suits you best because..."`
 
       message = completion.choices[0]?.message?.content ?? 'I am here to help you plan your trip!'
 
-      return NextResponse.json({ message, provider: 'openai', recommendations: semanticResults })
+      return NextResponse.json({ message, provider: 'openai', recommendations: semanticResults, noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0 })
     }
 
     // If we get here, no AI worked

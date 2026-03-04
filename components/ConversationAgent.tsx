@@ -12,7 +12,7 @@ import {
 import Link from 'next/link'
 import travelDatabase from '@/data/travel-database.json'
 import destinationPackages from '@/data/destination_package.json'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import LeadForm from '@/components/LeadForm'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
@@ -304,6 +304,12 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   const [aiResponseComplete, setAiResponseComplete] = useState(false)
   const [firestorePackages, setFirestorePackages] = useState<DestinationPackage[]>([])
   const [packagesLoading, setPackagesLoading] = useState(true)
+
+  // Inline Lead Capture State
+  const [leadCapturePhase, setLeadCapturePhase] = useState<'idle' | 'asking_name' | 'asking_number' | 'completed'>('idle')
+  const leadCapturePhaseRef = useRef<'idle' | 'asking_name' | 'asking_number' | 'completed'>('idle')
+  const [capturedLead, setCapturedLead] = useState({ name: '', mobile: '' })
+
   // Interactive chat features - post-recommendation phase
   const [conversationPhase, setConversationPhase] = useState<'collecting-info' | 'showing-recommendation' | 'post-recommendation'>('collecting-info')
   const [shownPackageIds, setShownPackageIds] = useState<string[]>([])
@@ -359,6 +365,11 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  // Keep leadCapturePhaseRef in sync with leadCapturePhase state
+  useEffect(() => {
+    leadCapturePhaseRef.current = leadCapturePhase
+  }, [leadCapturePhase])
 
   // Keep shownPackagesRef in sync with shownPackages state
   useEffect(() => {
@@ -524,6 +535,8 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
     })
     setCurrentQuestion('destination')
     setConversationPhase('collecting-info')
+    setLeadCapturePhase('idle')
+    setCapturedLead({ name: '', mobile: '' })
     setShownPackageIds([])
     setShownPackages([])
     setChatResetKey(prev => prev + 1)
@@ -791,15 +804,22 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
           }),
         })
         const data = await response.json()
-        const content = data?.message || prompt
+        const noPackagesFound = data?.noPackagesFound === true
         const recommendations = data?.recommendations || []
 
-        appendMessage({
-          role: 'assistant',
-          content,
-          recommendations,
-          ...extra,
-        })
+        // If 0 packages were found at ANY stage, immediately start lead capture
+        if (noPackagesFound && leadCapturePhaseRef.current === 'idle') {
+          setLeadCapturePhase('asking_name')
+          leadCapturePhaseRef.current = 'asking_name'
+          const dest = tripInfoRef.current.destination
+          const leadMsg = dest
+            ? `I couldn't find any packages for ${dest} matching your criteria right now. But don't worry — I can connect you with our travel experts who will create a custom itinerary for you! To get started, what is your name?`
+            : `I couldn't find matching packages right now. But our travel experts can help design a perfect trip for you! To get started, what is your name?`
+          appendMessage({ role: 'assistant', content: leadMsg, ...extra })
+        } else {
+          const content = data?.message || prompt
+          appendMessage({ role: 'assistant', content, recommendations, ...extra })
+        }
       } catch (error) {
         appendMessage({
           role: 'assistant',
@@ -812,7 +832,7 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         setThinkingMessage(0)
       }
     },
-    [appendMessage, destinations] // Removed shownPackages - using ref instead
+    [appendMessage, destinations, setLeadCapturePhase] // Removed shownPackages - using ref instead
   )
 
   const handleImageUpload = useCallback(async (file: File) => {
@@ -1703,9 +1723,10 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
         })
 
         if (destPackages.length === 0) {
-          // No packages for this destination at all
+          // No packages for this destination at all - FORCE LEAD CAPTURE
+          setLeadCapturePhase('asking_name')
           await sendAssistantPrompt(
-            withStyle(`I don't have any packages for ${currentInfo.destination} yet. Would you like to explore a different destination? Available: ${destinations.map(d => d.name).slice(0, 5).join(', ')}.`, 50)
+            withStyle(`I couldn't find any packages matching exactly that right now. However, I can pass your preferences to our human experts who will design the perfect match for you! To get started, what is your name?`, 60)
           )
         } else {
           // Packages exist but don't match criteria - analyze why
@@ -1763,14 +1784,16 @@ export default function ConversationAgent({ formData, setFormData, onTripDetails
               withStyle(`I couldn't find an exact match for your preferences, but I found some similar options! Suggestions: ${suggestions.join(', ')}. Would you like to see these?`, 60)
             )
           } else {
+            setLeadCapturePhase('asking_name')
             await sendAssistantPrompt(
-              withStyle(`I couldn't find your preferred package for ${currentInfo.destination}. I'll pass your preferences to a human expert who'll find the perfect match. Meanwhile, check Trip Details or try different options.`, 60)
+              withStyle(`I couldn't find your preferred package for ${currentInfo.destination}. I'll pass your preferences to our human experts who will design the perfect match. To get started, what is your name?`, 60)
             )
           }
         }
       } else {
+        setLeadCapturePhase('asking_name')
         await sendAssistantPrompt(
-          'Let the traveler know you could not find an exact package match but will have a human expert follow up shortly.'
+          "I couldn't find an exact package match, but I will have a human expert follow up shortly. Could you please share your name so they know who to ask for?"
         )
       }
       // Mark AI response as complete even if no package found
@@ -2191,6 +2214,52 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     // see this new message in the 'conversation' history context.
     messagesRef.current = [...messagesRef.current, userMsgObj]
     appendMessage(userMsgObj)
+
+    // Inline Lead Capture Inteception
+    if (leadCapturePhase !== 'idle' && leadCapturePhase !== 'completed') {
+      if (leadCapturePhase === 'asking_name') {
+        const nameExtracted = userInput.trim()
+        setCapturedLead(prev => ({ ...prev, name: nameExtracted }))
+        setLeadCapturePhase('asking_number')
+        await sendAssistantPrompt(
+          `Thanks, ${nameExtracted}! Please provide your 10-digit mobile number so our experts can contact you.`
+        )
+        return
+      } else if (leadCapturePhase === 'asking_number') {
+        const cleanMobile = userInput.replace(/\D/g, '')
+        if (cleanMobile.length >= 10) { // basic length check
+          const finalMobile = cleanMobile.slice(-10)
+          setCapturedLead(prev => ({ ...prev, mobile: finalMobile }))
+          setLeadCapturePhase('completed')
+
+          // Save to firestore
+          try {
+            if (db) {
+              await addDoc(collection(db, 'ai_planner_leads'), {
+                name: capturedLead.name || 'Unknown User',
+                mobile: finalMobile,
+                sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+                packageContext: tripInfoRef.current.destination || 'Custom Trip',
+                status: 'new',
+                createdAt: serverTimestamp(),
+                read: false,
+              })
+            }
+            await sendAssistantPrompt(
+              `Perfect! We've securely saved your details and a travel expert will be in touch shortly to help plan your trip to ${tripInfoRef.current.destination || 'your dream destination'}. Feel free to keep asking me questions, or explore our other destinations!`
+            )
+          } catch (e) {
+            console.error('Failed to save AI lead', e)
+            await sendAssistantPrompt('Oops, something went wrong while saving your details. Please try again or use the Contact form.')
+          }
+          return
+        } else {
+          // Re-prompt for valid number
+          await sendAssistantPrompt(`I need a valid 10-digit mobile number, please try again.`)
+          return
+        }
+      }
+    }
 
     const latestInfo = tripInfoRef.current
 
