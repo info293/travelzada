@@ -323,27 +323,27 @@ export default function LeafletMap({ mainDestination, mainDestinationSubtitle, i
             let hasChanges = false
             const newCoords: { [key: string]: [number, number] } = { ...coordinates }
 
-            // 2A. Try Smart AI Geocoding first for itinerary points
-            if (itinerary.length > 0) {
-                try {
-                    const pendingItinerary = itinerary.filter(item => item.title && !newCoords[item.title]);
-                    if (pendingItinerary.length > 0) {
-                        const res = await fetch('/api/tailored-travel/geocode-itinerary', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                mainDestination: mainDestination || '',
-                                itinerary: pendingItinerary
-                            })
-                        });
+            // 2A. Try Smart AI Geocoding first for main destination and itinerary points
+            const needsMainGeocode = mainDestination && !newCoords[mainDestination];
+            const pendingItinerary = itinerary.filter(item => item.title && !newCoords[item.title]);
 
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.coordinates) {
-                                for (const [title, coords] of Object.entries(data.coordinates)) {
-                                    newCoords[title] = coords as [number, number];
-                                    hasChanges = true;
-                                }
+            if (needsMainGeocode || pendingItinerary.length > 0) {
+                try {
+                    const res = await fetch('/api/tailored-travel/geocode-itinerary', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mainDestination: mainDestination || '',
+                            itinerary: pendingItinerary
+                        })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.coordinates) {
+                            for (const [title, coords] of Object.entries(data.coordinates)) {
+                                newCoords[title] = coords as [number, number];
+                                hasChanges = true;
                             }
                         }
                     }
@@ -367,6 +367,35 @@ export default function LeafletMap({ mainDestination, mainDestinationSubtitle, i
 
             for (const place of Array.from(placesToGeocode)) {
                 if (newCoords[place] || !place.trim()) continue;
+
+                // 2B.1 Try Smart Hub Aliases FIRST to prevent Nominatim from returning generic geographic centers of islands
+                const lowerPlace = place.toLowerCase().trim()
+                const hubMap: { [key: string]: [number, number] } = {
+                    'bali': [-8.748169, 115.167170], // Ngurah Rai International Airport
+                    'denpasar': [-8.748169, 115.167170],
+                    'thailand': [13.6900, 100.7501], // Suvarnabhumi Airport (Bangkok)
+                    'dubai': [25.2532, 55.3657], // Dubai International Airport
+                    'paris': [49.0097, 2.5479], // Charles de Gaulle Airport
+                    'london': [51.4700, -0.4543], // Heathrow Airport
+                    'tokyo': [35.5494, 139.7798], // Haneda Airport
+                    'new york': [40.6413, -73.7781], // JFK Airport
+                    'maldives': [4.1918, 73.5291], // Velana International Airport
+                    'switzerland': [47.4582, 8.5555], // Zurich Airport
+                    'singapore': [1.3644, 103.9915] // Changi Airport
+                }
+
+                let foundInHub = false
+                for (const [key, coords] of Object.entries(hubMap)) {
+                    if (lowerPlace === key || (place === mainDestination && lowerPlace.includes(key))) {
+                        // We strictly only apply substring match to the mainDestination (so we don't accidentally stick an entire itinerary in the airport)
+                        newCoords[place] = coords
+                        hasChanges = true
+                        foundInHub = true
+                        break
+                    }
+                }
+
+                if (foundInHub) continue;
 
                 try {
                     // Smart Query: Append main destination to itinerary items to ensure accurate geocoding
@@ -405,24 +434,10 @@ export default function LeafletMap({ mainDestination, mainDestinationSubtitle, i
                     console.error("Failed to geocode:", place)
                 }
 
-                // Ultimate Fallback for common demo queries if Nominatim API blocks/fails us
+                // Ultimate Fallback for common demo queries if Nominatim API blocks/fails us entirely
                 if (!newCoords[place]) {
-                    const fallbackMap: { [key: string]: [number, number] } = {
-                        'bali': [-8.409518, 115.188919],
-                        'thailand': [15.870032, 100.992541],
-                        'dubai': [25.2048, 55.2708],
-                        'paris': [48.8566, 2.3522],
-                        'london': [51.5074, -0.1278],
-                        'tokyo': [35.6762, 139.6503],
-                        'new york': [40.7128, -74.0060],
-                        'maldives': [3.2028, 73.2207],
-                        'switzerland': [46.8182, 8.2275],
-                        'singapore': [1.3521, 103.8198]
-                    }
-
-                    const lowerPlace = place.toLowerCase().trim()
-                    // Try exact match or substring match
-                    for (const [key, coords] of Object.entries(fallbackMap)) {
+                    // Try substring match on itinerary items now
+                    for (const [key, coords] of Object.entries(hubMap)) {
                         if (lowerPlace.includes(key)) {
                             newCoords[place] = coords
                             hasChanges = true

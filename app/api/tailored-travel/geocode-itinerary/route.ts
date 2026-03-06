@@ -22,15 +22,16 @@ export async function POST(request: Request) {
 
         // Prepare prompt
         const prompt = `You are a geographic coordinate extractor.
-Given the main destination of a trip and a list of daily itinerary descriptions, extract the most specific, plotable real-world location from each day's description.
-Return exactly the latitude and longitude for that place.
+Given the main destination of a trip and a list of daily itinerary descriptions:
+1. Find the exact latitude and longitude for the primary international airport serving the "Main Destination".
+2. Find the exact latitude and longitude for each specific real-world location in the "Itinerary Items".
 
 Main Destination: ${mainDestination}
 
 Itinerary Items:
-${itinerary.map((i, idx) => `${idx + 1}. Day: ${i.day || ''} | Description: ${i.title}`).join('\n')}
+${itinerary.map((i, idx) => `${idx + 1}. Day: ${i.day || ''} | Description: ${i.title}`).join('\n') || 'None'}
 
-If you cannot find a specific location, fallback to the main destination's coordinates. Format your response strictly as JSON matching the schema.`
+Format your response strictly as JSON matching the schema. The locations array must match the exact number and order of the Itinerary Items.`
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -46,21 +47,23 @@ If you cannot find a specific location, fallback to the main destination's coord
                     schema: {
                         type: "object",
                         properties: {
+                            mainDestinationAirport: {
+                                type: "object",
+                                properties: { lat: { type: "number" }, lng: { type: "number" } },
+                                required: ["lat", "lng"],
+                                additionalProperties: false
+                            },
                             locations: {
                                 type: "array",
                                 items: {
                                     type: "object",
-                                    properties: {
-                                        id: { type: "string" },
-                                        lat: { type: "number" },
-                                        lng: { type: "number" }
-                                    },
-                                    required: ["id", "lat", "lng"],
+                                    properties: { lat: { type: "number" }, lng: { type: "number" } },
+                                    required: ["lat", "lng"],
                                     additionalProperties: false
                                 }
                             }
                         },
-                        required: ["locations"],
+                        required: ["mainDestinationAirport", "locations"],
                         additionalProperties: false
                     }
                 }
@@ -79,13 +82,19 @@ If you cannot find a specific location, fallback to the main destination's coord
         // Convert array to Record matching the requested IDs
         const coordinatesMap: Record<string, [number, number]> = {}
 
-        data.locations.forEach((loc: any, index: number) => {
-            // We match by the index of the incoming itinerary array for safety
-            const originalItem = itinerary[index]
-            if (originalItem && originalItem.title) {
-                coordinatesMap[originalItem.title] = [loc.lat, loc.lng]
-            }
-        })
+        if (mainDestination && data.mainDestinationAirport?.lat !== undefined) {
+            coordinatesMap[mainDestination] = [data.mainDestinationAirport.lat, data.mainDestinationAirport.lng]
+        }
+
+        if (data.locations && Array.isArray(data.locations)) {
+            data.locations.forEach((loc: any, index: number) => {
+                // We match by the index of the incoming itinerary array for safety
+                const originalItem = itinerary[index]
+                if (originalItem && originalItem.title) {
+                    coordinatesMap[originalItem.title] = [loc.lat, loc.lng]
+                }
+            })
+        }
 
         return NextResponse.json({ coordinates: coordinatesMap })
 

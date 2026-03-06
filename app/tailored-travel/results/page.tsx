@@ -169,11 +169,16 @@ export default function TailoredResultsPage() {
                         <button onClick={() => router.push('/tailored-travel')} className="bg-primary text-white px-8 py-4 rounded-full font-bold shadow-lg">Modify Preferences</button>
                     </div>
                 ) : (
-                    /* ====== 3-PANEL GRID LAYOUT ====== */
+                    /* ====== 2-PANEL GRID LAYOUT ====== */
                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
 
-                        {/* 1. LEFT PANEL: Packages List & Itinerary (Scrollable) */}
-                        <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide">
+                        {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
+                        <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
+                            <TailoredResultsChat initialPackages={packages.slice(0, 1)} wizardData={wizardData} />
+                        </div>
+
+                        {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}
+                        <div className="lg:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6">
                             {packages.slice(0, 1).map((pkg, index) => {
                                 // Extract and normalize Day-Wise Itinerary for displaying and map routing
                                 let itineraryItems: { day: string; title: string; description: string }[] = [];
@@ -197,62 +202,80 @@ export default function TailoredResultsPage() {
                                 }
 
                                 return (
-                                    <div key={pkg.id} className="flex flex-col gap-6">
-                                        {/* --- 1A. Top Recommended Package Card --- */}
+                                    <div key={pkg.id} className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
+                                        {/* --- 2A. Top Recommended Package Card --- */}
                                         <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-primary/20 flex flex-col group relative ring-1 ring-primary/20 shrink-0">
                                             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-secondary"></div>
                                             {/* Image */}
-                                            <div className="relative h-56 w-full overflow-hidden">
+                                            <div className="relative h-64 md:h-72 w-full overflow-hidden">
                                                 {pkg.Primary_Image_URL ? (
                                                     <Image src={pkg.Primary_Image_URL} alt={pkg.Destination_Name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 33vw" />
                                                 ) : (
                                                     <div className="w-full h-full bg-gray-200 flex items-center justify-center"><span className="text-gray-400">No Image</span></div>
                                                 )}
-                                                <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 z-10">
-                                                    <span className="text-secondary font-black text-xs">✨ Top Match ({pkg.matchScore}%)</span>
+                                                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-2 rounded-full shadow-lg flex items-center gap-1 z-10">
+                                                    <span className="text-secondary font-black text-sm">✨ Top Match ({pkg.matchScore}%)</span>
                                                 </div>
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-                                                <div className="absolute bottom-4 left-4 right-4 text-white z-10">
-                                                    <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight mb-1">{pkg.Destination_Name}</h3>
-                                                    <div className="flex items-center gap-3 text-sm font-medium opacity-95">
-                                                        <span className="flex items-center gap-1">⌚ {pkg.Duration_Nights}N/{pkg.Duration_Days}D</span>
+                                                <div className="absolute bottom-6 left-6 right-6 text-white z-10">
+                                                    <h3 className="text-3xl font-bold tracking-tight drop-shadow-md leading-tight mb-2">{pkg.Destination_Name}</h3>
+                                                    <div className="flex items-center gap-4 text-base font-medium opacity-95">
+                                                        <span className="flex items-center gap-1.5">⌚ {pkg.Duration_Nights}N/{pkg.Duration_Days}D</span>
                                                         <span className="w-1.5 h-1.5 rounded-full bg-white/50"></span>
-                                                        <span className="font-bold text-yellow-300">₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'}</span>
+                                                        <span className="font-bold text-yellow-300 shadow-sm">₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Match Reason */}
-                                            <div className="p-5 flex flex-col gap-4 bg-primary/5">
-                                                <div className="flex gap-3">
-                                                    <div className="mt-1 bg-primary/20 p-1.5 rounded-full text-primary shrink-0 h-fit">
-                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            <div className="p-6 flex flex-col gap-4 bg-primary/5">
+                                                <div className="flex gap-4">
+                                                    <div className="mt-1 bg-primary/20 p-2 rounded-full text-primary shrink-0 h-fit">
+                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                                     </div>
-                                                    <p className="text-gray-700 text-sm leading-relaxed font-medium">
+                                                    <p className="text-gray-700 text-base leading-relaxed font-medium">
                                                         {pkg.matchReason}
                                                     </p>
                                                 </div>
-                                                <Link href={`/destinations/custom/${pkg.id}`} target="_blank" className="w-full text-center py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md">
+                                                <Link href={`/destinations/custom/${pkg.id}`} target="_blank" className="w-full text-center py-3.5 mt-2 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md text-sm uppercase tracking-wider">
                                                     View Full Details
                                                 </Link>
                                             </div>
                                         </div>
 
-                                        {/* --- 1B. Day-Wise Itinerary List --- */}
+                                        {/* --- 2B. Interactive Map --- */}
+                                        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-200 relative min-h-[400px] shrink-0">
+                                            {/* Pass the first package's destination and itinerary points to the map */}
+                                            <LeafletMap
+                                                mainDestination={wizardData?.destinations?.[0] || pkg?.Destination_Name}
+                                                itinerary={
+                                                    (pkg?.Day_Wise_Itinerary_Details && pkg.Day_Wise_Itinerary_Details.length > 0)
+                                                        ? pkg.Day_Wise_Itinerary_Details.map((d: any) => ({ title: d.title, day: d.day }))
+                                                        : pkg?.Day_Wise_Itinerary
+                                                            ? pkg.Day_Wise_Itinerary.split('|').map((item: string) => {
+                                                                const match = item.match(/Day\s*\d+:\s*(.+)/i);
+                                                                return { title: match ? match[1].trim() : item.trim() };
+                                                            })
+                                                            : []
+                                                }
+                                            />
+                                        </div>
+
+                                        {/* --- 2C. Day-Wise Itinerary List --- */}
                                         {itineraryItems.length > 0 && (
-                                            <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-200 flex flex-col shrink-0">
-                                                <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 flex flex-col shrink-0">
+                                                <h4 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
                                                     <span>📅</span> Day-by-Day Plan
                                                 </h4>
                                                 <div className="flex col gap-0 pl-2">
-                                                    <div className="relative border-l-2 border-dashed border-gray-200 ml-3 space-y-6 pb-2">
+                                                    <div className="relative border-l-2 border-dashed border-gray-200 ml-3 space-y-8 pb-2">
                                                         {itineraryItems.map((item, idx) => (
-                                                            <div key={idx} className="relative pl-6">
+                                                            <div key={idx} className="relative pl-8">
                                                                 {/* Custom Timeline Dot matching map */}
-                                                                <div className="absolute -left-[9px] top-1 w-4 h-4 bg-white border-2 border-primary rounded-full shadow-sm z-10"></div>
-                                                                <h5 className="font-bold text-gray-900 text-sm">{item.day}: <span className="font-semibold text-primary">{item.title}</span></h5>
+                                                                <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[3px] border-primary rounded-full shadow-sm z-10"></div>
+                                                                <h5 className="font-bold text-gray-900 text-base">{item.day}: <span className="font-semibold text-primary">{item.title}</span></h5>
                                                                 {item.description && (
-                                                                    <p className="text-gray-600 text-xs mt-1.5 leading-relaxed line-clamp-2">{item.description}</p>
+                                                                    <p className="text-gray-600 text-sm mt-2 leading-relaxed opacity-90">{item.description}</p>
                                                                 )}
                                                             </div>
                                                         ))}
@@ -263,29 +286,6 @@ export default function TailoredResultsPage() {
                                     </div>
                                 );
                             })}
-                        </div>
-
-                        {/* 2. MIDDLE PANEL: AI Chat Interface */}
-                        <div className="lg:col-span-4 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200">
-                            <TailoredResultsChat initialPackages={packages.slice(0, 1)} wizardData={wizardData} />
-                        </div>
-
-                        {/* 3. RIGHT PANEL: Interactive Map */}
-                        <div className="lg:col-span-4 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 relative min-h-[400px]">
-                            {/* Pass the first package's destination and itinerary points to the map */}
-                            <LeafletMap
-                                mainDestination={wizardData?.destinations?.[0] || packages[0]?.Destination_Name}
-                                itinerary={
-                                    (packages[0]?.Day_Wise_Itinerary_Details && packages[0].Day_Wise_Itinerary_Details.length > 0)
-                                        ? packages[0].Day_Wise_Itinerary_Details.map((d: any) => ({ title: d.title, day: d.day }))
-                                        : packages[0]?.Day_Wise_Itinerary
-                                            ? packages[0].Day_Wise_Itinerary.split('|').map((item: string) => {
-                                                const match = item.match(/Day\s*\d+:\s*(.+)/i);
-                                                return { title: match ? match[1].trim() : item.trim() };
-                                            })
-                                            : []
-                                }
-                            />
                         </div>
                     </div>
                 )}
