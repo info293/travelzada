@@ -18,9 +18,10 @@ interface Message {
 interface TailoredResultsChatProps {
     initialPackages: any[]
     wizardData: any
+    onNewPackages?: (packages: any[]) => void
 }
 
-export default function TailoredResultsChat({ initialPackages, wizardData }: TailoredResultsChatProps) {
+export default function TailoredResultsChat({ initialPackages, wizardData, onNewPackages }: TailoredResultsChatProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: 'assistant',
@@ -69,6 +70,11 @@ export default function TailoredResultsChat({ initialPackages, wizardData }: Tai
             })
 
             const data = await response.json()
+
+            // Pass the new semantic matches up to the parent to render on the map/card
+            if (data.packages && data.packages.length > 0 && onNewPackages) {
+                onNewPackages(data.packages);
+            }
 
             setMessages(prev => [...prev, {
                 role: 'assistant',

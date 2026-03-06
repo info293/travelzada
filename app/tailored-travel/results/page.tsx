@@ -174,7 +174,14 @@ export default function TailoredResultsPage() {
 
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
                         <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
-                            <TailoredResultsChat initialPackages={packages.slice(0, 1)} wizardData={wizardData} />
+                            <TailoredResultsChat
+                                initialPackages={packages.slice(0, 1)}
+                                wizardData={wizardData}
+                                onNewPackages={(newPackages) => {
+                                    // Update the layout when the AI recommends a new package
+                                    setPackages(newPackages);
+                                }}
+                            />
                         </div>
 
                         {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}

@@ -119,13 +119,7 @@ export default function Step2Route({
                             </div>
                         ))}
 
-                        <button
-                            onClick={onPrev}
-                            className="mt-6 flex items-center gap-3 text-primary font-bold hover:text-primary-focus transition-colors hover:bg-primary/5 px-4 py-2 rounded-xl"
-                        >
-                            <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-lg">+</span>
-                            Add another destination
-                        </button>
+                        {/* Add another destination button removed per user request */}
                     </div>
                 </div>
             </div>

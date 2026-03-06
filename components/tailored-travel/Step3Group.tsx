@@ -37,6 +37,29 @@ export default function Step3Group({
         updateData({ inclusions: Array.from(current) })
     }
 
+    const handleGroupSelection = (id: string) => {
+        const newPassengers = { ...data.passengers }
+        if (id === 'solo') {
+            newPassengers.adults = 1
+            newPassengers.rooms = 1
+        } else if (id === 'couple') {
+            newPassengers.adults = 2
+            newPassengers.rooms = 1
+        } else if (id === 'family') {
+            newPassengers.adults = 2
+            if (newPassengers.kids === 0) newPassengers.kids = 1
+            newPassengers.rooms = 1
+        } else if (id === 'friends') {
+            newPassengers.adults = 4
+            newPassengers.rooms = 2
+        }
+
+        updateData({
+            groupType: id,
+            passengers: newPassengers
+        })
+    }
+
     return (
         <div className="animate-fade-in-up">
             <div className="text-center mb-6">
@@ -55,7 +78,7 @@ export default function Step3Group({
                         return (
                             <button
                                 key={group.id}
-                                onClick={() => updateData({ groupType: group.id })}
+                                onClick={() => handleGroupSelection(group.id)}
                                 className={`group flex flex-col items-center justify-center p-4 md:p-5 rounded-2xl border transition-all duration-300 relative overflow-hidden ${isSelected
                                     ? 'bg-primary/5 border-primary shadow-md scale-[1.02]'
                                     : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
