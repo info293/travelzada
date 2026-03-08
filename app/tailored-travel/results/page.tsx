@@ -175,7 +175,7 @@ export default function TailoredResultsPage() {
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
                         <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
                             <TailoredResultsChat
-                                initialPackages={packages.slice(0, 1)}
+                                initialPackages={packages}
                                 wizardData={wizardData}
                                 onNewPackages={(newPackages) => {
                                     // Update the layout when the AI recommends a new package
@@ -211,42 +211,62 @@ export default function TailoredResultsPage() {
                                 return (
                                     <div key={pkg.id} className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
                                         {/* --- 2A. Top Recommended Package Card --- */}
-                                        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-primary/20 flex flex-col group relative ring-1 ring-primary/20 shrink-0">
-                                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary to-secondary"></div>
-                                            {/* Image */}
-                                            <div className="relative h-64 md:h-72 w-full overflow-hidden">
+                                        <div className="bg-white rounded-3xl overflow-hidden shadow-lg border-2 border-primary/20 flex flex-col group relative shrink-0">
+                                            {/* Image & Gradient Badge */}
+                                            <div className="relative h-44 md:h-52 w-full overflow-hidden shrink-0">
                                                 {pkg.Primary_Image_URL ? (
                                                     <Image src={pkg.Primary_Image_URL} alt={pkg.Destination_Name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 33vw" />
                                                 ) : (
                                                     <div className="w-full h-full bg-gray-200 flex items-center justify-center"><span className="text-gray-400">No Image</span></div>
                                                 )}
-                                                <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md px-4 py-2 rounded-full shadow-lg flex items-center gap-1 z-10">
-                                                    <span className="text-secondary font-black text-sm">✨ Top Match ({pkg.matchScore}%)</span>
-                                                </div>
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-                                                <div className="absolute bottom-6 left-6 right-6 text-white z-10">
-                                                    <h3 className="text-3xl font-bold tracking-tight drop-shadow-md leading-tight mb-2">{pkg.Destination_Name}</h3>
-                                                    <div className="flex items-center gap-4 text-base font-medium opacity-95">
-                                                        <span className="flex items-center gap-1.5">⌚ {pkg.Duration_Nights}N/{pkg.Duration_Days}D</span>
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-white/50"></span>
-                                                        <span className="font-bold text-yellow-300 shadow-sm">₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'}</span>
+                                                <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
+                                                    <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-white/20">
+                                                        <span>⌚</span> {pkg.Duration_Nights}N/{pkg.Duration_Days}D
                                                     </div>
+                                                    <div className="bg-gradient-to-r from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] p-[1px] rounded-full shadow-lg">
+                                                        <div className="bg-white/95 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1">
+                                                            <span className="text-gray-900 font-bold text-xs"><span className="text-[#f85cb5]">✨</span> {pkg.matchScore}% Match</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+
+                                                <div className="absolute bottom-4 left-5 right-5 text-white z-10 flex flex-col items-start">
+                                                    <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight">{pkg.Destination_Name}</h3>
                                                 </div>
                                             </div>
 
-                                            {/* Match Reason */}
-                                            <div className="p-6 flex flex-col gap-4 bg-primary/5">
-                                                <div className="flex gap-4">
-                                                    <div className="mt-1 bg-primary/20 p-2 rounded-full text-primary shrink-0 h-fit">
-                                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                            {/* Content & CTAs */}
+                                            <div className="p-5 flex flex-col gap-4 bg-white relative">
+                                                {/* Floating Price Tag */}
+                                                <div className="absolute -top-7 right-5 bg-white text-gray-900 px-4 py-2 rounded-xl shadow-xl border border-gray-100 font-black text-lg flex items-center gap-1 z-20">
+                                                    ₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'} <span className="text-xs text-gray-400 font-medium">/person</span>
+                                                </div>
+
+                                                <div className="flex gap-3">
+                                                    <div className="mt-0.5 bg-blue-50 p-2 rounded-xl text-blue-500 shrink-0 h-fit border border-blue-100">
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                                     </div>
-                                                    <p className="text-gray-700 text-base leading-relaxed font-medium">
-                                                        {pkg.matchReason}
+                                                    <p className="text-gray-600 text-sm leading-relaxed font-medium line-clamp-2 md:line-clamp-3">
+                                                        <span className="text-gray-900 font-bold">Why it's a match: </span>{pkg.matchReason.replace(/(^\w+:|^)\s*/, '')}
                                                     </p>
                                                 </div>
-                                                <Link href={`/destinations/custom/${pkg.id}`} target="_blank" className="w-full text-center py-3.5 mt-2 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-md text-sm uppercase tracking-wider">
-                                                    View Full Details
-                                                </Link>
+
+                                                {/* Buttons */}
+                                                <div className="grid grid-cols-2 gap-3 mt-1">
+                                                    <Link href={`/destinations/custom/${pkg.id}`} target="_blank" className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm text-xs md:text-sm uppercase tracking-wider group">
+                                                        <span>View Details</span>
+                                                        <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                    </Link>
+
+                                                    <button onClick={() => {/* TODO: Implement Enquire popup logic */ }} className="w-full relative overflow-hidden flex items-center justify-center py-3 bg-gradient-to-r from-gray-900 to-black text-white font-bold rounded-xl hover:from-gray-800 hover:to-gray-900 transition-all shadow-md text-xs md:text-sm uppercase tracking-wider group">
+                                                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
+                                                        <span className="relative z-10 flex items-center gap-2">
+                                                            Enquire Now
+                                                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                                        </span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
 

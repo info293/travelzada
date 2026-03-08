@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, conversation = [], availableDestinations = [], shownPackages = [], currentDestination, availableDayOptions } = await request.json()
+    const { prompt, conversation = [], availableDestinations = [], shownPackages = [], currentDestination, availableDayOptions, wizardData } = await request.json()
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       if (isSemanticSearchEnabled()) {
         console.log('[Agent] 🤔 Thinking about user intent...')
         // @ts-ignore
-        decision = await detectUserIntent(prompt, history)
+        decision = await detectUserIntent(prompt, history, currentDestination, wizardData)
         console.log('[Agent] 💡 Decision:', JSON.stringify(decision, null, 2))
       }
     } catch (e) {
@@ -100,6 +100,8 @@ export async function POST(request: Request) {
 
         console.log(`[Agent] ✅ Found ${semanticResults.length} relevant packages`)
         if (semanticResults.length > 0) {
+          // Slice down to top 1 to force single-package recommendation
+          semanticResults = semanticResults.slice(0, 1)
           console.log('[Agent] 📦 Packages Found:', semanticResults.map((p: any) => p.Destination_Name).join(', '))
         }
       } catch (semanticError: any) {
@@ -137,17 +139,17 @@ export async function POST(request: Request) {
 
     // Inject Search Results
     if (semanticResults.length > 0) {
-      systemPrompt += `\n\n=== RELEVANT PACKAGES FOUND ===`
-      systemPrompt += `\nUse these to answer the user. Do NOT hallucinate prices or details.`
+      systemPrompt += `\n\n=== RELEVANT PACKAGE FOUND ===`
+      systemPrompt += `\nYour system has found the perfect matching package for the user. Do NOT hallucinate prices or details.`
       semanticResults.forEach((pkg, index) => {
-        systemPrompt += `\n\n${index + 1}. "${pkg.Destination_Name}"`
+        systemPrompt += `\n\n"${pkg.Destination_Name}"`
         if (pkg.Price_Range_INR) systemPrompt += ` | Price: ${pkg.Price_Range_INR}`
         if (pkg.Duration) systemPrompt += ` | Duration: ${pkg.Duration}`
         // Injecting the "Overview" or "Inclusions" gives the AI the "Small Things" it needs
         if (pkg.Overview) systemPrompt += `\n   Summary: ${pkg.Overview.slice(0, 300)}...`
         if (pkg.Inclusions && Array.isArray(pkg.Inclusions)) systemPrompt += `\n   Includes: ${pkg.Inclusions.slice(0, 5).join(', ')}`
       })
-      systemPrompt += `\n\nGuidance: Recommend the best match. Mention strict price/inclusions if asked.`
+      systemPrompt += `\n\nGuidance: YOU MUST ONLY RECOMMEND THIS SINGLE PACKAGE. Do not list multiple packages. Briefly describe why this single package is the perfect fit for their budget/vibes.`
     } else if (decision.intent === 'SEARCH_PACKAGES') {
       systemPrompt += `\n\n[SYSTEM NOTE]: You tried to search but found NO packages matching "${decision.searchQuery}" with filters ${JSON.stringify(decision.filters)}.
         Politely tell the user you couldn't find exactly that, and ask for broader criteria (e.g. different budget or location).`
@@ -156,6 +158,17 @@ export async function POST(request: Request) {
     // CRITICAL: Add current destination context to avoid confusion
     if (currentDestination) {
       systemPrompt += `\n\n🎯 CURRENT CONTEXT: The user is planning a trip to **${currentDestination}**. All your responses should be relevant to ${currentDestination}. Do not mention other destinations unless the user explicitly asks to change destinations.`
+    }
+
+    // STRICT WIZARD PREFERENCES: ensure AI stays strictly tailored
+    if (wizardData) {
+      systemPrompt += `\n\n📋 USER PREFERENCES FROM WIZARD:
+      The user explicitly requested these preferences before entering the chat. YOU MUST respect these vibes and preferences in your recommendations, emphasizing how the packages you suggest fulfill these specific desires:
+      - Preferred Vibes/Experiences: ${(wizardData.experiences || []).join(', ')}
+      - Traveling Group Type: ${wizardData.groupType || 'Not specified'}
+      - Preferred Hotel Category: ${(wizardData.hotelTypes || []).join(', ')}
+      - Number of Travelers: ${wizardData.passengers?.adults || 2} Adults, ${wizardData.passengers?.kids || 0} Kids
+      `
     }
 
     // CRITICAL: Add available day options for the destination
@@ -231,11 +244,48 @@ My recommendation: Package B suits you best because..."`
           messages: claudeMessages,
         })
 
+        // Format Pinecone results for the UI
+        const formattedPackages = semanticResults.map((pkg: any) => {
+          let parsedItineraryDetails = [];
+          try {
+            if (pkg.Day_Wise_Itinerary_Details && typeof pkg.Day_Wise_Itinerary_Details === 'string') {
+              parsedItineraryDetails = JSON.parse(pkg.Day_Wise_Itinerary_Details);
+            } else if (Array.isArray(pkg.Day_Wise_Itinerary_Details)) {
+              parsedItineraryDetails = pkg.Day_Wise_Itinerary_Details;
+            }
+          } catch (e) { }
+
+          let priceMin = 0;
+          if (pkg.Price_Range_INR) {
+            if (typeof pkg.Price_Range_INR === 'string') {
+              priceMin = parseInt(pkg.Price_Range_INR.replace(/[^0-9]/g, ''), 10) || 0;
+            } else if (typeof pkg.Price_Range_INR === 'number') {
+              priceMin = pkg.Price_Range_INR;
+            }
+          }
+
+          return {
+            ...pkg,
+            Price_Min_INR: priceMin,
+            Duration_Days: pkg.Duration_Days || 0,
+            Duration_Nights: pkg.Duration_Days ? pkg.Duration_Days - 1 : 0,
+            Day_Wise_Itinerary_Details: parsedItineraryDetails,
+            matchScore: Math.min(99, Math.round((pkg.score || 0.85) * 100)),
+            matchReason: `Selected internally by our AI to match: "${prompt}"`
+          };
+        });
+
         // Extract text from Claude response
-        const textContent = claudeResponse.content.find(block => block.type === 'text') as any
+        const textContent = claudeResponse.content.find((block: any) => block.type === 'text') as any
         message = textContent?.text ?? 'I am here to help you plan your trip!'
 
-        return NextResponse.json({ message, provider: 'claude', recommendations: semanticResults, noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0 })
+        return NextResponse.json({
+          message,
+          provider: 'claude',
+          packages: formattedPackages,
+          recommendations: semanticResults,
+          noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0
+        })
       } catch (claudeError: any) {
         console.error('[AI Planner] Claude failed, falling back to ChatGPT:', claudeError.message)
         // Fall through to OpenAI
@@ -260,7 +310,43 @@ My recommendation: Package B suits you best because..."`
 
       message = completion.choices[0]?.message?.content ?? 'I am here to help you plan your trip!'
 
-      return NextResponse.json({ message, provider: 'openai', recommendations: semanticResults, noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0 })
+      const formattedPackages = semanticResults.map((pkg: any) => {
+        let parsedItineraryDetails = [];
+        try {
+          if (pkg.Day_Wise_Itinerary_Details && typeof pkg.Day_Wise_Itinerary_Details === 'string') {
+            parsedItineraryDetails = JSON.parse(pkg.Day_Wise_Itinerary_Details);
+          } else if (Array.isArray(pkg.Day_Wise_Itinerary_Details)) {
+            parsedItineraryDetails = pkg.Day_Wise_Itinerary_Details;
+          }
+        } catch (e) { }
+
+        let priceMin = 0;
+        if (pkg.Price_Range_INR) {
+          if (typeof pkg.Price_Range_INR === 'string') {
+            priceMin = parseInt(pkg.Price_Range_INR.replace(/[^0-9]/g, ''), 10) || 0;
+          } else if (typeof pkg.Price_Range_INR === 'number') {
+            priceMin = pkg.Price_Range_INR;
+          }
+        }
+
+        return {
+          ...pkg,
+          Price_Min_INR: priceMin,
+          Duration_Days: pkg.Duration_Days || 0,
+          Duration_Nights: pkg.Duration_Days ? pkg.Duration_Days - 1 : 0,
+          Day_Wise_Itinerary_Details: parsedItineraryDetails,
+          matchScore: Math.min(99, Math.round((pkg.score || 0.85) * 100)),
+          matchReason: `Selected internally by our AI to match: "${prompt}"`
+        };
+      });
+
+      return NextResponse.json({
+        message,
+        provider: 'openai',
+        packages: formattedPackages,
+        recommendations: semanticResults,
+        noPackagesFound: decision.intent === 'SEARCH_PACKAGES' && semanticResults.length === 0
+      })
     }
 
     // If we get here, no AI worked

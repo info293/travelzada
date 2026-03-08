@@ -25,7 +25,9 @@ export interface AgentDecision {
  */
 export async function detectUserIntent(
     lastMessage: string,
-    history: any[]
+    history: any[],
+    currentDestination?: string,
+    wizardData?: any
 ): Promise<AgentDecision> {
     const systemPrompt = `
 You are the "Brain" of a Travel Planner Agent.
@@ -52,7 +54,6 @@ EXTRACT FILTERS (If Intent is SEARCH_PACKAGES):
 
 OUTPUT FORMAT:
 Return a pure JSON object:
-{
   "intent": "SEARCH_PACKAGES",
   "reasoning": "User asked for luxury hotel. History shows destination is Bali.",
   "searchQuery": "Bali luxury hotel",
@@ -64,6 +65,14 @@ Return a pure JSON object:
     "hotel": { "minStar": 5, "category": "Luxury" }
   }
 }
+${currentDestination ? `\n\n🎯 CURRENT WIZARD CONTEXT: The user is currently looking at results for **${currentDestination}**. YOU MUST ALWAYS CHOOSE SEARCH_PACKAGES if their query is about travel, and set the destination filter to ${currentDestination}.` : ''}
+${wizardData ? `
+📋 STRICT USER PREFERENCES FROM WIZARD FORM:
+The user explicitly requested these vibes and preferences. ALWAYS use these preferences for generating search filters unless they explicitly contradict it in their immediate message:
+- Vibes/Experiences: ${(wizardData.experiences || []).join(', ')}
+- Group Type: ${wizardData.groupType || 'Not specified'}
+- Hotel Preferences: ${(wizardData.hotelTypes || []).join(', ')}
+` : ''}
 `
 
     const messages = [
