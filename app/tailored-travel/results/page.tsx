@@ -173,7 +173,7 @@ export default function TailoredResultsPage() {
                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
 
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
-                        <div className="lg:col-span-7 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
+                        <div className="lg:col-span-8 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
                             <TailoredResultsChat
                                 initialPackages={packages}
                                 wizardData={wizardData}
@@ -185,7 +185,7 @@ export default function TailoredResultsPage() {
                         </div>
 
                         {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}
-                        <div className="lg:col-span-5 flex flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6">
+                        <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6">
                             {packages.slice(0, 1).map((pkg, index) => {
                                 // Extract and normalize Day-Wise Itinerary for displaying and map routing
                                 let itineraryItems: { day: string; title: string; description: string }[] = [];

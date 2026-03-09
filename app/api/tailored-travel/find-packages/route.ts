@@ -88,9 +88,10 @@ Your job is to evaluate a list of available travel packages against a user's hig
 
 EVALUATION CRITERIA (in order of importance):
 1. Destination Match
-2. Star Category Preference (e.g., if they want 5-star, prioritize luxury)
-3. Travel Group/Vibe (Family vs Solo, Adventure vs Relaxing)
-4. Budget / Cost expectations based on their requests
+2. Duration Match (The package duration in nights must be exactly the same or very close to the Requested Duration)
+3. Star Category Preference (e.g., if they want 5-star, prioritize luxury)
+4. Travel Group/Vibe (Family vs Solo, Adventure vs Relaxing)
+5. Budget / Cost expectations based on their requests
 
 INSTRUCTIONS:
 - Analyze the User Preferences thoroughly.
@@ -109,10 +110,13 @@ INSTRUCTIONS:
   }
 ]`
 
+        const totalNights = wizardData.routeItems?.reduce((acc: number, item: any) => acc + (item.nights || 0), 0) || 0;
+
         const userPrompt = `
 === USER PREFERENCES ===
 Destinations: ${wizardData.destinations.join(', ')}
 Date Range: ${wizardData.dateRange}
+Requested Duration: ${totalNights > 0 ? totalNights + ' Nights' : 'Flexible'}
 Vibe/Experiences: ${wizardData.experiences.join(', ')}
 Group Type: ${wizardData.groupType}
 Hotel Preference: ${wizardData.hotelTypes.join(', ')}
