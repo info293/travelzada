@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Square, Volume2, Mic, ArrowUp as ArrowUpIcon, RefreshCw, Sparkles, Image as ImageIcon, Share2, ClipboardCheck } from 'lucide-react'
+import { Square, Volume2, Mic, ArrowUp as ArrowUpIcon, Sparkles, ImageIcon, Users } from 'lucide-react'
 import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { db } from '@/lib/firebase'
+import { doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore'
 
 const fadeIn = {
     hidden: { opacity: 0, y: 10 },
@@ -12,8 +14,8 @@ const fadeIn = {
 }
 
 const thinkingMessages = [
-    'AI thinking...',
-    'Analyzing your preferences...',
+    'AI is processing the group request...',
+    'Analyzing preferences...',
     'Finding the best options...',
     'Crafting personalized recommendations...',
     'Almost there...',
@@ -30,24 +32,21 @@ interface Message {
     content: string
 }
 
-interface TailoredResultsChatProps {
-    initialPackages: any[]
+interface CollaborativeChatProps {
+    planId: string
+    initialMessages: Message[]
     wizardData: any
-    onNewPackages?: (packages: any[]) => void
+    selectedPackage: any
 }
 
-export default function TailoredResultsChat({ initialPackages, wizardData, onNewPackages }: TailoredResultsChatProps) {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: 'assistant',
-            content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. Let me know if you have any questions about them, want to adjust your budget, or need help deciding!`
-        }
-    ])
+export default function CollaborativeChat({ planId, initialMessages, wizardData, selectedPackage }: CollaborativeChatProps) {
+    const [messages, setMessages] = useState<Message[]>(initialMessages || [])
     const [input, setInput] = useState('')
     const [isTyping, setIsTyping] = useState(false)
     const [thinkingMessage, setThinkingMessage] = useState(0)
-    const [isSharing, setIsSharing] = useState(false)
-    const [copiedLink, setCopiedLink] = useState(false)
+
+    const messagesEndRef = useRef<HTMLDivElement>(null)
+
     // Voice chat integration
     const {
         isListening,
@@ -67,7 +66,27 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         }
     })
 
-    const messagesEndRef = useRef<HTMLDivElement>(null)
+    // Listen to Firebase for real-time multiplayer chat updates
+    useEffect(() => {
+        if (!planId) return;
+
+        const docRef = doc(db, 'shared_plans', planId);
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.messages && data.messages.length > 0) {
+                    setMessages(data.messages);
+                    // Turn off typing indicator if the last message is from the assistant
+                    if (data.messages[data.messages.length - 1].role === 'assistant') {
+                        setIsTyping(false);
+                        setThinkingMessage(0);
+                    }
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [planId]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -82,7 +101,6 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         if (!isListening && transcript && transcript.trim().length > 0) {
             handleSend()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening, transcript])
 
     const handleSend = async () => {
@@ -90,14 +108,31 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
 
         const userMsg = input.trim()
         setInput('')
-        setMessages(prev => [...prev, { role: 'user', content: userMsg }])
         setIsTyping(true)
         setThinkingMessage(0)
+
+        const newMessage = { role: 'user', content: userMsg };
+
+        // 1. Write the User's message to Firestore immediately
+        try {
+            const docRef = doc(db, 'shared_plans', planId);
+            await updateDoc(docRef, {
+                messages: arrayUnion(newMessage)
+            });
+        } catch (error) {
+            console.error("Error writing user message to Firestore", error);
+            setIsTyping(false);
+            return;
+        }
 
         // Start rotating thinking messages
         const messageInterval = setInterval(() => {
             setThinkingMessage((prev) => (prev + 1) % thinkingMessages.length)
         }, 2000)
+
+        // 2. Trigger the AI to respond using the *updated* message history
+        // To prevent race conditions from other users, we use the local optimistic history + new message
+        const conversationContext = [...messages, newMessage].slice(-10);
 
         try {
             const response = await fetch('/api/ai-planner/chat', {
@@ -105,17 +140,15 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     prompt: userMsg,
-                    conversation: messages.slice(-10),
-                    shownPackages: initialPackages.map(pkg => ({
-                        name: pkg.Destination_Name,
-                        duration: `${pkg.Duration_Nights}N/${pkg.Duration_Days}D`,
-                        price: `₹${pkg.Price_Min_INR}`,
-                        starCategory: pkg.Star_Category,
-                        travelType: pkg.Travel_Type,
-                        overview: pkg.Overview,
-                        itineraryStr: pkg.Day_Wise_Itinerary,
-                        itineraryDetails: pkg.Day_Wise_Itinerary_Details
-                    })),
+                    conversation: conversationContext,
+                    shownPackages: [
+                        {
+                            name: selectedPackage.Destination_Name,
+                            duration: `${selectedPackage.Duration_Nights}N/${selectedPackage.Duration_Days}D`,
+                            price: `₹${selectedPackage.Price_Min_INR}`,
+                            itineraryStr: selectedPackage.Day_Wise_Itinerary,
+                        }
+                    ],
                     currentDestination: wizardData?.destinations?.[0] || 'your destination',
                     wizardData: wizardData
                 })
@@ -123,62 +156,31 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
 
             const data = await response.json()
 
-            if (data.packages && data.packages.length > 0 && onNewPackages) {
-                onNewPackages(data.packages);
-            }
-
-            setMessages(prev => [...prev, {
+            // 3. Write the AI's response to Firestore
+            const assistantMessage = {
                 role: 'assistant',
                 content: data.message || "I'm having trouble connecting right now. Could you try asking that again?"
-            }])
+            };
+
+            const docRef = doc(db, 'shared_plans', planId);
+            await updateDoc(docRef, {
+                messages: arrayUnion(assistantMessage)
+            });
+
         } catch (error) {
-            console.error('Chat error:', error)
-            setMessages(prev => [...prev, {
+            console.error('Chat error:', error);
+            const errorMessage = {
                 role: 'assistant',
                 content: "Sorry, I encountered an error while thinking. Please try again."
-            }])
+            };
+            const docRef = doc(db, 'shared_plans', planId);
+            await updateDoc(docRef, {
+                messages: arrayUnion(errorMessage)
+            });
         } finally {
             clearInterval(messageInterval)
             setIsTyping(false)
             setThinkingMessage(0)
-        }
-    }
-
-    const handleNewChat = () => {
-        setMessages([
-            {
-                role: 'assistant',
-                content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. Let me know if you have any questions about them, want to adjust your budget, or need help deciding!`
-            }
-        ])
-        setInput('')
-        setIsTyping(false)
-        setThinkingMessage(0)
-    }
-
-    const handleSharePlan = async () => {
-        setIsSharing(true)
-        try {
-            const res = await fetch('/api/tailored-travel/share-plan', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    wizardData,
-                    selectedPackage: initialPackages[0], // Only share the top recommended package
-                    initialChatMessages: messages // Sync the current chat context
-                })
-            })
-
-            const data = await res.json()
-            if (data.success && data.shareUrl) {
-                await navigator.clipboard.writeText(data.shareUrl)
-                setCopiedLink(true)
-                setTimeout(() => setCopiedLink(false), 3000)
-            }
-        } catch (error) {
-            console.error("Failed to share plan:", error)
-        } finally {
-            setIsSharing(false)
         }
     }
 
@@ -190,74 +192,24 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
     }
 
     return (
-        <div className="bg-white overflow-hidden relative w-full h-full flex flex-row">
-            {/* Sidebar (Visual Placeholder for Portal Feel) */}
-            <div className="hidden lg:flex w-64 bg-gray-50 border-r border-gray-100 flex-col p-4 shrink-0 h-full">
-                <div className="flex items-center gap-3 mb-8 px-2">
-                    <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
-                        <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
-                    </div>
-                    <span className="font-semibold text-gray-700">Trip Planner</span>
-                </div>
-
-                <div className="space-y-1 flex-1 overflow-hidden flex flex-col">
-                    <button
-                        onClick={handleNewChat}
-                        className="w-full text-left px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-800 flex items-center gap-2 hover:bg-gray-50 transition-colors"
-                    >
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        New Trip Plan
-                    </button>
-
-                    <div className="mt-6 mb-2">
-                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">Recent</h3>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-1">
-                        <p className="text-sm text-gray-400 text-center py-4">No saved trips yet</p>
-                    </div>
-                </div>
-            </div>
-
+        <div className="bg-white overflow-hidden relative w-full h-full flex flex-row rounded-3xl shadow-xl border border-gray-200">
             {/* Main Chat Area */}
             <div className="flex flex-col flex-1 min-w-0 bg-white relative h-full">
                 {/* Header */}
                 <div className="flex-shrink-0 h-16 border-b border-gray-100 flex items-center justify-between px-6 bg-white z-10 w-full">
                     <div className="flex items-center gap-3">
-                        <div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center border border-green-100">
+                                <Users className="w-4 h-4 text-green-600" />
+                            </div>
                             <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
-                                <span className="lg:hidden">Trip Planner</span>
-                                <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold tracking-wide uppercase">Beta</span>
+                                Group Trip Chat
+                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide uppercase flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                    Live
+                                </span>
                             </h2>
                         </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={handleSharePlan}
-                            disabled={isSharing}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${copiedLink
-                                ? 'bg-green-50 text-green-600 border-green-200'
-                                : 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100'
-                                }`}
-                        >
-                            {isSharing ? (
-                                <span className="w-3.5 h-3.5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
-                            ) : copiedLink ? (
-                                <ClipboardCheck className="w-3.5 h-3.5" />
-                            ) : (
-                                <Share2 className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden sm:inline">{copiedLink ? 'Copied Link!' : 'Share Plan'}</span>
-                        </button>
-
-                        <button
-                            onClick={handleNewChat}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 text-gray-600 text-xs font-medium hover:bg-gray-100 border border-gray-200 transition-colors"
-                        >
-                            <RefreshCw className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">New Chat</span>
-                        </button>
                     </div>
                 </div>
 
@@ -365,15 +317,18 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 {/* Input Area (Floating Capsule) */}
                 <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pt-6 w-full max-w-[800px] mx-auto z-20">
                     <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-2 flex items-end gap-2 relative">
-                        {/* Add Image Button */}
-                        <button
-                            type="button"
-                            onClick={() => { }}
-                            className="flex items-center justify-center w-10 h-10 rounded-full text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors flex-shrink-0 mb-0.5"
-                            title="Upload reference photo"
-                        >
-                            <ImageIcon className="w-5 h-5" />
-                        </button>
+                        {/* Voice Input */}
+                        {isVoiceSupported && (
+                            <button
+                                onClick={isListening ? stopListening : startListening}
+                                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all flex-shrink-0 mb-0.5 ml-1 ${isListening
+                                    ? 'bg-red-100 text-red-500 animate-pulse'
+                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                                    }`}
+                            >
+                                <Mic className={`w-5 h-5 ${isListening ? 'fill-current' : ''}`} />
+                            </button>
+                        )}
 
                         <div className="flex-1 min-w-0 pl-1">
                             <textarea
@@ -385,37 +340,21 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                                         handleSend()
                                     }
                                 }}
-                                placeholder="Where do you want to go?"
+                                placeholder="Chat with the group & the AI..."
                                 className="w-full max-h-32 bg-transparent border-0 focus:ring-0 py-2.5 px-2 text-gray-800 placeholder-gray-400 resize-none text-sm leading-relaxed"
                                 rows={1}
                                 style={{ minHeight: '40px' }}
                             />
                         </div>
 
-                        {/* Voice Input */}
-                        {isVoiceSupported && (
-                            <button
-                                onClick={isListening ? stopListening : startListening}
-                                className={`flex items-center justify-center w-10 h-10 rounded-full transition-all flex-shrink-0 mb-0.5 ${isListening
-                                    ? 'bg-red-100 text-red-500 animate-pulse'
-                                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                                    }`}
-                            >
-                                <Mic className={`w-5 h-5 ${isListening ? 'fill-current' : ''}`} />
-                            </button>
-                        )}
-
                         {/* Send Button */}
                         <button
                             onClick={handleSend}
                             disabled={!input.trim() || isTyping}
-                            className="flex items-center justify-center w-10 h-10 rounded-full bg-black text-white hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 mb-0.5"
+                            className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 mb-0.5"
                         >
                             {isTyping ? <span className="animate-spin text-xs">...</span> : <ArrowUpIcon className="w-5 h-5" />}
                         </button>
-                    </div>
-                    <div className="text-center mt-2 pb-2">
-                        <p className="text-[10px] text-gray-400 leading-none">AI can make mistakes. Please verify important travel info.</p>
                     </div>
                 </div>
             </div>
