@@ -273,7 +273,7 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
 interface MapProps {
     mainDestination?: string;
     mainDestinationSubtitle?: string;
-    itinerary?: { title: string; day?: string }[];
+    itinerary?: { title: string; day?: string | number }[];
     hideCarAnimation?: boolean;
 }
 
@@ -580,7 +580,7 @@ export default function LeafletMap({ mainDestination, mainDestinationSubtitle, i
                 {/* Itinerary Destination Markers */}
                 {validItineraryPoints.map((item, index) => {
                     // Extract just the number from "Day X"
-                    const dayNum = item.day ? item.day.replace(/[^0-9]/g, '') : `${index + 1}`
+                    const dayNum = item.day ? String(item.day).replace(/[^0-9]/g, '') || `${index + 1}` : `${index + 1}`
                     return (
                         <Marker key={`itinerary-${index}`} position={item.pos} icon={createNumberedIcon(dayNum)}>
                             <Popup className="custom-popup" closeButton={false}>
