@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import indianDestinationsData from '@/data/indian-destinations-data.json'
 
 const OPTIONS_EXPERIENCE = [
     { id: 'adventure', label: 'Adventure', icon: '🏂' },
@@ -13,6 +14,20 @@ const OPTIONS_EXPERIENCE = [
     { id: 'hidden_gems', label: 'Hidden Gems', icon: '🗺️' }
 ]
 
+interface DestinationOption {
+    name: string   // what gets saved to wizard data (e.g. "Kerala")
+    label: string  // what the user sees in dropdown (e.g. "Kerala, India")
+}
+
+// Fallback destinations from local JSON
+const FALLBACK_DESTINATIONS: DestinationOption[] = Array.from(
+    new Map(
+        indianDestinationsData.destinations.map(
+            (d: { name: string; country: string }) => [d.name, { name: d.name, label: `${d.name}, ${d.country}` }]
+        )
+    ).values()
+)
+
 export default function Step1Destinations({
     data,
     updateData,
@@ -23,11 +38,83 @@ export default function Step1Destinations({
     onNext: () => void
 }) {
     const [currentDestination, setCurrentDestination] = useState('')
+    const [showDropdown, setShowDropdown] = useState(false)
+    const [highlightedIndex, setHighlightedIndex] = useState(-1)
+    const [allDestinations, setAllDestinations] = useState<DestinationOption[]>(FALLBACK_DESTINATIONS)
+    const [isLoading, setIsLoading] = useState(true)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
-    const handleAddDestination = () => {
-        if (currentDestination.trim() && data.destinations.length === 0) {
-            updateData({ destinations: [currentDestination.trim()] })
+    // Fetch destinations from Firestore on mount
+    useEffect(() => {
+        async function fetchFromFirestore() {
+            try {
+                const { db } = await import('@/lib/firebase')
+                const { collection, getDocs } = await import('firebase/firestore')
+
+                if (!db) {
+                    setIsLoading(false)
+                    return
+                }
+
+                const snapshot = await getDocs(collection(db, 'destinations'))
+                const options: DestinationOption[] = []
+                const seen = new Set<string>()
+
+                snapshot.forEach((doc) => {
+                    const d = doc.data()
+                    if (d.name && !seen.has(d.name)) {
+                        seen.add(d.name)
+                        options.push({
+                            name: d.name,
+                            label: d.country ? `${d.name}, ${d.country}` : d.name
+                        })
+                    }
+                })
+
+                if (options.length > 0) {
+                    setAllDestinations(options)
+                }
+            } catch (err) {
+                console.error('Failed to fetch destinations from Firestore, using fallback:', err)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchFromFirestore()
+    }, [])
+
+    const filteredDestinations = currentDestination.trim().length > 0
+        ? allDestinations.filter(d =>
+            d.label.toLowerCase().includes(currentDestination.toLowerCase()) ||
+            d.name.toLowerCase().includes(currentDestination.toLowerCase())
+        )
+        : allDestinations.slice(0, 5)
+
+    const isValidDestination = (value: string) =>
+        allDestinations.some(d =>
+            d.label.toLowerCase() === value.toLowerCase() ||
+            d.name.toLowerCase() === value.toLowerCase()
+        )
+
+    const handleAddDestination = (dest?: DestinationOption | string) => {
+        let option: DestinationOption | undefined
+        if (dest && typeof dest === 'object') {
+            option = dest
+        } else {
+            const value = (typeof dest === 'string' ? dest : currentDestination).trim()
+            option = allDestinations.find(d =>
+                d.label.toLowerCase() === value.toLowerCase() ||
+                d.name.toLowerCase() === value.toLowerCase()
+            )
+        }
+        if (option && data.destinations.length === 0) {
+            // Save only the name (e.g. "Kerala"), not "Kerala, India"
+            updateData({ destinations: [option.name] })
             setCurrentDestination('')
+            setShowDropdown(false)
+            setHighlightedIndex(-1)
         }
     }
 
@@ -45,6 +132,39 @@ export default function Step1Destinations({
             current.add(id)
         }
         updateData({ experiences: Array.from(current) })
+    }
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (
+                dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+                inputRef.current && !inputRef.current.contains(e.target as Node)
+            ) {
+                setShowDropdown(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            setHighlightedIndex(prev => Math.min(prev + 1, filteredDestinations.length - 1))
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            setHighlightedIndex(prev => Math.max(prev - 1, 0))
+        } else if (e.key === 'Enter') {
+            e.preventDefault()
+            if (highlightedIndex >= 0 && filteredDestinations[highlightedIndex]) {
+                handleAddDestination(filteredDestinations[highlightedIndex])
+            } else {
+                handleAddDestination()
+            }
+        } else if (e.key === 'Escape') {
+            setShowDropdown(false)
+        }
     }
 
     return (
@@ -83,30 +203,85 @@ export default function Step1Destinations({
                     </div>
 
                     {data.destinations.length === 0 && (
-                        <div className="relative flex items-center group">
-                            <div className="absolute left-4 opacity-40 text-gray-500 group-focus-within:opacity-100 group-focus-within:text-primary transition-colors">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <div className="relative">
+                            {/* Input row */}
+                            <div className="relative flex items-center group">
+                                <div className="absolute left-4 opacity-40 text-gray-500 group-focus-within:opacity-100 group-focus-within:text-primary transition-colors">
+                                    {isLoading ? (
+                                        <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                    )}
+                                </div>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={currentDestination}
+                                    onChange={(e) => {
+                                        setCurrentDestination(e.target.value)
+                                        setShowDropdown(true)
+                                        setHighlightedIndex(-1)
+                                    }}
+                                    onFocus={() => setShowDropdown(true)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={isLoading ? 'Loading destinations...' : 'e.g. Goa, India'}
+                                    disabled={isLoading}
+                                    autoComplete="off"
+                                    className="w-full pl-11 pr-24 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium outline-none text-gray-900 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                                />
+                                <button
+                                    onClick={() => handleAddDestination()}
+                                    disabled={!currentDestination.trim() || !isValidDestination(currentDestination)}
+                                    className="absolute right-2 px-5 py-2 bg-black text-white rounded-xl font-bold disabled:opacity-0 disabled:pointer-events-none hover:bg-gray-800 transition-all shadow-md text-sm tracking-wide"
+                                >
+                                    ADD
+                                </button>
                             </div>
-                            <input
-                                type="text"
-                                value={currentDestination}
-                                onChange={(e) => setCurrentDestination(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDestination())}
-                                placeholder="e.g. Bali, Indonesia"
-                                className="w-full pl-11 pr-24 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium outline-none text-gray-900 placeholder-gray-400"
-                            />
-                            <button
-                                onClick={handleAddDestination}
-                                disabled={!currentDestination.trim()}
-                                className="absolute right-2 px-5 py-2 bg-black text-white rounded-xl font-bold disabled:opacity-0 disabled:pointer-events-none hover:bg-gray-800 transition-all shadow-md text-sm tracking-wide"
-                            >
-                                ADD
-                            </button>
+
+                            {/* Invalid input hint */}
+                            {currentDestination.trim().length > 0 && !isValidDestination(currentDestination) && filteredDestinations.length === 0 && (
+                                <p className="mt-2 text-xs text-amber-500 font-medium pl-1">
+                                    ⚠️ We don't have packages for this destination yet. Please choose from the suggestions.
+                                </p>
+                            )}
+
+                            {/* Dropdown */}
+                            {showDropdown && !isLoading && filteredDestinations.length > 0 && (
+                                <div
+                                    ref={dropdownRef}
+                                    className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden"
+                                >
+                                    <ul className="max-h-56 overflow-y-auto py-1.5">
+                                        {filteredDestinations.map((dest, idx) => (
+                                            <li
+                                                key={dest.name}
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault()
+                                                    handleAddDestination(dest)
+                                                }}
+                                                onMouseEnter={() => setHighlightedIndex(idx)}
+                                                className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm font-medium transition-colors ${highlightedIndex === idx
+                                                    ? 'bg-primary/10 text-primary'
+                                                    : 'text-gray-700 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                <svg className="w-4 h-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                                <span>{dest.label}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Date Selection (Simplified MVP) */}
+                {/* Date Selection */}
                 <div className="space-y-4 pt-6 border-t border-gray-200">
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
                         When are you traveling?

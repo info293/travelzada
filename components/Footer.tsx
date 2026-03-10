@@ -155,6 +155,11 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/tailored-travel" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Plan your tailored travel experience">
+                    Tailored Travel
+                  </Link>
+                </li>
+                <li>
                   <Link href="/destinations" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Browse travel destinations">
                     Destinations
                   </Link>
