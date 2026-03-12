@@ -12,6 +12,9 @@ import SchemaMarkup, { generateTravelPackageSchema, generateBreadcrumbSchema } f
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import AiLoader from '@/components/ui/AiLoader'
+import ReviewForm from '@/components/ReviewForm'
+import ReviewList from '@/components/ReviewList'
+import ReviewSummary from '@/components/ReviewSummary'
 
 interface DestinationPackage {
   id?: string
@@ -127,7 +130,9 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [showAllFAQs, setShowAllFAQs] = useState(false)
   const [showLocationModal, setShowLocationModal] = useState(false)
   const [isInlineEnquireVisible, setIsInlineEnquireVisible] = useState(true)
+  const [reviewRefresh, setReviewRefresh] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
+  const reviewFormRef = useRef<HTMLDivElement>(null)
   const inlineEnquireRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -1621,6 +1626,59 @@ export default function PackageDetailPage({ params }: PageProps) {
                 </p>
               </SectionCard>
             </aside>
+          </div>
+        </section>
+
+        {/* ================================ */}
+        {/* Traveler Reviews Section         */}
+        {/* ================================ */}
+        <section className="py-14 px-4 md:px-12 bg-gradient-to-b from-gray-50 to-white border-t border-gray-100">
+          <div className="max-w-7xl mx-auto">
+            {/* Section Header */}
+            <div className="mb-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Traveler Reviews</span>
+              </div>
+              <h2 className="text-3xl md:text-3xl font-bold text-gray-900 mb-3">
+                Reviews for {packageData.Destination_Name || 'this package'}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left: Summary + Form */}
+              <div className="space-y-6">
+                <ReviewSummary
+                  destinationName={packageData.Destination_Name || slug}
+                  packageId={packageData.id || packageId}
+                  refreshTrigger={reviewRefresh}
+                  onWriteReviewClick={() => {
+                    reviewFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                />
+
+                {/* Review Form */}
+                <div ref={reviewFormRef} id="write-review">
+                  <ReviewForm
+                    destinationName={packageData.Destination_Name || slug}
+                    packageId={packageData.id || packageId}
+                    packageName={packageData.Destination_Name || 'this package'}
+                    onReviewSubmitted={() => setReviewRefresh((n) => n + 1)}
+                  />
+                </div>
+              </div>
+
+              {/* Right: Reviews List */}
+              <div className="lg:col-span-2">
+                <ReviewList
+                  destinationName={packageData.Destination_Name || slug}
+                  packageId={packageData.id || packageId}
+                  refreshTrigger={reviewRefresh}
+                />
+              </div>
+            </div>
           </div>
         </section>
 

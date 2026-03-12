@@ -5,6 +5,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import ReviewForm from '@/components/ReviewForm'
 
 interface Testimonial {
   id?: string
@@ -26,6 +27,7 @@ export default function ReviewsPage() {
   const [filterRating, setFilterRating] = useState<number | null>(null)
   const [filterFeatured, setFilterFeatured] = useState<boolean | null>(null)
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'rating'>('newest')
+  const [showWriteForm, setShowWriteForm] = useState(false)
 
   useEffect(() => {
     // Set page SEO
@@ -252,6 +254,36 @@ export default function ReviewsPage() {
             <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
               Discover authentic experiences from thousands of satisfied travelers who've trusted Travelzada for their perfect journeys
             </p>
+          </div>
+
+          {/* Write a Review CTA */}
+          <div className="mb-10">
+            <div className="bg-gradient-to-br from-primary/5 via-white to-accent/5 rounded-3xl border border-primary/15 p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-1">Traveled with Travelzada?</h2>
+                  <p className="text-sm text-gray-500">Share your experience and help fellow travelers plan their perfect trip.</p>
+                </div>
+                <button
+                  onClick={() => setShowWriteForm((s) => !s)}
+                  className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-primary to-primary-dark text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  {showWriteForm ? 'Hide Form' : 'Write a Review'}
+                </button>
+              </div>
+
+              {showWriteForm && (
+                <div className="mt-6 pt-6 border-t border-primary/10">
+                  <ReviewForm
+                    destinationName="General"
+                    onReviewSubmitted={() => setShowWriteForm(false)}
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Filters Section */}
