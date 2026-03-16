@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import Step1Destinations from './Step1Destinations'
-import Step2Route from './Step2Route'
+import Step2Nights from './Step2Nights'
 import Step3Group from './Step3Group'
-import Step4Stay from './Step4Stay'
 import { v4 as uuidv4 } from 'uuid'
 import { db } from '@/lib/firebase'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
@@ -26,7 +25,7 @@ export default function TailoredItineraryWizard() {
         dateRange: 'Flexible',
         experiences: [] as string[],
         routeItems: [] as any[], // mapped from destinations in Step 2 {destination, nights}
-        groupType: '',
+        groupType: 'couple',
         inclusions: ['hotels', 'flights'] as string[],
         hotelTypes: ['4-star'] as string[],
         passengers: {
@@ -62,8 +61,8 @@ export default function TailoredItineraryWizard() {
         router.push('/tailored-travel/results')
     }
 
-    // Calculate Progress Percent (Now out of 3 steps, since step 4 is the final screen)
-    const progressPercent = ((currentStep - 1) / 3) * 100
+    // Calculate Progress Percent (Now out of 2 steps, since step 3 is the final screen)
+    const progressPercent = ((currentStep - 1) / 2) * 100
 
     return (
         <div className="w-full max-w-[90rem] mx-auto py-4 md:py-8 px-4 md:px-8 flex-1 flex flex-col">
@@ -78,8 +77,7 @@ export default function TailoredItineraryWizard() {
                             <div className="flex justify-between text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider relative z-10">
                                 <span className={`transition-colors ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
                                 <span className={`transition-colors ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
-                                <span className={`transition-colors ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group</span>
-                                <span className={`transition-colors ${currentStep >= 4 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Stay</span>
+                                <span className={`transition-colors ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
                             </div>
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
                                 <div
@@ -134,7 +132,7 @@ export default function TailoredItineraryWizard() {
                                         />
                                     )}
                                     {currentStep === 2 && (
-                                        <Step2Route
+                                        <Step2Nights
                                             data={wizardData}
                                             updateData={updateData}
                                             onNext={handleNext}
@@ -145,17 +143,9 @@ export default function TailoredItineraryWizard() {
                                         <Step3Group
                                             data={wizardData}
                                             updateData={updateData}
-                                            onNext={handleNext}
-                                            onPrev={handlePrev}
-                                        />
-                                    )}
-                                    {currentStep === 4 && (
-                                        <Step4Stay
-                                            data={wizardData}
-                                            updateData={updateData}
                                             onNext={handleGenerateItinerary}
                                             onPrev={handlePrev}
-                                            isSubmitting={isSubmitting} // Need to pass to Step 4 now
+                                            isSubmitting={isSubmitting} // Passed to Step 3 now
                                         />
                                     )}
                                 </motion.div>
