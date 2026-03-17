@@ -58,6 +58,8 @@ export async function POST(request: Request) {
 
                 allPackages.push({
                     id: doc.id,
+                    Destination_ID: data.Destination_ID || '',
+                    Slug: data.Slug || '',
                     Destination_Name: data.Destination_Name,
                     Overview: data.Overview || '',
                     Duration_Days: data.Duration_Days || 0,
@@ -86,19 +88,22 @@ export async function POST(request: Request) {
         const systemPrompt = `You are a luxury travel curator AI for Travelzada.
 Your job is to evaluate a list of available travel packages against a user's highly specific "Tailored Travel" preferences, and return the top 3 best matching packages in strict JSON format.
 
-EVALUATION CRITERIA (in order of importance):
-1. Destination Match
-2. Duration Match (The package duration in nights must be exactly the same or very close to the Requested Duration)
-3. Star Category Preference (e.g., if they want 5-star, prioritize luxury)
-4. Travel Group/Vibe (Family vs Solo, Adventure vs Relaxing)
-5. Budget / Cost expectations based on their requests
+EVALUATION CRITERIA SCORING SYSTEM (Start with Base Score: 100 for each package):
+Priority 1 - Destination Match (CRITICAL): The destination MUST match. If the destination does not match, the score is 0. Do not include it.
+Priority 2 - Duration Match (HIGH): The package duration MUST match the Requested Duration in nights.
+   - Exact match: Deduct 0 points.
+   - Exactly 1 night less (Fallback): Deduct 5 points.
+   - Any other duration mismatch: Deduct 30 points.
+Priority 3 - Hotel / Star Category (MEDIUM): The package's star category should match the user's requested Hotel Preference.
+   - If Star Category does NOT match: Deduct 15 points.
+Priority 4 - Vibes/Experiences & Group Type (LOW): 
+   - Deduct 2 to 5 points for mismatches in vibe, experiences, or group type.
 
 INSTRUCTIONS:
-- Analyze the User Preferences thoroughly.
-- Review the provided Available Packages.
-- Select up to 3 packages that best fit the requirements.
-- Calculate a "matchScore" (0-100) for each based on how perfectly it fits.
-- Provide a brief 1-2 sentence "matchReason" explaining exactly why this package is perfect for them based on their specific inputs (mention their requested vibe or group type).
+- Analyze the User Preferences thoroughly against the Available Packages.
+- Calculate the "matchScore" (0-100) for each package by starting at 100 and applying the deductions strictly in order of priority above.
+- Sort the packages by matchScore in descending order, and retrieve the top 3.
+- Provide a brief 1-2 sentence "matchReason" explaining exactly why this package was selected, explicitly mentioning the star category, vibe, and duration.
 - Return ONLY valid JSON.
 - DO NOT wrap the JSON in markdown blocks like \`\`\`json. Just output the raw JSON array.
 - The JSON structure MUST exactly match this format:

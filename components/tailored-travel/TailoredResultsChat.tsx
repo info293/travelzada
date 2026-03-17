@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Square, Volume2, Mic, ArrowUp as ArrowUpIcon, RefreshCw, Sparkles, Image as ImageIcon, Share2, ClipboardCheck } from 'lucide-react'
 import { useVoiceChat } from '@/hooks/useVoiceChat'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 const fadeIn = {
     hidden: { opacity: 0, y: 10 },
@@ -34,15 +36,19 @@ interface TailoredResultsChatProps {
     initialPackages: any[]
     wizardData: any
     onNewPackages?: (packages: any[]) => void
+    enquireTrigger?: number
+    enquirePackageName?: string
 }
 
-export default function TailoredResultsChat({ initialPackages, wizardData, onNewPackages }: TailoredResultsChatProps) {
+export default function TailoredResultsChat({ initialPackages, wizardData, onNewPackages, enquireTrigger, enquirePackageName }: TailoredResultsChatProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: 'assistant',
-            content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. Let me know if you have any questions about them, want to adjust your budget, or need help deciding!`
+            content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. I'd love to connect you with our travel experts to get this booked! To get started, what is your name?`
         }
     ])
+    const [leadCapturePhase, setLeadCapturePhase] = useState<'idle' | 'asking_name' | 'asking_number' | 'completed'>('asking_name')
+    const [capturedLead, setCapturedLead] = useState({ name: '', mobile: '' })
     const [input, setInput] = useState('')
     const [isTyping, setIsTyping] = useState(false)
     const [thinkingMessage, setThinkingMessage] = useState(0)
@@ -85,12 +91,219 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isListening, transcript])
 
+    // Trigger Lead Capture from external button
+    useEffect(() => {
+        if (enquireTrigger && enquireTrigger > 0) {
+            // 1. Scroll the chat container into view
+            const chatContainer = document.getElementById('trip-planner-chat-container')
+            if (chatContainer) {
+                chatContainer.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+
+            // 2. Restart or prompt the lead capture phase
+            if (leadCapturePhase === 'idle' || leadCapturePhase === 'completed') {
+                setLeadCapturePhase('asking_name')
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `Great choice! I'd love to connect you with our travel experts to get the ${enquirePackageName || 'perfect package'} booked! To get started, what is your name?`
+                }])
+            } else if (leadCapturePhase === 'asking_name') {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `You're already inquiring about ${enquirePackageName || 'this package'}! Let's get that booked for you. What is your name?`
+                }])
+            } else if (leadCapturePhase === 'asking_number') {
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `You're almost there to book ${enquirePackageName || 'this package'}. Could you share your mobile number?`
+                }])
+            }
+        }
+    }, [enquireTrigger])
+
     const handleSend = async () => {
         if (!input.trim() || isTyping) return
 
         const userMsg = input.trim()
         setInput('')
         setMessages(prev => [...prev, { role: 'user', content: userMsg }])
+        
+        // --- LEAD CAPTURE FLOW ---
+        if (leadCapturePhase === 'asking_name') {
+            const trimmedInput = userMsg.trim();
+            
+            // AI Extraction to check for travel intent vs name
+            try {
+                const extractRes = await fetch('/api/ai-planner/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userInput: trimmedInput,
+                        currentQuestion: 'asking_name',
+                        existingTripInfo: { destination: wizardData?.destinations?.[0] },
+                        availableDestinations: []
+                    })
+                });
+                const extractData = await extractRes.json();
+
+                if (extractData.travelIntent) {
+                    // User is asking a travel question, not giving a name.
+                    // Bypass capture and let the normal AI chat handle it below.
+                    console.log("[Lead Capture] Travel intent detected, bypassing name capture.");
+                } else if (extractData.name) {
+                    // AI extracted a real name
+                    setCapturedLead(prev => ({ ...prev, name: extractData.name }))
+                    setLeadCapturePhase('asking_number')
+                    setTimeout(() => {
+                        setMessages(prev => [...prev, {
+                            role: 'assistant',
+                            content: `Thanks ${extractData.name}! What's the best mobile number for our travel experts to reach you?`
+                        }])
+                        scrollToBottom()
+                    }, 500)
+                    return
+                } else {
+                    // AI returned name=null, no travelIntent — it's a greeting or gibberish
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: "I'd love to help you! But first, could you please share your name? 😊"
+                    }]);
+                    scrollToBottom();
+                    return;
+                }
+            } catch (err) {
+                console.error("Smart lead extraction failed, falling back to basic:", err);
+                // Fallback: accept anything that looks like a word with 3+ letters
+                if (/^[a-zA-Z]{3,}/.test(trimmedInput)) {
+                    setCapturedLead(prev => ({ ...prev, name: trimmedInput }))
+                    setLeadCapturePhase('asking_number')
+                    setTimeout(() => {
+                        setMessages(prev => [...prev, {
+                            role: 'assistant',
+                            content: `Thanks ${trimmedInput}! What's the best mobile number for our travel experts to reach you?`
+                        }])
+                        scrollToBottom()
+                    }, 500)
+                } else {
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: "Could you please share your name? 😊"
+                    }]);
+                    scrollToBottom();
+                }
+                return;
+            }
+        }
+
+        if (leadCapturePhase === 'asking_number') {
+            const digitsOnly = userMsg.replace(/\D/g, '');
+            
+            // If it contains 10+ digits, it's clearly a phone number - fast path
+            if (digitsOnly.length >= 10) {
+                const finalMobile = digitsOnly.slice(-10);
+                setCapturedLead(prev => ({ ...prev, mobile: finalMobile }))
+                setLeadCapturePhase('completed')
+                
+                // Save to Firebase
+                try {
+                    console.log('Attempting to save lead to Firebase...', { name: capturedLead.name, mobile: finalMobile, db_exists: !!db });
+                    if (db) {
+                        const docRef = await addDoc(collection(db, 'leads'), {
+                            name: capturedLead.name || 'Unknown',
+                            mobile: finalMobile,
+                            source: 'Tailored Results Chat',
+                            sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+                            packageName: enquirePackageName || wizardData?.destinations?.[0] || 'Custom Tailored Trip',
+                            destinations: wizardData?.destinations || [],
+                            createdAt: serverTimestamp(),
+                            status: 'new',
+                            read: false
+                        })
+                        console.log('Lead successfully saved to Firebase! Document ID:', docRef.id);
+                    }
+                } catch (err) {
+                    console.error('Failed to save lead to Firebase:', err)
+                }
+
+                setTimeout(() => {
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: `Perfect! I've noted down your details. Someone from our expert team will contact you shortly at ${finalMobile} to help finalize your dream trip. Do you have any other questions in the meantime?`
+                    }])
+                    scrollToBottom()
+                }, 500)
+                return
+            }
+
+            // Not a phone number — use AI to understand intent
+            try {
+                const extractRes = await fetch('/api/ai-planner/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userInput: userMsg,
+                        currentQuestion: 'asking_number',
+                        existingTripInfo: { destination: wizardData?.destinations?.[0] },
+                        availableDestinations: []
+                    })
+                });
+                const extractData = await extractRes.json();
+
+                if (extractData.travelIntent) {
+                    // User wants to ask about travel — let it pass to the AI chat below
+                    console.log("[Lead Capture] Travel intent during number phase, bypassing.");
+                } else if (extractData.feedback === 'skip') {
+                    // User said they don't know / will share later
+                    setLeadCapturePhase('completed')
+                    
+                    // Save lead with just name (no number)
+                    try {
+                        if (db) {
+                            await addDoc(collection(db, 'leads'), {
+                                name: capturedLead.name || 'Unknown',
+                                mobile: 'Not provided',
+                                source: 'Tailored Results Chat',
+                                sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+                                packageName: enquirePackageName || wizardData?.destinations?.[0] || 'Custom Tailored Trip',
+                                destinations: wizardData?.destinations || [],
+                                createdAt: serverTimestamp(),
+                                status: 'new',
+                                read: false
+                            })
+                        }
+                    } catch (err) {
+                        console.error('Failed to save lead:', err)
+                    }
+
+                    setTimeout(() => {
+                        setMessages(prev => [...prev, {
+                            role: 'assistant',
+                            content: `No worries, ${capturedLead.name}! Our team will still prepare the best options for you. Feel free to share your number anytime. Meanwhile, do you have any questions about the packages?`
+                        }])
+                        scrollToBottom()
+                    }, 500)
+                    return
+                } else {
+                    // Greeting or gibberish — gently re-ask
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: `I just need your mobile number so our travel expert can reach you. Could you please share your 10-digit number? 😊`
+                    }]);
+                    scrollToBottom();
+                    return;
+                }
+            } catch (err) {
+                console.error("AI extraction failed during number phase:", err);
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: "Could you please share a valid 10-digit mobile number?"
+                }]);
+                scrollToBottom();
+                return;
+            }
+        }
+        // --- END LEAD CAPTURE ---
+
         setIsTyping(true)
         setThinkingMessage(0)
 
@@ -125,6 +338,16 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
 
             if (data.packages && data.packages.length > 0 && onNewPackages) {
                 onNewPackages(data.packages);
+
+                // If they haven't provided contact info yet, ask them again now that we've found them new packages
+                if (leadCapturePhase !== 'completed') {
+                    setLeadCapturePhase('asking_name')
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: data.message || "I've found some new packages for you! But before we go further, what is your name so our travel experts can help you book?"
+                    }])
+                    return // Stop further message processing so we don't double up
+                }
             }
 
             setMessages(prev => [...prev, {
@@ -148,9 +371,11 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         setMessages([
             {
                 role: 'assistant',
-                content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. Let me know if you have any questions about them, want to adjust your budget, or need help deciding!`
+                content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. I'd love to connect you with our travel experts to get this booked! To get started, what is your name?`
             }
         ])
+        setLeadCapturePhase('asking_name')
+        setCapturedLead({ name: '', mobile: '' })
         setInput('')
         setIsTyping(false)
         setThinkingMessage(0)

@@ -14,6 +14,8 @@ interface ExtractionResult {
   travelType?: string | null // "solo", "family", "couple", "friends"
   budget?: string | null
   feedback?: string | null
+  name?: string | null
+  travelIntent?: boolean
   confidence: 'high' | 'medium' | 'low'
   understood: boolean
 }
@@ -56,16 +58,18 @@ IMPORTANT RULES:
 
 Return JSON in this exact format:
 {
-  "destination": "Bali" or null (must match available destinations exactly, normalized from typos),
+  "destination": "Bali" or null,
   "travelDate": "2025-03-15" or null,
   "days": "5" or null,
   "hotelType": "3 Star" or "4 Star" or "5 Star" or null,
   "travelType": "solo" or "family" or "couple" or "friends" or null,
   "budget": "50000" or null,
   "feedback": "user's activity preferences" or null,
+  "name": "Extracted user name" or null,
+  "travelIntent": true or false (set to true if user is asking a travel question or expressing intent instead of giving information),
   "confidence": "high" or "medium" or "low",
   "understood": true or false
-}`
+} strength: 0.3 }`
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -206,6 +210,28 @@ EXISTING INFO: Destination: ${existingTripInfo.destination || 'None'}
 EXTRACT: feedback (user's activity preferences, suggestions, or questions as text)
 - If user says "skip" or "no", return null for feedback and understood: true
 - Otherwise, extract their preferences as text`
+      break
+
+    case 'asking_name':
+      prompt = `CURRENT QUESTION: "What is your name?"
+EXTRACT: name
+RULES:
+- If the user gives a real human name (e.g., "Ravindra", "I am John", "My name is Priya"), extract it as "name" and set travelIntent to false.
+- If the user sends a greeting like "hi", "hello", "hey", "namaste", "hii", "yo", "sup", or similar → set name to null, travelIntent to false. These are NOT names.
+- If the user asks about travel, destinations, pricing, or packages (e.g., "mujhe dubai jana hai", "show packages for Bali", "what is the cost") → set name to null, travelIntent to true.
+- If the input looks like random text, a single word that is NOT a name, or gibberish → set name to null, travelIntent to false.
+- Only extract "name" if you are confident it is a real person's name.`
+      break
+
+    case 'asking_number':
+      prompt = `CURRENT QUESTION: "What is your mobile number?"
+EXTRACT: We need a 10-digit phone number.
+RULES:
+- If the user provides a valid 10-digit phone number (e.g., "9354156323", "+91 9354156323"), extract it as "feedback" field and set travelIntent to false, understood to true.
+- If the user says they don't know, refuses, or says something like "nahi mallum", "pata nahi", "I don't know", "later", "baad mein" → set feedback to "skip", travelIntent to false, understood to true.
+- If the user asks a travel question (e.g., "mujhe dubai jana hai", "show packages") → set feedback to null, travelIntent to true.
+- If the user sends a greeting or random text ("hi", "hello", gibberish) → set feedback to null, travelIntent to false, understood to false.
+- Do NOT accept text as a phone number. Only actual digits count.`
       break
 
     default:

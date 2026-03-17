@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import TailoredResultsChat from '@/components/tailored-travel/TailoredResultsChat'
+import LeadForm from '@/components/LeadForm'
 import dynamic from 'next/dynamic'
 
 // Need to dynamically import map to avoid SSR issues
@@ -19,9 +20,17 @@ const LeafletMap = dynamic(() => import('@/components/tailored-travel/LeafletMap
     )
 })
 
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
 // Type for the matched package returned by the API
 interface MatchedPackage {
     id: string
+    Destination_ID?: string
+    Slug?: string
     Destination_Name: string
     Duration_Days: number
     Duration_Nights: number
@@ -39,6 +48,10 @@ export default function TailoredResultsPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [packages, setPackages] = useState<MatchedPackage[]>([])
     const [error, setError] = useState<string | null>(null)
+    const [enquireTrigger, setEnquireTrigger] = useState(0)
+    const [enquirePackageName, setEnquirePackageName] = useState<string>('')
+    const [showLeadForm, setShowLeadForm] = useState(false)
+    const [selectedPackageForLead, setSelectedPackageForLead] = useState<string>('')
     const router = useRouter()
 
     useEffect(() => {
@@ -173,15 +186,17 @@ export default function TailoredResultsPage() {
                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
 
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
-                        <div className="lg:col-span-8 flex flex-col min-h-0 bg-white rounded-3xl overflow-hidden shadow-xl border border-gray-200 h-full">
-                            <TailoredResultsChat
-                                initialPackages={packages}
-                                wizardData={wizardData}
-                                onNewPackages={(newPackages) => {
-                                    // Update the layout when the AI recommends a new package
-                                    setPackages(newPackages);
-                                }}
-                            />
+                        {/* Interactive Trip Planner Chat */}
+                        <div id="trip-planner-chat-container" className="lg:col-span-8 flex flex-col min-h-0 h-full border border-gray-200 rounded-3xl overflow-hidden shadow-xl bg-white relative z-20 mt-8 lg:mt-0">
+                            <div className="flex-1 overflow-hidden">
+                                <TailoredResultsChat 
+                                    initialPackages={packages} 
+                                    wizardData={wizardData} 
+                                    onNewPackages={setPackages}
+                                    enquireTrigger={enquireTrigger}
+                                    enquirePackageName={enquirePackageName}
+                                />
+                            </div>
                         </div>
 
                         {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}
@@ -254,12 +269,26 @@ export default function TailoredResultsPage() {
 
                                                 {/* Buttons */}
                                                 <div className="grid grid-cols-2 gap-3 mt-1">
-                                                    <Link href={`/destinations/custom/${pkg.id}`} target="_blank" className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm text-xs md:text-sm uppercase tracking-wider group">
-                                                        <span>View Details</span>
-                                                        <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                                    </Link>
+                                                    {(() => {
+                                                        const destinationCategory = wizardData?.destinations?.[0] || 'travel';
+                                                        const destinationSlug = `${slugify(destinationCategory)}-packages`;
+                                                        const packageSlug = pkg.Slug || slugify(pkg.Destination_Name || pkg.id);
+                                                        const viewDetailsUrl = `/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageSlug)}`;
+                                                        
+                                                        return (
+                                                            <Link href={viewDetailsUrl} target="_blank" className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm text-xs md:text-sm uppercase tracking-wider group">
+                                                                <span>View Details</span>
+                                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                            </Link>
+                                                        );
+                                                    })()}
 
-                                                    <button onClick={() => {/* TODO: Implement Enquire popup logic */ }} className="w-full relative overflow-hidden flex items-center justify-center py-3 bg-gradient-to-r from-gray-900 to-black text-white font-bold rounded-xl hover:from-gray-800 hover:to-gray-900 transition-all shadow-md text-xs md:text-sm uppercase tracking-wider group">
+                                                    <button onClick={() => { 
+                                                        setEnquirePackageName(pkg.Destination_Name); 
+                                                        setEnquireTrigger(prev => prev + 1);
+                                                        setSelectedPackageForLead(pkg.Destination_Name);
+                                                        setShowLeadForm(true);
+                                                    }} className="w-full relative overflow-hidden flex items-center justify-center py-3 bg-gradient-to-r from-primary to-[#ff8a3d] text-white font-bold rounded-xl hover:from-[#e65c00] hover:to-[#e67300] transition-all shadow-md hover:shadow-lg text-xs md:text-sm uppercase tracking-wider group transform hover:scale-[1.02] active:scale-[0.98]">
                                                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
                                                         <span className="relative z-10 flex items-center gap-2">
                                                             Enquire Now

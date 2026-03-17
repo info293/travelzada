@@ -282,39 +282,15 @@ export default function LeafletMap({ mainDestination, mainDestinationSubtitle, i
     const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
     const [isLoading, setIsLoading] = useState(false)
 
-    // 1. Fetch User Geolocation with fallback
+    // 1. Set User Geolocation (Using fallback to prevent browser warnings on mount)
     useEffect(() => {
-        let mounted = true;
         // Default fallback (e.g., New Delhi, India)
         const fallbackLocation: [number, number] = [28.6139, 77.2090];
-
-        if (typeof window !== 'undefined' && "geolocation" in navigator) {
-            // Set a timeout to use fallback if user ignores prompt
-            const timer = setTimeout(() => {
-                if (mounted && !userLocation) {
-                    setUserLocation(fallbackLocation);
-                }
-            }, 6000);
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    if (mounted) {
-                        clearTimeout(timer);
-                        setUserLocation([position.coords.latitude, position.coords.longitude]);
-                    }
-                },
-                (error) => {
-                    console.log("Geolocation error or denied:", error.message);
-                    if (mounted) setUserLocation(fallbackLocation);
-                },
-                { timeout: 5000 }
-            );
-
-            return () => { mounted = false; clearTimeout(timer); };
-        } else {
-            setUserLocation(fallbackLocation);
-        }
-    }, [userLocation])
+        setUserLocation(fallbackLocation);
+        
+        // Removed auto-geolocation on mount to prevent:
+        // "[Violation] Only request geolocation information in response to a user gesture."
+    }, [])
 
     // 2. Fetch Destination Coordinates
     useEffect(() => {

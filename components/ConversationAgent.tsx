@@ -2186,6 +2186,8 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     travelType?: string | null
     budget?: string | null
     feedback?: string | null
+    name?: string | null
+    travelIntent?: boolean
     confidence: 'high' | 'medium' | 'low'
     understood: boolean
   }> => {
@@ -2248,17 +2250,47 @@ Present this in an engaging way, highlighting activities that would appeal to a 
     // Inline Lead Capture Inteception
     if (leadCapturePhase !== 'idle' && leadCapturePhase !== 'completed') {
       if (leadCapturePhase === 'asking_name') {
-        const nameExtracted = userInput.trim()
-        setCapturedLead(prev => ({ ...prev, name: nameExtracted }))
-        setLeadCapturePhase('asking_number')
-        await sendAssistantPrompt(
-          `Thanks, ${nameExtracted}! Please provide your 10-digit mobile number so our experts can contact you.`
-        )
-        return
+        // AI Extraction to check for travel intent vs name
+        try {
+          const extractData = await extractDataWithAI(userInput, 'asking_name', tripInfoRef.current)
+
+          if (extractData.travelIntent) {
+            // User is asking a travel question, not giving a name.
+            // Bypass capture and let the rest of handleSend process it.
+            console.log("[Lead Capture] Travel intent detected via AI, bypassing name capture.")
+          } else if (extractData.name) {
+            // AI extracted a real name
+            setCapturedLead(prev => ({ ...prev, name: extractData.name! }))
+            setLeadCapturePhase('asking_number')
+            await sendAssistantPrompt(
+              `Thanks, ${extractData.name}! Please provide your 10-digit mobile number so our experts can contact you.`
+            )
+            return
+          } else {
+            // AI returned name=null, no travelIntent — it's a greeting or gibberish
+            await sendAssistantPrompt(
+              "I'd love to help you! But first, could you please share your name? 😊"
+            )
+            return
+          }
+        } catch (err) {
+          console.error("Smart lead extraction failed in Agent, falling back to basic:", err)
+          const nameExtracted = userInput.trim()
+          if (/^[a-zA-Z]{3,}/.test(nameExtracted)) {
+            setCapturedLead(prev => ({ ...prev, name: nameExtracted }))
+            setLeadCapturePhase('asking_number')
+            await sendAssistantPrompt(`Thanks, ${nameExtracted}! What is your mobile number?`)
+          } else {
+            await sendAssistantPrompt("Could you please share your name? 😊")
+          }
+          return
+        }
       } else if (leadCapturePhase === 'asking_number') {
-        const cleanMobile = userInput.replace(/\D/g, '')
-        if (cleanMobile.length >= 10) { // basic length check
-          const finalMobile = cleanMobile.slice(-10)
+        const digitsOnly = userInput.replace(/\D/g, '');
+        
+        // If it contains 10+ digits, it's clearly a phone number - fast path
+        if (digitsOnly.length >= 10) {
+          const finalMobile = digitsOnly.slice(-10)
           setCapturedLead(prev => ({ ...prev, mobile: finalMobile }))
           setLeadCapturePhase('completed')
 
@@ -2283,9 +2315,49 @@ Present this in an engaging way, highlighting activities that would appeal to a 
             await sendAssistantPrompt('Oops, something went wrong while saving your details. Please try again or use the Contact form.')
           }
           return
-        } else {
-          // Re-prompt for valid number
-          await sendAssistantPrompt(`I need a valid 10-digit mobile number, please try again.`)
+        }
+
+        // Not a phone number — use AI to understand intent
+        try {
+          const extractData = await extractDataWithAI(userInput, 'asking_number', tripInfoRef.current)
+
+          if (extractData.travelIntent) {
+            // User wants to ask about travel — let it pass to the rest of handleSend
+            console.log("[Lead Capture] Travel intent during number phase, bypassing.")
+          } else if (extractData.feedback === 'skip') {
+            // User said they don't know / will share later
+            setLeadCapturePhase('completed')
+            
+            try {
+              if (db) {
+                await addDoc(collection(db, 'ai_planner_leads'), {
+                  name: capturedLead.name || 'Unknown User',
+                  mobile: 'Not provided',
+                  sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+                  packageContext: tripInfoRef.current.destination || 'Custom Trip',
+                  status: 'new',
+                  createdAt: serverTimestamp(),
+                  read: false,
+                })
+              }
+            } catch (e) {
+              console.error('Failed to save lead:', e)
+            }
+
+            await sendAssistantPrompt(
+              `No worries, ${capturedLead.name}! Our team will still prepare the best options for you. Feel free to share your number anytime. Meanwhile, do you have any questions about the packages?`
+            )
+            return
+          } else {
+            // Greeting or gibberish — gently re-ask
+            await sendAssistantPrompt(
+              "I just need your mobile number so our travel expert can reach you. Could you please share your 10-digit number? 😊"
+            )
+            return
+          }
+        } catch (err) {
+          console.error("AI extraction failed during number phase:", err)
+          await sendAssistantPrompt("Could you please share a valid 10-digit mobile number?")
           return
         }
       }
