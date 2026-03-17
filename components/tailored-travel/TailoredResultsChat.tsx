@@ -411,6 +411,11 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         let html = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
         html = html.replace(/\n/g, '<br/>')
+        
+        // Custom highlights for eye-catching lead capture
+        html = html.replace(/(what is your name\?|what is your name|share your name|share your 10-digit number\?|mobile number|10-digit mobile number\?|phone number)/gi, 
+            '<span class="text-primary font-bold text-base">$1</span>'
+        )
         return html
     }
 
