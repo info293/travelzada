@@ -44,8 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ].map((route) => ({
         url: `${baseUrl}${route}`,
         lastModified: new Date(),
-        changeFrequency: 'monthly' as const,
-        priority: route === '' ? 1 : 0.8,
+
     }))
 
     // 2. Fetch Data
@@ -68,8 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             return {
                 url: `${baseUrl}/blog/${category}/${slug}`,
                 lastModified: data.updatedAt ? new Date(data.updatedAt) : (data.date ? new Date(data.date) : new Date()),
-                changeFrequency: 'weekly' as const,
-                priority: 0.9, // High priority for blogs
+
             }
         })
 
@@ -103,8 +101,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             return {
                 url: `${baseUrl}/destinations/${slug}`,
                 lastModified: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-                changeFrequency: 'weekly' as const,
-                priority: 0.8,
+
             }
         })
 
@@ -187,8 +184,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             return {
                 url: `${baseUrl}/destinations/${destinationSlug}/${packageSlug}`,
                 lastModified: data.Last_Updated ? new Date(data.Last_Updated) : new Date(),
-                changeFrequency: 'weekly' as const,
-                priority: 1.0,
+
             }
         })
 
