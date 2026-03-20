@@ -61,7 +61,7 @@ interface PageProps {
 // Helper function to convert various date formats to ISO 8601
 // Helper function to convert various date formats to ISO 8601
 function convertToISO8601(dateString: string): string {
-    if (!dateString) return '2026-01-01' // Use a static fallback
+    if (!dateString) return '2024-01-01' // Use a static fallback in the past
 
     // Already in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
     if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
@@ -78,8 +78,8 @@ function convertToISO8601(dateString: string): string {
         const month = monthMap[monthShortMatch[1].toUpperCase()]
         const day = monthShortMatch[2].padStart(2, '0')
 
-        // Use a fixed year instead of new Date().getFullYear()
-        return `2026-${month}-${day}`
+        // Use a past year to prevent future-date schema errors
+        return `2024-${month}-${day}`
     }
 
     // Try to parse as Date
@@ -93,7 +93,7 @@ function convertToISO8601(dateString: string): string {
     }
 
     // Static fallback instead of new Date()
-    return '2026-01-01'
+    return '2024-01-01'
 }
 
 // Fetch blog post server-side using dynamic imports to prevent SSR bailout
@@ -351,8 +351,9 @@ export default async function BlogPostPage({ params }: PageProps) {
         description: post.description || post.subtitle,
         image: post.image,
         author: {
-            '@type': 'Person',
-            name: post.author,
+            '@type': post.author.toLowerCase().includes('travelzada') ? 'Organization' : 'Person',
+            name: post.author || 'Travelzada',
+            ...(post.author.toLowerCase().includes('travelzada') && { url: 'https://www.travelzada.com' })
         },
         datePublished: isoDate,
         dateModified: isoDate,

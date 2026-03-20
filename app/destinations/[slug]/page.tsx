@@ -11,6 +11,8 @@ import { db } from '@/lib/firebase'
 import ReviewForm from '@/components/ReviewForm'
 import ReviewList from '@/components/ReviewList'
 import ReviewSummary from '@/components/ReviewSummary'
+import SchemaMarkup, { generateTouristDestinationSchema, generateBreadcrumbSchema, generateItemListSchema } from '@/components/SchemaMarkup'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 const travelData = travelDatabase as any
 
@@ -197,10 +199,45 @@ export default function DestinationDetailPage({ params }: PageProps) {
   }
 
   const imageUrl = destination ? getDestinationImage(destination) : ''
+  
+  // Prepare Schemas
+  const destinationSchema = destination ? generateTouristDestinationSchema({
+    name: destination.name,
+    description: destination.description,
+    country: destination.country
+  }) : null
+
+  const breadcrumbSchema = destination ? generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' },
+    { name: 'Destinations', url: 'https://www.travelzada.com/destinations' },
+    { name: destination.name, url: `https://www.travelzada.com/destinations/${destination.slug || destination.name.toLowerCase().replace(/\s+/g, '-')}` }
+  ]) : null
+
+  const itemListSchema = destinationPackages.length > 0 ? generateItemListSchema(
+    `${destination?.name || destinationName} Travel Packages`,
+    `Explore top travel packages for ${destination?.name || destinationName}`,
+    destinationPackages.map(pkg => ({
+      name: pkg.Destination_Name || 'Package',
+      url: `https://www.travelzada.com/destinations/${destination?.slug || destination?.name.toLowerCase().replace(/\s+/g, '-') || destinationName}/${(pkg as any).Slug || pkg.Destination_ID || pkg.id}`
+    }))
+  ) : null
 
   return (
     <main className="min-h-screen bg-white">
+      {destinationSchema && <SchemaMarkup schema={destinationSchema} id="destination-schema" />}
+      {breadcrumbSchema && <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema" />}
+      {itemListSchema && <SchemaMarkup schema={itemListSchema} id="item-list-schema" />}
       <Header />
+
+      <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100 hidden md:block">
+        <div className="max-w-7xl mx-auto">
+          <Breadcrumbs items={[
+            { name: 'Home', url: '/' },
+            { name: 'Destinations', url: '/destinations' },
+            { name: destination?.name || destinationName }
+          ]} />
+        </div>
+      </div>
 
       {/* Hero Image Section */}
       <section className="relative h-[460px] md:h-[400px] overflow-hidden">

@@ -15,7 +15,7 @@ export default function TailoredTravelPage() {
             <div className="absolute inset-0 pointer-events-none -z-10">
                 <img
                     src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop"
-                    alt="Travel Background"
+                    alt="Customized travel planning displaying scenic mountain landscapes"
                     className="absolute inset-0 w-full h-full object-cover opacity-10"
                 />
                 <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]"></div>

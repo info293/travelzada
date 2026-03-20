@@ -79,7 +79,160 @@ interface BreadcrumbSchema {
   }>
 }
 
-type SchemaType = OrganizationSchema | TravelPackageSchema | ArticleSchema | BreadcrumbSchema
+interface WebSiteSchema {
+  '@context': string
+  '@type': string
+  name: string
+  alternateName?: string
+  url: string
+  potentialAction?: {
+    '@type': string
+    target: {
+      '@type': string
+      urlTemplate: string
+    }
+    'query-input': string
+  }
+}
+
+interface FAQPageSchema {
+  '@context': string
+  '@type': string
+  mainEntity: Array<{
+    '@type': string
+    name: string
+    acceptedAnswer: {
+      '@type': string
+      text: string
+    }
+  }>
+}
+
+interface SoftwareApplicationSchema {
+  '@context': string
+  '@type': string
+  name: string
+  applicationCategory: string
+  operatingSystem: string
+  description?: string
+  offers?: {
+    '@type': string
+    price: string
+    priceCurrency: string
+  }
+  aggregateRating?: {
+    '@type': string
+    ratingValue: string
+    ratingCount: string
+  }
+  creator?: {
+    '@type': string
+    name: string
+  }
+}
+
+interface ProductSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  image?: string
+  brand?: {
+    '@type': string
+    name: string
+  }
+  offers?: {
+    '@type': string
+    lowPrice: string
+    highPrice?: string
+    priceCurrency: string
+    availability: string
+    offerCount?: string
+    offers?: Array<{
+      '@type': string
+      name: string
+      price: string
+      priceCurrency: string
+    }>
+  }
+  aggregateRating?: {
+    '@type': string
+    ratingValue: string
+    bestRating: string
+    ratingCount: string
+    reviewCount?: string
+  }
+}
+
+interface TouristDestinationSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  geo?: {
+    '@type': string
+    latitude: string
+    longitude: string
+  }
+  touristType?: string[]
+  containedInPlace?: {
+    '@type': string
+    name: string
+  }
+}
+
+interface ContactPageSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  url: string
+  mainEntity: {
+    '@type': string
+    name: string
+    telephone: string
+    email: string
+    openingHours: string
+    address: {
+      '@type': string
+      streetAddress: string
+      addressLocality: string
+      addressRegion: string
+      postalCode: string
+      addressCountry: string
+    }
+  }
+}
+
+interface ItemListSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  numberOfItems?: number
+  itemListElement: Array<{
+    '@type': string
+    position: number
+    name: string
+    url: string
+  }>
+}
+
+interface HowToSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  step: Array<{
+    '@type': string
+    position: number
+    name: string
+    text: string
+    image?: string
+  }>
+}
+
+type SchemaType = OrganizationSchema | TravelPackageSchema | ArticleSchema | BreadcrumbSchema | WebSiteSchema | FAQPageSchema | SoftwareApplicationSchema | ProductSchema | TouristDestinationSchema | ContactPageSchema | ItemListSchema | HowToSchema | any
 
 interface SchemaMarkupProps {
   schema: SchemaType
@@ -225,6 +378,166 @@ export function generateBreadcrumbSchema(items: Array<{ name: string; url?: stri
       position: index + 1,
       name: item.name,
       ...(item.url ? { item: item.url } : {}),
+    })),
+  }
+}
+
+export function generateWebSiteSchema(): WebSiteSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Travelzada',
+    alternateName: 'Travelzada AI Travel Planner',
+    url: 'https://www.travelzada.com',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: 'https://www.travelzada.com/destinations?q={search_term_string}',
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  }
+}
+
+export function generateFAQSchema(faqs: Array<{ question: string; answer: string }>): FAQPageSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.question,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.answer,
+      },
+    })),
+  }
+}
+
+export function generateSoftwareApplicationSchema(): SoftwareApplicationSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Travelzada AI Trip Planner',
+    applicationCategory: 'TravelApplication',
+    operatingSystem: 'Web Browser',
+    description: 'AI-powered trip planner that creates personalized travel itineraries for couples in seconds.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'INR',
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: '4.9',
+      ratingCount: '150',
+    },
+    creator: {
+      '@type': 'Organization',
+      name: 'Travelzada',
+    },
+  }
+}
+
+export function generateProductSchema(data: { name: string; description?: string; image?: string; price: string; ratingValue?: string; ratingCount?: string; reviewCount?: string }): ProductSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: data.name,
+    description: data.description,
+    image: data.image,
+    brand: {
+      '@type': 'Brand',
+      name: 'Travelzada',
+    },
+    offers: {
+      '@type': 'AggregateOffer',
+      lowPrice: data.price,
+      priceCurrency: 'INR',
+      availability: 'https://schema.org/InStock',
+    },
+    ...(data.ratingValue && data.ratingCount ? {
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: data.ratingValue,
+        bestRating: '5',
+        ratingCount: data.ratingCount,
+        ...(data.reviewCount ? { reviewCount: data.reviewCount } : {}),
+      }
+    } : {}),
+  }
+}
+
+export function generateTouristDestinationSchema(data: { name: string; description?: string; country?: string }): TouristDestinationSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'TouristDestination',
+    name: data.name,
+    description: data.description,
+    touristType: ['Couples', 'Honeymooners', 'Birthday Celebrations'],
+    ...(data.country ? {
+      containedInPlace: {
+        '@type': 'Country',
+        name: data.country,
+      }
+    } : {}),
+  }
+}
+
+export function generateContactPageSchema(): ContactPageSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Contact Travelzada',
+    description: 'Get in touch with Travelzada for travel planning, booking support, and inquiries.',
+    url: 'https://www.travelzada.com/contact',
+    mainEntity: {
+      '@type': 'TravelAgency',
+      name: 'Travelzada',
+      telephone: '+91-9929962350',
+      email: 'info@travelzada.com',
+      openingHours: 'Mo-Sa 09:00-18:00',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Plot No. 18, Friends Colony, Malviya Nagar',
+        addressLocality: 'Jaipur',
+        addressRegion: 'Rajasthan',
+        postalCode: '302017',
+        addressCountry: 'IN',
+      },
+    },
+  }
+}
+
+export function generateItemListSchema(name: string, description: string, urls: Array<{ name: string; url: string }>): ItemListSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    description,
+    numberOfItems: urls.length,
+    itemListElement: urls.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      url: item.url,
+    })),
+  }
+}
+
+export function generateHowToSchema(name: string, description: string, steps: Array<{ name: string; text: string; image?: string }>): HowToSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name,
+    description,
+    step: steps.map((s, i) => ({
+      '@type': 'HowToStep',
+      position: i + 1,
+      name: s.name,
+      text: s.text,
+      ...(s.image ? { image: s.image } : {})
     })),
   }
 }

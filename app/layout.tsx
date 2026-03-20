@@ -21,7 +21,25 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: '/',
+    languages: {
+      'en-IN': '/',
+      'x-default': '/',
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: 'https://www.travelzada.com/',
+    siteName: 'Travelzada',
+    title: 'Travelzada - Plan your perfect trip in seconds',
+    description: 'AI-powered travel planning for couples. Curated packages for Bali, Kashmir, Kerala, Singapore & more.',
+    images: [{ url: 'https://www.travelzada.com/images/og-homepage.jpg' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Travelzada - Plan your perfect trip in seconds',
+    description: 'AI-powered travel planning for couples.',
+    images: ['https://www.travelzada.com/images/og-homepage.jpg'],
   },
   icons: {
     icon: '/images/logo/icons.png',
@@ -58,7 +76,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
-              '@type': 'Organization',
+              '@type': 'TravelAgency',
               name: 'Travelzada',
               url: 'https://www.travelzada.com/',
               logo: 'https://www.travelzada.com/images/logo/Travelzada%20Logo%20April%20(1).png',
@@ -68,9 +86,18 @@ export default function RootLayout({
                 contactType: 'customer support',
                 email: 'info@travelzada.com',
               },
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: 'Plot No. 18, Friends Colony, Malviya Nagar',
+                addressLocality: 'Jaipur',
+                addressRegion: 'Rajasthan',
+                postalCode: '302017',
+                addressCountry: 'IN'
+              },
+              hasMap: 'https://www.google.com/maps/search/?api=1&query=Travelzada+Malviya+Nagar+Jaipur',
               sameAs: [
-                'https://facebook.com',
-                'https://linkedin.com',
+                'https://facebook.com/travelzada',
+                'https://linkedin.com/company/travelzada',
               ],
             }),
           }}

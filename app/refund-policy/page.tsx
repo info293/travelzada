@@ -5,6 +5,9 @@ import Footer from '@/components/Footer'
 export const metadata: Metadata = {
     title: 'Refund Policy | Travelzada',
     description: 'Refund Policy for Travelzada services.',
+    alternates: {
+        canonical: '/refund-policy',
+    },
 }
 
 export default function RefundPolicyPage() {

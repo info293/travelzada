@@ -8,7 +8,8 @@ import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import LeadForm from '@/components/LeadForm'
-import SchemaMarkup, { generateTravelPackageSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateTravelPackageSchema, generateBreadcrumbSchema, generateProductSchema, generateFAQSchema } from '@/components/SchemaMarkup'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import AiLoader from '@/components/ui/AiLoader'
@@ -131,6 +132,7 @@ export default function PackageDetailPage({ params }: PageProps) {
   const [showLocationModal, setShowLocationModal] = useState(false)
   const [isInlineEnquireVisible, setIsInlineEnquireVisible] = useState(true)
   const [reviewRefresh, setReviewRefresh] = useState(0)
+  const [relatedPackages, setRelatedPackages] = useState<DestinationPackage[]>([])
   const contentRef = useRef<HTMLDivElement>(null)
   const reviewFormRef = useRef<HTMLDivElement>(null)
   const inlineEnquireRef = useRef<HTMLButtonElement>(null)
@@ -257,6 +259,45 @@ export default function PackageDetailPage({ params }: PageProps) {
     fetchPackage()
   }, [packageId, slug])
 
+  // Fetch related packages
+  useEffect(() => {
+    const fetchRelated = async () => {
+      if (!packageData || typeof window === 'undefined' || !db) return
+      
+      try {
+        const { collection, getDocs } = await import('firebase/firestore')
+        const packagesRef = collection(db, 'packages')
+        
+        const allPackagesSnapshot = await getDocs(packagesRef)
+        const related: DestinationPackage[] = []
+        
+        for (const doc of allPackagesSnapshot.docs) {
+          if (doc.id === packageData.id) continue
+          const data = doc.data() as DestinationPackage
+          
+          if (data.Destination_Name === packageData.Destination_Name || slug.toLowerCase() === data.Destination_Name?.toLowerCase().split(/[\s,]+/)[0]) {
+            related.push({ id: doc.id, ...data })
+          }
+        }
+        
+        // If we don't have enough, pick any random 3 from the same region or globally
+        if (related.length < 3) {
+          for (const doc of allPackagesSnapshot.docs) {
+            if (doc.id !== packageData.id && !related.find(r => r.id === doc.id)) {
+              related.push({ id: doc.id, ...doc.data() as DestinationPackage })
+            }
+          }
+        }
+        
+        setRelatedPackages(related.slice(0, 3).sort(() => Math.random() - 0.5))
+      } catch (err) {
+        console.error('Error fetching related packages:', err)
+      }
+    }
+    
+    fetchRelated()
+  }, [packageData, slug])
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
@@ -351,6 +392,17 @@ export default function PackageDetailPage({ params }: PageProps) {
     url: typeof window !== 'undefined' ? window.location.href : `https://www.travelzada.com/destinations/${slug}/${packageId}`,
   })
 
+  // Generate product schema for Ratings and Offers
+  const productSchema = generateProductSchema({
+    name: packageData.Destination_Name || 'Travel Package',
+    description: packageData.Overview || packageData.Destination_Name,
+    image: imageUrl,
+    price: packageData.Price_Range_INR ? String(packageData.Price_Range_INR).replace(/[^0-9]/g, '') || '50000' : '50000',
+    ratingValue: '5.0',
+    ratingCount: (packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0) ? String(packageData.Guest_Reviews.length) : String(DEFAULT_GUEST_REVIEWS.length),
+    reviewCount: (packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0) ? String(packageData.Guest_Reviews.length) : String(DEFAULT_GUEST_REVIEWS.length)
+  })
+
   // Generate breadcrumb schema
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: 'https://www.travelzada.com' },
@@ -358,6 +410,10 @@ export default function PackageDetailPage({ params }: PageProps) {
     { name: slug, url: `https://www.travelzada.com/destinations/${slug}` },
     { name: packageData.Destination_Name || 'Package' },
   ])
+
+  // Generate FAQ schema
+  const faqs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0 ? packageData.FAQ_Items : DEFAULT_FAQ_ITEMS
+  const faqSchema = generateFAQSchema(faqs)
 
   // Create itinerary from Day_Wise_Itinerary field or generate from duration
   const createItinerary = () => {
@@ -1131,7 +1187,15 @@ export default function PackageDetailPage({ params }: PageProps) {
         />
         <script
           type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+        />
+        <script
+          type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
         />
       </Head>
 
@@ -1180,6 +1244,17 @@ export default function PackageDetailPage({ params }: PageProps) {
             </div>
             <div className="w-32 h-1.5 bg-gray-200 rounded-full" />
             <p className="text-2xl text-gray-600 max-w-4xl leading-relaxed">{packageData.Overview}</p>
+          </div>
+        </div>
+
+        <div className="bg-[#f8f5f0] px-4 md:px-12 py-3 border-b border-gray-200 hidden md:block">
+          <div className="max-w-7xl mx-auto">
+             <Breadcrumbs items={[
+              { name: 'Home', url: '/' },
+              { name: 'Destinations', url: '/destinations' },
+              { name: slug, url: `/destinations/${slug}` },
+              { name: packageTitle }
+             ]} />
           </div>
         </div>
 
@@ -1628,6 +1703,71 @@ export default function PackageDetailPage({ params }: PageProps) {
             </aside>
           </div>
         </section>
+
+        {/* ================================ */}
+        {/* Related Packages Section         */}
+        {/* ================================ */}
+        {relatedPackages.length > 0 && (
+          <section className="py-14 px-4 md:px-12 bg-white border-t border-gray-100">
+            <div className="max-w-7xl mx-auto">
+              <div className="mb-10">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
+                  <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider">Explore More</span>
+                </div>
+                <h2 className="text-3xl md:text-3xl font-bold text-gray-900 mb-3">
+                  Other Exquisite Packages
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {relatedPackages.map(pkg => {
+                  let imageUrl = pkg.Primary_Image_URL || ''
+                  const markdownImageMatch = imageUrl.match(/\[([^\]]+)\]\(([^)]+)\)/)
+                  if (markdownImageMatch) {
+                    imageUrl = markdownImageMatch[2]
+                  }
+                  
+                  return (
+                    <Link 
+                      href={`/destinations/${encodeURIComponent(slug)}/${pkg.Slug || pkg.Destination_ID || pkg.id}`}
+                      key={pkg.id}
+                      className="group flex flex-col bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100"
+                    >
+                      <div className="relative h-56 overflow-hidden">
+                        <Image 
+                          src={imageUrl || '/images/placeholder.jpg'}
+                          alt={pkg.Destination_Name || 'Package'}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold text-gray-900 shadow-sm">
+                          {pkg.Duration}
+                        </div>
+                      </div>
+                      <div className="p-6 flex flex-col flex-1">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors line-clamp-2">
+                          {pkg.Destination_Name}
+                        </h3>
+                        <p className="text-gray-600 line-clamp-2 mb-4 text-sm flex-1">{pkg.Overview || (pkg.Highlights && pkg.Highlights.join(', '))}</p>
+                        <div className="flex items-center justify-between mt-auto">
+                          <div>
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">Starting from</p>
+                            <p className="text-lg font-bold text-primary">{pkg.Price_Range_INR || 'On Request'}</p>
+                          </div>
+                          <span className="text-sm font-semibold text-primary group-hover:text-primary-dark flex items-center gap-1">
+                            View details <span className="text-lg">→</span>
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ================================ */}
         {/* Traveler Reviews Section         */}

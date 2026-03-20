@@ -7,46 +7,8 @@ export default function Footer() {
   // in Server Components since server and client render times differ
   const currentYear = 2026
 
-  // Structured Data for SEO
-  const organizationSchema = {
-    "@context": "https://schema.org",
-    "@type": "TravelAgency",
-    "name": "Travelzada",
-    "legalName": "Sadaya Trips LLP",
-    "url": "https://www.travelzada.com",
-    "logo": "https://www.travelzada.com/images/logo/Travelzada Logo April (1).png",
-    "description": "AI-powered travel planning platform for premium couple trips and honeymoons. Plan your perfect journey with AI precision and human expertise.",
-    "foundingDate": "2023",
-    "address": {
-      "@type": "PostalAddress",
-      "streetAddress": "Plot No. 18, Friends Colony, Malviya Nagar",
-      "addressLocality": "Jaipur",
-      "addressRegion": "Rajasthan",
-      "postalCode": "302017",
-      "addressCountry": "IN"
-    },
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "telephone": "+91-9929962350",
-      "contactType": "customer service",
-      "email": "info@travelzada.com",
-      "areaServed": "IN",
-      "availableLanguage": ["English", "Hindi"]
-    },
-    "sameAs": [
-      "https://facebook.com/travelzada",
-      "https://linkedin.com/company/travelzada"
-    ]
-  }
-
   return (
     <>
-      {/* Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c') }}
-      />
-
       <footer className="bg-gradient-to-br from-gray-900 via-ink to-gray-900 text-white border-t border-white/5" role="contentinfo" aria-label="Site Footer">
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto px-4 py-16">
@@ -84,6 +46,17 @@ export default function Footer() {
                   <a href="tel:+919929962350" className="hover:text-white transition-colors">
                     +91 99299 62350
                   </a>
+                </p>
+                <p className="flex items-start gap-2 pt-1">
+                  <svg className="w-4 h-4 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="leading-snug">
+                    Plot No. 18, Friends Colony<br />
+                    Malviya Nagar, Jaipur<br />
+                    Rajasthan 302017, India
+                  </span>
                 </p>
               </address>
 

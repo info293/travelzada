@@ -8,6 +8,7 @@ import ConversationAgent from '@/components/ConversationAgent'
 import TripForm from '@/components/TripForm'
 import PlannerPackages from '@/components/PlannerPackages'
 import BlogSection from '@/components/BlogSection'
+import SchemaMarkup, { generateSoftwareApplicationSchema, generateHowToSchema } from '@/components/SchemaMarkup'
 
 function AIPlannerContent() {
   const searchParams = useSearchParams()
@@ -76,8 +77,22 @@ function AIPlannerContent() {
     setIsMobileChatMode(false)
   }, [])
 
+  const softwareSchema = generateSoftwareApplicationSchema()
+  const howToSchema = generateHowToSchema(
+    'How to Plan a Trip with Travelzada AI',
+    'Plan your perfect couple trip in 3 simple steps using our AI travel planner.',
+    [
+      { name: 'Tell Us Your Vibe', text: 'Choose your travel style — romantic, adventure, relaxation, or celebration.' },
+      { name: 'Get Your AI Itinerary', text: 'Our AI creates a personalized day-by-day itinerary with hotels, activities, and transfers.' },
+      { name: 'Book and Travel', text: 'Review, customize if needed, and book your entire trip in one click.' }
+    ]
+  )
+
   return (
     <>
+      <SchemaMarkup schema={softwareSchema} id="software-schema" />
+      <SchemaMarkup schema={howToSchema} id="howto-schema" />
+      
       {/* Full Screen Mobile Chat Mode - Renders as overlay covering everything */}
       {isMobileChatMode && (
         <ConversationAgent

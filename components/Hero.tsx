@@ -19,7 +19,7 @@ export default function Hero() {
   const defaultSlide: HeroSlide = {
     image: '/images/home/homepage.jpg',
     link: '/destinations',
-    alt: 'Travel destination'
+    alt: 'Travelzada premium vacation destinations and beautiful travel spots'
   }
 
   const currentSlide = slides.length > 0 ? slides[currentSlideIndex] : defaultSlide
@@ -45,7 +45,7 @@ export default function Hero() {
               validSlides.push({
                 image: cleanUrl,
                 link: `/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageId)}`,
-                alt: data.Destination_Name || 'Travel destination'
+                alt: data.Destination_Name ? `${data.Destination_Name} Travel Package` : 'Beautiful travel destination package'
               })
             }
           }

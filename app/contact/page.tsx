@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import SchemaMarkup, { generateContactPageSchema } from '@/components/SchemaMarkup'
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import emailjs from '@emailjs/browser'
@@ -140,8 +141,11 @@ export default function ContactPage() {
   }
 
 
+  const contactSchema = generateContactPageSchema()
+
   return (
     <main className="min-h-screen bg-white">
+      <SchemaMarkup schema={contactSchema} id="contact-schema" />
       <Header />
 
       {/* Hero Section */}
@@ -223,9 +227,9 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Address</h3>
                       <p className="text-gray-600">
-                        Jaipur<br />
-                        Rajasthan<br />
-                        India
+                        Plot No. 18, Friends Colony<br />
+                        Malviya Nagar, Jaipur<br />
+                        Rajasthan 302017, India
                       </p>
                     </div>
                   </div>
@@ -296,6 +300,20 @@ export default function ContactPage() {
                   </a>
                 </div>
               </div>
+            </div>
+
+            {/* Google Map Embed */}
+            <div className="mt-8 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[300px]">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3559.877!2d75.8094!3d26.8553!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x396db66d!2sMalviya%20Nagar%2C%20Jaipur%2C%20Rajasthan%20302017!5e0!3m2!1sen!2sin!4v1680000000000!5m2!1sen!2sin"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen={true}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Travelzada Office Location"
+              ></iframe>
             </div>
 
             {/* Contact Form */}

@@ -4,6 +4,8 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import DestinationsClient from './DestinationsClient'
 import travelDatabase from '@/data/travel-database.json'
+import SchemaMarkup, { generateBreadcrumbSchema, generateItemListSchema } from '@/components/SchemaMarkup'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 const travelData = travelDatabase as any
 
@@ -84,15 +86,31 @@ async function fetchDestinations(): Promise<Destination[]> {
 
 export default async function DestinationsPage() {
   const destinations = await fetchDestinations()
+  
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' },
+    { name: 'Destinations', url: 'https://www.travelzada.com/destinations' }
+  ])
+  
+  const itemListSchema = generateItemListSchema(
+    'Travelzada Destinations',
+    'Explore our curated list of domestic and international travel destinations.',
+    destinations.map((d: any) => ({
+      name: d.name,
+      url: `https://www.travelzada.com/destinations/${d.slug || d.name.toLowerCase().replace(/\s+/g, '-')}`
+    }))
+  )
 
   return (
     <main className="min-h-screen bg-white">
+      <SchemaMarkup schema={breadcrumbSchema} id="breadcrumbs" />
+      <SchemaMarkup schema={itemListSchema} id="item-list" />
       <Header />
 
       {/* Hero Section */}
       <section className="py-8 md:py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-0 mt-8">
+          <div className="mb-4 mt-8 flex flex-col md:flex-row md:items-center gap-4">
             <Link
               href="/"
               className="inline-flex items-center text-gray-900 hover:text-primary transition-colors"
@@ -101,6 +119,10 @@ export default async function DestinationsPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
+            <Breadcrumbs items={[
+              { name: 'Home', url: '/' },
+              { name: 'Destinations' }
+            ]} />
           </div>
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">

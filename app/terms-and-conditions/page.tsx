@@ -5,6 +5,9 @@ import Footer from '@/components/Footer'
 export const metadata: Metadata = {
     title: 'Terms and Conditions | Travelzada',
     description: 'Terms and Conditions for Travelzada services.',
+    alternates: {
+        canonical: '/terms-and-conditions',
+    },
 }
 
 export default function TermsAndConditionsPage() {

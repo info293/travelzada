@@ -132,7 +132,7 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
         {/* Location */}
         <div className="flex items-center text-3xl gap-1.5 text-xs text-gray-500 mb-1.5">
           <span>📍</span>
-          <span className="text-xl font-bold">{destination.name}, {destination.country}</span>
+          <h2 className="text-xl font-bold m-0">{destination.name}, {destination.country}</h2>
         </div>
 
         {/* Package Title */}

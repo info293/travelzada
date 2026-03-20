@@ -192,6 +192,9 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       {/* Main Content Area */}
       <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
+          {/* SEO Hidden H1 */}
+          <h1 className="sr-only">Travelzada Blog - Travel Tips, Guides, and Destination Insights</h1>
+
           {/* Blog Sections */}
           <div className="space-y-16 py-12">
             {selectedSection && (

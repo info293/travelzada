@@ -5,8 +5,9 @@ import Testimonials from '@/components/Testimonials'
 import WhyTravelzada from '@/components/WhyTravelzada'
 import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
-import SchemaMarkup, { generateOrganizationSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema } from '@/components/SchemaMarkup'
 import FAQ from '@/components/FAQ'
+import { faqs } from '@/data/faqs'
 import DynamicOccasionRails from '@/components/DynamicOccasionRails'
 import DestinationRail from '@/components/DestinationRail'
 import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
@@ -25,9 +26,14 @@ export default function Home() {
     ],
   })
 
+  const websiteSchema = generateWebSiteSchema()
+  const faqSchema = generateFAQSchema(faqs)
+
   return (
     <>
-      <SchemaMarkup schema={organizationSchema} />
+      <SchemaMarkup schema={organizationSchema} id="org-schema" />
+      <SchemaMarkup schema={websiteSchema} id="website-schema" />
+      <SchemaMarkup schema={faqSchema} id="faq-schema" />
       <DestinationSlugCacheInitializer />
       <main className="min-h-screen bg-cream pt-16 md:pt-24">
         <Header />

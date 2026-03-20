@@ -5,6 +5,9 @@ import Footer from '@/components/Footer'
 export const metadata: Metadata = {
     title: 'Privacy Policy | Travelzada',
     description: 'Privacy Policy for Travelzada services.',
+    alternates: {
+        canonical: '/privacy-policy',
+    },
 }
 
 export default function PrivacyPolicyPage() {
