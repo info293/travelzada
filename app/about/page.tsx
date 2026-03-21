@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 export const metadata: Metadata = {
     title: 'About Travelzada | The Story Behind Travelzada',
@@ -70,6 +71,14 @@ export default function AboutUsPage() {
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
             <Header />
+            <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100">
+                <div className="max-w-4xl mx-auto">
+                    <Breadcrumbs items={[
+                        { name: 'Home', url: '/' },
+                        { name: 'About' }
+                    ]} />
+                </div>
+            </div>
 
             {/* Hero / Intro Section */}
             <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
@@ -245,6 +254,12 @@ export default function AboutUsPage() {
                             <p className="font-medium text-gray-900 italic pt-4">
                                 If you want your trip to feel worth it, you’re our kind of traveller.
                             </p>
+                            <div className="pt-4">
+                                <a href="/about/team" className="inline-flex py-3 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm transition-colors items-center gap-2">
+                                    Meet the Team 
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                </a>
+                            </div>
                         </div>
                     </div>
 

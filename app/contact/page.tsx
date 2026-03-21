@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import SchemaMarkup, { generateContactPageSchema } from '@/components/SchemaMarkup'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import emailjs from '@emailjs/browser'
@@ -147,6 +148,16 @@ export default function ContactPage() {
     <main className="min-h-screen bg-white">
       <SchemaMarkup schema={contactSchema} id="contact-schema" />
       <Header />
+
+      {/* Breadcrumb Bar */}
+      <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <Breadcrumbs items={[
+            { name: 'Home', url: '/' },
+            { name: 'Contact' }
+          ]} />
+        </div>
+      </div>
 
       {/* Hero Section */}
       <section className="pt-24 pb-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 via-white to-white">

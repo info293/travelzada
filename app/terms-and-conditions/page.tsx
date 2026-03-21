@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 export const metadata: Metadata = {
     title: 'Terms and Conditions | Travelzada',
@@ -14,6 +15,14 @@ export default function TermsAndConditionsPage() {
     return (
         <main className="min-h-screen bg-white">
             <Header />
+            <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100">
+                <div className="max-w-4xl mx-auto">
+                    <Breadcrumbs items={[
+                        { name: 'Home', url: '/' },
+                        { name: 'Terms & Conditions' }
+                    ]} />
+                </div>
+            </div>
             <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
                     <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">Terms and Conditions</h1>

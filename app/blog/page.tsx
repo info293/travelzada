@@ -5,6 +5,7 @@ import Link from 'next/link'
 // // import { collection, getDocs, query, orderBy, where } from 'firebase/firestore' // Removed for SSR safety // Removed for SSR safety
 // import { db } from '@/lib/firebase' // Removed for SSR safety
 import { NewsletterSubscription } from '@/components/blog/NewsletterSubscription'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 interface BlogPost {
   id?: string
@@ -189,11 +190,22 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
     <main className="min-h-screen bg-white">
       <Header />
 
-      {/* Main Content Area */}
-      <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
+      {/* Breadcrumb Bar */}
+      <div className="bg-white px-4 md:px-6 lg:px-8 py-3 border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
-          {/* SEO Hidden H1 */}
-          <h1 className="sr-only">Travelzada Blog - Travel Tips, Guides, and Destination Insights</h1>
+          <Breadcrumbs items={[
+            { name: 'Home', url: '/' },
+            { name: 'Blog' }
+          ]} />
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <section className="pt-10 pb-16 px-4 md:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Visible H1 for SEO */}
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Travelzada Blog</h1>
+          <p className="text-gray-500 mb-8">Travel tips, destination guides, and insights for your next trip.</p>
 
           {/* Blog Sections */}
           <div className="space-y-16 py-12">

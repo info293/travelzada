@@ -9,6 +9,7 @@ import { ShareButtons } from '@/components/blog/ShareButtons'
 import { NewsletterForm } from '@/components/blog/NewsletterForm'
 import { RelatedPosts } from '@/components/blog/RelatedPosts'
 import { ViewCounter } from '@/components/blog/ViewCounter'
+import Breadcrumbs from '@/components/Breadcrumbs'
 
 interface BlogSection {
     type: 'intro' | 'paragraph' | 'heading' | 'subheading' | 'image' | 'quote' | 'list' | 'cta' | 'divider' | 'faq' | 'toc' | 'related'
@@ -353,7 +354,10 @@ export default async function BlogPostPage({ params }: PageProps) {
         author: {
             '@type': post.author.toLowerCase().includes('travelzada') ? 'Organization' : 'Person',
             name: post.author || 'Travelzada',
-            ...(post.author.toLowerCase().includes('travelzada') && { url: 'https://www.travelzada.com' })
+            ...(post.author.toLowerCase().includes('travelzada') 
+                ? { url: 'https://www.travelzada.com' }
+                : { url: 'https://www.travelzada.com/about/team' }
+            )
         },
         datePublished: isoDate,
         dateModified: isoDate,
@@ -437,8 +441,20 @@ export default async function BlogPostPage({ params }: PageProps) {
             <main className="min-h-screen bg-white">
                 {post.id && <ViewCounter postId={post.id} />}
 
+                {/* Breadcrumb Bar */}
+                <div className="bg-white px-4 md:px-8 lg:px-12 py-3 border-b border-gray-100">
+                    <div className="max-w-4xl mx-auto">
+                        <Breadcrumbs items={[
+                            { name: 'Home', url: '/' },
+                            { name: 'Blog', url: '/blog' },
+                            ...(post.category ? [{ name: post.category, url: `/blog?section=${encodeURIComponent(post.category)}` }] : []),
+                            { name: post.title }
+                        ]} />
+                    </div>
+                </div>
+
                 {/* Main Content */}
-                <section className="pt-24 pb-12 px-4 md:px-8 lg:px-12">
+                <section className="pt-8 pb-12 px-4 md:px-8 lg:px-12">
                     <div className="max-w-4xl mx-auto">
                         <div className="flex flex-col gap-12">
                             {/* Article Content */}

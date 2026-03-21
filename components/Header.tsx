@@ -50,7 +50,7 @@ export default function Header() {
   // Static nav items (always rendered)
   const navItems = [
     { href: '/', label: 'Home' },
-    { href: '/ai-trip-planner', label: 'AI Planner', isAI: true },
+    { href: '/tailored-travel', label: 'AI Planner', isAI: true },
     { href: '/destinations', label: 'Destinations' },
     { href: '/blog', label: 'Blog' },
     { href: '/contact', label: 'Contact' },
