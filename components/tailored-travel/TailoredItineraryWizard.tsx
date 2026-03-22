@@ -74,10 +74,10 @@ export default function TailoredItineraryWizard() {
 
                         {/* Progress Bar Container */}
                         <div className="mb-12 max-w-3xl mx-auto w-full px-4 md:px-0 mt-6 relative z-10">
-                            <div className="flex justify-between text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider relative z-10">
-                                <span className={`transition-colors ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
-                                <span className={`transition-colors ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
-                                <span className={`transition-colors ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
+                            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider relative z-10">
+                                <span className={`transition-colors truncate max-w-[30%] ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
+                                <span className={`transition-colors truncate max-w-[30%] text-center ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
+                                <span className={`transition-colors truncate max-w-[40%] text-right ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
                             </div>
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
                                 <div

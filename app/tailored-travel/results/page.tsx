@@ -52,6 +52,7 @@ export default function TailoredResultsPage() {
     const [enquirePackageName, setEnquirePackageName] = useState<string>('')
     const [showLeadForm, setShowLeadForm] = useState(false)
     const [selectedPackageForLead, setSelectedPackageForLead] = useState<string>('')
+    const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'results'>('chat')
     const router = useRouter()
 
     useEffect(() => {
@@ -74,6 +75,16 @@ export default function TailoredResultsPage() {
             }
         }
     }, [router])
+
+    // Auto-switch to Matches tab on mobile after 3s when packages update
+    useEffect(() => {
+        if (packages.length > 0) {
+            const timer = setTimeout(() => {
+                setActiveMobileTab(prev => prev === 'chat' ? 'results' : prev)
+            }, 3000)
+            return () => clearTimeout(timer)
+        }
+    }, [packages])
 
     const fetchPackages = async (data: any) => {
         setIsLoading(true)
@@ -182,12 +193,30 @@ export default function TailoredResultsPage() {
                         <button onClick={() => router.push('/tailored-travel')} className="bg-primary text-white px-8 py-4 rounded-full font-bold shadow-lg">Modify Preferences</button>
                     </div>
                 ) : (
-                    /* ====== 2-PANEL GRID LAYOUT ====== */
-                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+                    <>
+                    {/* ====== MOBILE TAB SWITCHER ====== */}
+                    <div className="lg:hidden flex bg-white rounded-full p-1.5 border border-gray-200 shadow-sm w-full max-w-sm shrink-0 mx-auto relative z-30 mb-4">
+                        <button 
+                            onClick={() => setActiveMobileTab('results')}
+                            className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-full transition-all ${activeMobileTab === 'results' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            Matches
+                        </button>
+                        <button 
+                            onClick={() => setActiveMobileTab('chat')}
+                            className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-full transition-all ${activeMobileTab === 'chat' ? 'bg-gradient-to-r from-primary to-[#ff8a3d] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                        >
+                            <span className="text-base">✨</span> AI Planner
+                        </button>
+                    </div>
+
+                    {/* ====== 2-PANEL GRID LAYOUT ====== */}
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-6 min-h-0">
 
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
                         {/* Interactive Trip Planner Chat */}
-                        <div id="trip-planner-chat-container" className="lg:col-span-8 flex flex-col min-h-0 h-full border border-gray-200 rounded-3xl overflow-hidden shadow-xl bg-white relative z-20 mt-8 lg:mt-0">
+                        <div id="trip-planner-chat-container" className={`lg:col-span-8 flex-col min-h-0 h-full border border-gray-200 rounded-3xl overflow-hidden shadow-xl bg-white relative z-20 ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
                             <div className="flex-1 overflow-hidden">
                                 <TailoredResultsChat 
                                     initialPackages={packages} 
@@ -200,7 +229,7 @@ export default function TailoredResultsPage() {
                         </div>
 
                         {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}
-                        <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6">
+                        <div className={`lg:col-span-4 flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6 ${activeMobileTab === 'results' ? 'flex' : 'hidden lg:flex'}`}>
                             {packages.slice(0, 1).map((pkg, index) => {
                                 // Extract and normalize Day-Wise Itinerary for displaying and map routing
                                 let itineraryItems: { day: string; title: string; description: string }[] = [];
@@ -344,6 +373,7 @@ export default function TailoredResultsPage() {
                             })}
                         </div>
                     </div>
+                    </>
                 )}
             </div>
             {/* Omit standard footer to maximize app height for the 3-panel layout */}

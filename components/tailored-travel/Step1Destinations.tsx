@@ -170,10 +170,10 @@ export default function Step1Destinations({
     return (
         <div className="animate-fade-in-up">
             <div className="text-center mb-10">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
                     Where would you like to go?
                 </h2>
-                <p className="text-lg text-gray-700 font-medium">Tell us your dream destinations and when you want to travel.</p>
+                <p className="text-base sm:text-lg text-gray-700 font-medium px-2">Tell us your dream destinations and when you want to travel.</p>
             </div>
 
             <div className="space-y-6 max-w-4xl mx-auto bg-white/70 backdrop-blur-2xl rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">

@@ -51,10 +51,8 @@ export function middleware(request: NextRequest) {
 
     // Check if URL has ?t= parameter (tracking/campaign parameter)
     if (request.nextUrl.searchParams.has('t')) {
-        const response = NextResponse.next()
-        // Tell search engines not to index this URL variant, but follow links
-        response.headers.set('X-Robots-Tag', 'noindex, follow')
-        return response
+        // Return 410 Gone status code for spam pages
+        return new NextResponse('Gone', { status: 410 })
     }
 
     return NextResponse.next()

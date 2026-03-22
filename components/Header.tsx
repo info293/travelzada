@@ -207,11 +207,6 @@ export default function Header() {
                   >
                     {isAI && <SparkleIcon className="w-4 h-4" />}
                     {item.label}
-                    {isAI && (
-                      <span className="ml-2 text-[11px] uppercase tracking-wide text-purple-500 font-semibold">
-                        AI
-                      </span>
-                    )}
                   </Link>
                 )
               })}

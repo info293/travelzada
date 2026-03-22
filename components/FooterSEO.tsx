@@ -140,7 +140,7 @@ export default function FooterSEO() {
     return (
         <div className="w-full border-b border-white/10 pb-8 mb-12">
             {/* Tabs */}
-            <div className="flex flex-wrap gap-6 mb-6 border-b border-white/10">
+            <div className="flex flex-wrap gap-4 md:gap-6 mb-6 border-b border-white/10">
                 {tabs.map((tab) => (
                     <button
                         key={tab.id}
@@ -156,7 +156,7 @@ export default function FooterSEO() {
             </div>
 
             {/* Links Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-3">
                 {activeTab === 'blogs' ? (
                     blogs.length > 0 ? (
                         blogs.map((blog) => (
