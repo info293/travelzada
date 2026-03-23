@@ -60,41 +60,42 @@ interface PageProps {
 }
 
 // Helper function to convert various date formats to ISO 8601
-// Helper function to convert various date formats to ISO 8601
 function convertToISO8601(dateString: string): string {
     if (!dateString) return '2024-01-01' // Use a static fallback in the past
 
+    let iso = '2024-01-01'
+
     // Already in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)
     if (/^\d{4}-\d{2}-\d{2}/.test(dateString)) {
-        return dateString.split('T')[0] // Return just the date part
-    }
-
-    // Handle formats like "DEC 01", "JAN 15", etc.
-    const monthShortMatch = dateString.match(/^([A-Z]{3})\s+(\d{1,2})$/i)
-    if (monthShortMatch) {
-        const monthMap: { [key: string]: string } = {
-            'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04', 'MAY': '05', 'JUN': '06',
-            'JUL': '07', 'AUG': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        iso = dateString.split('T')[0] // Return just the date part
+    } else {
+        // Handle formats like "DEC 01", "JAN 15", etc.
+        const monthShortMatch = dateString.match(/^([A-Z]{3})\s+(\d{1,2})$/i)
+        if (monthShortMatch) {
+            const monthMap: { [key: string]: string } = {
+                'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04', 'MAY': '05', 'JUN': '06',
+                'JUL': '07', 'AUG': '08', 'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+            }
+            const month = monthMap[monthShortMatch[1].toUpperCase()]
+            const day = monthShortMatch[2].padStart(2, '0')
+            iso = `2024-${month}-${day}`
+        } else {
+            // Try to parse as Date
+            try {
+                const parsed = new Date(dateString)
+                if (!isNaN(parsed.getTime())) {
+                    iso = parsed.toISOString().split('T')[0]
+                }
+            } catch (e) {
+                // Fall through
+            }
         }
-        const month = monthMap[monthShortMatch[1].toUpperCase()]
-        const day = monthShortMatch[2].padStart(2, '0')
-
-        // Use a past year to prevent future-date schema errors
-        return `2024-${month}-${day}`
     }
 
-    // Try to parse as Date
-    try {
-        const parsed = new Date(dateString)
-        if (!isNaN(parsed.getTime())) {
-            return parsed.toISOString().split('T')[0]
-        }
-    } catch (e) {
-        // Fall through
-    }
-
-    // Static fallback instead of new Date()
-    return '2024-01-01'
+    // Clamp to today if in the future
+    const today = new Date().toISOString().split('T')[0]
+    if (iso > today) return today
+    return iso
 }
 
 // Fetch blog post server-side using dynamic imports to prevent SSR bailout
@@ -279,7 +280,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
             description: metaDescription,
             images: [ogImage],
             siteName: 'Travelzada',
-            publishedTime: post.date,
+            publishedTime: convertToISO8601(post.date),
             authors: [post.author],
             section: post.category,
         },

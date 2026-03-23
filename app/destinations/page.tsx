@@ -22,11 +22,13 @@ export const metadata: Metadata = {
     description: 'Discover amazing travel destinations worldwide with curated packages.',
     url: 'https://www.travelzada.com/destinations',
     type: 'website',
+    images: [{ url: 'https://www.travelzada.com/images/og-homepage.jpg' }],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'Explore Destinations | Travelzada',
     description: 'Discover amazing travel destinations worldwide with curated packages.',
+    images: ['https://www.travelzada.com/images/og-homepage.jpg'],
   },
   robots: {
     index: true,

@@ -101,9 +101,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   
   if (!destination) return { title: 'Destination Not Found - Travelzada' }
   
+  const title = `${destination.name} Tour Packages - Travelzada`
+  const description = destination.description || `Explore top tour packages for ${destination.name}. Book your dream trip with Travelzada!`
+  const url = `https://www.travelzada.com/destinations/${destination.slug || destination.name.toLowerCase().replace(/\s+/g, '-')}`
+  const imageUrl = destination.image ? destination.image.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim() : 'https://www.travelzada.com/images/og-homepage.jpg'
+
   return {
-    title: `${destination.name} Tour Packages - Travelzada`,
-    description: destination.description || `Explore top tour packages for ${destination.name}. Book your dream trip with Travelzada!`,
+    title,
+    description,
+    openGraph: {
+      type: 'website',
+      url,
+      title,
+      description,
+      images: [{ url: imageUrl }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [imageUrl],
+    }
   }
 }
 

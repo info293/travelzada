@@ -63,6 +63,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`,
       images: [imageUrl],
       type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${packageTitle} - Travelzada`,
+      description: packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`,
+      images: [imageUrl],
     }
   }
 }
