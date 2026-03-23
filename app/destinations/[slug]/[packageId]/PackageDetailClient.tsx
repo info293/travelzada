@@ -1664,15 +1664,17 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
               <SectionCard title="Need a Custom Quote?">
                 <p className="text-gray-600 mb-3">
-                  Email us at{' '}
+                  Visit our <Link href="/contact" className="text-primary font-semibold hover:underline">Contact Page</Link> to speak with our experts directly, or try our <Link href="/ai-trip-planner" className="text-primary font-semibold hover:underline">AI Trip Planner</Link> to generate a perfectly tailored itinerary for your dates!
+                </p>
+                <p className="text-gray-600 mb-3">
+                  You can also email us at{' '}
                   <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
                     info@travelzada.com
                   </a>{' '}
                   or call us at{' '}
                   <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
                     +919929962350
-                  </a>{' '}
-                  with your travel dates and preferences.
+                  </a>.
                 </p>
               </SectionCard>
             </aside>

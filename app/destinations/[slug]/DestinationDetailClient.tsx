@@ -923,6 +923,24 @@ export default function DestinationDetailClient({ params, initialDestination, in
         </>
       )}
 
+      {/* Internal Linking CTA Section */}
+      <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Ready to Explore {destination?.name || destinationName}?</h2>
+          <p className="text-gray-600 mb-6 text-lg">
+            Visit our <Link href="/contact" className="text-primary font-semibold hover:underline">Contact Page</Link> to speak with our travel experts, or try our <Link href="/ai-trip-planner" className="text-primary font-semibold hover:underline">AI Trip Planner</Link> to generate a perfectly tailored itinerary for your dates!
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link href="/contact" className="px-8 py-3 bg-primary text-white rounded-[5px] font-semibold hover:bg-primary-dark transition-colors inline-block">
+              Contact Us
+            </Link>
+            <Link href="/ai-trip-planner" className="px-8 py-3 bg-white border-2 border-primary text-primary rounded-[5px] font-semibold hover:bg-primary/5 transition-colors inline-block">
+              Launch AI Planner
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ================================ */}
       {/* Traveler Reviews Section         */}
       {/* ================================ */}
