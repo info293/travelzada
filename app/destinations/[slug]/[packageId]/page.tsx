@@ -6,7 +6,8 @@ import SchemaMarkup, {
   generateTravelPackageSchema, 
   generateBreadcrumbSchema, 
   generateProductSchema, 
-  generateFAQSchema 
+  generateFAQSchema,
+  generateWebPageSchema
 } from '@/components/SchemaMarkup'
 
 interface PageProps {
@@ -79,6 +80,13 @@ export default async function PackagePage({ params }: PageProps) {
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
   
+  const itineraryData = Array.isArray(packageData.Day_Wise_Itinerary_Details) 
+    ? packageData.Day_Wise_Itinerary_Details.map((day: any) => ({
+        dayTitle: day.Title || day.Day_Title || day.Headline || 'Day',
+        description: day.Description || day.Activities || day.Summary || 'Activities planned for the day'
+      })).filter((day: any) => day.dayTitle && day.description)
+    : undefined;
+
   const packageSchema = generateTravelPackageSchema({
     name: packageTitle,
     description: packageData.Overview || packageTitle,
@@ -88,6 +96,7 @@ export default async function PackagePage({ params }: PageProps) {
     duration: packageData.Duration,
     destination: slug,
     url: `https://www.travelzada.com/destinations/${slug}/${params.packageId}`,
+    itinerary: itineraryData
   })
 
   // Generate product schema for Ratings and Offers
@@ -111,12 +120,21 @@ export default async function PackagePage({ params }: PageProps) {
   const faqs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0 ? packageData.FAQ_Items : DEFAULT_FAQ_ITEMS
   const faqSchema = generateFAQSchema(faqs)
 
+  const webPageSchema = generateWebPageSchema({
+    name: `${packageTitle} - Travelzada`,
+    description: packageData.Overview || packageTitle,
+    url: `https://www.travelzada.com/destinations/${slug}/${params.packageId}`,
+    websiteUrl: 'https://www.travelzada.com',
+    aboutDestinationName: slug
+  })
+
   return (
     <>
       <SchemaMarkup schema={packageSchema} id="package-schema" />
       <SchemaMarkup schema={productSchema} id="product-schema" />
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-package" />
       <SchemaMarkup schema={faqSchema} id="faq-schema-package" />
+      <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <PackageDetailClient params={params} initialPackageData={packageData} />
     </>
   )

@@ -13,19 +13,6 @@ import DestinationRail from '@/components/DestinationRail'
 import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
 
 export default function Home() {
-  // Generate Organization schema for SEO
-  const organizationSchema = generateOrganizationSchema({
-    name: 'Travelzada',
-    url: 'https://www.travelzada.com',
-    description: 'Plan your perfect trip in seconds with Travelzada. AI-powered travel planning with human expertise. Discover amazing destinations, curated packages, and personalized itineraries.',
-    socialMedia: [
-      // Add your social media URLs here when available
-      // 'https://www.facebook.com/travelzada',
-      // 'https://www.instagram.com/travelzada',
-      // 'https://www.twitter.com/travelzada',
-    ],
-  })
-
   const websiteSchema = generateWebSiteSchema()
   const faqSchema = generateFAQSchema(faqs)
   const breadcrumbSchema = generateBreadcrumbSchema([
@@ -34,7 +21,6 @@ export default function Home() {
 
   return (
     <>
-      <SchemaMarkup schema={organizationSchema} id="org-schema" />
       <SchemaMarkup schema={websiteSchema} id="website-schema" />
       <SchemaMarkup schema={faqSchema} id="faq-schema" />
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />

@@ -44,6 +44,20 @@ interface TravelPackageSchema {
     '@type': string
     name?: string
   }
+  itinerary?: {
+    '@type': string
+    name: string
+    numberOfItems: number
+    itemListElement: Array<{
+      '@type': string
+      position: number
+      item: {
+        '@type': string
+        name: string
+        description: string
+      }
+    }>
+  }
 }
 
 interface ArticleSchema {
@@ -179,6 +193,11 @@ interface TouristDestinationSchema {
     '@type': string
     name: string
   }
+  includesAttraction?: Array<{
+    '@type': string
+    name: string
+    description?: string
+  }>
 }
 
 interface ContactPageSchema {
@@ -232,7 +251,54 @@ interface HowToSchema {
   }>
 }
 
-type SchemaType = OrganizationSchema | TravelPackageSchema | ArticleSchema | BreadcrumbSchema | WebSiteSchema | FAQPageSchema | SoftwareApplicationSchema | ProductSchema | TouristDestinationSchema | ContactPageSchema | ItemListSchema | HowToSchema | any
+interface WebPageSchema {
+  '@context': string
+  '@type': string
+  name: string
+  description?: string
+  url: string
+  isPartOf?: {
+    '@type': string
+    '@id': string
+  }
+  about?: {
+    '@type': string
+    name: string
+  }
+  breadcrumb?: {
+    '@id': string
+  }
+}
+
+interface TravelAgencyReviewSchema {
+  '@context': string
+  '@type': string
+  name: string
+  aggregateRating?: {
+    '@type': string
+    ratingValue: string
+    bestRating: string
+    worstRating?: string
+    ratingCount: string
+    reviewCount: string
+  }
+  review?: Array<{
+    '@type': string
+    author: {
+      '@type': string
+      name: string
+    }
+    datePublished: string
+    reviewRating: {
+      '@type': string
+      ratingValue: string
+      bestRating: string
+    }
+    reviewBody: string
+  }>
+}
+
+type SchemaType = OrganizationSchema | TravelPackageSchema | ArticleSchema | BreadcrumbSchema | WebSiteSchema | FAQPageSchema | SoftwareApplicationSchema | ProductSchema | TouristDestinationSchema | ContactPageSchema | ItemListSchema | HowToSchema | WebPageSchema | TravelAgencyReviewSchema | any
 
 interface SchemaMarkupProps {
   schema: SchemaType
@@ -293,6 +359,7 @@ export function generateTravelPackageSchema(data: {
   duration?: string
   destination?: string
   url?: string
+  itinerary?: Array<{ dayTitle: string; description: string }>
 }): TravelPackageSchema {
   return {
     '@context': 'https://schema.org',
@@ -329,6 +396,22 @@ export function generateTravelPackageSchema(data: {
         },
       }
       : {}),
+    ...(data.itinerary && data.itinerary.length > 0 ? {
+      itinerary: {
+        '@type': 'ItemList',
+        name: `${data.duration || 'Package'} Itinerary`,
+        numberOfItems: data.itinerary.length,
+        itemListElement: data.itinerary.map((day, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          item: {
+            '@type': 'TouristTrip',
+            name: day.dayTitle,
+            description: day.description
+          }
+        }))
+      }
+    } : {})
   }
 }
 
@@ -350,7 +433,7 @@ export function generateArticleSchema(data: {
     ...(data.author
       ? {
         author: {
-          '@type': 'Person',
+          '@type': data.author.toLowerCase().includes('travelzada') ? 'Organization' : 'Person',
           name: data.author,
         },
       }
@@ -469,7 +552,7 @@ export function generateProductSchema(data: { name: string; description?: string
   }
 }
 
-export function generateTouristDestinationSchema(data: { name: string; description?: string; country?: string }): TouristDestinationSchema {
+export function generateTouristDestinationSchema(data: { name: string; description?: string; country?: string; geo?: { latitude: string; longitude: string }; attractions?: Array<{ name: string; description?: string }> }): TouristDestinationSchema {
   return {
     '@context': 'https://schema.org',
     '@type': 'TouristDestination',
@@ -482,6 +565,20 @@ export function generateTouristDestinationSchema(data: { name: string; descripti
         name: data.country,
       }
     } : {}),
+    ...(data.geo ? {
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: data.geo.latitude,
+        longitude: data.geo.longitude
+      }
+    } : {}),
+    ...(data.attractions && data.attractions.length > 0 ? {
+      includesAttraction: data.attractions.map(a => ({
+        '@type': 'TouristAttraction',
+        name: a.name,
+        ...(a.description ? { description: a.description } : {})
+      }))
+    } : {})
   }
 }
 
@@ -523,6 +620,68 @@ export function generateItemListSchema(name: string, description: string, urls: 
       name: item.name,
       url: item.url,
     })),
+  }
+}
+
+export function generateWebPageSchema(data: { name: string; description?: string; url: string; websiteUrl?: string; aboutDestinationName?: string }): WebPageSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: data.name,
+    description: data.description,
+    url: data.url,
+    ...(data.websiteUrl ? {
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': `${data.websiteUrl}#website`
+      }
+    } : {}),
+    ...(data.aboutDestinationName ? {
+      about: {
+        '@type': 'TouristDestination',
+        name: data.aboutDestinationName
+      }
+    } : {}),
+    breadcrumb: {
+      '@id': `${data.url}#breadcrumb`
+    }
+  }
+}
+
+export function generateTravelAgencyReviewSchema(data: {
+  ratingValue: string
+  ratingCount: string
+  reviewCount: string
+  reviews: Array<{ authorName: string; date: string; ratingValue: string; body: string }>
+}): TravelAgencyReviewSchema {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'TravelAgency',
+    name: 'Travelzada',
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: data.ratingValue,
+      bestRating: '5',
+      worstRating: '1',
+      ratingCount: data.ratingCount,
+      reviewCount: data.reviewCount
+    },
+    ...(data.reviews && data.reviews.length > 0 ? {
+      review: data.reviews.map(r => ({
+        '@type': 'Review',
+        author: {
+          '@type': 'Person',
+          name: r.authorName
+        },
+        datePublished: r.date,
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: r.ratingValue,
+          bestRating: '5'
+        },
+        reviewBody: r.body
+      }))
+    } : {})
   }
 }
 
