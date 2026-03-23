@@ -108,7 +108,7 @@ export default async function DestinationsPage() {
       <Header />
 
       {/* Hero Section */}
-      <section className="py-8 md:py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
+      <section className="pt-24 md:pt-32 pb-8 md:pb-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-6xl mx-auto">
           <div className="mb-4 mt-8 flex flex-col md:flex-row md:items-center gap-4">
             <Link

@@ -442,7 +442,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                 {post.id && <ViewCounter postId={post.id} />}
 
                 {/* Breadcrumb Bar */}
-                <div className="bg-white px-4 md:px-8 lg:px-12 py-3 border-b border-gray-100">
+                <div className="bg-white px-4 md:px-8 lg:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
                     <div className="max-w-4xl mx-auto">
                         <Breadcrumbs items={[
                             { name: 'Home', url: '/' },

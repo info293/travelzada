@@ -191,7 +191,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       <Header />
 
       {/* Breadcrumb Bar */}
-      <div className="bg-white px-4 md:px-6 lg:px-8 py-3 border-b border-gray-100">
+      <div className="bg-white px-4 md:px-6 lg:px-8 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
           <Breadcrumbs items={[
             { name: 'Home', url: '/' },

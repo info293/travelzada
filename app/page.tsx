@@ -5,7 +5,7 @@ import Testimonials from '@/components/Testimonials'
 import WhyTravelzada from '@/components/WhyTravelzada'
 import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
-import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 import FAQ from '@/components/FAQ'
 import { faqs } from '@/data/faqs'
 import DynamicOccasionRails from '@/components/DynamicOccasionRails'
@@ -28,12 +28,16 @@ export default function Home() {
 
   const websiteSchema = generateWebSiteSchema()
   const faqSchema = generateFAQSchema(faqs)
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' }
+  ])
 
   return (
     <>
       <SchemaMarkup schema={organizationSchema} id="org-schema" />
       <SchemaMarkup schema={websiteSchema} id="website-schema" />
       <SchemaMarkup schema={faqSchema} id="faq-schema" />
+      <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />
       <DestinationSlugCacheInitializer />
       <main className="min-h-screen bg-cream pt-16 md:pt-24">
         <Header />

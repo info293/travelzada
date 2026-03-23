@@ -20,6 +20,15 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(url, 301)
     }
 
+    // WWW vs NON-WWW DUAL SERVING (301 Permanent Redirect)
+    const host = request.headers.get('host')
+    if (host === 'travelzada.com') {
+        const newUrl = request.nextUrl.clone()
+        newUrl.host = 'www.travelzada.com'
+        newUrl.protocol = 'https:'
+        return NextResponse.redirect(newUrl, 301)
+    }
+
     // Dynamic Redirects mapping (e.g. prefix replacements)
     const pathname = request.nextUrl.pathname;
     

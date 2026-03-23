@@ -229,7 +229,7 @@ export default function DestinationDetailPage({ params }: PageProps) {
       {itemListSchema && <SchemaMarkup schema={itemListSchema} id="item-list-schema" />}
       <Header />
 
-      <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100">
+      <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
         <div className="max-w-7xl mx-auto">
           <Breadcrumbs items={[
             { name: 'Home', url: '/' },

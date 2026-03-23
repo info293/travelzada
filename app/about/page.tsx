@@ -3,6 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
 import Breadcrumbs from '@/components/Breadcrumbs'
+import SchemaMarkup, { generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 
 export const metadata: Metadata = {
     title: 'About Travelzada | The Story Behind Travelzada',
@@ -64,14 +65,20 @@ const SparkleIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
 )
 
 export default function AboutUsPage() {
+    const breadcrumbSchema = generateBreadcrumbSchema([
+        { name: 'Home', url: 'https://www.travelzada.com' },
+        { name: 'About' }
+    ])
+
     return (
         <main className="min-h-screen bg-white">
+            <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-about" />
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
             <Header />
-            <div className="bg-white px-4 md:px-12 py-3 border-b border-gray-100">
+            <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
                 <div className="max-w-4xl mx-auto">
                     <Breadcrumbs items={[
                         { name: 'Home', url: '/' },
