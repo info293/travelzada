@@ -5,6 +5,7 @@ import Script from 'next/script'
 import './globals.css'
 import { AuthProvider } from '@/contexts/AuthContext'
 import GoogleAnalytics from '@/components/GoogleAnalytics'
+import HreflangTags from '@/components/HreflangTags'
 
 const inter = Inter({ subsets: ['latin'] })
 const playfair = Playfair_Display({
@@ -19,12 +20,6 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-  },
-  alternates: {
-    languages: {
-      'en-IN': '/',
-      'x-default': '/',
-    },
   },
   openGraph: {
     type: 'website',
@@ -103,6 +98,7 @@ export default function RootLayout({
           }}
         />
         <Suspense fallback={null}>
+          <HreflangTags />
           <AuthProvider>{children}</AuthProvider>
         </Suspense>
       </body>

@@ -8,7 +8,8 @@ import SchemaMarkup, {
   generateBreadcrumbSchema,
   generateItemListSchema,
   generateWebPageSchema,
-  generateTravelAgencyReviewSchema
+  generateTravelAgencyReviewSchema,
+  generateFAQSchema
 } from '@/components/SchemaMarkup'
 
 const geoData: Record<string, { latitude: string; longitude: string }> = {
@@ -183,6 +184,9 @@ export default async function DestinationPage({ params }: PageProps) {
     ]
   })
 
+  // FAQ Schema
+  const faqSchema = destination.faqs && destination.faqs.length > 0 ? generateFAQSchema(destination.faqs) : null;
+
   return (
     <>
       <SchemaMarkup schema={destinationSchema} id="destination-schema" />
@@ -190,6 +194,7 @@ export default async function DestinationPage({ params }: PageProps) {
       {itemListSchema && <SchemaMarkup schema={itemListSchema} id="item-list-schema" />}
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <SchemaMarkup schema={reviewSchema} id="review-schema" />
+      {faqSchema && <SchemaMarkup schema={faqSchema} id="faq-schema-destination" />}
       
       <DestinationDetailClient 
         params={resolvedParams} 

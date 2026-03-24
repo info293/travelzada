@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import Image from 'next/image'
 
 interface DestinationCardProps {
   destination: {
@@ -102,10 +103,12 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
       {/* Image Section */}
       <div className="relative h-48 overflow-hidden">
         {!imageError ? (
-          <img
+          <Image
             src={imageUrl}
             alt={destination.name}
-            className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 hover:scale-110"
             onError={() => setImageError(true)}
           />
         ) : (

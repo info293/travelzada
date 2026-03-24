@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { collection, getDocs, query, limit } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import Image from 'next/image'
 
 interface HeroSlide {
   image: string
@@ -140,11 +141,14 @@ export default function Hero() {
             <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
 
             <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl border-4 border-white group-hover:shadow-3xl transition-shadow duration-300">
-              <Link href={currentSlide.link} className="block w-full h-full cursor-pointer">
-                <img
+              <Link href={currentSlide.link} className="block w-full h-full cursor-pointer relative">
+                <Image
                   src={currentSlide.image}
                   alt={currentSlide.alt}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  fill
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
               </Link>
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>

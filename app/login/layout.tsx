@@ -1,21 +1,12 @@
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-    title: 'Login | Travelzada - Sign In to Your Account',
-    description: 'Sign in to your Travelzada account for personalized travel recommendations, saved itineraries, and exclusive deals on travel packages.',
-    alternates: {
-        canonical: '/login',
-    },
-    robots: {
-        index: false,
-        follow: false,
-    },
+  robots: {
+    index: false,
+    follow: false,
+  },
 }
 
-export default function LoginLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
-    return children
+export default function LoginLayout({ children }: { children: React.ReactNode }) {
+  return <>{children}</>
 }

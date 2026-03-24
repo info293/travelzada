@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
+import Image from 'next/image'
 import travelDatabase from '@/data/travel-database.json'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -217,13 +218,16 @@ export default function DestinationDetailClient({ params, initialDestination, in
       </div>
 
       {/* Hero Image Section */}
-      <section className="relative h-[460px] md:h-[400px] overflow-hidden">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${imageUrl})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
-        </div>
+      <section className="relative h-[460px] md:h-[400px] overflow-hidden bg-gray-900">
+        <Image
+          src={imageUrl}
+          alt={`Beautiful view of ${destination?.name || destinationName}`}
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent pointer-events-none"></div>
         {/* Back Button - Positioned over image */}
         <div className="absolute top-20 left-4 md:left-12 z-[100] pointer-events-auto">
           <button
@@ -315,13 +319,12 @@ export default function DestinationDetailClient({ params, initialDestination, in
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
                     </div>
                     <div className="relative h-44 overflow-hidden">
-                      <img
+                      <Image
                         src={imageUrl}
                         alt={pkg.Destination_Name || 'Package'}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-                        }}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       {pkg.Star_Category && (
                         <span className="absolute top-3 right-3 bg-white text-gray-900 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow">
