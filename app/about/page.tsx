@@ -314,9 +314,8 @@ export default function AboutUsPage() {
                                     <p>Email ID : <a href="mailto:info@travelzada.com" className="text-primary hover:underline">info@travelzada.com</a></p>
                                     <p>Contact Number : <a href="tel:+919929962350" className="text-primary hover:underline">+91 9929962350</a></p>
                                     <div className="mt-4">
-                                        <p className="font-semibold text-gray-900">SADAYA TRIPS LLP</p>
-                                        <p>PLOT NO. 18, FRIENDS COLONY, MALVIYA NAGAR,</p>
-                                        <p>Malviya Nagar (Jaipur), Malviya Nagar Police Station,</p>
+                                        <p className="font-semibold text-gray-900">Sadaya Trips LLP</p>
+                                        <p>Plot No. 18, Friends Colony, Malviya Nagar</p>
                                         <p>Jaipur – 302017, Rajasthan, India</p>
                                     </div>
                                 </div>

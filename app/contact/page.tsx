@@ -245,7 +245,7 @@ export default function ContactPage() {
                       <p className="text-gray-600">
                         Plot No. 18, Friends Colony<br />
                         Malviya Nagar, Jaipur<br />
-                        Rajasthan 302017, India
+                        Rajasthan – 302017, India
                       </p>
                     </div>
                   </div>
