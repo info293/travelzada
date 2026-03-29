@@ -1,6 +1,8 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { unstable_noStore } from 'next/cache'
+
+// Revalidate every 1 hour (3600 seconds)
+export const revalidate = 3600
 
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -103,10 +105,6 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
     console.log('[SSR-DEBUG] fetchBlogPost START - slug:', slug)
     console.log('[SSR-DEBUG] Running on:', typeof window === 'undefined' ? 'SERVER' : 'CLIENT')
 
-    // Opt out of static generation BEFORE try/catch to prevent PPR bailout
-    unstable_noStore()
-    console.log('[SSR-DEBUG] unstable_noStore() called')
-
     try {
         console.log('[SSR-DEBUG] Importing firebase/firestore...')
         // Dynamic imports to prevent SSR bailout
@@ -179,10 +177,6 @@ async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
 // Fetch related posts - ensures 2-3 posts are always returned using dynamic imports
 async function fetchRelatedPosts(category: string | undefined, currentPostId: string | undefined): Promise<BlogPost[]> {
     console.log('[SSR-DEBUG] fetchRelatedPosts START - category:', category, 'currentPostId:', currentPostId)
-
-    // Opt out of static generation BEFORE try/catch to prevent PPR bailout
-    unstable_noStore()
-    console.log('[SSR-DEBUG] fetchRelatedPosts - unstable_noStore() called')
 
     try {
         console.log('[SSR-DEBUG] fetchRelatedPosts - Importing firebase...')

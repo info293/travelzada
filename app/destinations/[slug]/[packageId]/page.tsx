@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { permanentRedirect } from 'next/navigation'
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PackageDetailClient from './PackageDetailClient'
@@ -43,7 +44,62 @@ async function getPackageData(packageId: string, slug?: string) {
   const destSnapshot = await getDocs(destQuery)
   if (!destSnapshot.empty) return { id: destSnapshot.docs[0].id, ...destSnapshot.docs[0].data() }
 
+  // Fallback: Case-insensitive search on all packages
+  const allPackagesSnapshot = await getDocs(packagesRef)
+  for (const docSnap of allPackagesSnapshot.docs) {
+    const data = docSnap.data() as any
+    const searchParam = String(packageId).toLowerCase()
+    
+    if (
+      (data.Slug && String(data.Slug).toLowerCase() === searchParam) || 
+      (data.Destination_ID && String(data.Destination_ID).toLowerCase() === searchParam) || 
+      String(docSnap.id).toLowerCase() === searchParam
+    ) {
+      console.log(`[SSR] getPackageData Fallback Match Found! ID: ${docSnap.id}`);
+      return { id: docSnap.id, ...data }
+    }
+  }
+  
+  console.log(`[SSR] getPackageData FAILED to find any package for: ${packageId}`);
   return null;
+}
+
+function getCanonicalDestinationSlug(packageData: any, currentSlug: string): string {
+  const destIdStr = packageData.Destination_ID ? String(packageData.Destination_ID) : '';
+  const prefix = destIdStr ? destIdStr.split('_')[0].toUpperCase() : '';
+  const prefixMap: Record<string, string> = {
+      'BAL': 'bali-packages',
+      'KER': 'kerala-packages',
+      'GOA': 'goa-packages',
+      'KASH': 'kashmir-packages',
+      'RAJ': 'rajasthan-packages',
+      'THAI': 'thailand-packages',
+      'VIET': 'vietnam-packages',
+      'DUBAI': 'dubai-packages',
+      'MAL': 'maldives-packages',
+      'EUR': 'europe-packages',
+      'LAD': 'ladakh-packages',
+      'AND': 'andaman-and-nicobar-packages',
+      'BAKU': 'baku-packages',
+      'SING': 'singapore-packages'
+  };
+  
+  if (prefixMap[prefix]) {
+      return prefixMap[prefix];
+  }
+  
+  if (packageData.Destination_Name) {
+      let baseName = String(packageData.Destination_Name).toLowerCase().split(' ')[0].replace(/[^a-z0-9-]/g, '');
+      if (baseName === 'andaman') return 'andaman-and-nicobar-packages';
+      if (baseName === 'sri') return 'sri-lanka-packages';
+      return `${baseName}-packages`;
+  }
+  
+  // Fallback
+  if (!String(currentSlug).endsWith('-packages')) {
+      return `${String(currentSlug)}-packages`;
+  }
+  return String(currentSlug);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -74,14 +130,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function PackagePage({ params }: PageProps) {
+  console.log(`[SSR] PackagePage Started for slug: ${params.slug}, packageId: ${params.packageId}`);
   const packageData: any = await getPackageData(params.packageId, params.slug);
   
   if (!packageData) {
+    console.log(`[SSR] packageData is null. Bailing out to PackageDetailClient without redirect.`);
     return <PackageDetailClient params={params} initialPackageData={null} />
   }
 
-  const packageTitle = packageData.Destination_Name || 'Travel Package'
   const slug = decodeURIComponent(params.slug)
+
+  // Enforce Canonical URL Structure
+  const canonicalSlug = getCanonicalDestinationSlug(packageData, slug)
+  console.log(`[SSR] canonicalSlug = ${canonicalSlug}, currentSlug = ${slug}`);
+  if (slug.toLowerCase() !== canonicalSlug.toLowerCase()) {
+    const packageSlug = packageData.Slug || params.packageId
+    console.log(`[SSR] MUST REDIRECT to /destinations/${canonicalSlug}/${packageSlug}`);
+    // Permanent 301 Redirect to the correct canonical URL
+    permanentRedirect(`/destinations/${canonicalSlug}/${packageSlug}`)
+  }
+
+  const packageTitle = packageData.Destination_Name || 'Travel Package'
   const imageUrl = packageData.Primary_Image_URL
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'

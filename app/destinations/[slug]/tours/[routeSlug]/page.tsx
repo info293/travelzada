@@ -93,7 +93,9 @@ export default async function SourceDestinationPage({ params }: PageProps) {
                 }
 
                 if (shouldInclude) {
-                    packagesData.push({ id: doc.id, ...data })
+                    const safeData = { id: doc.id, ...data }
+                    delete safeData.Booking_URL
+                    packagesData.push(safeData)
                 }
             })
         } catch (e) {

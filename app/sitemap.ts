@@ -135,17 +135,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                     // Manual Fallback Map for common codes to match typical destination slugs
                     const prefixMap: Record<string, string> = {
                         'BAL': 'bali-packages',
-                        'KER': 'kerala',
-                        'GOA': 'goa',
-                        'KASH': 'kashmir',
-                        'RAJ': 'rajasthan',
-                        'THAI': 'thailand',
-                        'VIET': 'vietnam',
-                        'DUBAI': 'dubai',
-                        'MAL': 'maldives',
-                        'EUR': 'europe',
-                        'LAD': 'ladakh',
-                        'AND': 'andaman'
+                        'KER': 'kerala-packages',
+                        'GOA': 'goa-packages',
+                        'KASH': 'kashmir-packages',
+                        'RAJ': 'rajasthan-packages',
+                        'THAI': 'thailand-packages',
+                        'VIET': 'vietnam-packages',
+                        'DUBAI': 'dubai-packages',
+                        'MAL': 'maldives-packages',
+                        'EUR': 'europe-packages',
+                        'LAD': 'ladakh-packages',
+                        'AND': 'andaman-and-nicobar-packages',
+                        'BAKU': 'baku-packages',
+                        'SING': 'singapore-packages'
                     }
 
                     if (prefixMap[prefix]) {
@@ -180,6 +182,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
             // Use the package's custom Slug if available, otherwise fallback to ID
             const packageSlug = (data.Slug && data.Slug.trim()) ? data.Slug.trim() : doc.id
+
+            // ENFORCE Canonical SEO Pattern: all package URLs must be under {city}-packages
+            if (!destinationSlug.endsWith('-packages') && destinationSlug !== 'unknown') {
+                destinationSlug = `${destinationSlug}-packages`;
+            }
 
             return {
                 url: `${baseUrl}/destinations/${destinationSlug}/${packageSlug}`,

@@ -12,6 +12,10 @@ export function middleware(request: NextRequest) {
         '/story': '/our-story',
         '/blog/destination-guide/top-things-to-do-in-bali': '/blog/destination/top-things-to-do-in-bali-a-complete-travel-guide',
         '/destinations/bali-packages/bali-Komodo-6n7d-honeymoon': '/destinations/bali-packages/bali-komodo-6n7d-honeymoon',
+        '/destinations/bali-birthday-special/bali-birthday-5n6d-couple': '/destinations/bali-packages/bali-birthday-5n6d-couple',
+        '/destinations/anniversary-in-bali/bali-anniversary-6n7d-couple': '/destinations/bali-packages/bali-anniversary-6n7d-couple',
+        '/destinations/bali-with-special/bali-anniversary-6n7d-couple': '/destinations/bali-packages/bali-anniversary-6n7d-couple',
+        '/destinations/bali-honeymoon-couple-trip/bali-luxury-5n6d-honeymoon': '/destinations/bali-packages/bali-luxury-5n6d-honeymoon',
     }
 
     if (seoRedirects[request.nextUrl.pathname]) {
@@ -46,6 +50,19 @@ export function middleware(request: NextRequest) {
     }
     if (pathname.startsWith('/blog/destination-guide/')) {
         return NextResponse.redirect(new URL(pathname.replace('/blog/destination-guide/', '/blog/destination/'), request.url), 301)
+    }
+
+    // Pattern A to Pattern B for Tours from City (e.g. /destinations/kashmir/tours/from-delhi -> /destinations/kashmir-packages/tours/from-delhi)
+    const tourMatch = pathname.match(/^\/destinations\/([^\/]+)\/tours\/(from-[^\/]+)$/);
+    if (tourMatch) {
+        const slug = tourMatch[1];
+        const routeSlug = tourMatch[2];
+        if (!slug.endsWith('-packages')) {
+            let baseName = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+            if (baseName === 'andaman') baseName = 'andaman-and-nicobar';
+            if (baseName === 'sri') baseName = 'sri-lanka';
+            return NextResponse.redirect(new URL(`/destinations/${baseName}-packages/tours/${routeSlug}`, request.url), 301);
+        }
     }
 
     // Clean double hyphens generated in blog slugs

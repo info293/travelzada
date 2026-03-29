@@ -29,6 +29,9 @@ interface BlogPost {
   slug?: string
 }
 
+// Revalidate every 1 hour (3600 seconds)
+export const revalidate = 3600
+
 // Metadata for SEO
 export const metadata: Metadata = {
   title: 'Travel Blog | Travelzada - Tips, Guides & Destination Insights',
