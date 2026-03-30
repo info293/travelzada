@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function TailoredTravelPage() {
     return (
-        <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-gray-50">
+        <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-x-hidden bg-gray-50">
             {/* Soft Light Background */}
             <div className="absolute inset-0 pointer-events-none -z-10">
                 <img

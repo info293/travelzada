@@ -169,14 +169,14 @@ export default function Step1Destinations({
 
     return (
         <div className="animate-fade-in-up">
-            <div className="text-center mb-10">
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
+            <div className="text-center mb-6 sm:mb-10">
+                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-gray-900 mb-2 sm:mb-4 tracking-tight drop-shadow-sm">
                     Where would you like to go?
                 </h2>
-                <p className="text-base sm:text-lg text-gray-700 font-medium px-2">Tell us your dream destinations and when you want to travel.</p>
+                <p className="text-sm sm:text-lg text-gray-700 font-medium px-2">Tell us your dream destinations and when you want to travel.</p>
             </div>
 
-            <div className="space-y-6 max-w-4xl mx-auto bg-white/70 backdrop-blur-2xl rounded-[2rem] p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+            <div className="space-y-5 sm:space-y-6 max-w-4xl mx-auto bg-white/70 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
 
                 {/* Destinations Input */}
                 <div className="space-y-4">
@@ -229,7 +229,7 @@ export default function Step1Destinations({
                                     placeholder={isLoading ? 'Loading destinations...' : 'e.g. Goa, India'}
                                     disabled={isLoading}
                                     autoComplete="off"
-                                    className="w-full pl-11 pr-24 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all text-base font-medium outline-none text-gray-900 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="w-full pl-11 pr-24 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all text-sm sm:text-base font-medium outline-none text-gray-900 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
                                 />
                                 <button
                                     onClick={() => handleAddDestination()}
@@ -286,14 +286,14 @@ export default function Step1Destinations({
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
                         When are you traveling?
                     </label>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                         {['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].map((dateOption) => {
                             const isSelected = data.dateRange === dateOption
                             return (
                                 <button
                                     key={dateOption}
                                     onClick={() => updateData({ dateRange: dateOption })}
-                                    className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all duration-300 relative overflow-hidden backdrop-blur-sm ${isSelected
+                                    className={`py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all duration-300 relative overflow-hidden backdrop-blur-sm ${isSelected
                                         ? 'border-primary text-primary bg-primary/5 shadow-md scale-[1.02]'
                                         : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300 hover:shadow-sm'
                                         }`}
@@ -310,19 +310,19 @@ export default function Step1Destinations({
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
                         Choose your vibe
                     </label>
-                    <div className="flex flex-wrap gap-2.5">
+                    <div className="flex flex-wrap gap-2 sm:gap-2.5">
                         {OPTIONS_EXPERIENCE.map((exp) => {
                             const isSelected = data.experiences.includes(exp.id)
                             return (
                                 <button
                                     key={exp.id}
                                     onClick={() => toggleExperience(exp.id)}
-                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 text-sm font-bold transition-all duration-300 focus:outline-none ${isSelected
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border-2 text-xs sm:text-sm font-bold transition-all duration-300 focus:outline-none ${isSelected
                                         ? 'bg-gray-900 border-gray-900 text-white shadow-[0_4px_15px_rgba(0,0,0,0.15)] scale-105'
                                         : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200 hover:text-gray-900 shadow-sm'
                                         }`}
                                 >
-                                    <span className={`text-base ${isSelected ? 'grayscale-0 drop-shadow-sm' : 'grayscale opacity-60'}`}>{exp.icon}</span>
+                                    <span className={`text-sm sm:text-base ${isSelected ? 'grayscale-0 drop-shadow-sm' : 'grayscale opacity-60'}`}>{exp.icon}</span>
                                     {exp.label}
                                 </button>
                             )

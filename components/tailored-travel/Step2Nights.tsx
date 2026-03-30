@@ -168,18 +168,18 @@ export default function Step2Nights({
 
     return (
         <div className="animate-fade-in-up">
-            <div className="text-center mb-10">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
+            <div className="text-center mb-6 sm:mb-10">
+                <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-2 sm:mb-4 tracking-tight drop-shadow-sm">
                     Customize Your Journey
                 </h2>
-                <p className="text-lg text-gray-700 font-medium">Review your route and select the package duration for each stop.</p>
+                <p className="text-sm sm:text-lg text-gray-700 font-medium">Review your route and select the package duration for each stop.</p>
             </div>
 
             <div className="max-w-4xl mx-auto">
 
                 {/* Route List */}
-                <div className="w-full space-y-4 bg-white/70 backdrop-blur-2xl rounded-[2rem] p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
-                    <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
+                <div className="w-full space-y-4 bg-white/70 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
+                    <h3 className="font-bold text-lg sm:text-xl text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
                         <svg className="w-6 h-6 text-[#ff8a3d] drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                         Available Packages
                     </h3>

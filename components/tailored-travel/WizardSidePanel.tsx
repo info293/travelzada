@@ -30,16 +30,16 @@ export default function WizardSidePanel({
         }))
 
     return (
-        <div className="hidden lg:flex w-[45%] bg-white/80 backdrop-blur-3xl border border-gray-200/50 shadow-2xl shadow-gray-200/50 rounded-[2.5rem] p-8 text-gray-900 flex-col relative overflow-hidden flex-1">
+        <div className="flex w-full lg:w-[45%] bg-white/90 sm:bg-white/80 backdrop-blur-3xl border border-gray-200/50 shadow-2xl shadow-gray-200/50 rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 lg:p-8 text-gray-900 flex-col relative overflow-hidden h-[500px] lg:h-auto lg:flex-1 mt-6 lg:mt-0 z-10">
             {/* Cartographic Grid Background */}
             <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTQwIDBMMCAwIDAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjIiLz48L3N2Zz4=')] pointer-events-none"></div>
 
-            <div className="relative z-10 flex flex-col h-full">
-                <div className="mb-8 flex items-center gap-3">
-                    <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+            <div className="relative z-10 flex flex-col h-full w-full">
+                <div className="mb-4 sm:mb-8 flex items-center gap-2 sm:gap-3 shrink-0">
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
                     <div>
-                        <h3 className="text-3xl font-bold drop-shadow-sm">Live Journey Map</h3>
-                        <p className="text-gray-500 font-medium">
+                        <h3 className="text-xl sm:text-3xl font-bold drop-shadow-sm">Live Journey Map</h3>
+                        <p className="text-xs sm:text-sm text-gray-500 font-medium">
                             {routeItems.length === 0
                                 ? "Your map is currently empty."
                                 : "A personalized map of your tailored trip."}
@@ -47,7 +47,7 @@ export default function WizardSidePanel({
                     </div>
                 </div>
 
-                <div className="relative w-full flex-1">
+                <div className="relative w-full h-[400px] lg:h-full lg:flex-1 rounded-2xl overflow-hidden border border-gray-200 shadow-inner">
                     <MapComponent
                         mainDestination={routeItems[0]?.destination}
                         mainDestinationSubtitle={routeItems[0]?.nights ? `${routeItems[0].nights} Nights` : undefined}

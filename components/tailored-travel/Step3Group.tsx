@@ -52,11 +52,11 @@ export default function Step3Group({
 
     return (
         <div className="animate-fade-in-up">
-            <div className="text-center mb-6">
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight drop-shadow-sm">
+            <div className="text-center mb-4 sm:mb-6">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight drop-shadow-sm">
                     Who's going on this trip?
                 </h2>
-                <p className="text-base text-gray-700 font-medium">Select your travel group and what you need included.</p>
+                <p className="text-sm sm:text-base text-gray-700 font-medium">Select your travel group and what you need included.</p>
             </div>
 
             <div className="max-w-4xl mx-auto space-y-6">
@@ -68,7 +68,7 @@ export default function Step3Group({
                             <button
                                 key={group.id}
                                 onClick={() => handleGroupSelection(group.id)}
-                                className={`group flex flex-col items-center justify-center p-5 md:p-6 rounded-[1.5rem] border-2 transition-all duration-300 relative overflow-hidden backdrop-blur-xl ${isSelected
+                                className={`group flex flex-col items-center justify-center p-4 sm:p-5 md:p-6 rounded-[1.25rem] sm:rounded-[1.5rem] border-2 transition-all duration-300 relative overflow-hidden backdrop-blur-xl ${isSelected
                                     ? 'bg-gradient-to-br from-primary/10 to-[#ff8a3d]/10 border-primary shadow-[0_8px_30px_rgba(0,0,0,0.08)] scale-[1.02] z-10'
                                     : 'bg-white/70 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-lg shadow-sm'
                                     }`}
@@ -91,19 +91,19 @@ export default function Step3Group({
                 </div>
 
                 {/* Hotel Category */}
-                <div className="bg-white/70 backdrop-blur-2xl rounded-[1.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <div className="bg-white/70 backdrop-blur-2xl rounded-[1.25rem] sm:rounded-[1.5rem] p-4 sm:p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
+                    <label className="block text-xs sm:text-sm font-bold text-gray-700 uppercase tracking-widest mb-3 sm:mb-4 flex items-center gap-2">
                         <svg className="w-5 h-5 text-[#ff8a3d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" /></svg>
                         Select Hotel Category
                     </label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                         {HOTEL_OPTIONS.map((item) => {
                             const isSelected = data.hotelTypes.includes(item.id)
                             return (
                                 <button
                                     key={item.id}
                                     onClick={() => toggleHotel(item.id)}
-                                    className={`relative overflow-hidden flex flex-col items-center justify-center text-center gap-1.5 p-5 rounded-[1.25rem] border-2 transition-all duration-300 group ${isSelected
+                                    className={`relative overflow-hidden flex flex-col items-center justify-center text-center gap-1 sm:gap-1.5 p-4 sm:p-5 rounded-[1rem] sm:rounded-[1.25rem] border-2 transition-all duration-300 group ${isSelected
                                         ? 'bg-gradient-to-br from-primary/10 to-[#ff8a3d]/10 border-primary shadow-[0_8px_30px_rgba(0,0,0,0.08)] scale-[1.02]'
                                         : 'bg-white/70 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-lg shadow-sm'
                                         }`}

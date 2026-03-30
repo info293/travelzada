@@ -67,6 +67,14 @@ const userLocationIcon = L.divIcon({
 function MapBounds({ positions, focusZoom = 6 }: { positions: [number, number][], focusZoom?: number }) {
     const map = useMap()
 
+    // Fix for Leaflet tile rendering issues when resizing or rendering in mobile flexbox containers
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            map.invalidateSize()
+        }, 400)
+        return () => clearTimeout(timeout)
+    }, [map])
+
     // Stabilize positions to prevent map bounce on every render
     const stablePositions = useMemo(() => JSON.stringify(positions), [positions])
 
