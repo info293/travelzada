@@ -9,7 +9,8 @@ import Footer from '@/components/Footer'
 import TailoredResultsChat from '@/components/tailored-travel/TailoredResultsChat'
 import LeadForm from '@/components/LeadForm'
 import dynamic from 'next/dynamic'
-import { motion } from 'framer-motion'
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+import { useRef } from 'react'
 
 const staggerContainer = {
     hidden: { opacity: 0 },
@@ -67,7 +68,25 @@ export default function TailoredResultsPage() {
     const [showLeadForm, setShowLeadForm] = useState(false)
     const [selectedPackageForLead, setSelectedPackageForLead] = useState<string>('')
     const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'results'>('chat')
+    const [isTransitioning, setIsTransitioning] = useState(false)
+    const [loadingTextIndex, setLoadingTextIndex] = useState(0)
     const router = useRouter()
+
+    const cinematicLoadingTexts = [
+        "Analyzing your pacing requirements...",
+        "Searching partner luxury networks...",
+        "Finding perfect boutique experiences...",
+        "Curating your bespoke itinerary..."
+    ];
+
+    useEffect(() => {
+        if (isLoading) {
+            const interval = setInterval(() => {
+                setLoadingTextIndex(prev => (prev + 1) % cinematicLoadingTexts.length);
+            }, 2500);
+            return () => clearInterval(interval);
+        }
+    }, [isLoading]);
 
     useEffect(() => {
         // Load data from session storage
@@ -133,44 +152,63 @@ export default function TailoredResultsPage() {
     // Loading State UI
     if (isLoading) {
         return (
-            <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-gray-50">
+            <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-[#fafafa]">
                 <Header />
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-10 w-full max-w-2xl mx-auto">
+                    {/* Cinematic Passport Overlay Effect in Background */}
+                    <div className="absolute inset-0 opacity-40 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTQwIDBMMCAwIDAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjAzIi8+PC9zdmc+')]"></div>
+
                     <div className="w-32 h-32 mb-8 relative">
-                        {/* Animated elements representing AI searching */}
-                        <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping"></div>
-                        <div className="absolute inset-2 bg-primary/40 rounded-full animate-pulse"></div>
-                        <div className="absolute inset-4 bg-primary text-white rounded-full flex items-center justify-center shadow-2xl">
-                            <span className="text-4xl animate-bounce">✨</span>
+                        {/* Airplane Flying Loop Animation */}
+                        <motion.div 
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                            className="absolute inset-0 z-10"
+                        >
+                            <span className="absolute -top-4 left-1/2 -ml-6 text-5xl transform rotate-45 drop-shadow-md">✈️</span>
+                        </motion.div>
+                        {/* The Globe in center */}
+                        <div className="absolute inset-4 bg-primary/5 rounded-full border-2 border-dashed border-primary/20 flex items-center justify-center shadow-inner">
+                            <span className="text-4xl opacity-50">🌍</span>
                         </div>
+                        <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-24 h-2 bg-primary/20 blur-xl rounded-full"></div>
                     </div>
 
-                    <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6 drop-shadow-sm tracking-tight text-balance">
-                        Curating Your Dream Journey
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 tracking-tight text-balance">
+                        Crafting Your Journey
                     </h1>
-                    <p className="text-lg md:text-xl text-gray-500 font-medium max-w-xl mx-auto mb-10 text-balance animate-pulse">
-                        Our AI is searching through hundreds of exclusive packages to find the perfect match for your preferences...
-                    </p>
+                    
+                    <div className="h-8 overflow-hidden relative w-full mb-10">
+                        <AnimatePresence mode="wait">
+                            <motion.p 
+                                key={loadingTextIndex}
+                                initial={{ opacity: 0, y: 15 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -15 }}
+                                transition={{ duration: 0.5 }}
+                                className="text-base md:text-lg text-primary font-semibold w-full absolute inset-x-0"
+                            >
+                                {cinematicLoadingTexts[loadingTextIndex]}
+                            </motion.p>
+                        </AnimatePresence>
+                    </div>
 
-                    {/* Placeholder loading cards to show it's working */}
-                    <div className="w-full space-y-4 max-w-xl opacity-60">
-                        <div className="w-full h-24 bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center p-4 gap-4 animate-pulse">
-                            <div className="w-16 h-16 bg-gray-200 rounded-xl"></div>
+                    {/* Passport Check Skeleton */}
+                    <div className="w-full space-y-4 max-w-xl opacity-80 mt-4">
+                        <div className="w-full h-24 bg-white/60 backdrop-blur-xl rounded-[2rem] border border-gray-200 shadow-xl flex items-center p-5 gap-5 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-[shimmer_2s_infinite]"></div>
+                            <div className="w-14 h-14 bg-gray-100 rounded-2xl shrink-0 p-3"><div className="w-full h-full border-[3px] border-gray-200 rounded-full border-t-primary animate-spin"></div></div>
                             <div className="flex-1 space-y-3">
                                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                            </div>
-                        </div>
-                        <div className="w-full h-24 bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center p-4 gap-4 animate-pulse" style={{ animationDelay: '0.2s' }}>
-                            <div className="w-16 h-16 bg-gray-200 rounded-xl"></div>
-                            <div className="flex-1 space-y-3">
-                                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <Footer />
+                {/* Adding styles for the shimmer animation right inside the module */}
+                <style dangerouslySetInnerHTML={{__html: `
+                    @keyframes shimmer { 100% { transform: translateX(100%); } }
+                `}} />
             </main>
         )
     }
@@ -281,8 +319,8 @@ export default function TailoredResultsPage() {
                                         initial="hidden"
                                         animate="show"
                                     >
-                                        {/* --- 2A. Top Recommended Package Card --- */}
-                                        <motion.div variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 flex flex-col group relative shrink-0">
+                                        {/* --- 2A. Top Recommended Package Card (Boarding Pass Layout) --- */}
+                                        <motion.div variants={slideUpItem} className="bg-white/95 backdrop-blur-xl rounded-[2rem] overflow-hidden shadow-[0_12px_44px_rgba(0,0,0,0.08)] border border-gray-100 flex flex-col group relative shrink-0">
                                             {/* Image & Gradient Badge */}
                                             <div className="relative h-44 md:h-52 w-full overflow-hidden shrink-0">
                                                 {pkg.Primary_Image_URL ? (
@@ -316,10 +354,16 @@ export default function TailoredResultsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Content & CTAs */}
+                                            {/* Flight Ticket Perforated Divider */}
+                                            <div className="relative w-full h-0 border-b-[3px] border-dashed border-gray-200 z-20 flex items-center justify-between">
+                                                <div className="absolute -left-3 w-6 h-6 bg-gray-50/80 backdrop-blur-2xl rounded-full border border-gray-200 border-l-transparent shadow-inner"></div>
+                                                <div className="absolute -right-3 w-6 h-6 bg-gray-50/80 backdrop-blur-2xl rounded-full border border-gray-200 border-r-transparent shadow-inner"></div>
+                                            </div>
+
+                                            {/* Content & Ticket Stub CTAs */}
                                             <div className="p-5 md:p-6 flex flex-col gap-5 bg-white relative">
-                                                {/* Floating Price Tag */}
-                                                <div className="absolute -top-7 right-5 bg-white text-gray-900 px-4 py-2 rounded-xl shadow-xl border border-gray-100 font-black text-lg flex items-center gap-1 z-20">
+                                                {/* Floating Price Tag on Stub */}
+                                                <div className="absolute -top-6 right-6 bg-gradient-to-r from-primary to-[#ff8a3d] text-white px-4 py-2 rounded-xl shadow-lg font-bold text-lg flex items-center gap-1 z-30 transform group-hover:scale-105 transition-transform border border-white/20">
                                                     ₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'} <span className="text-xs text-gray-400 font-medium">/person</span>
                                                 </div>
 
@@ -341,10 +385,19 @@ export default function TailoredResultsPage() {
                                                         const viewDetailsUrl = `/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageSlug)}`;
                                                         
                                                         return (
-                                                            <Link href={viewDetailsUrl} target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm text-xs md:text-sm uppercase tracking-wider group">
-                                                                <span>View Details</span>
-                                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
-                                                            </Link>
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setIsTransitioning(true);
+                                                                    setTimeout(() => {
+                                                                        window.open(viewDetailsUrl, '_blank', 'noopener,noreferrer');
+                                                                        setIsTransitioning(false);
+                                                                    }, 500);
+                                                                }} 
+                                                                className="w-full flex items-center justify-center gap-2 py-3 bg-[#f8f9fa] border-2 border-gray-200/60 text-gray-700 font-bold uppercase rounded-xl hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-all shadow-sm text-xs tracking-wider group"
+                                                            >
+                                                                <span>View Final Details</span>
+                                                                <svg className="w-4 h-4 text-gray-400 group-hover:text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                            </button>
                                                         );
                                                     })()}
 
@@ -424,28 +477,7 @@ export default function TailoredResultsPage() {
 
                                         {/* --- 2C. Day-Wise Itinerary List --- */}
                                         {itineraryItems.length > 0 && (
-                                            <motion.div id="itinerary-section" variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 flex flex-col shrink-0">
-                                                <h4 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
-                                                        <span className="text-xl drop-shadow-sm">📅</span>
-                                                    </div>
-                                                    Day-by-Day Plan
-                                                </h4>
-                                                <div className="flex col gap-0 pl-2">
-                                                    <div className="relative border-l-2 border-dashed border-gray-200 ml-3 space-y-8 pb-2">
-                                                        {itineraryItems.map((item, idx) => (
-                                                            <div key={idx} id={`itinerary-day-${idx}`} className="relative pl-8 pt-1 transition-all duration-300 hover:translate-x-1">
-                                                                {/* Custom Timeline Dot matching map */}
-                                                                <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[3px] border-primary rounded-full shadow-sm z-10"></div>
-                                                                <h5 className="font-bold text-gray-900 text-base">{item.day}: <span className="font-semibold text-primary">{item.title}</span></h5>
-                                                                {item.description && (
-                                                                    <p className="text-gray-600 text-sm mt-2 leading-relaxed opacity-90">{item.description}</p>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </motion.div>
+                                            <ScrollLinkedItinerary itineraryItems={itineraryItems} />
                                         )}
                                     </motion.div>
                                 );
@@ -455,7 +487,71 @@ export default function TailoredResultsPage() {
                     </>
                 )}
             </div>
+            
+            {/* Cinematic Exit Transition Override */}
+            <AnimatePresence>
+                {isTransitioning && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[9999] bg-white/90 flex flex-col items-center justify-center backdrop-blur-3xl"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.5, rotate: -45 }}
+                            animate={{ scale: [0.5, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 0.8 }}
+                            className="text-primary text-8xl drop-shadow-[0_0_80px_rgba(255,138,61,0.2)]"
+                        >
+                            ✈️
+                        </motion.div>
+                        <h2 className="mt-8 text-2xl font-bold text-[#ff8a3d] animate-pulse tracking-widest uppercase">Ready for Takeoff</h2>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Omit standard footer to maximize app height for the 3-panel layout */}
         </main>
+    )
+}
+
+// Child component for the Scroll-Linked Itinerary Animation
+function ScrollLinkedItinerary({ itineraryItems }: { itineraryItems: { day: string; title: string; description: string }[] }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start center", "end end"] });
+    // Transform scroll progress from 0->1 into a percentage for top property
+    const planeY = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+
+    return (
+        <motion.div ref={containerRef} id="itinerary-section" variants={slideUpItem} className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-5 md:p-6 shadow-[0_12px_44px_rgba(0,0,0,0.08)] border border-gray-100 flex flex-col shrink-0">
+            <h4 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[#ff8a3d] to-primary flex items-center justify-center border border-orange-100 shadow-inner text-white">
+                    <span className="text-xl drop-shadow-sm">📅</span>
+                </div>
+                Day-by-Day Journey
+            </h4>
+            <div className="flex col gap-0 pl-2">
+                <div className="relative border-l-2 border-dashed border-gray-200 ml-4 space-y-10 pb-4 h-full">
+                    {/* The Scrolling Airplane Icon on the dashed line */}
+                    <motion.div 
+                        style={{ top: planeY }} 
+                        className="absolute -left-[17px] w-8 h-8 z-20 flex items-center justify-center pointer-events-none drop-shadow-lg"
+                    >
+                        <span className="text-2xl bg-white rounded-full leading-none rotate-180 transform translate-y-2">✈️</span>
+                    </motion.div>
+
+                    {itineraryItems.map((item, idx) => (
+                        <div key={idx} id={`itinerary-day-${idx}`} className="relative pl-10 pt-1 group">
+                            {/* Custom Timeline Dot matching map */}
+                            <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[4px] border-primary group-hover:border-[#ff8a3d] rounded-full shadow-[0_0_15px_rgba(255,138,61,0.2)] z-10 transition-colors duration-300"></div>
+                            <h5 className="font-bold text-gray-800 text-base uppercase tracking-wide">{item.day}: <span className="font-semibold text-gray-500">{item.title}</span></h5>
+                            {item.description && (
+                                <p className="text-gray-600 text-sm mt-2 leading-relaxed opacity-90 group-hover:opacity-100 transition-opacity bg-gray-50/50 p-3 rounded-lg border border-gray-100">{item.description}</p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </motion.div>
     )
 }

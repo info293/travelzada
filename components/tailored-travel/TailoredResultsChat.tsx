@@ -536,7 +536,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
 
                                     <div
                                         className={`group relative max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed ${message.role === 'user'
-                                            ? 'bg-gradient-to-br from-gray-900 to-black text-white rounded-tr-sm'
+                                            ? 'bg-gradient-to-br from-primary to-purple-600 text-white rounded-tr-sm shadow-primary/20'
                                             : 'bg-white border border-gray-100/60 text-gray-800 rounded-tl-sm hover:shadow-md transition-shadow duration-300'
                                             }`}
                                     >
