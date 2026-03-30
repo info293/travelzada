@@ -31,21 +31,23 @@ const customDotIcon = L.divIcon({
     popupAnchor: [0, -12],
 })
 
-// Create a numbered circle icon
+// Create a premium sleek Day marker icon
 const createNumberedIcon = (numStr: string, isBase: boolean = false) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `
-            <div class="relative flex items-center justify-center w-10 h-10 transition-transform duration-200 hover:scale-110">
-                <div class="absolute w-8 h-8 ${isBase ? 'bg-indigo-500' : 'bg-primary'} rounded-full shadow-lg border-2 border-white z-10 flex items-center justify-center cursor-pointer">
-                    <span class="text-white font-bold text-xs">${numStr}</span>
+            <div class="relative flex flex-col items-center justify-center transition-transform duration-300 hover:scale-[1.15] hover:-translate-y-1 pb-2 group">
+                <div class="bg-white/95 backdrop-blur-md rounded-[12px] shadow-[0_8px_20px_rgba(0,0,0,0.12)] border border-gray-100 flex items-center justify-center cursor-pointer px-3 py-1.5 min-w-[64px] gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full ${isBase ? 'bg-indigo-500' : 'bg-[#ff8a3d]'} shadow-sm"></span>
+                    <span class="text-gray-900 font-bold text-[11px] uppercase tracking-wider">${isBase ? 'Base' : 'Day ' + numStr}</span>
                 </div>
-                ${isBase ? '<div class="absolute w-8 h-8 bg-indigo-500 rounded-full animate-ping opacity-50 pointer-events-none"></div>' : ''}
+                <!-- Sleek drop arrow -->
+                <div class="absolute bottom-[2px] w-3.5 h-3.5 bg-white/95 rotate-45 z-0 border-r border-b border-gray-100 shadow-[2px_2px_4px_rgba(0,0,0,0.04)]"></div>
             </div>
         `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20],
+        iconSize: [80, 48],
+        iconAnchor: [40, 48],
+        popupAnchor: [0, -48],
     })
 }
 

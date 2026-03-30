@@ -420,9 +420,9 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
     }
 
     return (
-        <div className="bg-white overflow-hidden relative w-full h-full flex flex-row">
+        <div className="bg-transparent overflow-hidden relative w-full h-full flex flex-row">
             {/* Sidebar (Visual Placeholder for Portal Feel) */}
-            <div className="hidden lg:flex w-64 bg-gray-50 border-r border-gray-100 flex-col p-4 shrink-0 h-full">
+            <div className="hidden lg:flex w-64 bg-white/40 backdrop-blur-md border-r border-gray-100/50 flex-col p-4 shrink-0 h-full">
                 <div className="flex items-center gap-3 mb-8 px-2">
                     <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
                         <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
@@ -450,9 +450,9 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
             </div>
 
             {/* Main Chat Area */}
-            <div className="flex flex-col flex-1 min-w-0 bg-white relative h-full">
+            <div className="flex flex-col flex-1 min-w-0 bg-transparent relative h-full">
                 {/* Header */}
-                <div className="flex-shrink-0 h-16 border-b border-gray-100 flex items-center justify-between px-6 bg-white z-10 w-full">
+                <div className="flex-shrink-0 h-16 border-b border-gray-100/50 flex items-center justify-between px-6 bg-white/40 backdrop-blur-md z-10 w-full">
                     <div className="flex items-center gap-3">
                         <div>
                             <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
@@ -536,8 +536,8 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
 
                                     <div
                                         className={`group relative max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed ${message.role === 'user'
-                                            ? 'bg-black text-white rounded-tr-sm'
-                                            : 'bg-white border border-gray-100 text-gray-800 rounded-tl-sm'
+                                            ? 'bg-gradient-to-br from-gray-900 to-black text-white rounded-tr-sm'
+                                            : 'bg-white border border-gray-100/60 text-gray-800 rounded-tl-sm hover:shadow-md transition-shadow duration-300'
                                             }`}
                                     >
                                         {message.role === 'assistant' ? (
@@ -593,8 +593,8 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 </div>
 
                 {/* Input Area (Floating Capsule) */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pt-6 w-full max-w-[800px] mx-auto z-20">
-                    <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-gray-100 p-2 flex items-end gap-2 relative">
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white/95 via-white/80 to-transparent pt-10 w-full max-w-[800px] mx-auto z-20">
+                    <div className="bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-gray-200/50 p-2 flex items-end gap-2 relative focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.1)] transition-all duration-300">
                         {/* Add Image Button */}
                         <button
                             type="button"

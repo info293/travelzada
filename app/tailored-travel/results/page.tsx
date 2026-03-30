@@ -9,6 +9,20 @@ import Footer from '@/components/Footer'
 import TailoredResultsChat from '@/components/tailored-travel/TailoredResultsChat'
 import LeadForm from '@/components/LeadForm'
 import dynamic from 'next/dynamic'
+import { motion } from 'framer-motion'
+
+const staggerContainer = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.15 }
+    }
+}
+
+const slideUpItem = {
+    hidden: { opacity: 0, y: 30 },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+}
 
 // Need to dynamically import map to avoid SSR issues
 const LeafletMap = dynamic(() => import('@/components/tailored-travel/LeafletMap'), {
@@ -163,9 +177,16 @@ export default function TailoredResultsPage() {
 
     return (
         <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-gray-50 max-h-screen">
+            {/* Added Premium Background Styling */}
+            <div className="absolute inset-0 pointer-events-none -z-10">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-60"></div>
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[120px] opacity-60"></div>
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTQwIDBMMCAwIDAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjAxNSIvPjwvc3ZnPg==')]"></div>
+            </div>
+
             <Header />
 
-            <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col h-[calc(100vh-80px)] overflow-hidden">
+            <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col h-[calc(100vh-80px)] overflow-hidden relative z-10">
                 {/* Header Section */}
                 <div className="text-left mb-6 shrink-0 animate-fade-in-up flex items-center justify-between">
                     <div>
@@ -216,7 +237,7 @@ export default function TailoredResultsPage() {
 
                         {/* 1. LEFT PANEL: AI Chat Interface (60%) */}
                         {/* Interactive Trip Planner Chat */}
-                        <div id="trip-planner-chat-container" className={`lg:col-span-8 flex-col min-h-0 h-full border border-gray-200 rounded-3xl overflow-hidden shadow-xl bg-white relative z-20 ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
+                        <div id="trip-planner-chat-container" className={`lg:col-span-8 flex-col min-h-0 h-full border border-gray-100/80 rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-white/90 backdrop-blur-2xl relative z-20 ${activeMobileTab === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
                             <div className="flex-1 overflow-hidden">
                                 <TailoredResultsChat 
                                     initialPackages={packages} 
@@ -253,15 +274,21 @@ export default function TailoredResultsPage() {
                                 }
 
                                 return (
-                                    <div key={pkg.id} className="flex flex-col gap-6 w-full max-w-3xl mx-auto">
+                                    <motion.div 
+                                        key={pkg.id} 
+                                        className="flex flex-col gap-6 w-full max-w-3xl mx-auto pb-8"
+                                        variants={staggerContainer}
+                                        initial="hidden"
+                                        animate="show"
+                                    >
                                         {/* --- 2A. Top Recommended Package Card --- */}
-                                        <div className="bg-white rounded-3xl overflow-hidden shadow-lg border-2 border-primary/20 flex flex-col group relative shrink-0">
+                                        <motion.div variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 flex flex-col group relative shrink-0">
                                             {/* Image & Gradient Badge */}
                                             <div className="relative h-44 md:h-52 w-full overflow-hidden shrink-0">
                                                 {pkg.Primary_Image_URL ? (
-                                                    <Image src={pkg.Primary_Image_URL} alt={pkg.Destination_Name} fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="(max-width: 768px) 100vw, 33vw" />
+                                                    <Image src={pkg.Primary_Image_URL} alt={pkg.Destination_Name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" sizes="(max-width: 768px) 100vw, 33vw" />
                                                 ) : (
-                                                    <div className="w-full h-full bg-gray-200 flex items-center justify-center"><span className="text-gray-400">No Image</span></div>
+                                                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"><span className="text-gray-400">No Image</span></div>
                                                 )}
                                                 <div className="absolute top-4 left-4 right-4 flex justify-between items-start z-10">
                                                     <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-white/20">
@@ -273,15 +300,24 @@ export default function TailoredResultsPage() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent pointer-events-none"></div>
 
-                                                <div className="absolute bottom-4 left-5 right-5 text-white z-10 flex flex-col items-start">
-                                                    <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight">{pkg.Destination_Name}</h3>
+                                                <div className="absolute bottom-4 left-5 text-white z-10 flex flex-col items-start gap-3">
+                                                    <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight pr-4">{pkg.Destination_Name}</h3>
+                                                    {/* Jump to Map Shortcut */}
+                                                    <button 
+                                                        onClick={() => {
+                                                            document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        }} 
+                                                        className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3.5 py-2 rounded-full text-xs font-semibold transition-all border border-white/30 shadow-sm group-hover:bg-white/30"
+                                                    >
+                                                        <span>📍</span> View on Map
+                                                    </button>
                                                 </div>
                                             </div>
 
                                             {/* Content & CTAs */}
-                                            <div className="p-5 flex flex-col gap-4 bg-white relative">
+                                            <div className="p-5 md:p-6 flex flex-col gap-5 bg-white relative">
                                                 {/* Floating Price Tag */}
                                                 <div className="absolute -top-7 right-5 bg-white text-gray-900 px-4 py-2 rounded-xl shadow-xl border border-gray-100 font-black text-lg flex items-center gap-1 z-20">
                                                     ₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'} <span className="text-xs text-gray-400 font-medium">/person</span>
@@ -326,10 +362,49 @@ export default function TailoredResultsPage() {
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </motion.div>
 
                                         {/* --- 2B. Interactive Map --- */}
-                                        <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-200 relative min-h-[400px] shrink-0">
+                                        <div className="flex flex-col gap-4 shrink-0 mt-2">
+                                            {/* Premium segmented control for Day Shortcuts */}
+                                            {itineraryItems.length > 0 && (
+                                                <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-hide px-1 w-full relative">
+                                                    {itineraryItems.map((item, idx) => (
+                                                        <button 
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                document.getElementById(`itinerary-day-${idx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                            }}
+                                                            className="flex flex-col items-center justify-center min-w-[72px] py-1.5 px-3 bg-white/70 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.02)] hover:bg-white hover:border-gray-300 hover:shadow-[0_8px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-300 group shrink-0 relative overflow-hidden"
+                                                        >
+                                                            <div className="absolute inset-0 bg-gradient-to-b from-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest group-hover:text-primary transition-colors relative z-10">Day</span>
+                                                            <span className="text-base font-black text-gray-800 tracking-tight mt-[-2px] relative z-10">{idx + 1}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <motion.div id="map-section" variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 relative min-h-[400px] group">
+                                            {/* Interactive Overlay Hint */}
+                                            <div className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[10px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 border border-white/20 pointer-events-none">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                                Interactive Map
+                                            </div>
+
+                                            {/* Jump to Itinerary Shortcut */}
+                                            {itineraryItems.length > 0 && (
+                                                <div className="absolute bottom-4 left-4 z-10">
+                                                    <button 
+                                                        onClick={() => {
+                                                            document.getElementById('itinerary-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                                        }} 
+                                                        className="flex items-center gap-1.5 bg-white shadow-[0_4px_15px_rgba(0,0,0,0.1)] text-gray-900 px-4 py-2 rounded-full text-xs font-black hover:bg-gray-50 hover:scale-[1.02] transition-all border border-gray-200"
+                                                    >
+                                                        <span>📅</span> View full Itinerary
+                                                    </button>
+                                                </div>
+                                            )}
                                             {/* Pass the first package's destination and itinerary points to the map */}
                                             <LeafletMap
                                                 mainDestination={wizardData?.destinations?.[0] || pkg?.Destination_Name}
@@ -344,18 +419,22 @@ export default function TailoredResultsPage() {
                                                             : []
                                                 }
                                             />
+                                        </motion.div>
                                         </div>
 
                                         {/* --- 2C. Day-Wise Itinerary List --- */}
                                         {itineraryItems.length > 0 && (
-                                            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 flex flex-col shrink-0">
-                                                <h4 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
-                                                    <span>📅</span> Day-by-Day Plan
+                                            <motion.div id="itinerary-section" variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 flex flex-col shrink-0">
+                                                <h4 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center border border-orange-100">
+                                                        <span className="text-xl drop-shadow-sm">📅</span>
+                                                    </div>
+                                                    Day-by-Day Plan
                                                 </h4>
                                                 <div className="flex col gap-0 pl-2">
                                                     <div className="relative border-l-2 border-dashed border-gray-200 ml-3 space-y-8 pb-2">
                                                         {itineraryItems.map((item, idx) => (
-                                                            <div key={idx} className="relative pl-8">
+                                                            <div key={idx} id={`itinerary-day-${idx}`} className="relative pl-8 pt-1 transition-all duration-300 hover:translate-x-1">
                                                                 {/* Custom Timeline Dot matching map */}
                                                                 <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[3px] border-primary rounded-full shadow-sm z-10"></div>
                                                                 <h5 className="font-bold text-gray-900 text-base">{item.day}: <span className="font-semibold text-primary">{item.title}</span></h5>
@@ -366,9 +445,9 @@ export default function TailoredResultsPage() {
                                                         ))}
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </motion.div>
                                         )}
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
