@@ -12,7 +12,7 @@ export default function NotFound() {
 
     const popularLinks = [
         { href: '/', label: 'Home', icon: '🏠' },
-        { href: '/ai-trip-planner', label: 'AI Trip Planner', icon: '✨' },
+        { href: '/tailored-travel', label: 'AI Trip Planner', icon: '✨' },
         { href: '/destinations', label: 'Destinations', icon: '🌍' },
         { href: '/blog', label: 'Travel Blog', icon: '📝' },
         { href: '/contact', label: 'Contact Us', icon: '💬' },

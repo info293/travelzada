@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   description: 'Use our AI-powered trip planner to create personalized travel itineraries in seconds. Just tell us your vibe and get instant, tailored travel plans.',
   openGraph: {
     type: 'website',
-    url: 'https://www.travelzada.com/ai-trip-planner',
+    url: 'https://www.travelzada.com/tailored-travel',
     title: 'AI Trip Planner | Travelzada - Plan Your Perfect Trip',
     description: 'Use our AI-powered trip planner to create personalized travel itineraries in seconds. Just tell us your vibe and get instant, tailored travel plans.',
     images: [{ url: 'https://www.travelzada.com/images/og-homepage.jpg' }],

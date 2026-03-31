@@ -95,7 +95,7 @@ export default async function Testimonials() {
             </svg>
           </Link>
           <Link
-            href="/ai-trip-planner"
+            href="/tailored-travel"
             className="inline-flex items-center justify-center bg-primary text-white px-10 py-5 rounded-full text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
           >
             PLAN MY TRIP

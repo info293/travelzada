@@ -39,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/reviews',
         '/our-story',
         '/press',
-        '/ai-trip-planner',
+        '/tailored-travel',
         '/case-study',
     ].map((route) => ({
         url: `${baseUrl}${route}`,
