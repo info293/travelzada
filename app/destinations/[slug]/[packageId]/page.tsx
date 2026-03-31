@@ -185,23 +185,25 @@ export default async function PackagePage({ params }: PageProps) {
     reviewCount: (packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0) ? String(packageData.Guest_Reviews.length) : String(DEFAULT_GUEST_REVIEWS.length)
   })
 
+  const packageUrl = `https://www.travelzada.com/destinations/${slug}/${params.packageId}`
+  const webPageSchema = generateWebPageSchema({
+    name: `${packageTitle} - Travelzada`,
+    description: packageData.Overview || packageTitle,
+    url: packageUrl,
+    websiteUrl: 'https://www.travelzada.com',
+    aboutDestinationName: slug
+  })
+
+  // We explicitly pass packageUrl as the globalId to generateBreadcrumbSchema so the @id correctly matches WebPageSchema
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: 'https://www.travelzada.com' },
     { name: 'Destinations', url: 'https://www.travelzada.com/destinations' },
     { name: slug, url: `https://www.travelzada.com/destinations/${slug}` },
-    { name: packageTitle },
-  ])
+    { name: packageTitle, url: packageUrl },
+  ], `${packageUrl}#breadcrumb`)
 
   const faqs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0 ? packageData.FAQ_Items : DEFAULT_FAQ_ITEMS
   const faqSchema = generateFAQSchema(faqs)
-
-  const webPageSchema = generateWebPageSchema({
-    name: `${packageTitle} - Travelzada`,
-    description: packageData.Overview || packageTitle,
-    url: `https://www.travelzada.com/destinations/${slug}/${params.packageId}`,
-    websiteUrl: 'https://www.travelzada.com',
-    aboutDestinationName: slug
-  })
 
   return (
     <>

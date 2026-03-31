@@ -85,6 +85,7 @@ interface ArticleSchema {
 interface BreadcrumbSchema {
   '@context': string
   '@type': string
+  '@id'?: string
   itemListElement: Array<{
     '@type': string
     position: number
@@ -452,10 +453,14 @@ export function generateArticleSchema(data: {
 }
 
 // Helper function to generate Breadcrumb schema
-export function generateBreadcrumbSchema(items: Array<{ name: string; url?: string }>): BreadcrumbSchema {
+export function generateBreadcrumbSchema(items: Array<{ name: string; url?: string }>, globalId?: string): BreadcrumbSchema {
+  const defaultId = items.length > 0 && items[items.length - 1].url ? `${items[items.length - 1].url}#breadcrumb` : undefined;
+  const breadcrumbId = globalId || defaultId;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
+    ...(breadcrumbId ? { '@id': breadcrumbId } : {}),
     itemListElement: items.map((item, index) => ({
       '@type': 'ListItem',
       position: index + 1,
