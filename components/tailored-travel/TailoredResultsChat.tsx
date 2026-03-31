@@ -6,6 +6,7 @@ import { Square, Volume2, Mic, ArrowUp as ArrowUpIcon, RefreshCw, Sparkles, Imag
 import { useVoiceChat } from '@/hooks/useVoiceChat'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { useRouter } from 'next/navigation'
 
 const fadeIn = {
     hidden: { opacity: 0, y: 10 },
@@ -54,6 +55,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
     const [thinkingMessage, setThinkingMessage] = useState(0)
     const [isSharing, setIsSharing] = useState(false)
     const [copiedLink, setCopiedLink] = useState(false)
+    const router = useRouter()
     // Voice chat integration
     const {
         isListening,
@@ -368,17 +370,21 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
     }
 
     const handleNewChat = () => {
+        // Clear session storage to allow a completely fresh plan
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('tailored_wizard_data')
+        }
+        
+        // Redirect back to the wizard
+        router.push('/tailored-travel')
+        
+        // Optional: Reset internal state just in case
         setMessages([
             {
                 role: 'assistant',
-                content: `Hello! I've analyzed your preferences for ${wizardData?.destinations?.join(', ') || 'your trip'} and found these top matches for you. I'd love to connect you with our travel experts to get this booked! To get started, what is your name?`
+                content: `Initialing new plan...`
             }
         ])
-        setLeadCapturePhase('asking_name')
-        setCapturedLead({ name: '', mobile: '' })
-        setInput('')
-        setIsTyping(false)
-        setThinkingMessage(0)
     }
 
     const handleSharePlan = async () => {

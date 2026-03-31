@@ -30,7 +30,12 @@ export async function POST(request: Request) {
             )
         }
 
-        const requestedDestinations = wizardData.destinations.map((d: string) => d.toLowerCase())
+        const requestedDestinations = wizardData.destinations.map((d: string) => {
+            let normalized = d.toLowerCase();
+            if (normalized.includes('andaman')) return 'andaman';
+            if (normalized.includes('sri lanka') || normalized.includes('sri-lanka')) return 'sri lanka';
+            return normalized;
+        })
         console.log('[AI Planner] Requested Destinations:', requestedDestinations)
 
         // 1. Fetch available packages from Firestore

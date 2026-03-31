@@ -41,6 +41,25 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+const formatTitle = (str: string) => {
+    if (!str) return '';
+    // If it's mostly uppercase, convert to Title Case
+    const upperCount = (str.match(/[A-Z]/g) || []).length;
+    const alphaCount = (str.match(/[a-zA-Z]/g) || []).length;
+    
+    if (alphaCount > 0 && (upperCount / alphaCount) > 0.6) {
+        return str.toLowerCase().split(' ').map(word => {
+            if (word.length === 0) return '';
+            // Always capitalize "Day" followed by number
+            if (word === 'day' || (word.startsWith('day') && word.length > 3)) {
+                return 'Day';
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+    }
+    return str;
+}
+
 // Type for the matched package returned by the API
 interface MatchedPackage {
     id: string
@@ -70,6 +89,7 @@ export default function TailoredResultsPage() {
     const [activeMobileTab, setActiveMobileTab] = useState<'chat' | 'results'>('chat')
     const [isTransitioning, setIsTransitioning] = useState(false)
     const [loadingTextIndex, setLoadingTextIndex] = useState(0)
+    const [isMapExpanded, setIsMapExpanded] = useState(false)
     const router = useRouter()
 
     const cinematicLoadingTexts = [
@@ -225,11 +245,10 @@ export default function TailoredResultsPage() {
             <Header />
 
             <div className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col h-[calc(100vh-80px)] overflow-hidden relative z-10">
-                {/* Header Section */}
                 <div className="text-left mb-6 shrink-0 animate-fade-in-up flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-2 tracking-tight">
-                            Your Perfect Matches
+                        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight">
+                            Your Tailored Travel Plan
                         </h1>
                         <p className="text-gray-600 font-medium">
                             We've analyzed your preferences and hand-picked these exclusive itineraries.
@@ -260,7 +279,7 @@ export default function TailoredResultsPage() {
                             className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-full transition-all ${activeMobileTab === 'results' ? 'bg-gray-900 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                         >
                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            Matches
+                            Itinerary
                         </button>
                         <button 
                             onClick={() => setActiveMobileTab('chat')}
@@ -296,19 +315,20 @@ export default function TailoredResultsPage() {
                                 if (pkg.Day_Wise_Itinerary_Details && pkg.Day_Wise_Itinerary_Details.length > 0) {
                                     itineraryItems = pkg.Day_Wise_Itinerary_Details.map((item: any) => ({
                                         day: `Day ${item.day}`,
-                                        title: item.title,
+                                        title: formatTitle(item.title),
                                         description: item.description || ''
                                     }));
                                 } else if (pkg.Day_Wise_Itinerary) {
                                     const items = pkg.Day_Wise_Itinerary.split('|').map((item: string) => item.trim());
-                                    itineraryItems = items.map((item: string, i: number) => {
-                                        const dayMatch = item.match(/Day\s*(\d+):\s*(.+)/i);
-                                        return {
-                                            day: dayMatch ? `Day ${dayMatch[1]}` : `Day ${i + 1}`,
-                                            title: dayMatch ? dayMatch[2].trim() : item.replace(/^Day\s*\d+:\s*/i, '').trim(),
-                                            description: '' // No desc in string format
-                                        };
-                                    });
+                                        itineraryItems = items.map((item: string, i: number) => {
+                                            const dayMatch = item.match(/Day\s*(\d+):\s*(.+)/i);
+                                            const rawTitle = dayMatch ? dayMatch[2].trim() : item.replace(/^Day\s*\d+:\s*/i, '').trim();
+                                            return {
+                                                day: dayMatch ? `Day ${dayMatch[1]}` : `Day ${i + 1}`,
+                                                title: formatTitle(rawTitle),
+                                                description: '' // No desc in string format
+                                            };
+                                        });
                                 }
 
                                 return (
@@ -440,9 +460,18 @@ export default function TailoredResultsPage() {
 
                                             <motion.div id="map-section" variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 relative min-h-[400px] group">
                                             {/* Interactive Overlay Hint */}
-                                            <div className="absolute top-4 right-4 z-10 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[10px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 border border-white/20 pointer-events-none">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                                                Interactive Map
+                                            <div className="absolute top-4 right-4 z-10 flex gap-2">
+                                                <button 
+                                                    onClick={() => setIsMapExpanded(true)}
+                                                    className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full text-gray-700 text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:scale-105 transition-all flex items-center gap-2 border border-gray-100 shadow-sm"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                                    Large View
+                                                </button>
+                                                <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[10px] font-bold tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 border border-white/20 pointer-events-none">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                                                    Interactive Map
+                                                </div>
                                             </div>
 
                                             {/* Jump to Itinerary Shortcut */}
@@ -488,6 +517,52 @@ export default function TailoredResultsPage() {
                 )}
             </div>
             
+            {/* Full Screen Map Modal */}
+            <AnimatePresence>
+                {isMapExpanded && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="w-full h-full max-w-6xl bg-white rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                        >
+                            <div className="absolute top-6 right-6 z-10">
+                                <button 
+                                    onClick={() => setIsMapExpanded(false)}
+                                    className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800 transition-all shadow-xl"
+                                >
+                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+                            <div className="flex-1 w-full h-full">
+                                <LeafletMap
+                                    mainDestination={wizardData?.destinations?.[0]}
+                                    itinerary={
+                                        (packages[0]?.Day_Wise_Itinerary_Details && packages[0].Day_Wise_Itinerary_Details.length > 0)
+                                            ? packages[0].Day_Wise_Itinerary_Details.map((d: any) => ({ title: d.title, day: d.day }))
+                                            : packages[0]?.Day_Wise_Itinerary
+                                                ? packages[0].Day_Wise_Itinerary.split('|').map((item: string) => {
+                                                    const match = item.match(/Day\s*\d+:\s*(.+)/i);
+                                                    return { title: match ? match[1].trim() : item.trim() };
+                                                })
+                                                : []
+                                    }
+                                />
+                            </div>
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full border border-gray-200 shadow-lg text-sm font-bold text-gray-800 pointer-events-none">
+                                Exploring Your Bespoke Itinerary
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Cinematic Exit Transition Override */}
             <AnimatePresence>
                 {isTransitioning && (
@@ -535,16 +610,18 @@ function ScrollLinkedItinerary({ itineraryItems }: { itineraryItems: { day: stri
                     {/* The Scrolling Airplane Icon on the dashed line */}
                     <motion.div 
                         style={{ top: planeY }} 
-                        className="absolute -left-[17px] w-8 h-8 z-20 flex items-center justify-center pointer-events-none drop-shadow-lg"
+                        className="absolute -left-[14px] w-7 h-7 z-20 flex items-center justify-center pointer-events-none drop-shadow-lg"
                     >
-                        <span className="text-2xl bg-white rounded-full leading-none rotate-180 transform translate-y-2">✈️</span>
+                        <div className="bg-white rounded-full p-1 border border-primary/20 shadow-sm flex items-center justify-center">
+                            <span className="text-xl leading-none transform -rotate-45 block">✈️</span>
+                        </div>
                     </motion.div>
 
                     {itineraryItems.map((item, idx) => (
                         <div key={idx} id={`itinerary-day-${idx}`} className="relative pl-10 pt-1 group">
                             {/* Custom Timeline Dot matching map */}
                             <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[4px] border-primary group-hover:border-[#ff8a3d] rounded-full shadow-[0_0_15px_rgba(255,138,61,0.2)] z-10 transition-colors duration-300"></div>
-                            <h5 className="font-bold text-gray-800 text-base uppercase tracking-wide">{item.day}: <span className="font-semibold text-gray-500">{item.title}</span></h5>
+                            <h5 className="font-bold text-gray-800 text-base tracking-wide">{item.day}: <span className="font-semibold text-gray-500">{item.title}</span></h5>
                             {item.description && (
                                 <p className="text-gray-600 text-sm mt-2 leading-relaxed opacity-90 group-hover:opacity-100 transition-opacity bg-gray-50/50 p-3 rounded-lg border border-gray-100">{item.description}</p>
                             )}

@@ -90,7 +90,7 @@ export default function Step1Destinations({
             d.label.toLowerCase().includes(currentDestination.toLowerCase()) ||
             d.name.toLowerCase().includes(currentDestination.toLowerCase())
         )
-        : allDestinations.slice(0, 5)
+        : allDestinations
 
     const isValidDestination = (value: string) =>
         allDestinations.some(d =>
@@ -286,22 +286,21 @@ export default function Step1Destinations({
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
                         When are you traveling?
                     </label>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                        {['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].map((dateOption) => {
-                            const isSelected = data.dateRange === dateOption
-                            return (
-                                <button
-                                    key={dateOption}
-                                    onClick={() => updateData({ dateRange: dateOption })}
-                                    className={`py-2.5 sm:py-3 px-2 sm:px-4 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all duration-300 relative overflow-hidden backdrop-blur-sm ${isSelected
-                                        ? 'border-primary text-primary bg-primary/5 shadow-md scale-[1.02]'
-                                        : 'border-gray-200 text-gray-600 bg-white hover:border-gray-300 hover:shadow-sm'
-                                        }`}
-                                >
-                                    <span className="relative z-10">{dateOption}</span>
-                                </button>
-                            )
-                        })}
+                    <div className="relative max-w-sm">
+                        <input
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            value={(!['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(data.dateRange) && data.dateRange) ? data.dateRange : ''}
+                            onChange={(e) => updateData({ dateRange: e.target.value })}
+                            onClick={(e) => {
+                                try {
+                                    (e.target as HTMLInputElement).showPicker?.();
+                                } catch (err) {
+                                    // Silent catch for browsers that restrict programmatic showPicker without specific gestures
+                                }
+                            }}
+                            className="w-full px-5 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all font-bold text-gray-900 outline-none shadow-sm cursor-pointer"
+                        />
                     </div>
                 </div>
 

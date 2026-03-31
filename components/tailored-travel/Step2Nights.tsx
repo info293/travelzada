@@ -63,8 +63,10 @@ export default function Step2Nights({
                     const pkgId = (docData.Destination_ID || '').trim().toLowerCase()
 
                     data.destinations.forEach((dest: string) => {
-                        const normalizedDest = dest.trim().toLowerCase()
+                        let normalizedDest = dest.trim().toLowerCase()
                         if (!normalizedDest) return;
+                        if (normalizedDest.includes('andaman')) normalizedDest = 'andaman';
+                        if (normalizedDest.includes('sri lanka') || normalizedDest.includes('sri-lanka')) normalizedDest = 'sri lanka';
 
                         const hasMatch = (pkgName && (pkgName.includes(normalizedDest) || normalizedDest.includes(pkgName))) ||
                                          (pkgId && (pkgId.includes(normalizedDest) || normalizedDest.includes(pkgId)));
