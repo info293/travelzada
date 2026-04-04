@@ -52,9 +52,12 @@ export default function Step2Nights({
                 const allPackagesSnapshot = await getDocs(packagesRef)
 
                 const destPackagesOptions: Record<string, { nights: number, label: string }[]> = {}
+                // Collect ALL matching packages per destination before sampling
+                const matchingPackagesByDest: Record<string, any[]> = {}
 
                 data.destinations.forEach((dest: string) => {
                     destPackagesOptions[dest] = []
+                    matchingPackagesByDest[dest] = []
                 })
 
                 allPackagesSnapshot.forEach((doc) => {
@@ -72,6 +75,42 @@ export default function Step2Nights({
                                          (pkgId && (pkgId.includes(normalizedDest) || normalizedDest.includes(pkgId)));
 
                         if (hasMatch) {
+                            // --- Precision Location: Extract from first day of the itinerary ---
+                            let firstDayLocation = dest // default to destination name
+                            const itineraryDetails = docData.Day_Wise_Itinerary_Details
+                            if (Array.isArray(itineraryDetails) && itineraryDetails.length > 0) {
+                                const firstDay = itineraryDetails[0]
+                                // Try various field names developers use for location
+                                firstDayLocation =
+                                    firstDay.location || firstDay.Location ||
+                                    firstDay.city || firstDay.City ||
+                                    firstDay.place || firstDay.Place ||
+                                    firstDay.title || firstDay.Title ||
+                                    dest
+                            } else if (typeof docData.Day_Wise_Itinerary === 'string') {
+                                // Parse "Day 1: Ubud | Day 2: Kuta" style strings
+                                const match = docData.Day_Wise_Itinerary.match(/Day\s*1\s*[:\-\s]+([^|,\n]+)/i)
+                                if (match) firstDayLocation = match[1].trim()
+                            }
+
+                            // Correct image field per actual Firestore schema
+                            const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&auto=format'
+                            const image =
+                                docData.Primary_Image_URL ||
+                                docData.Image_URL ||
+                                (Array.isArray(docData.Images) && docData.Images[0]) ||
+                                FALLBACK_IMAGE
+
+                            matchingPackagesByDest[dest].push({
+                                id: doc.id,
+                                name: docData.Destination_Name || dest,
+                                packageTitle: docData.Package_Name || docData.Destination_Name || dest,
+                                location: firstDayLocation,
+                                image,
+                                dest,
+                                starCategory: docData.Star_Category || '', // e.g. "4-star", "5-star"
+                                duration: docData.Duration || '',
+                            })
 
                             let nights = docData.Duration_Nights
                             if (!nights && docData.Duration) {
@@ -96,6 +135,35 @@ export default function Step2Nights({
                             }
                         }
                     })
+                })
+
+                // --- Smart Package Selection per Destination ---
+                // Shuffle → Deduplicate by location → Cap at 10
+                const collectedPackages: any[] = []
+
+                data.destinations.forEach((dest: string) => {
+                    const allForDest = [...(matchingPackagesByDest[dest] || [])]
+
+                    // Fisher-Yates shuffle for genuine randomness each session
+                    for (let i = allForDest.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [allForDest[i], allForDest[j]] = [allForDest[j], allForDest[i]]
+                    }
+
+                    // Enforce ONE package per unique location (clean map = one pin per spot)
+                    const seenLocations = new Set<string>()
+                    const sampledForDest: any[] = []
+
+                    for (const pkg of allForDest) {
+                        const locationKey = (pkg.location || '').trim().toLowerCase()
+                        if (locationKey && !seenLocations.has(locationKey)) {
+                            seenLocations.add(locationKey)
+                            sampledForDest.push(pkg)
+                        }
+                        if (sampledForDest.length >= 10) break // Cap at 10 per destination
+                    }
+
+                    collectedPackages.push(...sampledForDest)
                 })
 
                 // Sort options by nights and set fallbacks
@@ -126,9 +194,14 @@ export default function Step2Nights({
                 })
 
                 setAvailableOptions(destPackagesOptions)
+                
+                // Update wizard state with both route items and collected packages
+                const updatePayload: any = { destinationPackages: collectedPackages }
                 if (shouldUpdateRouteItems) {
-                    updateData({ routeItems: newRouteItems })
+                    updatePayload.routeItems = newRouteItems
                 }
+                updateData(updatePayload)
+
             } catch (error) {
                 console.error('Error fetching package days:', error)
             } finally {

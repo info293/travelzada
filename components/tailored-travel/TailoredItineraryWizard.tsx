@@ -32,12 +32,32 @@ export default function TailoredItineraryWizard() {
             adults: 2,
             kids: 0,
             rooms: 1
+        },
+        userOrigin: null as [number, number] | null,
+        destinationPackages: [] as any[]
+    })
+
+    // Detect User Location on mount
+    useState(() => {
+        if (typeof window !== 'undefined' && navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setWizardData(prev => ({
+                        ...prev,
+                        userOrigin: [position.coords.latitude, position.coords.longitude]
+                    }))
+                },
+                (error) => {
+                    console.log("Geolocation ignored or failed, using default origin.")
+                }
+            )
         }
     })
 
     const updateData = (newData: Partial<typeof wizardData>) => {
         setWizardData(prev => ({ ...prev, ...newData }))
     }
+
 
     const handleNext = () => {
         setDirection(1)

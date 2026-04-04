@@ -56,7 +56,12 @@ export default function WizardSidePanel({
                             day: item.nights ? `${item.nights} Nights` : undefined
                         })) : []}
                         hideCarAnimation={true}
+                        userOrigin={data.userOrigin}
+                        packages={data.destinationPackages}
+                        hotelTypes={data.hotelTypes}
+                        currentStep={currentStep}
                     />
+
                 </div>
             </div>
         </div>

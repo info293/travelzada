@@ -91,6 +91,21 @@ export default function TailoredResultsPage() {
     const [loadingTextIndex, setLoadingTextIndex] = useState(0)
     const [isMapExpanded, setIsMapExpanded] = useState(false)
     const router = useRouter()
+    // Ref to the right scrollable panel — synced with page scroll
+    const rightPanelRef = useRef<HTMLDivElement>(null)
+
+    // Sync page scroll → right panel scroll on desktop
+    useEffect(() => {
+        const handleWheel = (e: WheelEvent) => {
+            const panel = rightPanelRef.current
+            if (!panel) return
+            // Only sync if the user isn't already hovering the panel
+            if (panel.matches(':hover')) return
+            panel.scrollTop += e.deltaY
+        }
+        window.addEventListener('wheel', handleWheel, { passive: true })
+        return () => window.removeEventListener('wheel', handleWheel)
+    }, [])
 
     const cinematicLoadingTexts = [
         "Analyzing your pacing requirements...",
@@ -307,7 +322,7 @@ export default function TailoredResultsPage() {
                         </div>
 
                         {/* 2. RIGHT PANEL: Packages List, Map & Itinerary (Scrollable) (40%) */}
-                        <div className={`lg:col-span-4 flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6 ${activeMobileTab === 'results' ? 'flex' : 'hidden lg:flex'}`}>
+                        <div ref={rightPanelRef} className={`lg:col-span-4 flex-col gap-6 overflow-y-auto pr-2 pb-4 scrollbar-hide xl:pr-6 ${activeMobileTab === 'results' ? 'flex' : 'hidden lg:flex'}`}>
                             {packages.slice(0, 1).map((pkg, index) => {
                                 // Extract and normalize Day-Wise Itinerary for displaying and map routing
                                 let itineraryItems: { day: string; title: string; description: string }[] = [];
@@ -331,9 +346,22 @@ export default function TailoredResultsPage() {
                                         });
                                 }
 
+                                // Build itinerary points for the map — use location/city from details if available
+                                const mapItinerary = (pkg.Day_Wise_Itinerary_Details && pkg.Day_Wise_Itinerary_Details.length > 0)
+                                    ? pkg.Day_Wise_Itinerary_Details.map((d: any) => ({
+                                        title: d.location || d.city || d.place || d.title || '',
+                                        day: d.day,
+                                    }))
+                                    : pkg.Day_Wise_Itinerary
+                                        ? pkg.Day_Wise_Itinerary.split('|').map((item: string) => {
+                                            const match = item.match(/Day\s*\d+:\s*(.+)/i);
+                                            return { title: match ? match[1].trim() : item.trim() };
+                                        })
+                                        : [];
+
                                 return (
-                                    <motion.div 
-                                        key={pkg.id} 
+                                    <motion.div
+                                        key={pkg.id}
                                         className="flex flex-col gap-6 w-full max-w-3xl mx-auto pb-8"
                                         variants={staggerContainer}
                                         initial="hidden"
@@ -363,10 +391,10 @@ export default function TailoredResultsPage() {
                                                 <div className="absolute bottom-4 left-5 text-white z-10 flex flex-col items-start gap-3">
                                                     <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight pr-4">{pkg.Destination_Name}</h3>
                                                     {/* Jump to Map Shortcut */}
-                                                    <button 
+                                                    <button
                                                         onClick={() => {
                                                             document.getElementById('map-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                        }} 
+                                                        }}
                                                         className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-3.5 py-2 rounded-full text-xs font-semibold transition-all border border-white/30 shadow-sm group-hover:bg-white/30"
                                                     >
                                                         <span>📍</span> View on Map
@@ -403,16 +431,16 @@ export default function TailoredResultsPage() {
                                                         const destinationSlug = `${slugify(destinationCategory)}-packages`;
                                                         const packageSlug = pkg.Slug || slugify(pkg.Destination_Name || pkg.id);
                                                         const viewDetailsUrl = `/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageSlug)}`;
-                                                        
+
                                                         return (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => {
                                                                     setIsTransitioning(true);
                                                                     setTimeout(() => {
                                                                         window.open(viewDetailsUrl, '_blank', 'noopener,noreferrer');
                                                                         setIsTransitioning(false);
                                                                     }, 500);
-                                                                }} 
+                                                                }}
                                                                 className="w-full flex items-center justify-center gap-2 py-3 bg-[#f8f9fa] border-2 border-gray-200/60 text-gray-700 font-bold uppercase rounded-xl hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-all shadow-sm text-xs tracking-wider group"
                                                             >
                                                                 <span>View Final Details</span>
@@ -421,8 +449,8 @@ export default function TailoredResultsPage() {
                                                         );
                                                     })()}
 
-                                                    <button onClick={() => { 
-                                                        setEnquirePackageName(pkg.Destination_Name); 
+                                                    <button onClick={() => {
+                                                        setEnquirePackageName(pkg.Destination_Name);
                                                         setEnquireTrigger(prev => prev + 1);
                                                         setSelectedPackageForLead(pkg.Destination_Name);
                                                         setShowLeadForm(true);
@@ -437,13 +465,18 @@ export default function TailoredResultsPage() {
                                             </div>
                                         </motion.div>
 
-                                        {/* --- 2B. Interactive Map --- */}
+                                        {/* --- 2B. Day-wise Itinerary List (before map) --- */}
+                                        {itineraryItems.length > 0 && (
+                                            <ScrollLinkedItinerary itineraryItems={itineraryItems} />
+                                        )}
+
+                                        {/* --- 2C. Interactive Map (after itinerary) --- */}
                                         <div className="flex flex-col gap-4 shrink-0 mt-2">
                                             {/* Premium segmented control for Day Shortcuts */}
                                             {itineraryItems.length > 0 && (
                                                 <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-hide px-1 w-full relative">
                                                     {itineraryItems.map((item, idx) => (
-                                                        <button 
+                                                        <button
                                                             key={idx}
                                                             onClick={() => {
                                                                 document.getElementById(`itinerary-day-${idx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -461,7 +494,7 @@ export default function TailoredResultsPage() {
                                             <motion.div id="map-section" variants={slideUpItem} className="bg-white/90 backdrop-blur-xl rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-gray-100 relative min-h-[400px] group">
                                             {/* Interactive Overlay Hint */}
                                             <div className="absolute top-4 right-4 z-10 flex gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => setIsMapExpanded(true)}
                                                     className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full text-gray-700 text-[10px] font-bold tracking-widest uppercase hover:bg-white hover:scale-105 transition-all flex items-center gap-2 border border-gray-100 shadow-sm"
                                                 >
@@ -474,40 +507,18 @@ export default function TailoredResultsPage() {
                                                 </div>
                                             </div>
 
-                                            {/* Jump to Itinerary Shortcut */}
-                                            {itineraryItems.length > 0 && (
-                                                <div className="absolute bottom-4 left-4 z-10">
-                                                    <button 
-                                                        onClick={() => {
-                                                            document.getElementById('itinerary-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                                        }} 
-                                                        className="flex items-center gap-1.5 bg-white shadow-[0_4px_15px_rgba(0,0,0,0.1)] text-gray-900 px-4 py-2 rounded-full text-xs font-black hover:bg-gray-50 hover:scale-[1.02] transition-all border border-gray-200"
-                                                    >
-                                                        <span>📅</span> View full Itinerary
-                                                    </button>
-                                                </div>
-                                            )}
-                                            {/* Pass the first package's destination and itinerary points to the map */}
+                                            {/* Pass all itinerary day locations to the map. currentStep=4 triggers the
+                                                 'else' branch which renders all day markers + route polyline. 
+                                                 userOrigin=null hides the user-location flight arc. */}
                                             <LeafletMap
                                                 mainDestination={wizardData?.destinations?.[0] || pkg?.Destination_Name}
-                                                itinerary={
-                                                    (pkg?.Day_Wise_Itinerary_Details && pkg.Day_Wise_Itinerary_Details.length > 0)
-                                                        ? pkg.Day_Wise_Itinerary_Details.map((d: any) => ({ title: d.title, day: d.day }))
-                                                        : pkg?.Day_Wise_Itinerary
-                                                            ? pkg.Day_Wise_Itinerary.split('|').map((item: string) => {
-                                                                const match = item.match(/Day\s*\d+:\s*(.+)/i);
-                                                                return { title: match ? match[1].trim() : item.trim() };
-                                                            })
-                                                            : []
-                                                }
+                                                itinerary={mapItinerary}
+                                                currentStep={4}
+                                                userOrigin={null}
                                             />
-                                        </motion.div>
+                                            </motion.div>
                                         </div>
 
-                                        {/* --- 2C. Day-Wise Itinerary List --- */}
-                                        {itineraryItems.length > 0 && (
-                                            <ScrollLinkedItinerary itineraryItems={itineraryItems} />
-                                        )}
                                     </motion.div>
                                 );
                             })}
@@ -542,10 +553,13 @@ export default function TailoredResultsPage() {
                             </div>
                             <div className="flex-1 w-full h-full">
                                 <LeafletMap
-                                    mainDestination={wizardData?.destinations?.[0]}
+                                    mainDestination={wizardData?.destinations?.[0] || packages[0]?.Destination_Name}
                                     itinerary={
                                         (packages[0]?.Day_Wise_Itinerary_Details && packages[0].Day_Wise_Itinerary_Details.length > 0)
-                                            ? packages[0].Day_Wise_Itinerary_Details.map((d: any) => ({ title: d.title, day: d.day }))
+                                            ? packages[0].Day_Wise_Itinerary_Details.map((d: any) => ({
+                                                title: d.location || d.city || d.place || d.title || '',
+                                                day: d.day,
+                                            }))
                                             : packages[0]?.Day_Wise_Itinerary
                                                 ? packages[0].Day_Wise_Itinerary.split('|').map((item: string) => {
                                                     const match = item.match(/Day\s*\d+:\s*(.+)/i);
@@ -553,6 +567,8 @@ export default function TailoredResultsPage() {
                                                 })
                                                 : []
                                     }
+                                    currentStep={4}
+                                    userOrigin={null}
                                 />
                             </div>
                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full border border-gray-200 shadow-lg text-sm font-bold text-gray-800 pointer-events-none">
@@ -603,7 +619,7 @@ function ScrollLinkedItinerary({ itineraryItems }: { itineraryItems: { day: stri
                 <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[#ff8a3d] to-primary flex items-center justify-center border border-orange-100 shadow-inner text-white">
                     <span className="text-xl drop-shadow-sm">📅</span>
                 </div>
-                Day-by-Day Journey
+                Day-wise Itinerary
             </h4>
             <div className="flex col gap-0 pl-2">
                 <div className="relative border-l-2 border-dashed border-gray-200 ml-4 space-y-10 pb-4 h-full">
