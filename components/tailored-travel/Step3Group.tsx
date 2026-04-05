@@ -124,18 +124,18 @@ export default function Step3Group({
 
             </div>
 
-            <div className="mt-8 flex justify-center gap-3">
+            <div className="mt-8 flex flex-col-reverse sm:flex-row justify-center items-center gap-3 sm:gap-4 w-full">
                 <button
                     onClick={onPrev}
                     disabled={isSubmitting}
-                    className="px-8 py-3 bg-white text-gray-700 border-2 border-transparent rounded-full font-bold text-base hover:bg-gray-50 hover:border-gray-200 transition-all shadow-sm disabled:opacity-50"
+                    className="w-full sm:w-auto px-8 py-3 sm:py-3.5 bg-white/70 backdrop-blur-md text-gray-700 border-2 border-gray-100/50 rounded-full font-medium text-sm sm:text-base hover:bg-white hover:border-gray-200 transition-all shadow-sm disabled:opacity-50 text-center flex justify-center items-center whitespace-nowrap"
                 >
                     ← Back
                 </button>
                 <button
                     onClick={onNext}
                     disabled={isSubmitting || !data.groupType || data.hotelTypes.length === 0}
-                    className="px-10 py-3 bg-gray-900 text-white rounded-full font-bold text-base shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-70 disabled:hover:scale-100 disabled:shadow-none"
+                    className="w-full sm:w-auto px-10 py-3 sm:py-3.5 bg-gray-900 text-white rounded-full font-medium text-sm sm:text-base shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:hover:scale-100 disabled:shadow-none whitespace-nowrap"
                 >
                     {isSubmitting ? (
                         <>

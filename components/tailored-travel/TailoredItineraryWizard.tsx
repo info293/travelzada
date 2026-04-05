@@ -86,7 +86,7 @@ export default function TailoredItineraryWizard() {
 
     return (
         <div className="w-full max-w-[90rem] mx-auto py-4 md:py-8 px-2 sm:px-4 md:px-8 flex-1 flex flex-col">
-            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 flex-1 w-full relative z-10 transition-all duration-500 min-h-[700px]">
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 flex-1 w-full relative z-10 transition-all duration-500 min-h-[500px] lg:min-h-[700px]">
 
                 {/* LEFT COLUMN: WIZARD FORM */}
                 <div className="w-full lg:w-[55%] flex flex-col relative z-20">
@@ -94,7 +94,7 @@ export default function TailoredItineraryWizard() {
 
                         {/* Progress Bar Container */}
                         <div className="mb-8 sm:mb-12 max-w-3xl mx-auto w-full px-2 sm:px-4 md:px-0 mt-2 sm:mt-6 relative z-10">
-                            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider relative z-10">
+                            <div className="flex justify-between text-[10px] sm:text-xs font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider relative z-10">
                                 <span className={`transition-colors truncate max-w-[30%] ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
                                 <span className={`transition-colors truncate max-w-[30%] text-center ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
                                 <span className={`transition-colors truncate max-w-[40%] text-right ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
@@ -114,7 +114,7 @@ export default function TailoredItineraryWizard() {
                         )}
 
                         {/* Step Rendering with Framer Motion */}
-                        <div className="px-1 sm:px-4 relative overflow-hidden min-h-[500px] sm:min-h-[600px]">
+                        <div className="px-1 sm:px-4 relative overflow-hidden min-h-[400px] sm:min-h-[600px]">
                             <AnimatePresence mode="wait" custom={direction} initial={false}>
                                 <motion.div
                                     key={currentStep}

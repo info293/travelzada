@@ -420,7 +420,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
         
         // Custom highlights for eye-catching lead capture
         html = html.replace(/(what is your name\?|what is your name|share your name|share your 10-digit number\?|mobile number|10-digit mobile number\?|phone number)/gi, 
-            '<span class="text-primary font-bold text-base">$1</span>'
+            '<span class="text-primary font-normal text-base">$1</span>'
         )
         return html
     }
@@ -433,7 +433,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                     <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
                         <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
                     </div>
-                    <span className="font-semibold text-gray-700">Trip Planner</span>
+                    <span className="font-normal text-gray-700">Trip Planner</span>
                 </div>
 
                 <div className="space-y-1 flex-1 overflow-hidden flex flex-col">
@@ -446,7 +446,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                     </button>
 
                     <div className="mt-6 mb-2">
-                        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3">Recent</h3>
+                        <h3 className="text-xs font-normal text-gray-400 uppercase tracking-wider px-3">Recent</h3>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -461,9 +461,9 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 <div className="flex-shrink-0 h-16 border-b border-gray-100/50 flex items-center justify-between px-6 bg-white/40 backdrop-blur-md z-10 w-full">
                     <div className="flex items-center gap-3">
                         <div>
-                            <h2 className="text-base font-semibold text-gray-800 flex items-center gap-2">
+                            <h2 className="text-base font-normal text-gray-800 flex items-center gap-2">
                                 <span className="lg:hidden">Trip Planner</span>
-                                <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold tracking-wide uppercase">Beta</span>
+                                <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-normal tracking-wide uppercase">Beta</span>
                             </h2>
                         </div>
                     </div>
@@ -548,7 +548,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                                     >
                                         {message.role === 'assistant' ? (
                                             <div
-                                                className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-bold prose-strong:font-bold prose-strong:text-gray-900"
+                                                className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-normal prose-strong:font-normal prose-strong:text-gray-900"
                                                 dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                                             />
                                         ) : (

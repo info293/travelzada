@@ -5,13 +5,13 @@ import indianDestinationsData from '@/data/indian-destinations-data.json'
 
 const OPTIONS_EXPERIENCE = [
     { id: 'adventure', label: 'Adventure', icon: '🏂' },
-    { id: 'culture', label: 'Culture & Heritage', icon: '🏛️' },
-    { id: 'luxury', label: 'Luxury & Relaxation', icon: '✨' },
-    { id: 'nature', label: 'Nature & Wildlife', icon: '🌿' },
-    { id: 'food', label: 'Food & Culinary', icon: '🍝' },
-    { id: 'nightlife', label: 'Nightlife & Parties', icon: '🍸' },
-    { id: 'romantic', label: 'Romantic Vibes', icon: '❤️' },
-    { id: 'hidden_gems', label: 'Hidden Gems', icon: '🗺️' }
+    { id: 'wellness', label: 'Wellness', icon: '🧘‍♀️' },
+    { id: 'party', label: 'Party', icon: '🎉' },
+    { id: 'culture', label: 'Culture', icon: '🏛️' },
+    { id: 'romance', label: 'Romance', icon: '❤️' },
+    { id: 'food_wine', label: 'Food & Wine', icon: '🍷' },
+    { id: 'instagram', label: 'Instagram', icon: '📸' },
+    { id: 'relax', label: 'Relax', icon: '🏖️' }
 ]
 
 interface DestinationOption {
@@ -316,7 +316,7 @@ export default function Step1Destinations({
                                 <button
                                     key={exp.id}
                                     onClick={() => toggleExperience(exp.id)}
-                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border-2 text-xs sm:text-sm font-bold transition-all duration-300 focus:outline-none ${isSelected
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border-2 text-xs sm:text-sm font-medium transition-all duration-300 focus:outline-none ${isSelected
                                         ? 'bg-gray-900 border-gray-900 text-white shadow-[0_4px_15px_rgba(0,0,0,0.15)] scale-105'
                                         : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200 hover:text-gray-900 shadow-sm'
                                         }`}
@@ -335,7 +335,7 @@ export default function Step1Destinations({
                 <button
                     onClick={onNext}
                     disabled={data.destinations.length === 0}
-                    className="px-10 py-4 bg-gray-900 text-white rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className="px-10 py-4 bg-gray-900 text-white rounded-full font-medium text-lg shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
                 >
                     Customize Route →
                 </button>
