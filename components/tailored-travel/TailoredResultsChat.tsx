@@ -107,17 +107,17 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 setLeadCapturePhase('asking_name')
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: `Great choice! I'd love to connect you with our travel experts to get the ${enquirePackageName || 'perfect package'} booked! To get started, what is your name?`
+                    content: `Great choice! I'd love to share the detailed itinerary for ${enquirePackageName || 'this package'} with you! To get started and send it over, what is your name?`
                 }])
             } else if (leadCapturePhase === 'asking_name') {
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: `You're already inquiring about ${enquirePackageName || 'this package'}! Let's get that booked for you. What is your name?`
+                    content: `You're already requesting the itinerary for ${enquirePackageName || 'this package'}! Let's get that sent to you. What is your name?`
                 }])
             } else if (leadCapturePhase === 'asking_number') {
                 setMessages(prev => [...prev, {
                     role: 'assistant',
-                    content: `You're almost there to book ${enquirePackageName || 'this package'}. Could you share your mobile number?`
+                    content: `You're almost there to receive the itinerary for ${enquirePackageName || 'this package'}. Could you share your mobile number where we can send it?`
                 }])
             }
         }
@@ -230,7 +230,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                 setTimeout(() => {
                     setMessages(prev => [...prev, {
                         role: 'assistant',
-                        content: `Perfect! I've noted down your details. Someone from our expert team will contact you shortly at ${finalMobile} to help finalize your dream trip. Do you have any other questions in the meantime?`
+                        content: `Perfect! I've noted down your details. Our expert team will share the complete itinerary with you shortly at ${finalMobile} to help finalize your dream trip. Do you have any other questions in the meantime?`
                     }])
                     scrollToBottom()
                 }, 500)

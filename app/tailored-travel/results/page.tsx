@@ -454,11 +454,11 @@ export default function TailoredResultsPage() {
                                                         setEnquireTrigger(prev => prev + 1);
                                                         setSelectedPackageForLead(pkg.Destination_Name);
                                                         setShowLeadForm(true);
-                                                    }} className="w-full relative overflow-hidden flex items-center justify-center py-3 bg-gradient-to-r from-primary to-[#ff8a3d] text-white font-bold rounded-xl hover:from-[#e65c00] hover:to-[#e67300] transition-all shadow-md hover:shadow-lg text-xs md:text-sm uppercase tracking-wider group transform hover:scale-[1.02] active:scale-[0.98]">
+                                                    }} className="w-full relative overflow-hidden flex items-center justify-center py-2.5 sm:py-3 px-1.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white font-bold rounded-xl hover:from-[#e65c00] hover:to-[#e67300] transition-all shadow-md hover:shadow-lg text-[10px] lg:text-xs uppercase tracking-wide whitespace-nowrap group transform hover:scale-[1.02] active:scale-[0.98]">
                                                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
-                                                        <span className="relative z-10 flex items-center gap-2">
-                                                            Enquire Now
-                                                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                                        <span className="relative z-10 flex items-center gap-1 sm:gap-1.5">
+                                                            Download Itinerary
+                                                            <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                                         </span>
                                                     </button>
                                                 </div>
