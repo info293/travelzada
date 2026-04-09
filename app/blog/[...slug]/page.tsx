@@ -39,6 +39,7 @@ interface BlogPost {
     image: string
     author: string
     authorImage?: string
+    authorSlug?: string
     date: string
     category?: string
     readTime?: string
@@ -55,6 +56,24 @@ interface BlogPost {
     schemaType?: 'Article' | 'BlogPosting' | 'NewsArticle'
     slug?: string
     published?: boolean
+}
+
+interface AuthorProfile {
+    id?: string
+    name: string
+    slug: string
+    bio: string
+    shortBio?: string
+    photo?: string
+    role?: string
+    expertise?: string[]
+    socialLinks?: {
+        twitter?: string
+        linkedin?: string
+        instagram?: string
+        website?: string
+    }
+    location?: string
 }
 
 interface PageProps {
@@ -243,6 +262,31 @@ async function fetchRelatedPosts(category: string | undefined, currentPostId: st
     }
 }
 
+// Fetch author profile by slug or name
+async function fetchAuthorProfile(post: BlogPost): Promise<AuthorProfile | null> {
+    try {
+        const { collection, getDocs, query, where } = await import('firebase/firestore')
+        const { db } = await import('@/lib/firebase')
+        if (!db) return null
+
+        // Try by slug first
+        if (post.authorSlug) {
+            const q = query(collection(db, 'authors'), where('slug', '==', post.authorSlug))
+            const snap = await getDocs(q)
+            if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() } as AuthorProfile
+        }
+
+        // Fallback: match by name
+        const q2 = query(collection(db, 'authors'), where('name', '==', post.author))
+        const snap2 = await getDocs(q2)
+        if (!snap2.empty) return { id: snap2.docs[0].id, ...snap2.docs[0].data() } as AuthorProfile
+
+        return null
+    } catch {
+        return null
+    }
+}
+
 // Generate metadata for SEO
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const resolvedParams = params instanceof Promise ? await params : params
@@ -333,13 +377,17 @@ export default async function BlogPostPage({ params }: PageProps) {
         notFound()
     }
 
-    // Fetch related posts server-side
-    const relatedPosts = await fetchRelatedPosts(post.category, post.id)
+    // Fetch related posts and author profile server-side
+    const [relatedPosts, authorProfile] = await Promise.all([
+        fetchRelatedPosts(post.category, post.id),
+        fetchAuthorProfile(post),
+    ])
 
     // View counting moved to client component to avoid side-effects and bailout
 
     // Generate structured data for SEO
     const isoDate = convertToISO8601(post.date)
+    const authorSlugForSchema = authorProfile?.slug || post.authorSlug
     const articleSchema = {
         '@context': 'https://schema.org',
         '@type': 'Article',
@@ -349,9 +397,9 @@ export default async function BlogPostPage({ params }: PageProps) {
         author: {
             '@type': post.author.toLowerCase().includes('travelzada') ? 'Organization' : 'Person',
             name: post.author || 'Travelzada',
-            ...(post.author.toLowerCase().includes('travelzada') 
+            ...(post.author.toLowerCase().includes('travelzada')
                 ? { url: 'https://www.travelzada.com' }
-                : { url: 'https://www.travelzada.com/about/team' }
+                : { url: authorSlugForSchema ? `https://www.travelzada.com/author/${authorSlugForSchema}` : 'https://www.travelzada.com/blog' }
             )
         },
         datePublished: isoDate,
@@ -480,14 +528,39 @@ export default async function BlogPostPage({ params }: PageProps) {
                                             {post.subtitle}
                                         </p>
                                     )}
-                                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                                        <span>{post.date}</span>
-                                        <span>•</span>
-                                        <span>{post.author.toUpperCase()}</span>
+                                    {/* Author + meta row */}
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        {authorProfile ? (
+                                            <Link
+                                                href={`/author/${authorProfile.slug}`}
+                                                className="flex items-center gap-2 group"
+                                            >
+                                                {authorProfile.photo ? (
+                                                    <img
+                                                        src={authorProfile.photo}
+                                                        alt={authorProfile.name}
+                                                        className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                                    />
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                                                        <span className="text-xs font-bold text-primary">
+                                                            {authorProfile.name.charAt(0).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <span className="text-sm font-semibold text-gray-800 group-hover:text-primary transition-colors">
+                                                    {authorProfile.name}
+                                                </span>
+                                            </Link>
+                                        ) : (
+                                            <span className="text-sm font-semibold text-gray-700">{post.author}</span>
+                                        )}
+                                        <span className="text-gray-300">•</span>
+                                        <span className="text-sm text-gray-500">{post.date}</span>
                                         {post.readTime && (
                                             <>
-                                                <span>•</span>
-                                                <span>{post.readTime}</span>
+                                                <span className="text-gray-300">•</span>
+                                                <span className="text-sm text-gray-500">{post.readTime}</span>
                                             </>
                                         )}
                                     </div>
@@ -713,6 +786,49 @@ export default async function BlogPostPage({ params }: PageProps) {
 
                                 {/* Share Section - Client Component */}
                                 <ShareButtons currentUrl={currentUrl} postTitle={post.title} />
+
+                                {/* Author Bio Card */}
+                                {authorProfile && (
+                                    <div className="mt-10 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                                        <p className="text-xs uppercase tracking-widest text-gray-400 font-semibold mb-4">About the Author</p>
+                                        <Link href={`/author/${authorProfile.slug}`} className="flex items-start gap-4 group">
+                                            {authorProfile.photo ? (
+                                                <img
+                                                    src={authorProfile.photo}
+                                                    alt={authorProfile.name}
+                                                    className="w-16 h-16 rounded-full object-cover border-2 border-primary/20 flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-xl font-bold text-primary">
+                                                        {authorProfile.name.charAt(0).toUpperCase()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-bold text-gray-900 group-hover:text-primary transition-colors">
+                                                        {authorProfile.name}
+                                                    </span>
+                                                    {authorProfile.role && (
+                                                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                                                            {authorProfile.role}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
+                                                    {authorProfile.shortBio || authorProfile.bio}
+                                                </p>
+                                                <span className="inline-flex items-center gap-1 mt-2 text-xs text-primary font-semibold group-hover:underline">
+                                                    View all articles
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                </span>
+                                            </div>
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Newsletter Subscription - Client Component */}

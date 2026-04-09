@@ -5,7 +5,7 @@ import Testimonials from '@/components/Testimonials'
 import WhyTravelzada from '@/components/WhyTravelzada'
 import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
-import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema, generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 import FAQ from '@/components/FAQ'
 import { faqs } from '@/data/faqs'
 import DynamicOccasionRails from '@/components/DynamicOccasionRails'
@@ -18,12 +18,19 @@ export default function Home() {
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: 'https://www.travelzada.com' }
   ])
+  const webPageSchema = generateWebPageSchema({
+    name: 'Travelzada - AI-Powered Travel Planner',
+    description: 'Plan your perfect trip with Travelzada. AI-powered itineraries, curated packages, and expert travel guidance for couples and families.',
+    url: 'https://www.travelzada.com',
+    websiteUrl: 'https://www.travelzada.com',
+  })
 
   return (
     <>
       <SchemaMarkup schema={websiteSchema} id="website-schema" />
       <SchemaMarkup schema={faqSchema} id="faq-schema" />
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />
+      <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <DestinationSlugCacheInitializer />
       <main className="min-h-screen bg-cream pt-16 md:pt-24">
         <Header />

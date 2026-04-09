@@ -1227,7 +1227,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
              <Breadcrumbs items={[
               { name: 'Home', url: '/' },
               { name: 'Destinations', url: '/destinations' },
-              { name: slug, url: `/destinations/${slug}` },
+              { name: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), url: `/destinations/${slug}` },
               { name: packageTitle }
              ]} />
           </div>

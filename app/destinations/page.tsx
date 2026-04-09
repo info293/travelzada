@@ -4,7 +4,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import DestinationsClient from './DestinationsClient'
 import travelDatabase from '@/data/travel-database.json'
-import SchemaMarkup, { generateBreadcrumbSchema, generateItemListSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateBreadcrumbSchema, generateItemListSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 import Breadcrumbs from '@/components/Breadcrumbs'
 
 const travelData = travelDatabase as any
@@ -93,7 +93,14 @@ export default async function DestinationsPage() {
     { name: 'Home', url: 'https://www.travelzada.com' },
     { name: 'Destinations', url: 'https://www.travelzada.com/destinations' }
   ])
-  
+
+  const webPageSchema = generateWebPageSchema({
+    name: 'Explore Destinations | Travelzada - Travel Packages Worldwide',
+    description: 'Discover amazing travel destinations worldwide. Browse Bali, Thailand, Maldives, Europe and more. Find curated travel packages and itineraries.',
+    url: 'https://www.travelzada.com/destinations',
+    websiteUrl: 'https://www.travelzada.com',
+  })
+
   const itemListSchema = generateItemListSchema(
     'Travelzada Destinations',
     'Explore our curated list of domestic and international travel destinations.',
@@ -107,6 +114,7 @@ export default async function DestinationsPage() {
     <main className="min-h-screen bg-white">
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumbs" />
       <SchemaMarkup schema={itemListSchema} id="item-list" />
+      <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <Header />
 
       {/* Hero Section */}

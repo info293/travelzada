@@ -266,9 +266,6 @@ interface WebPageSchema {
     '@type': string
     name: string
   }
-  breadcrumb?: {
-    '@id': string
-  }
 }
 
 interface TravelAgencyReviewSchema {
@@ -646,10 +643,7 @@ export function generateWebPageSchema(data: { name: string; description?: string
         '@type': 'TouristDestination',
         name: data.aboutDestinationName
       }
-    } : {}),
-    breadcrumb: {
-      '@id': `${data.url}#breadcrumb`
-    }
+    } : {})
   }
 }
 

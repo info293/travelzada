@@ -150,6 +150,7 @@ interface BlogPost {
   ogImage?: string
   schemaType?: 'Article' | 'BlogPosting' | 'NewsArticle'
   slug?: string // Custom URL slug
+  authorSlug?: string // Links to /author/[slug] profile page
 }
 
 interface User {
@@ -164,7 +165,27 @@ interface User {
   permissions?: TabType[]
 }
 
-type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records' | 'jobs'
+type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records' | 'jobs' | 'authors'
+
+interface Author {
+  id?: string
+  name: string
+  slug: string
+  bio: string
+  shortBio?: string
+  photo?: string
+  role?: string
+  expertise?: string[]
+  socialLinks?: {
+    twitter?: string
+    linkedin?: string
+    instagram?: string
+    website?: string
+  }
+  location?: string
+  createdAt?: string
+  updatedAt?: string
+}
 
 interface Testimonial {
   id?: string
@@ -270,6 +291,11 @@ export default function AdminDashboard() {
   const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null)
   const [testimonialFormData, setTestimonialFormData] = useState<Partial<Testimonial>>({})
   const [jobs, setJobs] = useState<Job[]>([])
+  const [authors, setAuthors] = useState<Author[]>([])
+  const [showAuthorForm, setShowAuthorForm] = useState(false)
+  const [editingAuthor, setEditingAuthor] = useState<Author | null>(null)
+  const [authorFormData, setAuthorFormData] = useState<Partial<Author>>({})
+  const [authorExpertiseInput, setAuthorExpertiseInput] = useState('')
 
   const [showDestinationForm, setShowDestinationForm] = useState(false)
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null)
@@ -433,6 +459,7 @@ export default function AdminDashboard() {
         fetchJobApplications(),
         fetchTestimonials(),
         fetchJobs(),
+        fetchAuthors(),
       ])
     } finally {
       setIsLoading(false)
@@ -802,6 +829,87 @@ export default function AdminDashboard() {
     }
   }
 
+  const fetchAuthors = async () => {
+    try {
+      const dbInstance = getDbInstance()
+      let querySnapshot
+      try {
+        const q = query(collection(dbInstance, 'authors'), orderBy('createdAt', 'desc'))
+        querySnapshot = await getDocs(q)
+      } catch {
+        querySnapshot = await getDocs(collection(dbInstance, 'authors'))
+      }
+      const authorsData: Author[] = []
+      querySnapshot.forEach((doc) => {
+        authorsData.push({ id: doc.id, ...doc.data() } as Author)
+      })
+      setAuthors(authorsData)
+    } catch (error) {
+      console.error('Error fetching authors:', error)
+    }
+  }
+
+  const handleAuthorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const dbInstance = getDbInstance()
+      const now = new Date().toISOString()
+      const slug = authorFormData.slug?.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+        || authorFormData.name?.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+        || ''
+
+      const expertise = authorExpertiseInput
+        ? authorExpertiseInput.split(',').map(s => s.trim()).filter(Boolean)
+        : (authorFormData.expertise || [])
+
+      const authorData: any = {
+        name: authorFormData.name || '',
+        slug,
+        bio: authorFormData.bio || '',
+        shortBio: authorFormData.shortBio || '',
+        photo: authorFormData.photo || '',
+        role: authorFormData.role || '',
+        location: authorFormData.location || '',
+        expertise,
+        socialLinks: {
+          twitter: authorFormData.socialLinks?.twitter || '',
+          linkedin: authorFormData.socialLinks?.linkedin || '',
+          instagram: authorFormData.socialLinks?.instagram || '',
+          website: authorFormData.socialLinks?.website || '',
+        },
+        updatedAt: now,
+      }
+
+      if (editingAuthor?.id) {
+        await updateDoc(doc(dbInstance, 'authors', editingAuthor.id), authorData)
+      } else {
+        authorData.createdAt = now
+        await addDoc(collection(dbInstance, 'authors'), authorData)
+      }
+
+      await fetchAuthors()
+      setShowAuthorForm(false)
+      setEditingAuthor(null)
+      setAuthorFormData({})
+      setAuthorExpertiseInput('')
+      alert(editingAuthor ? 'Author updated!' : 'Author created!')
+    } catch (error) {
+      console.error('Error saving author:', error)
+      alert('Error saving author. Check console.')
+    }
+  }
+
+  const handleDeleteAuthor = async (id: string) => {
+    if (!confirm('Delete this author? This cannot be undone.')) return
+    try {
+      const dbInstance = getDbInstance()
+      await deleteDoc(doc(dbInstance, 'authors', id))
+      await fetchAuthors()
+    } catch (error) {
+      console.error('Error deleting author:', error)
+    }
+  }
+
 
 
   const handleDeleteJob = async (id: string) => {
@@ -1145,6 +1253,11 @@ export default function AdminDashboard() {
       // Add slug if provided
       if (blogFormData.slug && blogFormData.slug.trim()) {
         blogData.slug = blogFormData.slug.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      }
+
+      // Save authorSlug for linking to author profile page
+      if (blogFormData.authorSlug) {
+        blogData.authorSlug = blogFormData.authorSlug
       }
 
       // Only include optional fields if they have values
@@ -2461,6 +2574,26 @@ export default function AdminDashboard() {
               </button>
             )}
 
+            {isAdmin && (
+              <button
+                onClick={() => setActiveTab('authors')}
+                className={`group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${activeTab === 'authors'
+                  ? 'border-primary bg-primary/5 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeTab === 'authors' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <div className={`text-sm font-semibold ${activeTab === 'authors' ? 'text-primary' : 'text-gray-700'}`}>Authors</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{authors.length}</div>
+                </div>
+              </button>
+            )}
+
             {hasPermission('destinations') && (
               <button
                 onClick={() => setActiveTab('destinations')}
@@ -3179,14 +3312,52 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Author *</label>
-                      <input
-                        type="text"
-                        name="author"
-                        value={blogFormData.author || ''}
-                        onChange={handleBlogInputChange}
-                        required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      {authors.length > 0 ? (
+                        <div className="space-y-2">
+                          <select
+                            value={blogFormData.authorSlug || ''}
+                            onChange={(e) => {
+                              const selected = authors.find(a => a.slug === e.target.value)
+                              setBlogFormData(prev => ({
+                                ...prev,
+                                author: selected?.name || prev.author || '',
+                                authorSlug: selected?.slug || '',
+                                authorImage: selected?.photo || prev.authorImage || '',
+                              }))
+                            }}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            <option value="">— Select an author —</option>
+                            {authors.map(a => (
+                              <option key={a.id} value={a.slug}>{a.name}{a.role ? ` (${a.role})` : ''}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            name="author"
+                            value={blogFormData.author || ''}
+                            onChange={handleBlogInputChange}
+                            required
+                            placeholder="Or type author name manually"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                          />
+                          <p className="text-xs text-gray-400">Select from dropdown to auto-link to author profile, or type a name manually.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <input
+                            type="text"
+                            name="author"
+                            value={blogFormData.author || ''}
+                            onChange={handleBlogInputChange}
+                            required
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          <p className="text-xs text-gray-400">
+                            <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('authors') }} className="text-primary underline">Create author profiles</a> to enable dropdown linking.
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
@@ -3843,6 +4014,167 @@ export default function AdminDashboard() {
               )
             }
           </div >
+        )}
+
+        {/* Authors Tab */}
+        {activeTab === 'authors' && isAdmin && (
+          <div className="space-y-6">
+            {showAuthorForm && (
+              <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <form onSubmit={handleAuthorSubmit} className="space-y-6">
+                  <div className="flex justify-between items-center border-b border-gray-200 pb-4 mb-2">
+                    <h3 className="text-lg font-bold text-gray-900">{editingAuthor ? 'Edit Author' : 'Create New Author'}</h3>
+                    <button type="button" onClick={() => { setShowAuthorForm(false); setEditingAuthor(null); setAuthorFormData({}); setAuthorExpertiseInput('') }}
+                      className="text-gray-500 hover:text-gray-700 text-sm">✕ Cancel</button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Full Name *</label>
+                      <input type="text" required value={authorFormData.name || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, name: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Slug * <span className="text-xs font-normal text-gray-400">(URL: /author/slug)</span></label>
+                      <input type="text" required value={authorFormData.slug || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, slug: e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }))}
+                        placeholder="e.g. priya-sharma"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Role / Title</label>
+                      <input type="text" value={authorFormData.role || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, role: e.target.value }))}
+                        placeholder="e.g. Travel Writer, Freelancer"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Location</label>
+                      <input type="text" value={authorFormData.location || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, location: e.target.value }))}
+                        placeholder="e.g. Mumbai, India"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Photo URL</label>
+                      <input type="url" value={authorFormData.photo || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, photo: e.target.value }))}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Short Bio <span className="text-xs font-normal text-gray-400">(shown on blog cards, max ~160 chars)</span></label>
+                      <input type="text" value={authorFormData.shortBio || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, shortBio: e.target.value }))}
+                        maxLength={200}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Full Bio *</label>
+                      <textarea required rows={5} value={authorFormData.bio || ''}
+                        onChange={e => setAuthorFormData(p => ({ ...p, bio: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">Expertise Tags <span className="text-xs font-normal text-gray-400">(comma separated)</span></label>
+                      <input type="text" value={authorExpertiseInput}
+                        onChange={e => setAuthorExpertiseInput(e.target.value)}
+                        placeholder="Beach Travel, Luxury Hotels, Budget Tips"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-700 mb-3">Social Links</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(['twitter', 'linkedin', 'instagram', 'website'] as const).map(platform => (
+                        <div key={platform}>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1 capitalize">{platform}</label>
+                          <input type="url" value={(authorFormData.socialLinks as any)?.[platform] || ''}
+                            onChange={e => setAuthorFormData(p => ({ ...p, socialLinks: { ...(p.socialLinks || {}), [platform]: e.target.value } }))}
+                            placeholder={`https://...`}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+                    <button type="button" onClick={() => { setShowAuthorForm(false); setEditingAuthor(null); setAuthorFormData({}); setAuthorExpertiseInput('') }}
+                      className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 text-sm">Cancel</button>
+                    <button type="submit" className="px-5 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 text-sm">
+                      {editingAuthor ? 'Update Author' : 'Create Author'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {!showAuthorForm && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">Authors ({authors.length})</h3>
+                  <button onClick={() => { setAuthorFormData({}); setAuthorExpertiseInput(''); setEditingAuthor(null); setShowAuthorForm(true) }}
+                    className="bg-primary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors">
+                    + New Author
+                  </button>
+                </div>
+
+                {authors.length === 0 ? (
+                  <div className="text-center py-16 text-gray-400">
+                    <svg className="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <p className="font-medium">No authors yet. Create your first author profile.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {authors.map(author => (
+                      <div key={author.id} className="border border-gray-200 rounded-xl p-4 flex flex-col gap-3">
+                        <div className="flex items-start gap-3">
+                          {author.photo ? (
+                            <img src={author.photo} alt={author.name} className="w-12 h-12 rounded-full object-cover border border-gray-200 flex-shrink-0" />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 flex-shrink-0">
+                              <span className="text-lg font-bold text-primary">{author.name.charAt(0)}</span>
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 truncate">{author.name}</p>
+                            {author.role && <p className="text-xs text-primary font-medium">{author.role}</p>}
+                            <p className="text-xs text-gray-400">/author/{author.slug}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 line-clamp-2">{author.shortBio || author.bio}</p>
+                        {author.expertise && author.expertise.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {author.expertise.slice(0, 3).map(tag => (
+                              <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex gap-2 pt-1 border-t border-gray-100">
+                          <a href={`/author/${author.slug}`} target="_blank" rel="noopener noreferrer"
+                            className="flex-1 text-center text-xs bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                            View Page
+                          </a>
+                          <button onClick={() => { setAuthorFormData(author); setAuthorExpertiseInput((author.expertise || []).join(', ')); setEditingAuthor(author); setShowAuthorForm(true) }}
+                            className="flex-1 text-center text-xs bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors font-medium">
+                            Edit
+                          </button>
+                          <button onClick={() => handleDeleteAuthor(author.id!)}
+                            className="flex-1 text-center text-xs bg-red-50 text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Destinations Tab */}
