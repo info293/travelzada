@@ -31,59 +31,83 @@ const FALLBACK_DESTINATIONS: DestinationOption[] = Array.from(
 export default function Step1Destinations({
     data,
     updateData,
-    onNext
+    onNext,
+    agentSlug,
 }: {
     data: any,
     updateData: (data: any) => void,
-    onNext: () => void
+    onNext: () => void,
+    agentSlug?: string,
 }) {
     const [currentDestination, setCurrentDestination] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
     const [highlightedIndex, setHighlightedIndex] = useState(-1)
-    const [allDestinations, setAllDestinations] = useState<DestinationOption[]>(FALLBACK_DESTINATIONS)
+    const [allDestinations, setAllDestinations] = useState<DestinationOption[]>(agentSlug ? [] : FALLBACK_DESTINATIONS)
     const [isLoading, setIsLoading] = useState(true)
     const inputRef = useRef<HTMLInputElement>(null)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    // Fetch destinations from Firestore on mount
+    // Fetch destinations on mount — from agent_packages when on an agent page, else from main destinations
     useEffect(() => {
-        async function fetchFromFirestore() {
+        async function fetchDestinations() {
             try {
                 const { db } = await import('@/lib/firebase')
-                const { collection, getDocs } = await import('firebase/firestore')
+                const { collection, getDocs, query, where } = await import('firebase/firestore')
 
-                if (!db) {
-                    setIsLoading(false)
-                    return
-                }
+                if (!db) { setIsLoading(false); return }
 
-                const snapshot = await getDocs(collection(db, 'destinations'))
-                const options: DestinationOption[] = []
-                const seen = new Set<string>()
+                if (agentSlug) {
+                    // AGENT MODE: only show destinations this agent has active packages for
+                    const q = query(
+                        collection(db, 'agent_packages'),
+                        where('agentSlug', '==', agentSlug),
+                        where('isActive', '==', true)
+                    )
+                    const snap = await getDocs(q)
+                    const seen = new Set<string>()
+                    const options: DestinationOption[] = []
 
-                snapshot.forEach((doc) => {
-                    const d = doc.data()
-                    if (d.name && !seen.has(d.name)) {
-                        seen.add(d.name)
-                        options.push({
-                            name: d.name,
-                            label: d.country ? `${d.name}, ${d.country}` : d.name
-                        })
-                    }
-                })
+                    snap.forEach(doc => {
+                        const d = doc.data()
+                        const name = d.destination as string
+                        if (name && !seen.has(name)) {
+                            seen.add(name)
+                            options.push({
+                                name,
+                                label: d.destinationCountry ? `${name}, ${d.destinationCountry}` : name,
+                            })
+                        }
+                    })
 
-                if (options.length > 0) {
                     setAllDestinations(options)
+                } else {
+                    // MAIN SITE MODE: fetch from destinations collection
+                    const snapshot = await getDocs(collection(db, 'destinations'))
+                    const options: DestinationOption[] = []
+                    const seen = new Set<string>()
+
+                    snapshot.forEach(doc => {
+                        const d = doc.data()
+                        if (d.name && !seen.has(d.name)) {
+                            seen.add(d.name)
+                            options.push({
+                                name: d.name,
+                                label: d.country ? `${d.name}, ${d.country}` : d.name,
+                            })
+                        }
+                    })
+
+                    if (options.length > 0) setAllDestinations(options)
                 }
             } catch (err) {
-                console.error('Failed to fetch destinations from Firestore, using fallback:', err)
+                console.error('Failed to fetch destinations:', err)
             } finally {
                 setIsLoading(false)
             }
         }
 
-        fetchFromFirestore()
-    }, [])
+        fetchDestinations()
+    }, [agentSlug])
 
     const filteredDestinations = currentDestination.trim().length > 0
         ? allDestinations.filter(d =>
@@ -243,7 +267,16 @@ export default function Step1Destinations({
                             {/* Invalid input hint */}
                             {currentDestination.trim().length > 0 && !isValidDestination(currentDestination) && filteredDestinations.length === 0 && (
                                 <p className="mt-2 text-xs text-amber-500 font-medium pl-1">
-                                    ⚠️ We don't have packages for this destination yet. Please choose from the suggestions.
+                                    {agentSlug
+                                        ? '⚠️ This destination is not available in this agent\'s packages. Please choose from the list.'
+                                        : '⚠️ We don\'t have packages for this destination yet. Please choose from the suggestions.'}
+                                </p>
+                            )}
+
+                            {/* Agent mode: no packages at all */}
+                            {agentSlug && !isLoading && allDestinations.length === 0 && (
+                                <p className="mt-3 text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-xl">
+                                    No packages available yet. Please contact the agent directly.
                                 </p>
                             )}
 

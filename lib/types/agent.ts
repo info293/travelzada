@@ -1,0 +1,133 @@
+// Agent Platform Types
+
+export type AgentStatus = 'pending' | 'active' | 'suspended' | 'rejected'
+export type AgencyType = 'individual' | 'small_agency' | 'large_agency' | 'franchise'
+export type SubscriptionPlan = 'basic' | 'pro'
+
+export interface Agent {
+  id: string
+  // Auth
+  uid: string         // Firebase Auth UID
+  email: string
+  // Profile
+  agentSlug: string   // e.g. "ravindra" → URL: /tailored-travel/ravindra
+  companyName: string
+  contactName: string
+  phone: string
+  gstNumber: string
+  agencyType: AgencyType
+  logoUrl?: string
+  // Platform
+  status: AgentStatus
+  subscriptionPlan: SubscriptionPlan
+  commissionRate: number  // percentage, e.g. 10 = 10%
+  fallbackToTravelzada: boolean  // allow fallback to main packages if no agent match
+  // Stats (denormalized for fast reads)
+  totalPackages: number
+  totalBookings: number
+  totalRevenue: number
+  // Timestamps
+  createdAt: any
+  updatedAt: any
+  approvedAt?: any
+  approvedBy?: string
+  rejectionReason?: string
+  adminNotes?: string
+}
+
+export interface AgentPackage {
+  id: string
+  agentId: string
+  agentSlug: string
+  // Package Details (mirrors main packages collection)
+  title: string
+  destination: string
+  destinationCountry?: string
+  overview: string
+  durationDays: number
+  durationNights: number
+  pricePerPerson: number
+  maxGroupSize: number
+  minGroupSize?: number
+  travelType: string     // e.g. "Leisure", "Adventure", "Honeymoon"
+  theme: string          // e.g. "Beach", "Wildlife", "Cultural"
+  mood: string           // e.g. "Relaxing", "Adventurous"
+  starCategory: string   // e.g. "3-Star", "4-Star", "5-Star"
+  inclusions: string[]
+  exclusions: string[]
+  highlights: string[]
+  dayWiseItinerary: string
+  primaryImageUrl?: string
+  imageUrls?: string[]
+  // Availability
+  seasonalAvailability?: string  // e.g. "Oct-Mar", "Year Round"
+  isActive: boolean
+  // Agent custom markup
+  basePackageId?: string  // if based on a Travelzada base package
+  markupPercent?: number  // markup on top of base price
+  // Timestamps
+  createdAt: any
+  updatedAt: any
+}
+
+export interface AgentBooking {
+  id: string
+  agentId: string
+  agentSlug: string
+  packageId: string
+  packageTitle: string
+  destination: string
+  // Customer Info
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  // Trip Details
+  preferredDates: string
+  groupSize: number
+  adults: number
+  kids: number
+  rooms: number
+  specialRequests?: string
+  // Itinerary snapshot
+  wizardData?: any
+  selectedPackage?: any
+  chatMessages?: any[]
+  // Status
+  status: 'new' | 'contacted' | 'confirmed' | 'cancelled' | 'completed'
+  bookingValue?: number
+  commissionAmount?: number
+  adminNotes?: string
+  agentNotes?: string
+  // Timestamps
+  createdAt: any
+  updatedAt: any
+}
+
+export interface AgentCustomer {
+  id: string
+  agentId: string
+  name: string
+  email: string
+  phone?: string
+  totalTrips: number
+  totalSpend: number
+  lastTripDate?: any
+  preferences?: {
+    destinations: string[]
+    travelType: string[]
+    hotelStars: string[]
+  }
+  notes?: string
+  createdAt: any
+  updatedAt: any
+}
+
+export interface AgentAnalytics {
+  totalVisits: number
+  itinerariesGenerated: number
+  bookingsSubmitted: number
+  conversionRate: number
+  topDestinations: { destination: string; count: number }[]
+  revenueByMonth: { month: string; revenue: number }[]
+  bookingsByStatus: { status: string; count: number }[]
+}

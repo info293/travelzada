@@ -12,6 +12,9 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
   isAdmin: boolean
+  isAgent: boolean
+  agentSlug: string | null
+  agentStatus: string | null
   permissions: string[]
 }
 
@@ -27,6 +30,9 @@ const defaultAuthContext: AuthContextType = {
   loginWithGoogle: async () => { throw new Error('Auth not available during SSR') },
   resetPassword: async () => { throw new Error('Auth not available during SSR') },
   isAdmin: false,
+  isAgent: false,
+  agentSlug: null,
+  agentStatus: null,
   permissions: [],
 }
 
@@ -44,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isAgent, setIsAgent] = useState(false)
+  const [agentSlug, setAgentSlug] = useState<string | null>(null)
+  const [agentStatus, setAgentStatus] = useState<string | null>(null)
   const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
@@ -76,11 +85,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   const userData = userDoc.data()
                   const userRole = userData.role || 'user'
                   setIsAdmin(userRole === 'admin')
+                  setIsAgent(userRole === 'agent')
+                  setAgentSlug(userData.agentSlug || null)
+                  setAgentStatus(userData.agentStatus || null)
                   setPermissions(userData.permissions || [])
-                  console.log('Admin check from Firestore:', {
+                  console.log('Auth check from Firestore:', {
                     email: user.email,
                     role: userRole,
                     isAdmin: userRole === 'admin',
+                    isAgent: userRole === 'agent',
+                    agentSlug: userData.agentSlug,
                     permissions: userData.permissions
                   })
                 } else {
@@ -90,8 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   const isAdminEmail = adminEmails.includes(emailLower) ||
                     emailLower.split('@')[0].includes('admin')
                   setIsAdmin(isAdminEmail)
+                  setIsAgent(false)
+                  setAgentSlug(null)
+                  setAgentStatus(null)
                   setPermissions([]) // No specific permissions for fallback admin
-                  console.log('Admin check (fallback):', { email: user.email, isAdmin: isAdminEmail })
+                  console.log('Auth check (fallback):', { email: user.email, isAdmin: isAdminEmail })
                 }
               }
             } catch (error) {
@@ -102,10 +119,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               const isAdminEmail = adminEmails.includes(emailLower) ||
                 emailLower.split('@')[0].includes('admin')
               setIsAdmin(isAdminEmail)
+              setIsAgent(false)
+              setAgentSlug(null)
+              setAgentStatus(null)
               setPermissions([])
             }
           } else {
             setIsAdmin(false)
+            setIsAgent(false)
+            setAgentSlug(null)
+            setAgentStatus(null)
             setPermissions([])
           }
           setLoading(false)
@@ -251,6 +274,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithGoogle,
     resetPassword,
     isAdmin,
+    isAgent,
+    agentSlug,
+    agentStatus,
     permissions,
   }
 

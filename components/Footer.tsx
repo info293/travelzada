@@ -115,6 +115,11 @@ export default function Footer() {
                     Reviews
                   </Link>
                 </li>
+                <li>
+                  <Link href="/agent-register" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Join as a travel agent">
+                    Become an Agent
+                  </Link>
+                </li>
               </ul>
             </nav>
 

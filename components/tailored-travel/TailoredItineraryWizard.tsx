@@ -11,7 +11,11 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import WizardSidePanel from './WizardSidePanel'
 
-export default function TailoredItineraryWizard() {
+interface TailoredItineraryWizardProps {
+    agentSlug?: string
+}
+
+export default function TailoredItineraryWizard({ agentSlug }: TailoredItineraryWizardProps = {}) {
     const [currentStep, setCurrentStep] = useState(1)
     const [direction, setDirection] = useState(0)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -75,10 +79,14 @@ export default function TailoredItineraryWizard() {
 
         // Save preferences to session storage for the results page to pick up
         if (typeof window !== 'undefined') {
-            sessionStorage.setItem('tailored_wizard_data', JSON.stringify(wizardData))
+            const dataToSave = agentSlug ? { ...wizardData, agentSlug } : wizardData
+            sessionStorage.setItem('tailored_wizard_data', JSON.stringify(dataToSave))
         }
 
-        router.push('/tailored-travel/results')
+        const resultsPath = agentSlug
+            ? `/tailored-travel/${agentSlug}/results`
+            : '/tailored-travel/results'
+        router.push(resultsPath)
     }
 
     // Calculate Progress Percent (Now out of 2 steps, since step 3 is the final screen)
@@ -149,6 +157,7 @@ export default function TailoredItineraryWizard() {
                                             data={wizardData}
                                             updateData={updateData}
                                             onNext={handleNext}
+                                            agentSlug={agentSlug}
                                         />
                                     )}
                                     {currentStep === 2 && (
