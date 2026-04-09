@@ -319,9 +319,9 @@ export default function ContactPage() {
             </div>
 
             {/* Google Map Embed */}
-            <div className="mt-8 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[300px]">
+            <div className="mt-8 lg:mt-0 lg:col-span-2 rounded-2xl overflow-hidden border border-gray-200 shadow-sm h-[400px] lg:h-full min-h-[400px]">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3559.877!2d75.8094!3d26.8553!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x396db66d!2sMalviya%20Nagar%2C%20Jaipur%2C%20Rajasthan%20302017!5e0!3m2!1sen!2sin!4v1680000000000!5m2!1sen!2sin"
+                src="https://maps.google.com/maps?q=26.859293111197577,75.81619129751094&hl=en&z=16&output=embed"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
