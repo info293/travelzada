@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import SchemaMarkup, { generateContactPageSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateContactPageSchema, generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -147,11 +147,18 @@ export default function ContactPage() {
     { name: 'Home', url: 'https://www.travelzada.com' },
     { name: 'Contact' }
   ])
+  const webPageSchema = generateWebPageSchema({
+    name: 'Contact Us | Travelzada - Get in Touch',
+    description: 'Have questions about your trip? Contact Travelzada for booking inquiries, customer support, and travel planning assistance. We respond within 24 hours.',
+    url: 'https://www.travelzada.com/contact',
+    websiteUrl: 'https://www.travelzada.com',
+  })
 
   return (
     <main className="min-h-screen bg-white">
       <SchemaMarkup schema={contactSchema} id="contact-schema" />
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-contact" />
+      <SchemaMarkup schema={webPageSchema} id="webpage-schema-contact" />
       <Header />
 
       {/* Breadcrumb Bar */}

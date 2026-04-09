@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Breadcrumbs from '@/components/Breadcrumbs'
-import SchemaMarkup, { generateBreadcrumbSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 
 export const metadata: Metadata = {
     title: 'Privacy Policy | Travelzada',
@@ -17,10 +17,17 @@ export default function PrivacyPolicyPage() {
         { name: 'Home', url: 'https://www.travelzada.com' },
         { name: 'Privacy Policy' }
     ])
+    const webPageSchema = generateWebPageSchema({
+        name: 'Privacy Policy | Travelzada',
+        description: 'Privacy Policy for Travelzada services.',
+        url: 'https://www.travelzada.com/privacy-policy',
+        websiteUrl: 'https://www.travelzada.com',
+    })
 
     return (
         <main className="min-h-screen bg-white">
             <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-privacy" />
+            <SchemaMarkup schema={webPageSchema} id="webpage-schema-privacy" />
             <Header />
             <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
                 <div className="max-w-4xl mx-auto">

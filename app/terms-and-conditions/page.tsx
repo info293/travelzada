@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Breadcrumbs from '@/components/Breadcrumbs'
-import SchemaMarkup, { generateBreadcrumbSchema } from '@/components/SchemaMarkup'
+import SchemaMarkup, { generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 
 export const metadata: Metadata = {
     title: 'Terms and Conditions | Travelzada',
@@ -17,10 +17,17 @@ export default function TermsAndConditionsPage() {
         { name: 'Home', url: 'https://www.travelzada.com' },
         { name: 'Terms & Conditions' }
     ])
+    const webPageSchema = generateWebPageSchema({
+        name: 'Terms and Conditions | Travelzada',
+        description: 'Terms and Conditions for Travelzada services.',
+        url: 'https://www.travelzada.com/terms-and-conditions',
+        websiteUrl: 'https://www.travelzada.com',
+    })
 
     return (
         <main className="min-h-screen bg-white">
             <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-terms" />
+            <SchemaMarkup schema={webPageSchema} id="webpage-schema-terms" />
             <Header />
             <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
                 <div className="max-w-4xl mx-auto">

@@ -6,6 +6,7 @@ import Footer from '@/components/Footer'
 import { collection, getDocs, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import ReviewForm from '@/components/ReviewForm'
+import SchemaMarkup, { generateWebPageSchema, generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 
 interface Testimonial {
   id?: string
@@ -230,8 +231,22 @@ export default function ReviewsPage() {
     )
   }
 
+  const webPageSchema = generateWebPageSchema({
+    name: 'Customer Reviews | Travelzada',
+    description: 'Read authentic reviews from travelers who used Travelzada. See ratings, testimonials, and experiences from real customers planning their perfect trips.',
+    url: 'https://www.travelzada.com/reviews',
+    websiteUrl: 'https://www.travelzada.com',
+  })
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: 'https://www.travelzada.com' },
+    { name: 'Reviews' }
+  ])
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-cream via-white to-cream">
+      <SchemaMarkup schema={webPageSchema} id="webpage-schema-reviews" />
+      <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-reviews" />
       <Header />
 
       <section className="py-16 md:py-24 px-4 md:px-8 lg:px-12 relative overflow-hidden">
