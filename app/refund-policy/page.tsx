@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import Breadcrumbs from '@/components/Breadcrumbs'
+import SchemaMarkup, { generateBreadcrumbSchema } from '@/components/SchemaMarkup'
 
 export const metadata: Metadata = {
     title: 'Refund Policy | Travelzada',
@@ -12,8 +13,14 @@ export const metadata: Metadata = {
 }
 
 export default function RefundPolicyPage() {
+    const breadcrumbSchema = generateBreadcrumbSchema([
+        { name: 'Home', url: 'https://www.travelzada.com' },
+        { name: 'Refund Policy' }
+    ])
+
     return (
         <main className="min-h-screen bg-white">
+            <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-refund" />
             <Header />
             <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
                 <div className="max-w-4xl mx-auto">
