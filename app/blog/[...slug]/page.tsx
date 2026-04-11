@@ -119,6 +119,25 @@ function convertToISO8601(dateString: string): string {
     return iso
 }
 
+const BLOG_DESTINATION_MAP = [
+    { keywords: ['bali', 'ubud', 'seminyak', 'nusa penida', 'nusapenida', 'kuta'], name: 'Bali', slug: 'bali-packages' },
+    { keywords: ['kerala', 'alleppey', 'munnar', 'thekkady', 'kochi', 'backwater'], name: 'Kerala', slug: 'kerala-packages' },
+    { keywords: ['kashmir', 'gulmarg', 'pahalgam', 'srinagar', 'dal lake'], name: 'Kashmir', slug: 'kashmir-packages' },
+    { keywords: ['singapore', 'sentosa', 'marina bay'], name: 'Singapore', slug: 'singapore-packages' },
+    { keywords: ['thailand', 'phuket', 'bangkok', 'krabi', 'koh samui'], name: 'Thailand', slug: 'thailand-packages' },
+    { keywords: ['rajasthan', 'jaipur', 'udaipur', 'jodhpur', 'jaisalmer'], name: 'Rajasthan', slug: 'rajasthan-packages' },
+    { keywords: ['andaman', 'port blair', 'havelock', 'neil island'], name: 'Andaman', slug: 'andaman-and-nicobar-packages' },
+    { keywords: ['baku', 'azerbaijan'], name: 'Baku', slug: 'baku-packages' },
+]
+
+function detectDestinationFromPost(post: BlogPost): { name: string; slug: string } | null {
+    const haystack = [post.title, post.description || '', post.subtitle || '', ...(post.keywords || [])].join(' ').toLowerCase()
+    for (const dest of BLOG_DESTINATION_MAP) {
+        if (dest.keywords.some((k) => haystack.includes(k))) return dest
+    }
+    return null
+}
+
 // Fetch blog post server-side using dynamic imports to prevent SSR bailout
 async function fetchBlogPost(slug: string[]): Promise<BlogPost | null> {
     console.log('[SSR-DEBUG] fetchBlogPost START - slug:', slug)
@@ -376,6 +395,9 @@ export default async function BlogPostPage({ params }: PageProps) {
     if (!post) {
         notFound()
     }
+
+    // Detect destination for internal linking CTA
+    const linkedDestination = detectDestinationFromPost(post)
 
     // Fetch related posts and author profile server-side
     const [relatedPosts, authorProfile] = await Promise.all([
@@ -833,6 +855,32 @@ export default async function BlogPostPage({ params }: PageProps) {
 
                             {/* Newsletter Subscription - Client Component */}
                             <NewsletterForm />
+
+                            {/* Explore Packages CTA — internal linking */}
+                            {linkedDestination && (
+                                <section className="my-10 rounded-2xl overflow-hidden border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                                    <div className="p-8 flex flex-col md:flex-row md:items-center gap-6">
+                                        <div className="flex-1">
+                                            <p className="text-xs uppercase tracking-widest font-semibold text-primary mb-2">Ready to go?</p>
+                                            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                                                Explore {linkedDestination.name} Tour Packages
+                                            </h3>
+                                            <p className="text-gray-600 text-sm md:text-base leading-relaxed">
+                                                Browse our handcrafted {linkedDestination.name} packages — curated itineraries, hotel stays, transfers, and expert support all included.
+                                            </p>
+                                        </div>
+                                        <Link
+                                            href={`/destinations/${linkedDestination.slug}`}
+                                            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-dark transition-colors whitespace-nowrap flex-shrink-0"
+                                        >
+                                            View {linkedDestination.name} Packages
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            </svg>
+                                        </Link>
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Related Posts - Client Component */}
                             <RelatedPosts relatedPosts={relatedPosts} />
