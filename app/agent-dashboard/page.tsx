@@ -8,7 +8,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { motion } from 'framer-motion'
 import {
   Package, Inbox, BarChart2, Users, LogOut, Copy, Check, ExternalLink,
-  Building2, Clock, AlertCircle, Loader2, ChevronRight, UserCog, Activity
+  Building2, Clock, AlertCircle, Loader2, ChevronRight, UserCog, Activity, Code2
 } from 'lucide-react'
 import PackageManager from '@/components/agent-dashboard/PackageManager'
 import BookingInbox from '@/components/agent-dashboard/BookingInbox'
@@ -16,9 +16,10 @@ import Analytics from '@/components/agent-dashboard/Analytics'
 import CustomerRecords from '@/components/agent-dashboard/CustomerRecords'
 import TeamManager from '@/components/agent-dashboard/TeamManager'
 import CRMAnalytics from '@/components/agent-dashboard/CRMAnalytics'
+import EmbedCode from '@/components/agent-dashboard/EmbedCode'
 import type { Agent } from '@/lib/types/agent'
 
-type Tab = 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'crm'
+type Tab = 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'crm' | 'embed'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'packages', label: 'Packages', icon: <Package className="w-4 h-4" /> },
@@ -27,6 +28,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
   { id: 'team', label: 'Team', icon: <UserCog className="w-4 h-4" /> },
   { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
+  { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
 ]
 
 export default function AgentDashboardPage() {
@@ -285,6 +287,9 @@ export default function AgentDashboardPage() {
                 )}
                 {tab === 'crm' && (
                   <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />
+                )}
+                {tab === 'embed' && (
+                  <EmbedCode agentSlug={agentSlug} />
                 )}
               </motion.div>
             )}

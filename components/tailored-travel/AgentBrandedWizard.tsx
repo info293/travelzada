@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import TailoredItineraryWizard from './TailoredItineraryWizard'
 import AgentLoginGate from './AgentLoginGate'
 import Header from '@/components/Header'
@@ -53,7 +54,9 @@ async function trackEvent(payload: {
 
 export default function AgentBrandedWizard({ agent }: Props) {
   const { isSubAgent, parentAgentSlug, subAgentName, currentUser, loading } = useAuth()
-  const [gateVisible, setGateVisible] = useState(true)
+  const searchParams = useSearchParams()
+  const isEmbed = searchParams.get('embed') === '1'
+  const [gateVisible, setGateVisible] = useState(!isEmbed) // skip gate in embed mode
   const [sessionId, setSessionId] = useState<string>('')
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
 
@@ -95,7 +98,7 @@ export default function AgentBrandedWizard({ agent }: Props) {
   }
 
   return (
-    <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-x-hidden bg-gray-50">
+    <main className={`min-h-screen flex flex-col relative overflow-x-hidden bg-gray-50 ${!isEmbed ? 'pt-16 md:pt-24' : ''}`}>
       {/* Background */}
       <div className="absolute inset-0 pointer-events-none -z-10">
         <img
@@ -106,10 +109,11 @@ export default function AgentBrandedWizard({ agent }: Props) {
         <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]" />
       </div>
 
-      <Header />
+      {/* Header — hidden in embed mode */}
+      {!isEmbed && <Header />}
 
-      {/* Login gate overlay */}
-      {gateVisible && !loading && (
+      {/* Login gate — hidden in embed mode */}
+      {gateVisible && !loading && !isEmbed && (
         <AgentLoginGate
           agentSlug={agent.agentSlug}
           agentName={agent.companyName}
@@ -139,19 +143,20 @@ export default function AgentBrandedWizard({ agent }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Show logged-in sub-agent name */}
             {!loading && isSubAgent && parentAgentSlug === agent.agentSlug && subAgentName && (
               <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium border border-green-100">
                 {subAgentName}
               </span>
             )}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-              <span>A</span>
-              <div className="w-4 h-px bg-gray-300" />
-              <Link href="/" className="hover:text-purple-600 transition-colors text-gray-400 font-medium">
-                Travelzada
-              </Link>
-            </div>
+            {!isEmbed && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
+                <span>A</span>
+                <div className="w-4 h-px bg-gray-300" />
+                <Link href="/" className="hover:text-purple-600 transition-colors text-gray-400 font-medium">
+                  Travelzada
+                </Link>
+              </div>
+            )}
             <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">
               Verified Agent
             </span>
@@ -167,7 +172,8 @@ export default function AgentBrandedWizard({ agent }: Props) {
         />
       </div>
 
-      <Footer />
+      {/* Footer — hidden in embed mode */}
+      {!isEmbed && <Footer />}
     </main>
   )
 }
