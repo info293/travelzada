@@ -8,42 +8,48 @@ import { doc, getDoc } from 'firebase/firestore'
 import { motion } from 'framer-motion'
 import {
   Package, Inbox, BarChart2, Users, LogOut, Copy, Check, ExternalLink,
-  Building2, Clock, AlertCircle, Loader2, ChevronRight
+  Building2, Clock, AlertCircle, Loader2, ChevronRight, UserCog, Activity
 } from 'lucide-react'
 import PackageManager from '@/components/agent-dashboard/PackageManager'
 import BookingInbox from '@/components/agent-dashboard/BookingInbox'
 import Analytics from '@/components/agent-dashboard/Analytics'
 import CustomerRecords from '@/components/agent-dashboard/CustomerRecords'
+import TeamManager from '@/components/agent-dashboard/TeamManager'
+import CRMAnalytics from '@/components/agent-dashboard/CRMAnalytics'
 import type { Agent } from '@/lib/types/agent'
 
-type Tab = 'packages' | 'bookings' | 'analytics' | 'customers'
+type Tab = 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'crm'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'packages', label: 'Packages', icon: <Package className="w-4 h-4" /> },
   { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" /> },
   { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
   { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
+  { id: 'team', label: 'Team', icon: <UserCog className="w-4 h-4" /> },
+  { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
 ]
 
 export default function AgentDashboardPage() {
   const router = useRouter()
-  const { currentUser, isAgent, agentSlug, agentStatus, loading: authLoading, logout } = useAuth()
+  const { currentUser, isAgent, isSubAgent, agentSlug, agentStatus, loading: authLoading, logout } = useAuth()
 
   const [agentData, setAgentData] = useState<Agent | null>(null)
   const [tab, setTab] = useState<Tab>('packages')
   const [copied, setCopied] = useState(false)
   const [agentLoading, setAgentLoading] = useState(true)
 
-  // Redirect non-agents
+  // Redirect non-agents; sub-agents get their own dashboard
   useEffect(() => {
     if (!authLoading) {
       if (!currentUser) {
         router.push('/agent-login')
+      } else if (isSubAgent) {
+        router.push('/sub-agent-dashboard')
       } else if (!isAgent) {
         router.push('/')
       }
     }
-  }, [authLoading, currentUser, isAgent, router])
+  }, [authLoading, currentUser, isAgent, isSubAgent, router])
 
   // Fetch full agent data
   useEffect(() => {
@@ -273,6 +279,12 @@ export default function AgentDashboardPage() {
                 )}
                 {tab === 'customers' && (
                   <CustomerRecords agentId={currentUser.uid} />
+                )}
+                {tab === 'team' && (
+                  <TeamManager agentId={currentUser.uid} />
+                )}
+                {tab === 'crm' && (
+                  <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />
                 )}
               </motion.div>
             )}

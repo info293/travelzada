@@ -1,0 +1,76 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/firebase'
+import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+
+// PATCH - update sub-agent (suspend/reactivate/update details)
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+    const body = await request.json()
+    const { isActive, name, phone } = body
+
+    const subAgentRef = doc(db, 'sub_agents', id)
+    const snap = await getDoc(subAgentRef)
+
+    if (!snap.exists()) {
+      return NextResponse.json({ error: 'Sub-agent not found' }, { status: 404 })
+    }
+
+    const updates: Record<string, any> = { updatedAt: serverTimestamp() }
+    if (typeof isActive === 'boolean') updates.isActive = isActive
+    if (name !== undefined) updates.name = name
+    if (phone !== undefined) updates.phone = phone
+
+    await updateDoc(subAgentRef, updates)
+
+    // Also update the users document for consistency
+    const userRef = doc(db, 'users', id)
+    const userSnap = await getDoc(userRef)
+    if (userSnap.exists()) {
+      const userUpdates: Record<string, any> = {}
+      if (typeof isActive === 'boolean') {
+        userUpdates.isActive = isActive
+        userUpdates.agentStatus = isActive ? 'active' : 'suspended'
+      }
+      if (name !== undefined) userUpdates.displayName = name
+      if (Object.keys(userUpdates).length > 0) {
+        await updateDoc(userRef, userUpdates)
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+// DELETE - remove sub-agent record (does not delete Firebase Auth user)
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+
+    const subAgentRef = doc(db, 'sub_agents', id)
+    const snap = await getDoc(subAgentRef)
+
+    if (!snap.exists()) {
+      return NextResponse.json({ error: 'Sub-agent not found' }, { status: 404 })
+    }
+
+    await deleteDoc(subAgentRef)
+
+    // Deactivate user doc instead of deleting (preserve audit trail)
+    const userRef = doc(db, 'users', id)
+    const userSnap = await getDoc(userRef)
+    if (userSnap.exists()) {
+      await updateDoc(userRef, {
+        isActive: false,
+        agentStatus: 'removed',
+        role: 'user',
+      })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

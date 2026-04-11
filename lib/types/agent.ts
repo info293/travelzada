@@ -131,3 +131,31 @@ export interface AgentAnalytics {
   revenueByMonth: { month: string; revenue: number }[]
   bookingsByStatus: { status: string; count: number }[]
 }
+
+export interface SubAgent {
+  id: string           // Firebase Auth UID
+  agentId: string      // parent agent UID
+  agentSlug: string    // parent agent slug
+  name: string
+  email: string
+  phone?: string
+  isActive: boolean
+  totalBookings: number
+  totalRevenue: number
+  lastActiveAt?: any
+  createdAt: any
+  createdBy: string    // parent agent UID
+}
+
+export interface AgentSession {
+  id: string
+  agentSlug: string
+  subAgentId?: string
+  subAgentName?: string
+  sessionId: string
+  action: 'visit' | 'itinerary_generated' | 'booking_submitted'
+  destination?: string
+  packageTitle?: string
+  timestamp: any
+  metadata?: any
+}

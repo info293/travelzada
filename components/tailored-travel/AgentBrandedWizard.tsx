@@ -1,10 +1,13 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import TailoredItineraryWizard from './TailoredItineraryWizard'
+import AgentLoginGate from './AgentLoginGate'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import Image from 'next/image'
 import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import { v4 as uuidv4 } from 'uuid'
 
 interface AgentInfo {
   id: string
@@ -19,7 +22,78 @@ interface Props {
   agent: AgentInfo
 }
 
+function getOrCreateSessionId(agentSlug: string): string {
+  if (typeof window === 'undefined') return uuidv4()
+  const key = `session_${agentSlug}`
+  let sid = sessionStorage.getItem(key)
+  if (!sid) {
+    sid = uuidv4()
+    sessionStorage.setItem(key, sid)
+  }
+  return sid
+}
+
+async function trackEvent(payload: {
+  agentSlug: string
+  sessionId: string
+  action: string
+  subAgentId?: string
+  subAgentName?: string
+}) {
+  try {
+    await fetch('/api/agent/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  } catch (e) {
+    // fire-and-forget, ignore errors
+  }
+}
+
 export default function AgentBrandedWizard({ agent }: Props) {
+  const { isSubAgent, parentAgentSlug, subAgentName, currentUser, loading } = useAuth()
+  const [gateVisible, setGateVisible] = useState(true)
+  const [sessionId, setSessionId] = useState<string>('')
+  const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    const sid = getOrCreateSessionId(agent.agentSlug)
+    setSessionId(sid)
+
+    // If already logged in as a sub-agent of this agency, skip gate
+    if (!loading && isSubAgent && parentAgentSlug === agent.agentSlug && currentUser) {
+      setSubAgentId(currentUser.uid)
+      setGateVisible(false)
+      trackEvent({
+        agentSlug: agent.agentSlug,
+        sessionId: sid,
+        action: 'visit',
+        subAgentId: currentUser.uid,
+        subAgentName: subAgentName || undefined,
+      })
+    }
+  }, [loading, isSubAgent, parentAgentSlug, currentUser, agent.agentSlug, subAgentName])
+
+  const handleLoginSuccess = () => {
+    setGateVisible(false)
+    if (currentUser) {
+      setSubAgentId(currentUser.uid)
+      trackEvent({
+        agentSlug: agent.agentSlug,
+        sessionId,
+        action: 'visit',
+        subAgentId: currentUser.uid,
+        subAgentName: subAgentName || undefined,
+      })
+    }
+  }
+
+  const handleContinueAsGuest = () => {
+    setGateVisible(false)
+    trackEvent({ agentSlug: agent.agentSlug, sessionId, action: 'visit' })
+  }
+
   return (
     <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-x-hidden bg-gray-50">
       {/* Background */}
@@ -33,6 +107,16 @@ export default function AgentBrandedWizard({ agent }: Props) {
       </div>
 
       <Header />
+
+      {/* Login gate overlay */}
+      {gateVisible && !loading && (
+        <AgentLoginGate
+          agentSlug={agent.agentSlug}
+          agentName={agent.companyName}
+          onContinueAsGuest={handleContinueAsGuest}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
 
       {/* Agent branding banner */}
       <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 mt-4 mb-2">
@@ -55,13 +139,17 @@ export default function AgentBrandedWizard({ agent }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Show logged-in sub-agent name */}
+            {!loading && isSubAgent && parentAgentSlug === agent.agentSlug && subAgentName && (
+              <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium border border-green-100">
+                {subAgentName}
+              </span>
+            )}
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
               <span>A</span>
               <div className="w-4 h-px bg-gray-300" />
-              <Link href="/" className="hover:text-purple-600 transition-colors">
-                <svg viewBox="0 0 87 22" className="w-16 h-4 fill-current text-gray-400 hover:text-purple-600">
-                  <text y="16" fontFamily="serif" fontSize="14" fontWeight="bold">Travelzada</text>
-                </svg>
+              <Link href="/" className="hover:text-purple-600 transition-colors text-gray-400 font-medium">
+                Travelzada
               </Link>
             </div>
             <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">
@@ -72,7 +160,11 @@ export default function AgentBrandedWizard({ agent }: Props) {
       </div>
 
       <div className="flex-1 pb-16 flex flex-col justify-center">
-        <TailoredItineraryWizard agentSlug={agent.agentSlug} />
+        <TailoredItineraryWizard
+          agentSlug={agent.agentSlug}
+          subAgentId={subAgentId}
+          sessionId={sessionId}
+        />
       </div>
 
       <Footer />

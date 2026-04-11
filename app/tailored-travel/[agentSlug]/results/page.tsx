@@ -60,6 +60,8 @@ export default function AgentResultsPage() {
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [selectedPackage, setSelectedPackage] = useState<MatchedPackage | null>(null)
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
+  const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
 
   // Loading text rotation
   useEffect(() => {
@@ -90,6 +92,8 @@ export default function AgentResultsPage() {
     try {
       const parsed = JSON.parse(stored)
       setWizardData(parsed)
+      if (parsed.subAgentId) setSubAgentId(parsed.subAgentId)
+      if (parsed.sessionId) setSessionId(parsed.sessionId)
       fetchPackages(parsed)
     } catch {
       setError('Failed to load your preferences. Please try again.')
@@ -292,6 +296,9 @@ export default function AgentResultsPage() {
                 agentInfo={agentInfo}
                 pkg={selectedPackage}
                 wizardData={wizardData}
+                subAgentId={subAgentId}
+                sessionId={sessionId}
+                agentSlug={agentSlug}
                 onClose={() => setShowBookingForm(false)}
               />
             </motion.div>
@@ -427,11 +434,17 @@ function AgentBookingForm({
   agentInfo,
   pkg,
   wizardData,
+  subAgentId,
+  sessionId,
+  agentSlug,
   onClose,
 }: {
   agentInfo: AgentInfo
   pkg: MatchedPackage
   wizardData: any
+  subAgentId?: string
+  sessionId?: string
+  agentSlug?: string
   onClose: () => void
 }) {
   const [form, setForm] = useState({
@@ -464,7 +477,7 @@ function AgentBookingForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentId: agentInfo.id,       // direct from profile API — no second lookup needed
+          agentId: agentInfo.id,
           agentSlug: agentInfo.agentSlug,
           packageId: pkg.id,
           packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
@@ -480,11 +493,28 @@ function AgentBookingForm({
           specialRequests: form.specialRequests,
           wizardData,
           selectedPackage: pkg,
+          subAgentId,
         }),
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Submission failed')
+
+      // Track booking_submitted event
+      if (agentSlug && sessionId) {
+        fetch('/api/agent/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentSlug,
+            sessionId,
+            action: 'booking_submitted',
+            subAgentId,
+            destination: pkg.Destination_Name,
+            packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
+          }),
+        }).catch(() => {})
+      }
 
       setSubmitted(true)
     } catch (err: any) {

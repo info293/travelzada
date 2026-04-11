@@ -13,9 +13,11 @@ import WizardSidePanel from './WizardSidePanel'
 
 interface TailoredItineraryWizardProps {
     agentSlug?: string
+    subAgentId?: string
+    sessionId?: string
 }
 
-export default function TailoredItineraryWizard({ agentSlug }: TailoredItineraryWizardProps = {}) {
+export default function TailoredItineraryWizard({ agentSlug, subAgentId, sessionId }: TailoredItineraryWizardProps = {}) {
     const [currentStep, setCurrentStep] = useState(1)
     const [direction, setDirection] = useState(0)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -79,8 +81,26 @@ export default function TailoredItineraryWizard({ agentSlug }: TailoredItinerary
 
         // Save preferences to session storage for the results page to pick up
         if (typeof window !== 'undefined') {
-            const dataToSave = agentSlug ? { ...wizardData, agentSlug } : wizardData
+            const dataToSave: Record<string, any> = { ...wizardData }
+            if (agentSlug) dataToSave.agentSlug = agentSlug
+            if (subAgentId) dataToSave.subAgentId = subAgentId
+            if (sessionId) dataToSave.sessionId = sessionId
             sessionStorage.setItem('tailored_wizard_data', JSON.stringify(dataToSave))
+        }
+
+        // Track itinerary_generated event
+        if (agentSlug && sessionId) {
+            fetch('/api/agent/track', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    agentSlug,
+                    sessionId,
+                    action: 'itinerary_generated',
+                    subAgentId,
+                    destination: wizardData.destinations[0] || undefined,
+                }),
+            }).catch(() => {})
         }
 
         const resultsPath = agentSlug

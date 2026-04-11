@@ -13,8 +13,12 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<void>
   isAdmin: boolean
   isAgent: boolean
+  isSubAgent: boolean
   agentSlug: string | null
   agentStatus: string | null
+  parentAgentId: string | null
+  parentAgentSlug: string | null
+  subAgentName: string | null
   permissions: string[]
 }
 
@@ -31,8 +35,12 @@ const defaultAuthContext: AuthContextType = {
   resetPassword: async () => { throw new Error('Auth not available during SSR') },
   isAdmin: false,
   isAgent: false,
+  isSubAgent: false,
   agentSlug: null,
   agentStatus: null,
+  parentAgentId: null,
+  parentAgentSlug: null,
+  subAgentName: null,
   permissions: [],
 }
 
@@ -51,8 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isAgent, setIsAgent] = useState(false)
+  const [isSubAgent, setIsSubAgent] = useState(false)
   const [agentSlug, setAgentSlug] = useState<string | null>(null)
   const [agentStatus, setAgentStatus] = useState<string | null>(null)
+  const [parentAgentId, setParentAgentId] = useState<string | null>(null)
+  const [parentAgentSlug, setParentAgentSlug] = useState<string | null>(null)
+  const [subAgentName, setSubAgentName] = useState<string | null>(null)
   const [permissions, setPermissions] = useState<string[]>([])
 
   useEffect(() => {
@@ -86,8 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   const userRole = userData.role || 'user'
                   setIsAdmin(userRole === 'admin')
                   setIsAgent(userRole === 'agent')
+                  setIsSubAgent(userRole === 'subagent')
                   setAgentSlug(userData.agentSlug || null)
                   setAgentStatus(userData.agentStatus || null)
+                  // Sub-agent specific fields
+                  setParentAgentId(userData.agentId || null)
+                  setParentAgentSlug(userData.parentAgentSlug || null)
+                  setSubAgentName(userData.displayName || userData.name || null)
                   setPermissions(userData.permissions || [])
                   console.log('Auth check from Firestore:', {
                     email: user.email,
@@ -98,37 +115,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     permissions: userData.permissions
                   })
                 } else {
-                  // Fallback: Check if email contains 'admin' or matches specific admin emails
                   const adminEmails = ['admin@travelzada.com', 'admin@example.com']
                   const emailLower = user.email.toLowerCase()
                   const isAdminEmail = adminEmails.includes(emailLower) ||
                     emailLower.split('@')[0].includes('admin')
                   setIsAdmin(isAdminEmail)
                   setIsAgent(false)
+                  setIsSubAgent(false)
                   setAgentSlug(null)
                   setAgentStatus(null)
-                  setPermissions([]) // No specific permissions for fallback admin
-                  console.log('Auth check (fallback):', { email: user.email, isAdmin: isAdminEmail })
+                  setParentAgentId(null)
+                  setParentAgentSlug(null)
+                  setSubAgentName(null)
+                  setPermissions([])
                 }
               }
             } catch (error) {
-              console.error('Error checking admin status:', error)
-              // Fallback: Check if email contains 'admin' or matches specific admin emails
-              const adminEmails = ['admin@travelzada.com', 'admin@example.com']
-              const emailLower = user.email.toLowerCase()
-              const isAdminEmail = adminEmails.includes(emailLower) ||
-                emailLower.split('@')[0].includes('admin')
-              setIsAdmin(isAdminEmail)
+              console.error('Error checking auth status:', error)
+              setIsAdmin(false)
               setIsAgent(false)
+              setIsSubAgent(false)
               setAgentSlug(null)
               setAgentStatus(null)
+              setParentAgentId(null)
+              setParentAgentSlug(null)
+              setSubAgentName(null)
               setPermissions([])
             }
           } else {
             setIsAdmin(false)
             setIsAgent(false)
+            setIsSubAgent(false)
             setAgentSlug(null)
             setAgentStatus(null)
+            setParentAgentId(null)
+            setParentAgentSlug(null)
+            setSubAgentName(null)
             setPermissions([])
           }
           setLoading(false)
@@ -275,8 +297,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetPassword,
     isAdmin,
     isAgent,
+    isSubAgent,
     agentSlug,
     agentStatus,
+    parentAgentId,
+    parentAgentSlug,
+    subAgentName,
     permissions,
   }
 

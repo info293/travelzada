@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       wizardData,
       selectedPackage,
       chatMessages,
+      subAgentId,
     } = body
 
     if (!agentId || !customerName || !customerEmail) {
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
       wizardData: wizardData || null,
       selectedPackage: selectedPackage || null,
       chatMessages: chatMessages || [],
+      subAgentId: subAgentId || null,
       status: 'new',
       bookingValue: null,
       commissionAmount: null,
