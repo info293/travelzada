@@ -101,16 +101,20 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
           {navItems.map((item) => {
             const isAI = (item as any).isAI
+            const isImageAI = (item as any).isImageAI
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`header-nav-item relative transition-all duration-300 ${isAI
-                  ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
-                  : 'text-gray-600 hover:text-primary group'
-                  }`}
+                className={`header-nav-item relative transition-all duration-300 ${
+                  isAI
+                    ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
+                    : isImageAI
+                    ? 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-100 to-orange-100 text-pink-700 border border-pink-200 shadow-sm hover:shadow-md hover:scale-105'
+                    : 'text-gray-600 hover:text-primary group'
+                }`}
               >
-                {!isAI && (
+                {!isAI && !isImageAI && (
                   <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 group-hover:w-full"></span>
                 )}
                 {isAI && (
@@ -128,7 +132,13 @@ export default function Header() {
                     </div>
                   </>
                 )}
-                {!isAI && <span className="relative z-10">{item.label}</span>}
+                {isImageAI && (
+                  <>
+                    <span className="text-sm">🎨</span>
+                    <span>{item.label}</span>
+                  </>
+                )}
+                {!isAI && !isImageAI && <span className="relative z-10">{item.label}</span>}
               </Link>
             )
           })}
@@ -195,17 +205,22 @@ export default function Header() {
             <nav className="flex flex-col py-4">
               {navItems.map((item) => {
                 const isAI = (item as any).isAI
+                const isImageAI = (item as any).isImageAI
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`px-6 py-3 text-base font-medium transition-colors ${isAI
-                      ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
-                      }`}
+                    className={`px-6 py-3 text-base font-medium transition-colors ${
+                      isAI
+                        ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
+                        : isImageAI
+                        ? 'text-pink-700 bg-pink-50/60 border-y border-pink-100 flex items-center gap-2'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                    }`}
                   >
                     {isAI && <SparkleIcon className="w-4 h-4" />}
+                    {isImageAI && <span>🎨</span>}
                     {item.label}
                   </Link>
                 )
