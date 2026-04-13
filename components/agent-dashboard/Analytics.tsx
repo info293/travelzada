@@ -188,9 +188,79 @@ export default function Analytics({ agentId, agentSlug }: Props) {
         </div>
       </div>
 
+      {/* Monthly Revenue Chart */}
+      {data.revenueByMonth.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-5 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-purple-500" />
+            Monthly Revenue
+          </h3>
+          <div className="flex items-end gap-3 h-36">
+            {data.revenueByMonth.map((m, i) => {
+              const max = Math.max(...data.revenueByMonth.map(x => x.revenue), 1)
+              const pct = (m.revenue / max) * 100
+              const [year, month] = m.month.split('-')
+              const label = new Date(Number(year), Number(month) - 1)
+                .toLocaleDateString('en-IN', { month: 'short' })
+              return (
+                <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5">
+                  <p className="text-[10px] font-semibold text-gray-500">
+                    {m.revenue >= 100000
+                      ? `${(m.revenue / 100000).toFixed(1)}L`
+                      : m.revenue >= 1000
+                      ? `${(m.revenue / 1000).toFixed(0)}K`
+                      : m.revenue}
+                  </p>
+                  <div className="w-full bg-gray-100 rounded-t-lg" style={{ height: '90px', display: 'flex', alignItems: 'flex-end' }}>
+                    <div
+                      className="w-full bg-purple-500 rounded-t-lg transition-all duration-700"
+                      style={{ height: `${Math.max(pct, 4)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400">{label}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Extra stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: 'Avg Booking Value',
+            value: data.confirmedBookings > 0
+              ? `₹${Math.round(data.totalRevenue / data.confirmedBookings).toLocaleString('en-IN')}`
+              : '—',
+            color: 'bg-teal-50 text-teal-700',
+          },
+          {
+            label: 'Active Packages',
+            value: `${data.activePackages} / ${data.totalPackages}`,
+            color: 'bg-indigo-50 text-indigo-700',
+          },
+          {
+            label: 'Net Earnings',
+            value: `₹${data.netRevenue.toLocaleString('en-IN')}`,
+            color: 'bg-emerald-50 text-emerald-700',
+          },
+          {
+            label: 'Commission Paid',
+            value: `₹${data.commissionPaid.toLocaleString('en-IN')}`,
+            color: 'bg-rose-50 text-rose-700',
+          },
+        ].map(s => (
+          <div key={s.label} className={`rounded-2xl p-4 ${s.color}`}>
+            <p className="text-xl font-bold">{s.value}</p>
+            <p className="text-xs font-medium mt-1 opacity-80">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Commission tracker */}
       <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-5 text-white">
-        <h3 className="font-semibold mb-4">Commission & Revenue</h3>
+        <h3 className="font-semibold mb-4">Revenue Summary</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-2xl font-bold">₹{data.totalRevenue.toLocaleString('en-IN')}</p>
