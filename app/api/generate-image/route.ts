@@ -118,12 +118,12 @@ Do NOT include any explanation — only the prompt itself.`,
 
     const image1Url =
       image1Result.status === 'fulfilled'
-        ? image1Result.value.data[0]?.url ?? null
+        ? (image1Result.value.data?.[0]?.url ?? null)
         : null
 
     const image2Url =
       image2Result.status === 'fulfilled'
-        ? image2Result.value.data[0]?.url ?? null
+        ? (image2Result.value.data?.[0]?.url ?? null)
         : null
 
     if (!image1Url && !image2Url) {
