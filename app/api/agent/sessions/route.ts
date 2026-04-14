@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
 
 // GET - fetch session events for an agent
 export async function GET(request: Request) {
@@ -30,6 +30,32 @@ export async function GET(request: Request) {
     sessions.sort((a: any, b: any) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))
 
     return NextResponse.json({ success: true, sessions })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
+// POST - create a session event (used by demo loader and wizard)
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const { agentSlug, action, destination, packageTitle, subAgentId, sessionId } = body
+
+    if (!agentSlug || !action) {
+      return NextResponse.json({ error: 'agentSlug and action are required' }, { status: 400 })
+    }
+
+    const ref = await addDoc(collection(db, 'agent_sessions'), {
+      agentSlug,
+      action,
+      destination: destination || '',
+      packageTitle: packageTitle || '',
+      subAgentId: subAgentId || null,
+      sessionId: sessionId || `demo-${Date.now()}`,
+      timestamp: serverTimestamp(),
+    })
+
+    return NextResponse.json({ success: true, id: ref.id })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

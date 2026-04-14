@@ -5,7 +5,7 @@ import {
   doc, getDoc, setDoc, serverTimestamp
 } from 'firebase/firestore'
 
-// GET - list all sub-agents for an agent
+// GET - list all travel agents for an agent (optionally filter by status)
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -18,8 +18,6 @@ export async function GET(request: Request) {
     const q = query(collection(db, 'sub_agents'), where('agentId', '==', agentId))
     const snap = await getDocs(q)
     const subAgents = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-
-    // Sort by createdAt client-side
     subAgents.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
 
     return NextResponse.json({ success: true, subAgents })
@@ -28,11 +26,13 @@ export async function GET(request: Request) {
   }
 }
 
-// POST - create a sub-agent using Firebase Auth REST API
+// POST - create OR self-register a travel agent
+// If `selfRegister: true` → status starts as 'pending', DMC must approve
+// Otherwise (DMC creating directly) → status is 'active'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { agentId, name, email, password, phone } = body
+    const { agentId, agentSlug: bodyAgentSlug, name, email, password, phone, selfRegister } = body
 
     if (!agentId || !name || !email || !password) {
       return NextResponse.json(
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     }
     const agentData = agentSnap.data()
 
-    // Create Firebase Auth user via REST API (no Admin SDK needed)
+    // Create Firebase Auth user via REST API
     const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDFMs2l-0OlMBAJS-XjcXM9oHX3uRNRE5E'
     const authRes = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`,
@@ -63,7 +63,6 @@ export async function POST(request: Request) {
     )
 
     const authData = await authRes.json()
-
     if (!authRes.ok || authData.error) {
       const msg = authData.error?.message || 'Failed to create account'
       if (msg === 'EMAIL_EXISTS') {
@@ -73,38 +72,69 @@ export async function POST(request: Request) {
     }
 
     const uid: string = authData.localId
+    const status = selfRegister ? 'pending' : 'active'
+    const isActive = !selfRegister
 
-    // Create users/{uid} document
+    // users/{uid}
     await setDoc(doc(db, 'users', uid), {
       email,
       displayName: name,
       role: 'subagent',
       agentId,
       parentAgentSlug: agentData.agentSlug,
-      agentStatus: 'active',
-      isActive: true,
+      agentStatus: status,
+      isActive,
       createdAt: serverTimestamp(),
       permissions: [],
     })
 
-    // Create sub_agents/{uid} document
+    // sub_agents/{uid}
     const subAgentDoc = {
       agentId,
       agentSlug: agentData.agentSlug,
       name,
       email,
       phone: phone || '',
-      isActive: true,
+      status,   // 'pending' | 'active' | 'suspended'
+      isActive,
       totalBookings: 0,
       totalRevenue: 0,
+      selfRegistered: !!selfRegister,
       createdAt: serverTimestamp(),
-      createdBy: agentId,
+      createdBy: selfRegister ? uid : agentId,
     }
     await setDoc(doc(db, 'sub_agents', uid), subAgentDoc)
 
-    return NextResponse.json({ success: true, subAgent: { id: uid, ...subAgentDoc } })
+    // ── Send acknowledgement emails ─────────────────────────────────────
+    const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'
+    if (selfRegister) {
+      // Email to travel agent
+      fetch(`${BASE}/api/email/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'travel_agent_signup',
+          data: { name, email, agentCompanyName: agentData.companyName },
+        }),
+      }).catch(() => {})
+
+      // Notify DMC
+      fetch(`${BASE}/api/email/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'travel_agent_signup_notify_dmc',
+          data: {
+            agentEmail: agentData.email,
+            agentCompanyName: agentData.companyName,
+            travelAgentName: name,
+            travelAgentEmail: email,
+          },
+        }),
+      }).catch(() => {})
+    }
+
+    return NextResponse.json({ success: true, subAgent: { id: uid, ...subAgentDoc }, status })
   } catch (error: any) {
-    console.error('[SubAgent POST] Error:', error)
-    return NextResponse.json({ error: error.message || 'Failed to create sub-agent' }, { status: 500 })
+    console.error('[TravelAgent POST] Error:', error)
+    return NextResponse.json({ error: error.message || 'Failed to create travel agent' }, { status: 500 })
   }
 }

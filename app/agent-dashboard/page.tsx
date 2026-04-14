@@ -9,7 +9,7 @@ import { motion } from 'framer-motion'
 import {
   Package, Inbox, BarChart2, Users, LogOut, Copy, Check, ExternalLink,
   Building2, Clock, AlertCircle, Loader2, UserCog, Activity, Code2,
-  Home, Settings
+  Home, Settings, MessageSquare
 } from 'lucide-react'
 import DashboardHome from '@/components/agent-dashboard/DashboardHome'
 import PackageManager from '@/components/agent-dashboard/PackageManager'
@@ -20,9 +20,11 @@ import TeamManager from '@/components/agent-dashboard/TeamManager'
 import CRMAnalytics from '@/components/agent-dashboard/CRMAnalytics'
 import EmbedCode from '@/components/agent-dashboard/EmbedCode'
 import AgentSettings from '@/components/agent-dashboard/AgentSettings'
+import QuotationsManager from '@/components/agent-dashboard/QuotationsManager'
+import DemoDataLoader from '@/components/agent-dashboard/DemoDataLoader'
 import type { Agent } from '@/lib/types/agent'
 
-type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'crm' | 'embed' | 'settings'
+type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'quotations' | 'crm' | 'embed' | 'settings'
 
 interface TabDef {
   id: Tab
@@ -136,7 +138,8 @@ export default function AgentDashboardPage() {
     { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: newBookingCount || undefined },
     { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
     { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
-    { id: 'team', label: 'Team', icon: <UserCog className="w-4 h-4" /> },
+    { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
+    { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" /> },
     { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
     { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
@@ -147,8 +150,8 @@ export default function AgentDashboardPage() {
 
   const TAB_LABELS: Record<Tab, string> = {
     home: 'Dashboard', packages: 'Packages', bookings: 'Bookings',
-    analytics: 'Analytics', customers: 'Customers', team: 'Team',
-    crm: 'CRM & Analytics', embed: 'Embed Planner', settings: 'Settings',
+    analytics: 'Analytics', customers: 'Customers', team: 'Travel Agents',
+    quotations: 'Quotations', crm: 'CRM & Analytics', embed: 'Embed Planner', settings: 'Settings',
   }
 
   return (
@@ -258,6 +261,13 @@ export default function AgentDashboardPage() {
               <p className="text-xs text-gray-400">{agentData?.companyName} · {agentData?.contactName}</p>
             </div>
             <div className="flex items-center gap-3">
+              {currentUser && agentSlug && (
+                <DemoDataLoader
+                  agentId={currentUser.uid}
+                  agentSlug={agentSlug}
+                  onDone={fetchNewBookings}
+                />
+              )}
               <a
                 href={`/tailored-travel/${agentSlug}`}
                 target="_blank"
@@ -295,7 +305,14 @@ export default function AgentDashboardPage() {
                 )}
                 {tab === 'analytics' && <Analytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'customers' && <CustomerRecords agentId={currentUser.uid} />}
-                {tab === 'team' && <TeamManager agentId={currentUser.uid} />}
+                {tab === 'team' && <TeamManager agentId={currentUser.uid} agentSlug={agentSlug} />}
+                {tab === 'quotations' && (
+                  <QuotationsManager
+                    agentId={currentUser.uid}
+                    agentName={agentData?.companyName || agentData?.contactName || ''}
+                    currentUserId={currentUser.uid}
+                  />
+                )}
                 {tab === 'crm' && <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'embed' && <EmbedCode agentSlug={agentSlug} />}
                 {tab === 'settings' && <AgentSettings agentId={currentUser.uid} agentSlug={agentSlug} />}

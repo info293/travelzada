@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle } from 'lucide-react'
 import { AgentPackage } from '@/lib/types/agent'
 
 interface Props {
@@ -35,6 +35,44 @@ const STAR_CATEGORIES = ['3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Home
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
 
+interface CsvResult { success: number; failed: number; errors: string[] }
+
+// Minimal CSV parser — handles quoted fields containing commas/newlines
+function parseCsv(text: string): Record<string, string>[] {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
+  if (lines.length < 2) return []
+  const headers = splitCsvRow(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g, '_'))
+  const rows: Record<string, string>[] = []
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const values = splitCsvRow(line)
+    const row: Record<string, string> = {}
+    headers.forEach((h, idx) => { row[h] = (values[idx] || '').trim() })
+    rows.push(row)
+  }
+  return rows
+}
+
+function splitCsvRow(line: string): string[] {
+  const result: string[] = []
+  let cur = ''
+  let inQuote = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++ }
+      else inQuote = !inQuote
+    } else if (ch === ',' && !inQuote) {
+      result.push(cur); cur = ''
+    } else {
+      cur += ch
+    }
+  }
+  result.push(cur)
+  return result
+}
+
 export default function PackageManager({ agentId }: Props) {
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,6 +81,12 @@ export default function PackageManager({ agentId }: Props) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // CSV state
+  const csvInputRef = useRef<HTMLInputElement>(null)
+  const [csvUploading, setCsvUploading] = useState(false)
+  const [csvResult, setCsvResult] = useState<CsvResult | null>(null)
+  const [showCsvGuide, setShowCsvGuide] = useState(false)
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -171,6 +215,82 @@ export default function PackageManager({ agentId }: Props) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
+  async function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setCsvUploading(true)
+    setCsvResult(null)
+    try {
+      const text = await file.text()
+      const rows = parseCsv(text)
+      if (rows.length === 0) { setCsvResult({ success: 0, failed: 0, errors: ['CSV has no data rows.'] }); return }
+
+      let success = 0
+      const errors: string[] = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i]
+        const rowNum = i + 2 // +1 for header, +1 for 1-indexed
+        const title = r['title'] || r['package_title'] || r['name'] || ''
+        const destination = r['destination'] || ''
+        const durationDays = parseInt(r['duration_days'] || r['trip_duration_days'] || r['days'] || '0') || 0
+        const durationNights = parseInt(r['duration_nights'] || r['trip_duration_nights'] || r['nights'] || String(Math.max(0, durationDays - 1))) || 0
+        const price = parseInt(r['price_per_person'] || r['price'] || '0') || 0
+        const dayWiseItinerary = r['day_wise_itinerary'] || r['itinerary'] || ''
+
+        if (!title || !destination) {
+          errors.push(`Row ${rowNum}: missing title or destination`)
+          continue
+        }
+
+        try {
+          const payload = {
+            agentId,
+            title,
+            destination,
+            destinationCountry: r['destination_country'] || r['country'] || 'India',
+            overview: r['overview'] || r['description'] || '',
+            durationDays,
+            durationNights,
+            pricePerPerson: price,
+            maxGroupSize: parseInt(r['max_group_size'] || '20') || 20,
+            minGroupSize: parseInt(r['min_group_size'] || '1') || 1,
+            travelType: r['travel_type'] || 'Leisure',
+            theme: r['theme'] || '',
+            mood: r['mood'] || '',
+            starCategory: r['star_category'] || '3-Star',
+            inclusions: (r['inclusions'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
+            exclusions: (r['exclusions'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
+            highlights: (r['highlights'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
+            dayWiseItinerary,
+            primaryImageUrl: r['primary_image_url'] || r['image_url'] || '',
+            seasonalAvailability: r['seasonal_availability'] || 'Year Round',
+          }
+          const res = await fetch('/api/agent/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (res.ok) success++
+          else {
+            const d = await res.json()
+            errors.push(`Row ${rowNum}: ${d.error || 'upload failed'}`)
+          }
+        } catch {
+          errors.push(`Row ${rowNum}: network error`)
+        }
+      }
+
+      setCsvResult({ success, failed: errors.length, errors })
+      if (success > 0) fetchPackages()
+    } catch (err: any) {
+      setCsvResult({ success: 0, failed: 0, errors: [err.message || 'Failed to parse CSV'] })
+    } finally {
+      setCsvUploading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -181,18 +301,117 @@ export default function PackageManager({ agentId }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Package Manager</h2>
           <p className="text-sm text-gray-500">{packages.length} package{packages.length !== 1 ? 's' : ''} uploaded</p>
         </div>
-        <button
-          onClick={openNewForm}
-          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Package
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleCsvUpload}
+          />
+          <button
+            onClick={() => setShowCsvGuide(v => !v)}
+            className="flex items-center gap-2 border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+          >
+            <Upload className="w-4 h-4" /> Upload CSV
+          </button>
+          <button
+            onClick={openNewForm}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Package
+          </button>
+        </div>
       </div>
+
+      {/* CSV Guide & Upload */}
+      {showCsvGuide && (
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-blue-900 text-sm">Bulk Upload via CSV</h3>
+              <p className="text-xs text-blue-700 mt-1">
+                Upload a <code>.csv</code> file to add multiple packages at once. Required columns: <strong>title</strong>, <strong>destination</strong>.
+                For multiple inclusions/exclusions/highlights, separate values with a pipe <code>|</code>.
+              </p>
+            </div>
+            <button onClick={() => setShowCsvGuide(false)} className="text-blue-400 hover:text-blue-700 flex-shrink-0">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="bg-white border border-blue-200 rounded-xl p-3 overflow-x-auto">
+            <p className="text-[11px] font-bold text-gray-500 mb-1.5">Column Reference</p>
+            <table className="text-xs text-gray-700 w-full">
+              <thead>
+                <tr className="text-gray-500 text-left">
+                  <th className="pr-4 pb-1 font-semibold">Column</th>
+                  <th className="pr-4 pb-1 font-semibold">Required</th>
+                  <th className="pb-1 font-semibold">Example</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {[
+                  ['title', 'Yes', 'Andaman 5N 6D'],
+                  ['destination', 'Yes', 'Andaman Islands'],
+                  ['destination_country', 'No', 'India'],
+                  ['duration_days', 'No', '6'],
+                  ['duration_nights', 'No', '5'],
+                  ['price_per_person', 'No', '25000'],
+                  ['travel_type', 'No', 'Leisure'],
+                  ['star_category', 'No', '4-Star'],
+                  ['theme', 'No', 'Beach'],
+                  ['overview', 'No', 'A beautiful island trip…'],
+                  ['highlights', 'No', 'Scuba diving|Sunset cruise'],
+                  ['inclusions', 'No', 'Flights|Accommodation'],
+                  ['exclusions', 'No', 'Travel insurance'],
+                  ['day_wise_itinerary', 'No', 'Day 1: Arrive…\\nDay 2: Havelock…'],
+                  ['primary_image_url', 'No', 'https://…'],
+                  ['seasonal_availability', 'No', 'Oct-Mar'],
+                ].map(([col, req, ex]) => (
+                  <tr key={col}>
+                    <td className="pr-4 py-0.5 font-mono text-blue-700">{col}</td>
+                    <td className={`pr-4 py-0.5 font-semibold ${req === 'Yes' ? 'text-red-600' : 'text-gray-400'}`}>{req}</td>
+                    <td className="py-0.5 text-gray-500">{ex}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            onClick={() => csvInputRef.current?.click()}
+            disabled={csvUploading}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-5 py-2 rounded-xl text-sm"
+          >
+            {csvUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</> : <><Upload className="w-4 h-4" />Choose CSV File</>}
+          </button>
+        </div>
+      )}
+
+      {/* CSV upload result */}
+      {csvResult && (
+        <div className={`rounded-2xl border p-4 ${csvResult.failed === 0 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex items-center gap-2 mb-2">
+            {csvResult.failed === 0
+              ? <CheckCircle className="w-4 h-4 text-green-600" />
+              : <AlertCircle className="w-4 h-4 text-amber-600" />}
+            <span className="font-bold text-sm text-gray-900">
+              {csvResult.success} package{csvResult.success !== 1 ? 's' : ''} imported
+              {csvResult.failed > 0 ? `, ${csvResult.failed} failed` : ' successfully'}
+            </span>
+            <button onClick={() => setCsvResult(null)} className="ml-auto text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          </div>
+          {csvResult.errors.length > 0 && (
+            <ul className="text-xs text-amber-800 space-y-0.5 ml-6 list-disc">
+              {csvResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Package list */}
       {packages.length === 0 ? (

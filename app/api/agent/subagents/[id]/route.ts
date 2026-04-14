@@ -23,19 +23,41 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     await updateDoc(subAgentRef, updates)
 
-    // Also update the users document for consistency
+    // Sync to users document
     const userRef = doc(db, 'users', id)
     const userSnap = await getDoc(userRef)
     if (userSnap.exists()) {
       const userUpdates: Record<string, any> = {}
       if (typeof isActive === 'boolean') {
         userUpdates.isActive = isActive
-        userUpdates.agentStatus = isActive ? 'active' : 'suspended'
+        userUpdates.agentStatus = isActive ? 'active' : (body.status === 'pending' ? 'pending' : 'suspended')
       }
+      if (body.status) userUpdates.agentStatus = body.status
       if (name !== undefined) userUpdates.displayName = name
       if (Object.keys(userUpdates).length > 0) {
         await updateDoc(userRef, userUpdates)
       }
+    }
+
+    // Send approval email when DMC approves a self-registered travel agent
+    if (body.approve === true) {
+      const subSnap = await getDoc(subAgentRef)
+      const subData = subSnap.data()
+      const agentSnap = await getDoc(doc(db, 'agents', subData?.agentId))
+      const agentData = agentSnap.data()
+      const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'
+      fetch(`${BASE}/api/email/send`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'travel_agent_approved',
+          data: {
+            name: subData?.name,
+            email: subData?.email,
+            agentCompanyName: agentData?.companyName,
+            plannerUrl: `${BASE}/tailored-travel/${agentData?.agentSlug}`,
+          },
+        }),
+      }).catch(() => {})
     }
 
     return NextResponse.json({ success: true })
