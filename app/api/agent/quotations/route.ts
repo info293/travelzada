@@ -44,9 +44,9 @@ export async function POST(request: Request) {
       specialRequests, wizardData, selectedPackage,
     } = body
 
-    if (!agentId || !subAgentId || !customerName || !customerEmail) {
+    if (!agentId || !subAgentId || !customerName) {
       return NextResponse.json(
-        { error: 'agentId, subAgentId, customerName and customerEmail are required' },
+        { error: 'agentId, subAgentId, and customerName are required' },
         { status: 400 }
       )
     }
