@@ -5,7 +5,8 @@ import { motion } from 'framer-motion'
 import {
   IndianRupee, Inbox, Users, Package, TrendingUp, ExternalLink,
   Copy, Check, ArrowRight, Loader2, Clock, CheckCircle, XCircle,
-  Eye, BarChart3, Phone
+  Eye, BarChart3, Phone, TrendingDown, AlertCircle, Settings,
+  Code2, UserCog
 } from 'lucide-react'
 
 interface Props {
@@ -22,6 +23,7 @@ interface KPI {
   icon: any
   color: string
   tab?: string
+  trend?: number | null   // % change vs last month, null = no data
 }
 
 interface RecentBooking {
@@ -46,6 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function DashboardHome({ agentId, agentSlug, companyName, onTabChange }: Props) {
   const [analytics, setAnalytics] = useState<any>(null)
+  const [allBookings, setAllBookings] = useState<RecentBooking[]>([])
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,6 +78,7 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
         const sorted = bookingsData.bookings.sort(
           (a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
         )
+        setAllBookings(sorted)
         setRecentBookings(sorted.slice(0, 6))
       }
 
@@ -97,11 +101,32 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
     return new Date(ts.seconds * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
   }
 
-  // Compute this-month stats
+  // Compute this-month + last-month stats for trend arrows
   const now = new Date()
   const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastMonthKey = `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth() + 1).padStart(2, '0')}`
+
   const thisMonthRevenue = analytics?.revenueByMonth?.find((m: any) => m.month === thisMonthKey)?.revenue || 0
-  const newBookings = recentBookings.filter(b => b.status === 'new').length
+  const lastMonthRevenue = analytics?.revenueByMonth?.find((m: any) => m.month === lastMonthKey)?.revenue || 0
+
+  const bookingMonth = (b: any) => {
+    if (!b.createdAt?.seconds) return ''
+    const d = new Date(b.createdAt.seconds * 1000)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+  const thisMonthBookings = allBookings.filter(b => bookingMonth(b) === thisMonthKey).length
+  const lastMonthBookings = allBookings.filter(b => bookingMonth(b) === lastMonthKey).length
+
+  function calcTrend(current: number, previous: number): number | null {
+    if (previous === 0) return null
+    return Math.round(((current - previous) / previous) * 100)
+  }
+
+  const revenueTrend = calcTrend(thisMonthRevenue, lastMonthRevenue)
+  const bookingsTrend = calcTrend(thisMonthBookings, lastMonthBookings)
+
+  const newBookings = allBookings.filter(b => b.status === 'new').length
   const totalVisits = sessions.filter(s => s.action === 'visit').length
   const totalItineraries = sessions.filter(s => s.action === 'itinerary_generated').length
 
@@ -123,33 +148,56 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
       value: `₹${(analytics?.totalRevenue || 0).toLocaleString('en-IN')}`,
       sub: `₹${thisMonthRevenue.toLocaleString('en-IN')} this month`,
       icon: IndianRupee, color: 'bg-emerald-100 text-emerald-700', tab: 'analytics',
+      trend: revenueTrend,
     },
     {
       label: 'Total Bookings',
       value: analytics?.totalBookings || 0,
       sub: `${newBookings} new · ${analytics?.confirmedBookings || 0} confirmed`,
       icon: Inbox, color: 'bg-blue-100 text-blue-700', tab: 'bookings',
+      trend: bookingsTrend,
     },
     {
       label: 'Customers',
       value: analytics?.totalCustomers || 0,
       sub: `Avg ₹${avgBookingValue.toLocaleString('en-IN')} per booking`,
       icon: Users, color: 'bg-purple-100 text-purple-700', tab: 'customers',
+      trend: null,
     },
     {
       label: 'Packages',
       value: analytics?.totalPackages || 0,
       sub: `${analytics?.activePackages || 0} active`,
       icon: Package, color: 'bg-amber-100 text-amber-700', tab: 'packages',
+      trend: null,
     },
   ]
 
   return (
     <div className="space-y-6">
+      {/* Action Required Banner */}
+      {newBookings > 0 && (
+        <div
+          onClick={() => onTabChange('bookings')}
+          className="bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3.5 flex items-center gap-3 cursor-pointer hover:bg-blue-100 transition-colors"
+        >
+          <span className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <AlertCircle className="w-4 h-4 text-white" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-blue-900 text-sm">
+              {newBookings} new booking{newBookings !== 1 ? 's' : ''} need{newBookings === 1 ? 's' : ''} attention
+            </p>
+            <p className="text-xs text-blue-600 mt-0.5">Tap to open Booking Inbox and respond</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-blue-400 flex-shrink-0" />
+        </div>
+      )}
+
       {/* Welcome header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Welcome back 👋</h2>
+          <h2 className="text-xl font-bold text-gray-900">Welcome back</h2>
           <p className="text-sm text-gray-500 mt-0.5">{companyName} · Here's your business at a glance</p>
         </div>
         <div className="flex items-center gap-2">
@@ -181,8 +229,26 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
             onClick={() => kpi.tab && onTabChange(kpi.tab)}
             className={`bg-white rounded-2xl border border-gray-200 p-4 flex flex-col gap-3 ${kpi.tab ? 'cursor-pointer hover:shadow-md hover:border-gray-300 transition-all' : ''}`}
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${kpi.color}`}>
-              <kpi.icon className="w-5 h-5" />
+            <div className="flex items-center justify-between">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${kpi.color}`}>
+                <kpi.icon className="w-5 h-5" />
+              </div>
+              {kpi.trend !== null && kpi.trend !== undefined && (
+                <span className={`flex items-center gap-0.5 text-xs font-bold px-2 py-1 rounded-full ${
+                  kpi.trend > 0
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : kpi.trend < 0
+                    ? 'bg-red-50 text-red-600'
+                    : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {kpi.trend > 0
+                    ? <TrendingUp className="w-3 h-3" />
+                    : kpi.trend < 0
+                    ? <TrendingDown className="w-3 h-3" />
+                    : null}
+                  {kpi.trend > 0 ? '+' : ''}{kpi.trend}%
+                </span>
+              )}
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{kpi.value}</p>
@@ -247,29 +313,35 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
               <TrendingUp className="w-4 h-4 text-gray-500" />
               Planner Funnel
             </h3>
-            <div className="space-y-3">
-              {[
-                { label: 'Total Visits', value: totalVisits, icon: Eye, color: 'text-blue-600' },
-                { label: 'Itineraries Generated', value: totalItineraries, icon: BarChart3, color: 'text-purple-600' },
-                { label: 'Bookings Submitted', value: sessions.filter(s => s.action === 'booking_submitted').length, icon: CheckCircle, color: 'text-green-600' },
-              ].map(stat => (
-                <div key={stat.label} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
-                    <span className="text-sm text-gray-600">{stat.label}</span>
+            {(() => {
+              const bookingSubmitted = sessions.filter(s => s.action === 'booking_submitted').length
+              const steps = [
+                { label: 'Visits', value: totalVisits, color: 'bg-blue-500', pct: 100 },
+                { label: 'Itineraries', value: totalItineraries, color: 'bg-purple-500', pct: totalVisits > 0 ? Math.round((totalItineraries / totalVisits) * 100) : 0 },
+                { label: 'Bookings', value: bookingSubmitted, color: 'bg-emerald-500', pct: totalVisits > 0 ? Math.round((bookingSubmitted / totalVisits) * 100) : 0 },
+              ]
+              return (
+                <div className="space-y-3">
+                  {steps.map(step => (
+                    <div key={step.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-600">{step.label}</span>
+                        <span className="text-sm font-bold text-gray-900">{step.value}</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className={`h-full ${step.color} rounded-full transition-all duration-700`} style={{ width: `${step.pct}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-xs text-gray-500">Visit → Booking rate</span>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {totalVisits > 0 ? `${Math.round((sessions.filter(s => s.action === 'booking_submitted').length / totalVisits) * 100)}%` : '0%'}
+                    </span>
                   </div>
-                  <span className="font-bold text-gray-900">{stat.value}</span>
                 </div>
-              ))}
-              <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                <span className="text-sm text-gray-600">Conversion Rate</span>
-                <span className="font-bold text-emerald-600">
-                  {totalVisits > 0
-                    ? `${Math.round((sessions.filter(s => s.action === 'booking_submitted').length / totalVisits) * 100)}%`
-                    : '0%'}
-                </span>
-              </div>
-            </div>
+              )
+            })()}
           </div>
 
           {/* Quick actions */}
@@ -278,9 +350,9 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
             <div className="space-y-2">
               {[
                 { label: 'Add New Package', icon: Package, action: () => onTabChange('packages') },
-                { label: 'View Team', icon: Users, action: () => onTabChange('team') },
-                { label: 'Get Embed Code', icon: BarChart3, action: () => onTabChange('embed') },
-                { label: 'Settings & Profile', icon: Clock, action: () => onTabChange('settings') },
+                { label: 'Manage Travel Agents', icon: UserCog, action: () => onTabChange('team') },
+                { label: 'Get Embed Code', icon: Code2, action: () => onTabChange('embed') },
+                { label: 'Settings & Profile', icon: Settings, action: () => onTabChange('settings') },
               ].map(item => (
                 <button
                   key={item.label}

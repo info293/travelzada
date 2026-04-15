@@ -309,6 +309,7 @@ export default function AgentDashboardPage() {
                 {tab === 'quotations' && (
                   <QuotationsManager
                     agentId={currentUser.uid}
+                    agentSlug={agentSlug}
                     agentName={agentData?.companyName || agentData?.contactName || ''}
                     currentUserId={currentUser.uid}
                   />

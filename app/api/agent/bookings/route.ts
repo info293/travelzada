@@ -58,9 +58,9 @@ export async function POST(request: Request) {
       subAgentId,
     } = body
 
-    if (!agentId || !customerName || !customerEmail) {
+    if (!agentId || !customerName) {
       return NextResponse.json(
-        { error: 'agentId, customerName, and customerEmail are required' },
+        { error: 'agentId and customerName are required' },
         { status: 400 }
       )
     }
@@ -95,12 +95,14 @@ export async function POST(request: Request) {
 
     const docRef = await addDoc(collection(db, 'agent_bookings'), booking)
 
-    // Also upsert customer record for the agent
-    await upsertAgentCustomer(agentId, {
-      name: customerName,
-      email: customerEmail,
-      phone: customerPhone || '',
-    })
+    // Also upsert customer record for the agent (only when email is available)
+    if (customerEmail) {
+      await upsertAgentCustomer(agentId, {
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone || '',
+      })
+    }
 
     return NextResponse.json({
       success: true,

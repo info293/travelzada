@@ -91,7 +91,7 @@ const QUOT_STATUS: Record<string, { label: string; color: string }> = {
   quoted:        { label: 'Quoted',        color: 'bg-purple-50 text-purple-700' },
   accepted:      { label: 'Accepted',      color: 'bg-green-50 text-green-700' },
   rejected:      { label: 'Rejected',      color: 'bg-red-50 text-red-700' },
-  converted:     { label: 'Converted',     color: 'bg-teal-50 text-teal-700' },
+  converted:     { label: 'Booked ✓',      color: 'bg-purple-100 text-purple-700' },
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -667,8 +667,17 @@ export default function SubAgentDashboardPage() {
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sc?.color}`}>{sc?.label}</span>
                           </div>
                           <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
-                          {q.quotedPrice && <p className="text-xs text-green-700 font-semibold mt-0.5">₹{q.quotedPrice.toLocaleString('en-IN')}</p>}
-                          {q.messages.length > 0 && <p className="text-[10px] text-gray-400 mt-0.5">{q.messages.length} messages</p>}
+                          <div className="flex items-center justify-between mt-1">
+                            {q.quotedPrice ? (
+                              <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                                ₹{Number(q.quotedPrice).toLocaleString('en-IN')}
+                              </span>
+                            ) : (
+                              q.messages.length > 0
+                                ? <span className="text-[10px] text-gray-400">{q.messages.length} messages</span>
+                                : <span />
+                            )}
+                          </div>
                         </button>
                       )
                     })}
@@ -701,9 +710,13 @@ export default function SubAgentDashboardPage() {
                             </div>
                           </div>
                           {selQuot.quotedPrice && (
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs text-gray-400">Quoted</p>
-                              <p className="text-xl font-bold text-gray-900">₹{selQuot.quotedPrice.toLocaleString('en-IN')}</p>
+                            <div className={`text-right flex-shrink-0 px-4 py-2 rounded-xl border ${selQuot.status === 'converted' ? 'bg-purple-50 border-purple-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                              <p className={`text-xs font-medium ${selQuot.status === 'converted' ? 'text-purple-500' : 'text-emerald-500'}`}>
+                                {selQuot.status === 'converted' ? 'Booked at' : 'Quoted'}
+                              </p>
+                              <p className={`text-xl font-bold ${selQuot.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                                ₹{Number(selQuot.quotedPrice).toLocaleString('en-IN')}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -712,7 +725,17 @@ export default function SubAgentDashboardPage() {
                         {selQuot.messages.length === 0 ? (
                           <p className="text-center text-xs text-gray-400 py-8">No messages yet. Start the conversation.</p>
                         ) : selQuot.messages.map(msg => {
-                          const isMe = msg.senderRole === 'subagent'
+                          // System / price / booking messages → centered pill
+                          if (msg.senderRole === 'system' || msg.text.startsWith('💰') || msg.text.startsWith('✅')) {
+                            return (
+                              <div key={msg.id} className="flex justify-center">
+                                <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-full">
+                                  {msg.text}
+                                </span>
+                              </div>
+                            )
+                          }
+                          const isMe = msg.senderRole === 'travel_agent' || msg.senderRole === 'subagent'
                           return (
                             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                               <div className={`max-w-xs lg:max-w-sm rounded-2xl px-4 py-2.5 ${isMe ? 'bg-primary text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-900 rounded-bl-sm'}`}>
@@ -727,8 +750,14 @@ export default function SubAgentDashboardPage() {
                         })}
                       </div>
                       {['accepted', 'rejected', 'converted'].includes(selQuot.status) ? (
-                        <div className="px-5 py-3 border-t border-gray-100 text-center text-xs text-gray-400">
-                          This quotation is {selQuot.status} — no further messages can be sent.
+                        <div className={`px-5 py-3 border-t border-gray-100 text-center text-xs flex-shrink-0 ${
+                          selQuot.status === 'converted' ? 'bg-purple-50 text-purple-700 font-semibold' : 'text-gray-400'
+                        }`}>
+                          {selQuot.status === 'converted'
+                            ? '✅ This quotation has been converted to a booking. Check your Bookings tab.'
+                            : selQuot.status === 'accepted'
+                            ? '✅ Quotation accepted — awaiting booking confirmation.'
+                            : '❌ This quotation was rejected.'}
                         </div>
                       ) : (
                         <div className="px-4 py-3 border-t border-gray-100 flex items-end gap-2">

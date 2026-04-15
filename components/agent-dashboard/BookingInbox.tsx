@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Loader2, Mail, Phone, Calendar, Users, MessageSquare,
   ChevronDown, ChevronUp, Download, IndianRupee, User,
-  MessageCircle, MapPin, Tag
+  MessageCircle, MapPin, Tag, Send
 } from 'lucide-react'
 import { AgentBooking } from '@/lib/types/agent'
 
@@ -33,6 +33,7 @@ export default function BookingInbox({ agentId }: Props) {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState('all')
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
@@ -106,6 +107,14 @@ export default function BookingInbox({ agentId }: Props) {
 
   const filtered = bookings.filter(b => {
     if (filterStatus !== 'all' && b.status !== filterStatus) return false
+    if (dateFilter !== 'all') {
+      const now = Date.now()
+      const ts = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0
+      const diff = now - ts
+      if (dateFilter === 'today' && diff > 86400000) return false
+      if (dateFilter === 'week' && diff > 7 * 86400000) return false
+      if (dateFilter === 'month' && diff > 30 * 86400000) return false
+    }
     if (search) {
       const s = search.toLowerCase()
       return (
@@ -147,23 +156,28 @@ export default function BookingInbox({ agentId }: Props) {
         </div>
       </div>
 
-      {/* Status filters with counts */}
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => setFilterStatus('all')}
-          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-        >
-          All ({bookings.length})
-        </button>
-        {STATUS_OPTIONS.map(s => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${filterStatus === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-          >
-            {s} {countByStatus[s] ? `(${countByStatus[s]})` : '(0)'}
+      {/* Date + Status filters */}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-1.5">
+          {(['all', 'today', 'week', 'month'] as const).map(d => (
+            <button key={d} onClick={() => setDateFilter(d)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${dateFilter === d ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {d === 'all' ? 'All time' : d === 'today' ? 'Today' : d === 'week' ? 'This week' : 'This month'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setFilterStatus('all')}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            All ({bookings.length})
           </button>
-        ))}
+          {STATUS_OPTIONS.map(s => (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${filterStatus === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              {s} {countByStatus[s] ? `(${countByStatus[s]})` : '(0)'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -266,6 +280,17 @@ export default function BookingInbox({ agentId }: Props) {
                       {' · '}{booking.rooms || 1} room{(booking.rooms || 1) !== 1 ? 's' : ''}
                     </div>
                   </div>
+
+                  {/* Quick email button */}
+                  {booking.customerEmail && (
+                    <a
+                      href={`mailto:${booking.customerEmail}?subject=Your ${booking.destination || booking.packageTitle} Trip Enquiry&body=Hello ${booking.customerName},%0D%0A%0D%0AThank you for your interest in ${booking.packageTitle || 'our travel package'}.%0D%0A%0D%0AWe'd love to help plan your trip${booking.preferredDates ? ` for ${booking.preferredDates}` : ''}.%0D%0A%0D%0APlease let us know a convenient time to connect.%0D%0A%0D%0ABest regards`}
+                      className="inline-flex items-center gap-2 text-xs font-semibold bg-primary/5 text-primary border border-primary/20 px-4 py-2 rounded-xl hover:bg-primary/10 transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      Send Email to {booking.customerName.split(' ')[0]}
+                    </a>
+                  )}
 
                   {booking.specialRequests && (
                     <div className="bg-white rounded-xl p-3 border border-gray-200 text-sm text-gray-700">

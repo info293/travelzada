@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar } from 'lucide-react'
 import { AgentPackage } from '@/lib/types/agent'
 
 interface Props {
@@ -81,6 +81,8 @@ export default function PackageManager({ agentId }: Props) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [previewPkg, setPreviewPkg] = useState<AgentPackage | null>(null)
+  const [showFormPreview, setShowFormPreview] = useState(false)
 
   // CSV state
   const csvInputRef = useRef<HTMLInputElement>(null)
@@ -291,6 +293,33 @@ export default function PackageManager({ agentId }: Props) {
     }
   }
 
+  function formAsPackage(): AgentPackage {
+    return {
+      id: editingId || '__preview__',
+      agentId,
+      title: form.title || 'Untitled Package',
+      destination: form.destination,
+      destinationCountry: form.destinationCountry,
+      overview: form.overview,
+      durationDays: Number(form.durationDays) || 0,
+      durationNights: Number(form.durationNights) || 0,
+      pricePerPerson: Number(form.pricePerPerson) || 0,
+      maxGroupSize: Number(form.maxGroupSize) || 20,
+      minGroupSize: Number(form.minGroupSize) || 1,
+      travelType: form.travelType,
+      theme: form.theme,
+      mood: form.mood,
+      starCategory: form.starCategory,
+      inclusions: form.inclusions.split('\n').filter(Boolean),
+      exclusions: form.exclusions.split('\n').filter(Boolean),
+      highlights: form.highlights.split('\n').filter(Boolean),
+      dayWiseItinerary: form.dayWiseItinerary,
+      primaryImageUrl: form.primaryImageUrl,
+      seasonalAvailability: form.seasonalAvailability,
+      isActive: true,
+    } as AgentPackage
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -451,7 +480,10 @@ export default function PackageManager({ agentId }: Props) {
                 <button onClick={() => toggleActive(pkg)} title={pkg.isActive ? 'Pause' : 'Activate'} className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50">
                   {pkg.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-                <button onClick={() => openEditForm(pkg)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
+                <button onClick={() => setPreviewPkg(pkg)} title="Preview" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50">
+                  <Eye className="w-4 h-4" />
+                </button>
+                <button onClick={() => openEditForm(pkg)} title="Edit" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button onClick={() => handleDelete(pkg.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
@@ -567,8 +599,14 @@ export default function PackageManager({ agentId }: Props) {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowForm(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+              <button onClick={() => setShowForm(false)} className="py-2 px-4 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50">
                 Cancel
+              </button>
+              <button
+                onClick={() => setPreviewPkg(formAsPackage())}
+                className="py-2 px-4 rounded-xl border border-indigo-200 text-indigo-700 bg-indigo-50 text-sm font-semibold hover:bg-indigo-100 flex items-center gap-1.5"
+              >
+                <Eye className="w-4 h-4" />Preview
               </button>
               <button
                 onClick={handleSave}
@@ -578,6 +616,162 @@ export default function PackageManager({ agentId }: Props) {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {saving ? 'Saving…' : 'Save Package'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Package Preview Modal ─────────────────────────────────────────── */}
+      {previewPkg && (
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 overflow-y-auto py-8 px-4">
+          <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Header bar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-indigo-500" />
+                <span className="font-bold text-gray-900 text-sm">Package Preview</span>
+                {previewPkg.id === '__preview__' && (
+                  <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Unsaved Draft</span>
+                )}
+              </div>
+              <button onClick={() => setPreviewPkg(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Hero image */}
+            {previewPkg.primaryImageUrl ? (
+              <div className="relative h-56 w-full overflow-hidden">
+                <img src={previewPkg.primaryImageUrl} alt={previewPkg.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-5 right-5">
+                  <h2 className="text-2xl font-bold text-white drop-shadow">{previewPkg.title}</h2>
+                  <p className="text-sm text-white/80 flex items-center gap-1 mt-1">
+                    <MapPin className="w-3.5 h-3.5" />{previewPkg.destination}{previewPkg.destinationCountry ? `, ${previewPkg.destinationCountry}` : ''}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="h-40 bg-gradient-to-br from-purple-100 to-indigo-100 flex flex-col items-center justify-center">
+                <Package className="w-10 h-10 text-purple-300 mb-2" />
+                <h2 className="text-xl font-bold text-gray-800">{previewPkg.title}</h2>
+                <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                  <MapPin className="w-3.5 h-3.5" />{previewPkg.destination}
+                </p>
+              </div>
+            )}
+
+            {/* Key stats row */}
+            <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
+              {[
+                { icon: <Clock className="w-4 h-4" />, label: 'Duration', value: previewPkg.durationNights ? `${previewPkg.durationNights}N / ${previewPkg.durationDays}D` : `${previewPkg.durationDays}D` },
+                { icon: <Star className="w-4 h-4" />, label: 'Category', value: previewPkg.starCategory },
+                { icon: <Users className="w-4 h-4" />, label: 'Group Size', value: `${previewPkg.minGroupSize || 1}–${previewPkg.maxGroupSize || 20}` },
+                { icon: <Calendar className="w-4 h-4" />, label: 'Season', value: previewPkg.seasonalAvailability || 'Year Round' },
+              ].map(({ icon, label, value }) => (
+                <div key={label} className="px-4 py-3 text-center">
+                  <div className="flex justify-center text-gray-400 mb-1">{icon}</div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
+                  <p className="text-xs font-semibold text-gray-800 mt-0.5">{value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Tags */}
+              <div className="flex flex-wrap gap-2">
+                {previewPkg.travelType && <span className="bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">{previewPkg.travelType}</span>}
+                {previewPkg.theme && <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full">{previewPkg.theme}</span>}
+                {previewPkg.mood && <span className="bg-pink-100 text-pink-700 text-xs font-semibold px-3 py-1 rounded-full">{previewPkg.mood}</span>}
+              </div>
+
+              {/* Price */}
+              <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-purple-500 font-medium">Starting from</p>
+                  <p className="text-3xl font-bold text-purple-700">₹{(previewPkg.pricePerPerson || 0).toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-purple-500">per person</p>
+                </div>
+                <div className="bg-purple-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl opacity-60 cursor-default">
+                  Request Quote
+                </div>
+              </div>
+
+              {/* Overview */}
+              {previewPkg.overview && (
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900 mb-1.5">Overview</h4>
+                  <p className="text-sm text-gray-600 leading-relaxed">{previewPkg.overview}</p>
+                </div>
+              )}
+
+              {/* Highlights */}
+              {Array.isArray(previewPkg.highlights) && previewPkg.highlights.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">Highlights</h4>
+                  <ul className="space-y-1.5">
+                    {previewPkg.highlights.map((h: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="text-purple-500 mt-0.5">✦</span>{h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Inclusions / Exclusions */}
+              {(Array.isArray(previewPkg.inclusions) && previewPkg.inclusions.length > 0 ||
+                Array.isArray(previewPkg.exclusions) && previewPkg.exclusions.length > 0) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {Array.isArray(previewPkg.inclusions) && previewPkg.inclusions.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-green-700 mb-2">✓ Inclusions</h4>
+                      <ul className="space-y-1">
+                        {previewPkg.inclusions.map((inc: string, i: number) => (
+                          <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                            <span className="text-green-500 mt-0.5">•</span>{inc}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {Array.isArray(previewPkg.exclusions) && previewPkg.exclusions.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-red-600 mb-2">✗ Exclusions</h4>
+                      <ul className="space-y-1">
+                        {previewPkg.exclusions.map((exc: string, i: number) => (
+                          <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                            <span className="text-red-400 mt-0.5">•</span>{exc}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Day-wise itinerary */}
+              {previewPkg.dayWiseItinerary && (
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">Day-Wise Itinerary</h4>
+                  <div className="space-y-2">
+                    {previewPkg.dayWiseItinerary.split('\n').filter(Boolean).map((line: string, i: number) => (
+                      <div key={i} className={`text-sm ${line.toLowerCase().startsWith('day') ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer note */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 text-center">
+              <p className="text-xs text-gray-400">
+                {previewPkg.id === '__preview__'
+                  ? 'This is a draft preview — changes are not saved yet.'
+                  : 'This is exactly how customers see this package on your planner page.'}
+              </p>
             </div>
           </div>
         </div>

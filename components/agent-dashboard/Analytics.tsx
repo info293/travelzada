@@ -31,16 +31,24 @@ const STATUS_COLORS: Record<string, string> = {
   completed: '#6b7280',
 }
 
+type Period = '7d' | '30d' | '90d' | 'all'
+
 export default function Analytics({ agentId, agentSlug }: Props) {
   const [data, setData] = useState<AnalyticsData | null>(null)
+  const [allBookings, setAllBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState<Period>('all')
 
   const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/agent/analytics?agentId=${agentId}`)
-      const json = await res.json()
-      if (json.success) setData(json.analytics)
+      const [analyticsRes, bookingsRes] = await Promise.all([
+        fetch(`/api/agent/analytics?agentId=${agentId}`),
+        fetch(`/api/agent/bookings?agentId=${agentId}`),
+      ])
+      const [analyticsJson, bookingsJson] = await Promise.all([analyticsRes.json(), bookingsRes.json()])
+      if (analyticsJson.success) setData(analyticsJson.analytics)
+      if (bookingsJson.success) setAllBookings(bookingsJson.bookings)
     } catch (e) {
       console.error(e)
     } finally {
@@ -58,32 +66,71 @@ export default function Analytics({ agentId, agentSlug }: Props) {
     return <p className="text-gray-500 text-sm">Unable to load analytics.</p>
   }
 
+  // ── Apply period filter to raw bookings ─────────────────────────────────────
+  const cutoff = period === 'all' ? 0
+    : Date.now() - (period === '7d' ? 7 : period === '30d' ? 30 : 90) * 86400000
+
+  const filtered = allBookings.filter(b => {
+    const ts = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0
+    return ts >= cutoff
+  })
+
+  const fTotal = filtered.length
+  const fRevenue = filtered.filter(b => b.status === 'confirmed' || b.status === 'completed')
+    .reduce((s: number, b: any) => s + (b.bookingValue || 0), 0)
+  const fConfirmed = filtered.filter(b => b.status === 'confirmed' || b.status === 'completed').length
+  const fDirectBookings = filtered.filter(b => !b.subAgentId).length
+  const fSubAgentBookings = filtered.filter(b => b.subAgentId).length
+
+  const fTopDest: { destination: string; count: number }[] = []
+  filtered.forEach(b => {
+    const d = b.destination || b.packageTitle || 'Unknown'
+    const ex = fTopDest.find(x => x.destination === d)
+    if (ex) ex.count++; else fTopDest.push({ destination: d, count: 1 })
+  })
+  fTopDest.sort((a, b) => b.count - a.count)
+
+  const fByStatus: { status: string; count: number }[] = []
+  filtered.forEach(b => {
+    const ex = fByStatus.find(x => x.status === b.status)
+    if (ex) ex.count++; else fByStatus.push({ status: b.status, count: 1 })
+  })
+
+  // Use filtered data for period-specific cards, full data for month chart
+  const displayBookings = period === 'all' ? data.totalBookings : fTotal
+  const displayRevenue = period === 'all' ? data.totalRevenue : fRevenue
+  const displayConfirmed = period === 'all' ? data.confirmedBookings : fConfirmed
+  const displayTopDest = period === 'all' ? data.topDestinations : fTopDest.slice(0, 5)
+  const displayByStatus = period === 'all' ? data.bookingsByStatus : fByStatus
+
+  const PERIOD_LABELS: Record<Period, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', 'all': 'All time' }
+
   const statCards = [
     {
       icon: <Package className="w-5 h-5" />,
-      label: 'Total Bookings',
-      value: data.totalBookings,
-      sub: `${data.confirmedBookings} confirmed`,
+      label: 'Bookings',
+      value: displayBookings,
+      sub: `${displayConfirmed} confirmed`,
       color: 'text-indigo-600 bg-indigo-50',
     },
     {
       icon: <IndianRupee className="w-5 h-5" />,
-      label: 'Gross Revenue',
-      value: `₹${data.totalRevenue.toLocaleString('en-IN')}`,
-      sub: `Net: ₹${data.netRevenue.toLocaleString('en-IN')}`,
+      label: 'Revenue',
+      value: `₹${displayRevenue.toLocaleString('en-IN')}`,
+      sub: period === 'all' ? `Net: ₹${data.netRevenue.toLocaleString('en-IN')}` : `${displayConfirmed} confirmed bookings`,
       color: 'text-emerald-600 bg-emerald-50',
     },
     {
       icon: <Users className="w-5 h-5" />,
-      label: 'Total Customers',
-      value: data.totalCustomers,
-      sub: `${data.totalPackages} packages (${data.activePackages} active)`,
+      label: 'Direct Bookings',
+      value: period === 'all' ? data.totalBookings : fDirectBookings,
+      sub: period === 'all' ? `${data.totalCustomers} customers` : `${fSubAgentBookings} via travel agents`,
       color: 'text-amber-600 bg-amber-50',
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Conversion Rate',
-      value: `${data.conversionRate}%`,
+      value: displayBookings > 0 ? `${Math.round((displayConfirmed / displayBookings) * 100)}%` : '0%',
       sub: 'Bookings → Confirmed',
       color: 'text-purple-600 bg-purple-50',
     },
@@ -91,20 +138,31 @@ export default function Analytics({ agentId, agentSlug }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Analytics</h2>
-          <p className="text-sm text-gray-500">Performance overview for your planner</p>
+          <p className="text-sm text-gray-500">{PERIOD_LABELS[period]} · {displayBookings} booking{displayBookings !== 1 ? 's' : ''}</p>
         </div>
-        <a
-          href={`/tailored-travel/${agentSlug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg"
-        >
-          <ArrowUpRight className="w-3.5 h-3.5" />
-          View Live Planner
-        </a>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Period filter tabs */}
+          <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">
+            {(['7d', '30d', '90d', 'all'] as Period[]).map(p => (
+              <button key={p} onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${period === p ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                {p === 'all' ? 'All time' : p.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <a
+            href={`/tailored-travel/${agentSlug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            View Planner
+          </a>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -128,11 +186,11 @@ export default function Analytics({ agentId, agentSlug }: Props) {
             <MapPin className="w-4 h-4 text-purple-500" />
             <h3 className="font-semibold text-gray-900">Top Destinations</h3>
           </div>
-          {data.topDestinations.length === 0 ? (
+          {displayTopDest.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No booking data yet.</p>
           ) : (
             <div className="space-y-3">
-              {data.topDestinations.map((d, i) => (
+              {displayTopDest.map((d, i) => (
                 <div key={d.destination} className="flex items-center gap-3">
                   <span className="text-xs font-bold text-gray-400 w-4">{i + 1}</span>
                   <div className="flex-1">
@@ -143,7 +201,7 @@ export default function Analytics({ agentId, agentSlug }: Props) {
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-purple-500 rounded-full"
-                        style={{ width: `${Math.round((d.count / data.topDestinations[0].count) * 100)}%` }}
+                        style={{ width: `${Math.round((d.count / displayTopDest[0].count) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -159,13 +217,13 @@ export default function Analytics({ agentId, agentSlug }: Props) {
             <BarChart2 className="w-4 h-4 text-purple-500" />
             <h3 className="font-semibold text-gray-900">Bookings by Status</h3>
           </div>
-          {data.bookingsByStatus.length === 0 ? (
+          {displayByStatus.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No booking data yet.</p>
           ) : (
             <div className="space-y-3">
-              {data.bookingsByStatus.map(b => {
-                const pct = data.totalBookings > 0
-                  ? Math.round((b.count / data.totalBookings) * 100)
+              {displayByStatus.map(b => {
+                const pct = displayBookings > 0
+                  ? Math.round((b.count / displayBookings) * 100)
                   : 0
                 return (
                   <div key={b.status} className="flex items-center gap-3">
@@ -187,6 +245,31 @@ export default function Analytics({ agentId, agentSlug }: Props) {
           )}
         </div>
       </div>
+
+      {/* Booking Source Breakdown */}
+      {period !== 'all' && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Users className="w-4 h-4 text-purple-500" />
+            Booking Source · {PERIOD_LABELS[period]}
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: 'Direct Bookings', value: fDirectBookings, total: fTotal, color: 'bg-indigo-500', light: 'bg-indigo-50 text-indigo-700' },
+              { label: 'Via Travel Agents', value: fSubAgentBookings, total: fTotal, color: 'bg-purple-500', light: 'bg-purple-50 text-purple-700' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-2xl p-4 ${s.light}`}>
+                <p className="text-2xl font-bold">{s.value}</p>
+                <p className="text-xs font-medium mt-1 opacity-80">{s.label}</p>
+                <div className="h-1.5 bg-white/50 rounded-full mt-2 overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full`} style={{ width: `${s.total > 0 ? Math.round((s.value / s.total) * 100) : 0}%` }} />
+                </div>
+                <p className="text-xs mt-1 opacity-60">{s.total > 0 ? Math.round((s.value / s.total) * 100) : 0}% of total</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Monthly Revenue Chart */}
       {data.revenueByMonth.length > 0 && (
