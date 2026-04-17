@@ -9,7 +9,8 @@ import {
   CheckCircle, Clock, XCircle, Package, TrendingUp, Eye, BarChart3,
   MessageSquare, Send, Users, Copy, Check, ExternalLink, Home,
   IndianRupee, Star, ArrowUpRight, Search, ChevronDown, ChevronUp,
-  Sparkles, Bot, Mic, MicOff, Volume2, Globe
+  Sparkles, Bot, Mic, MicOff, Volume2, Globe, Share2, FileText,
+  Columns3, List
 } from 'lucide-react'
 import SubAgentDemoLoader from '@/components/sub-agent-dashboard/SubAgentDemoLoader'
 
@@ -56,6 +57,10 @@ interface Quotation {
   customerPhone?: string
   status: string
   quotedPrice?: number
+  groupSize?: number
+  adults?: number
+  kids?: number
+  specialRequests?: string
   messages: QuotMsg[]
   createdAt?: { seconds: number }
 }
@@ -138,6 +143,7 @@ export default function SubAgentDashboardPage() {
   const [msgText, setMsgText] = useState('')
   const [sendingMsg, setSendingMsg] = useState(false)
   const [quotFilter, setQuotFilter] = useState('all')
+  const [pdfQuot, setPdfQuot] = useState<Quotation | null>(null)
 
   // Bookings search/filter
   const [bookSearch, setBookSearch] = useState('')
@@ -246,6 +252,33 @@ export default function SubAgentDashboardPage() {
         setMsgText('')
       }
     } catch { } finally { setSendingMsg(false) }
+  }
+
+  function shareQuotationWhatsApp(q: Quotation) {
+    const price = q.quotedPrice ? `₹${Number(q.quotedPrice).toLocaleString('en-IN')}` : 'To be confirmed'
+    const lines = [
+      `🌍 *Travel Quotation*`,
+      ``,
+      `Hello ${q.customerName},`,
+      ``,
+      `Here is your travel quotation:`,
+      ``,
+      `📦 *Package:* ${q.packageTitle}`,
+      `📍 *Destination:* ${q.destination}`,
+      ``,
+      `💰 *Quoted Price:* ${price}`,
+      ``,
+      `For more details or to confirm your booking, please reply to this message.`,
+      ``,
+      `Thank you for choosing us ✈️`,
+    ].join('\n')
+
+    const phone = q.customerPhone?.replace(/\D/g, '')
+    const encoded = encodeURIComponent(lines)
+    const url = phone
+      ? `https://wa.me/${phone}?text=${encoded}`
+      : `https://wa.me/?text=${encoded}`
+    window.open(url, '_blank')
   }
 
   function copyPlannerUrl() {
@@ -911,6 +944,20 @@ export default function SubAgentDashboardPage() {
                             <div className="flex gap-3 mt-2">
                               {selQuot.customerEmail && <a href={`mailto:${selQuot.customerEmail}`} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"><Mail className="w-3 h-3" />Email</a>}
                               {selQuot.customerPhone && <a href={`https://wa.me/${selQuot.customerPhone.replace(/\D/g,'')}`} target="_blank" className="text-xs text-green-600 font-semibold hover:underline flex items-center gap-1"><Phone className="w-3 h-3" />WhatsApp</a>}
+                              <button
+                                onClick={() => shareQuotationWhatsApp(selQuot)}
+                                className="flex items-center gap-1 text-xs bg-green-500 text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-green-600 transition-colors"
+                                title="Share quotation on WhatsApp"
+                              >
+                                <Share2 className="w-3 h-3" />Share Quote
+                              </button>
+                              <button
+                                onClick={() => setPdfQuot(selQuot)}
+                                className="flex items-center gap-1 text-xs bg-primary text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                                title="Generate printable quotation"
+                              >
+                                <FileText className="w-3 h-3" />PDF
+                              </button>
                             </div>
                           </div>
                           {selQuot.quotedPrice && (
@@ -1669,6 +1716,120 @@ export default function SubAgentDashboardPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Quotation PDF Modal ──────────────────────────────────────────────── */}
+      {pdfQuot && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 print:bg-white print:p-0 print:block">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:rounded-none print:max-h-none">
+            {/* Modal toolbar - hidden on print */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <span className="font-bold text-gray-900">Quotation Preview</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => shareQuotationWhatsApp(pdfQuot)}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" />WhatsApp
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />Print / Save PDF
+                </button>
+                <button
+                  onClick={() => setPdfQuot(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable quotation body */}
+            <div className="flex-1 overflow-y-auto p-6 print:p-8 space-y-5" id="quotation-print">
+              {/* Header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Travel Quotation</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">Ref: {pdfQuot.id.slice(-8).toUpperCase()}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">Date</p>
+                  <p className="text-sm font-semibold text-gray-700">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                  <p className="text-xs text-gray-400 mt-1">Prepared by</p>
+                  <p className="text-sm font-semibold text-gray-700">{subAgentName || 'Travel Agent'}</p>
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-200" />
+
+              {/* Customer info */}
+              <div className="bg-gray-50 rounded-2xl p-4">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Prepared For</p>
+                <p className="text-lg font-bold text-gray-900">{pdfQuot.customerName}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
+                  {pdfQuot.customerEmail && <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{pdfQuot.customerEmail}</span>}
+                  {pdfQuot.customerPhone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{pdfQuot.customerPhone}</span>}
+                </div>
+              </div>
+
+              {/* Package details */}
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Package Details</p>
+                <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                  <div className="bg-primary/5 px-5 py-4 border-b border-gray-200">
+                    <p className="font-bold text-gray-900 text-base">{pdfQuot.packageTitle}</p>
+                    <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3.5 h-3.5" />{pdfQuot.destination}</p>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x divide-gray-200">
+                    <div className="px-5 py-3">
+                      <p className="text-xs text-gray-400 mb-0.5">Travellers</p>
+                      <p className="font-semibold text-gray-800 text-sm">{pdfQuot.groupSize || 1} pax</p>
+                    </div>
+                    <div className="px-5 py-3">
+                      <p className="text-xs text-gray-400 mb-0.5">Status</p>
+                      <p className="font-semibold text-gray-800 text-sm capitalize">{QUOT_STATUS[pdfQuot.status]?.label || pdfQuot.status}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pricing */}
+              <div className={`rounded-2xl p-5 border-2 ${pdfQuot.quotedPrice ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                <p className="text-xs font-bold uppercase tracking-wide mb-1 ${pdfQuot.quotedPrice ? 'text-emerald-600' : 'text-amber-600'}">
+                  {pdfQuot.quotedPrice ? 'Quoted Price' : 'Price'}
+                </p>
+                {pdfQuot.quotedPrice ? (
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-700">₹{Number(pdfQuot.quotedPrice).toLocaleString('en-IN')}</p>
+                    <p className="text-xs text-emerald-500 mt-0.5">Total for {pdfQuot.groupSize || 1} traveller{(pdfQuot.groupSize || 1) !== 1 ? 's' : ''}</p>
+                  </div>
+                ) : (
+                  <p className="text-base font-semibold text-amber-700">To be confirmed — please contact us</p>
+                )}
+              </div>
+
+              {/* Terms */}
+              <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-4">
+                <p className="font-semibold text-gray-500">Terms & Conditions</p>
+                <p>• This quotation is valid for 7 days from the date of issue.</p>
+                <p>• Prices are subject to availability at the time of booking.</p>
+                <p>• A deposit may be required to confirm the booking.</p>
+                <p>• For queries, please contact your travel agent directly.</p>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center pt-2 border-t border-gray-100">
+                <p className="text-xs text-gray-400">Thank you for choosing us for your travel needs ✈️</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

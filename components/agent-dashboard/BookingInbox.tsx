@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Loader2, Mail, Phone, Calendar, Users, MessageSquare,
   ChevronDown, ChevronUp, Download, IndianRupee, User,
-  MessageCircle, MapPin, Tag, Send
+  MessageCircle, MapPin, Tag, Send, Columns3, List
 } from 'lucide-react'
 import { AgentBooking } from '@/lib/types/agent'
 
@@ -36,6 +36,9 @@ export default function BookingInbox({ agentId }: Props) {
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null)
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -146,6 +149,23 @@ export default function BookingInbox({ agentId }: Props) {
             placeholder="Search…"
             className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary w-40"
           />
+          {/* View toggle */}
+          <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${viewMode === 'list' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              title="List view"
+            >
+              <List className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors ${viewMode === 'kanban' ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              title="Kanban pipeline"
+            >
+              <Columns3 className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <button
             onClick={exportCSV}
             className="flex items-center gap-1.5 text-xs font-semibold border border-gray-200 bg-white text-gray-600 px-3 py-2 rounded-xl hover:border-gray-300 transition-colors"
@@ -180,13 +200,120 @@ export default function BookingInbox({ agentId }: Props) {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {/* ── Kanban Pipeline View ── */}
+      {viewMode === 'kanban' && (
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-3 min-w-max">
+            {STATUS_OPTIONS.map(col => {
+              const colBookings = bookings.filter(b => {
+                if (b.status !== col) return false
+                if (search) {
+                  const s = search.toLowerCase()
+                  return b.customerName?.toLowerCase().includes(s) ||
+                    b.packageTitle?.toLowerCase().includes(s) ||
+                    b.destination?.toLowerCase().includes(s)
+                }
+                return true
+              })
+              const colColor: Record<string, string> = {
+                new: 'border-blue-300 bg-blue-50',
+                contacted: 'border-amber-300 bg-amber-50',
+                confirmed: 'border-green-300 bg-green-50',
+                cancelled: 'border-red-300 bg-red-50',
+                completed: 'border-gray-300 bg-gray-50',
+              }
+              const dotColor: Record<string, string> = {
+                new: 'bg-blue-500',
+                contacted: 'bg-amber-500',
+                confirmed: 'bg-green-500',
+                cancelled: 'bg-red-400',
+                completed: 'bg-gray-400',
+              }
+              return (
+                <div
+                  key={col}
+                  className={`w-64 flex-shrink-0 rounded-2xl border-2 ${dragOverCol === col ? colColor[col] : 'border-gray-200 bg-gray-50'} transition-colors`}
+                  onDragOver={e => { e.preventDefault(); setDragOverCol(col) }}
+                  onDragLeave={() => setDragOverCol(null)}
+                  onDrop={async e => {
+                    e.preventDefault()
+                    setDragOverCol(null)
+                    if (draggingId) {
+                      await updateBooking(draggingId, { status: col })
+                      setDraggingId(null)
+                    }
+                  }}
+                >
+                  {/* Column header */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-200">
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor[col]}`} />
+                    <span className="font-bold text-gray-800 text-sm capitalize">{col}</span>
+                    <span className="ml-auto text-xs font-bold text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded-full">
+                      {colBookings.length}
+                    </span>
+                  </div>
+
+                  {/* Cards */}
+                  <div className="p-2 space-y-2 min-h-[120px]">
+                    {colBookings.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-gray-400">Drop here</div>
+                    ) : colBookings.map(b => (
+                      <div
+                        key={b.id}
+                        draggable
+                        onDragStart={() => setDraggingId(b.id)}
+                        onDragEnd={() => setDraggingId(null)}
+                        className={`bg-white rounded-xl border border-gray-200 p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all ${draggingId === b.id ? 'opacity-50 scale-95' : ''}`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <p className="font-bold text-gray-900 text-xs leading-snug">{b.customerName}</p>
+                          {b.bookingValue ? (
+                            <span className="text-xs font-bold text-emerald-700 flex-shrink-0">₹{(Number(b.bookingValue)/1000).toFixed(0)}K</span>
+                          ) : null}
+                        </div>
+                        <p className="text-[11px] text-gray-500 leading-snug mb-1.5 line-clamp-1">{b.packageTitle}</p>
+                        <div className="flex flex-wrap gap-1 text-[10px] text-gray-400">
+                          {b.destination && <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{b.destination}</span>}
+                          {b.groupSize && <span className="flex items-center gap-0.5"><Users className="w-2.5 h-2.5" />{b.groupSize} pax</span>}
+                        </div>
+                        {b.customerPhone && (
+                          <div className="flex gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                            <a
+                              href={`https://wa.me/${b.customerPhone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              className="flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full hover:bg-green-100"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <MessageCircle className="w-2.5 h-2.5" />WA
+                            </a>
+                            <a
+                              href={`mailto:${b.customerEmail}`}
+                              className="flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/5 px-2 py-0.5 rounded-full hover:bg-primary/10"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <Mail className="w-2.5 h-2.5" />Email
+                            </a>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-gray-300 mt-1">{formatDate(b.createdAt)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="text-xs text-gray-400 mt-3 text-center">Drag cards between columns to update booking status</p>
+        </div>
+      )}
+
+      {viewMode === 'list' && filtered.length === 0 ? (
         <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
           <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No bookings found</p>
           <p className="text-sm text-gray-400 mt-1">Share your planner URL to start receiving bookings.</p>
         </div>
-      ) : (
+      ) : viewMode === 'list' && (
         <div className="space-y-3">
           {filtered.map(booking => (
             <div key={booking.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
