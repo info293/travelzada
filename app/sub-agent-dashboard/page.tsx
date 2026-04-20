@@ -48,6 +48,26 @@ interface QuotMsg {
   timestamp: string
 }
 
+interface PackageData {
+  id?: string
+  title: string
+  destination: string
+  destinationCountry?: string
+  overview?: string
+  durationDays?: number
+  durationNights?: number
+  pricePerPerson?: number
+  travelType?: string
+  starCategory?: string
+  inclusions?: string[]
+  exclusions?: string[]
+  highlights?: string[]
+  dayWiseItinerary?: string
+  primaryImageUrl?: string
+  theme?: string
+  mood?: string
+}
+
 interface Quotation {
   id: string
   packageTitle: string
@@ -60,7 +80,12 @@ interface Quotation {
   groupSize?: number
   adults?: number
   kids?: number
+  rooms?: number
+  preferredDates?: string
   specialRequests?: string
+  packageId?: string
+  selectedPackage?: PackageData | null
+  customPackageData?: PackageData | null
   messages: QuotMsg[]
   createdAt?: { seconds: number }
 }
@@ -69,6 +94,7 @@ interface AgentPackage {
   id: string
   title: string
   destination: string
+  destinationCountry?: string
   durationNights: number
   durationDays: number
   pricePerPerson: number
@@ -77,9 +103,15 @@ interface AgentPackage {
   primaryImageUrl?: string
   isActive: boolean
   overview?: string
+  inclusions?: string[]
+  exclusions?: string[]
+  highlights?: string[]
+  dayWiseItinerary?: string
+  theme?: string
+  mood?: string
 }
 
-type Tab = 'home' | 'bookings' | 'packages' | 'quotations' | 'customers' | 'stats' | 'activity' | 'ai'
+type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'customers' | 'stats' | 'activity' | 'ai'
 
 const INDIAN_LANGUAGES = [
   { code: 'en-IN', label: 'English' },
@@ -144,6 +176,16 @@ export default function SubAgentDashboardPage() {
   const [sendingMsg, setSendingMsg] = useState(false)
   const [quotFilter, setQuotFilter] = useState('all')
   const [pdfQuot, setPdfQuot] = useState<Quotation | null>(null)
+
+  // Package view/edit modal
+  const [viewPkgQuot, setViewPkgQuot] = useState<Quotation | null>(null)
+  const [viewPkgData, setViewPkgData] = useState<PackageData | null>(null)
+  const [loadingPkg, setLoadingPkg] = useState(false)
+  const [editingSection, setEditingSection] = useState<string | null>(null)
+  const [customForm, setCustomForm] = useState<PackageData>({ title: '', destination: '' })
+  const [savingCustom, setSavingCustom] = useState(false)
+  const [sharingCustom, setSharingCustom] = useState(false)
+  const [customSaved, setCustomSaved] = useState(false)
 
   // Bookings search/filter
   const [bookSearch, setBookSearch] = useState('')
@@ -279,6 +321,131 @@ export default function SubAgentDashboardPage() {
       ? `https://wa.me/${phone}?text=${encoded}`
       : `https://wa.me/?text=${encoded}`
     window.open(url, '_blank')
+  }
+
+  function openPackageView(q: Quotation) {
+    setViewPkgQuot(q)
+    setEditingSection(null)
+    setCustomSaved(false)
+
+    // 1. Sub-agent's saved custom version
+    if (q.customPackageData) {
+      setViewPkgData(q.customPackageData)
+      setCustomForm(q.customPackageData)
+      return
+    }
+
+    // 2. Full package data saved at quotation-creation time
+    if (q.selectedPackage && q.selectedPackage.title) {
+      setViewPkgData(q.selectedPackage)
+      setCustomForm(q.selectedPackage)
+      return
+    }
+
+    // 3. Look up from the already-loaded packages array in state (fastest, no extra fetch)
+    if (q.packageId) {
+      const found = packages.find(p => p.id === q.packageId)
+      if (found) {
+        const pkgData: PackageData = {
+          id: found.id,
+          title: found.title,
+          destination: found.destination,
+          destinationCountry: found.destinationCountry,
+          overview: found.overview,
+          durationDays: found.durationDays,
+          durationNights: found.durationNights,
+          pricePerPerson: found.pricePerPerson,
+          travelType: found.travelType,
+          starCategory: found.starCategory,
+          inclusions: found.inclusions || [],
+          exclusions: found.exclusions || [],
+          highlights: found.highlights || [],
+          dayWiseItinerary: found.dayWiseItinerary || '',
+          primaryImageUrl: found.primaryImageUrl,
+          theme: found.theme,
+          mood: found.mood,
+        }
+        setViewPkgData(pkgData)
+        setCustomForm(pkgData)
+        return
+      }
+
+      // 4. Package not in state yet (inactive/etc) — fetch directly
+      setLoadingPkg(true)
+      fetch(`/api/agent/packages/${q.packageId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.package) {
+            setViewPkgData(data.package)
+            setCustomForm(data.package)
+          } else {
+            const fb: PackageData = { title: q.packageTitle, destination: q.destination }
+            setViewPkgData(fb); setCustomForm(fb)
+          }
+        })
+        .catch(() => {
+          const fb: PackageData = { title: q.packageTitle, destination: q.destination }
+          setViewPkgData(fb); setCustomForm(fb)
+        })
+        .finally(() => setLoadingPkg(false))
+      return
+    }
+
+    // 5. No package ID at all — use quotation title/destination as starting point
+    const fb: PackageData = { title: q.packageTitle, destination: q.destination }
+    setViewPkgData(fb)
+    setCustomForm(fb)
+  }
+
+  async function saveCustomPackage(andShare = false) {
+    if (!viewPkgQuot || !currentUser) return
+    andShare ? setSharingCustom(true) : setSavingCustom(true)
+    try {
+      await fetch(`/api/agent/quotations/${viewPkgQuot.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customPackageData: customForm }),
+      })
+      // Update local state
+      setQuotations(prev => prev.map(q =>
+        q.id === viewPkgQuot.id ? { ...q, customPackageData: customForm } : q
+      ))
+      setViewPkgQuot(prev => prev ? { ...prev, customPackageData: customForm } : prev)
+      setViewPkgData(customForm)
+      setCustomSaved(true)
+
+      if (andShare) {
+        // Send a message to notify the agent
+        const msgRes = await fetch(`/api/agent/quotations/${viewPkgQuot.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'message',
+            senderId: currentUser.uid,
+            senderRole: 'subagent',
+            senderName: subAgentName || 'Travel Agent',
+            text: `✏️ Custom Package Proposal: I've created a customized package version for ${viewPkgQuot.customerName}'s quotation — "${customForm.title}". Please review and set a price.`,
+          }),
+        })
+        const msgData = await msgRes.json()
+        if (msgData.success) {
+          const updatedMsg = msgData.message
+          setQuotations(prev => prev.map(q =>
+            q.id === viewPkgQuot.id
+              ? { ...q, messages: [...q.messages, updatedMsg] }
+              : q
+          ))
+          if (selQuot?.id === viewPkgQuot.id) {
+            setSelQuot(prev => prev ? { ...prev, messages: [...prev.messages, updatedMsg] } : prev)
+          }
+        }
+        setViewPkgQuot(null)
+      }
+    } catch { }
+    finally {
+      setSavingCustom(false)
+      setSharingCustom(false)
+    }
   }
 
   function copyPlannerUrl() {
@@ -490,6 +657,7 @@ export default function SubAgentDashboardPage() {
     : `/tailored-travel/${parentAgentSlug}`
 
   const TABS: { id: Tab; label: string; icon: any; badge?: number }[] = [
+    { id: 'planner',   label: 'AI Planner', icon: Sparkles },
     { id: 'home',      label: 'Home',       icon: Home },
     { id: 'bookings',  label: 'Bookings',   icon: BookOpen,     badge: bookings.filter(b => b.status === 'new').length || undefined },
     { id: 'packages',  label: 'Packages',   icon: Package },
@@ -606,6 +774,36 @@ export default function SubAgentDashboardPage() {
         {/* Content */}
         <div className="flex-1 p-6 pb-24 md:pb-6">
           <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+
+            {/* ══════════════════════ AI PLANNER ═══════════════════════════ */}
+            {tab === 'planner' && (
+              <div className="flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+                {/* Toolbar */}
+                <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                  <div>
+                    <h2 className="font-bold text-gray-900">AI Travel Planner</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Use the planner directly — your bookings will be tracked to your account</p>
+                  </div>
+                  <a
+                    href={plannerUrl}
+                    target="_blank"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />Open in new tab
+                  </a>
+                </div>
+                {/* Iframe */}
+                <div className="flex-1 rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-white">
+                  <iframe
+                    key={parentAgentSlug}
+                    src={`/tailored-travel/${parentAgentSlug}?embed=1&subAgent=${currentUser?.uid}`}
+                    className="w-full h-full"
+                    allow="microphone; camera"
+                    title="AI Travel Planner"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* ══════════════════════ HOME ══════════════════════════════════ */}
             {tab === 'home' && (
@@ -897,25 +1095,38 @@ export default function SubAgentDashboardPage() {
                     ) : filteredQuots.map(q => {
                       const sc = QUOT_STATUS[q.status]
                       return (
-                        <button key={q.id} onClick={() => setSelQuot(q)}
-                          className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${selQuot?.id === q.id ? 'bg-primary/5 border-l-2 border-primary' : ''}`}>
-                          <div className="flex items-start justify-between gap-1 mb-0.5">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{q.customerName}</p>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sc?.color}`}>{sc?.label}</span>
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
-                          <div className="flex items-center justify-between mt-1">
-                            {q.quotedPrice ? (
-                              <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
-                                ₹{Number(q.quotedPrice).toLocaleString('en-IN')}
-                              </span>
-                            ) : (
-                              q.messages.length > 0
-                                ? <span className="text-[10px] text-gray-400">{q.messages.length} messages</span>
-                                : <span />
+                        <div key={q.id}
+                          className={`relative px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${selQuot?.id === q.id ? 'bg-primary/5 border-l-2 border-primary' : ''}`}>
+                          <button className="w-full text-left" onClick={() => setSelQuot(q)}>
+                            <div className="flex items-start justify-between gap-1 mb-0.5">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{q.customerName}</p>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sc?.color}`}>{sc?.label}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              {q.quotedPrice ? (
+                                <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                                  ₹{Number(q.quotedPrice).toLocaleString('en-IN')}
+                                </span>
+                              ) : (
+                                q.messages.length > 0
+                                  ? <span className="text-[10px] text-gray-400">{q.messages.length} msg{q.messages.length !== 1 ? 's' : ''}</span>
+                                  : <span />
+                              )}
+                              {/* View package button */}
+                              <button
+                                onClick={e => { e.stopPropagation(); openPackageView(q) }}
+                                className="flex items-center gap-0.5 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full transition-colors"
+                                title="View & edit package details"
+                              >
+                                <Eye className="w-3 h-3" />View
+                              </button>
+                            </div>
+                            {q.customPackageData && (
+                              <span className="mt-1 inline-block text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">My Version</span>
                             )}
-                          </div>
-                        </button>
+                          </button>
+                        </div>
                       )
                     })}
                   </div>
@@ -1717,6 +1928,291 @@ export default function SubAgentDashboardPage() {
         ))}
       </div>
 
+      {/* ── Package View / Edit Modal ────────────────────────────────────────── */}
+      {viewPkgQuot && (
+        <div className="fixed inset-0 z-[70] bg-black/60 flex items-start justify-center overflow-y-auto py-6 px-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden">
+
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <div className="flex items-center gap-3 min-w-0">
+                <div>
+                  <p className="font-bold text-gray-900 truncate">{customForm.title || viewPkgQuot.packageTitle}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-gray-400">{viewPkgQuot.customerName}</p>
+                    {viewPkgQuot.customPackageData && (
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">My Version</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setViewPkgQuot(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex-shrink-0">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingPkg ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="p-6 space-y-5 overflow-y-auto">
+
+                {/* ── Hero image ── */}
+                {customForm.primaryImageUrl ? (
+                  <div className="relative h-48 rounded-2xl overflow-hidden">
+                    <img src={customForm.primaryImageUrl} alt={customForm.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <div className="absolute bottom-3 left-4">
+                      <p className="text-white font-bold text-lg">{customForm.title}</p>
+                      <p className="text-white/80 text-sm flex items-center gap-1"><MapPin className="w-3 h-3" />{customForm.destination}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-28 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl flex items-center justify-center">
+                    <div className="text-center">
+                      <Package className="w-8 h-8 text-primary/40 mx-auto mb-1" />
+                      <p className="font-bold text-gray-700">{customForm.title}</p>
+                      <p className="text-xs text-gray-400 flex items-center gap-1 justify-center mt-0.5"><MapPin className="w-3 h-3" />{customForm.destination}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Instruction banner ── */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <Star className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    Click the <span className="font-bold">pencil ✏️</span> on any section to edit it. Your changes create <span className="font-bold">your own version</span> of this package — the original is not affected. Click <span className="font-bold">"Share to Agent"</span> when ready.
+                  </p>
+                </div>
+
+                {/* ── Section: Title & Basic Info ── */}
+                <PkgSection
+                  title="Package Title & Destination"
+                  isEditing={editingSection === 'basic'}
+                  onEdit={() => setEditingSection(editingSection === 'basic' ? null : 'basic')}
+                  view={
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div><p className="text-xs text-gray-400 mb-0.5">Title</p><p className="font-semibold text-gray-800">{customForm.title || '—'}</p></div>
+                      <div><p className="text-xs text-gray-400 mb-0.5">Destination</p><p className="font-semibold text-gray-800">{customForm.destination || '—'}</p></div>
+                      {customForm.travelType && <div><p className="text-xs text-gray-400 mb-0.5">Travel Type</p><p className="font-semibold text-gray-800">{customForm.travelType}</p></div>}
+                      {customForm.starCategory && <div><p className="text-xs text-gray-400 mb-0.5">Category</p><p className="font-semibold text-gray-800">{customForm.starCategory}</p></div>}
+                    </div>
+                  }
+                  edit={
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Package Title</label>
+                        <input value={customForm.title || ''} onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Destination</label>
+                        <input value={customForm.destination || ''} onChange={e => setCustomForm(p => ({ ...p, destination: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Travel Type</label>
+                        <input value={customForm.travelType || ''} onChange={e => setCustomForm(p => ({ ...p, travelType: e.target.value }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* ── Section: Duration & Price ── */}
+                <PkgSection
+                  title="Duration & Pricing"
+                  isEditing={editingSection === 'duration'}
+                  onEdit={() => setEditingSection(editingSection === 'duration' ? null : 'duration')}
+                  view={
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Nights</p>
+                        <p className="font-bold text-gray-900 text-lg">{customForm.durationNights ?? '—'}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Days</p>
+                        <p className="font-bold text-gray-900 text-lg">{customForm.durationDays ?? '—'}</p>
+                      </div>
+                      <div className="bg-primary/5 border border-primary/20 rounded-xl px-3 py-2 text-center">
+                        <p className="text-[10px] text-primary uppercase tracking-wide font-semibold">Price/Person</p>
+                        <p className="font-bold text-primary text-lg">{customForm.pricePerPerson ? `₹${customForm.pricePerPerson.toLocaleString('en-IN')}` : '—'}</p>
+                      </div>
+                    </div>
+                  }
+                  edit={
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Nights</label>
+                        <input type="number" value={customForm.durationNights ?? ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Days</label>
+                        <input type="number" value={customForm.durationDays ?? ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-gray-500 block mb-1">Price/Person (₹)</label>
+                        <input type="number" value={customForm.pricePerPerson ?? ''} onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) }))}
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* ── Section: Overview ── */}
+                <PkgSection
+                  title="Overview"
+                  isEditing={editingSection === 'overview'}
+                  onEdit={() => setEditingSection(editingSection === 'overview' ? null : 'overview')}
+                  view={
+                    customForm.overview
+                      ? <p className="text-sm text-gray-700 leading-relaxed">{customForm.overview}</p>
+                      : <p className="text-sm text-gray-400 italic">No overview yet — click ✏️ to add one</p>
+                  }
+                  edit={
+                    <textarea rows={4} value={customForm.overview || ''} onChange={e => setCustomForm(p => ({ ...p, overview: e.target.value }))}
+                      placeholder="Write a compelling overview of this package…"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  }
+                />
+
+                {/* ── Section: Highlights ── */}
+                <PkgSection
+                  title="Highlights"
+                  isEditing={editingSection === 'highlights'}
+                  onEdit={() => setEditingSection(editingSection === 'highlights' ? null : 'highlights')}
+                  view={
+                    Array.isArray(customForm.highlights) && customForm.highlights.length > 0
+                      ? <ul className="space-y-1.5">{customForm.highlights.map((h, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <span className="text-primary mt-0.5">✦</span>{h}
+                          </li>
+                        ))}</ul>
+                      : <p className="text-sm text-gray-400 italic">No highlights yet — click ✏️ to add</p>
+                  }
+                  edit={
+                    <div>
+                      <textarea rows={4}
+                        value={Array.isArray(customForm.highlights) ? customForm.highlights.join('\n') : ''}
+                        onChange={e => setCustomForm(p => ({ ...p, highlights: e.target.value.split('\n').filter(Boolean) }))}
+                        placeholder="One highlight per line&#10;Beautiful beaches&#10;Scuba diving spots&#10;Sunset cruise"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <p className="text-[10px] text-gray-400 mt-1">One highlight per line</p>
+                    </div>
+                  }
+                />
+
+                {/* ── Section: Inclusions & Exclusions ── */}
+                <PkgSection
+                  title="Inclusions & Exclusions"
+                  isEditing={editingSection === 'inclusions'}
+                  onEdit={() => setEditingSection(editingSection === 'inclusions' ? null : 'inclusions')}
+                  view={
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-bold text-green-700 mb-2">✓ Inclusions</p>
+                        {Array.isArray(customForm.inclusions) && customForm.inclusions.length > 0
+                          ? <ul className="space-y-1">{customForm.inclusions.map((inc, i) => (
+                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><span className="text-green-500 mt-0.5">•</span>{inc}</li>
+                            ))}</ul>
+                          : <p className="text-xs text-gray-400 italic">None added</p>}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-red-600 mb-2">✗ Exclusions</p>
+                        {Array.isArray(customForm.exclusions) && customForm.exclusions.length > 0
+                          ? <ul className="space-y-1">{customForm.exclusions.map((exc, i) => (
+                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><span className="text-red-400 mt-0.5">•</span>{exc}</li>
+                            ))}</ul>
+                          : <p className="text-xs text-gray-400 italic">None added</p>}
+                      </div>
+                    </div>
+                  }
+                  edit={
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-green-700 block mb-1">✓ Inclusions (one per line)</label>
+                        <textarea rows={5}
+                          value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : ''}
+                          onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n').filter(Boolean) }))}
+                          placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast&#10;Airport transfers"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-green-300" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-red-600 block mb-1">✗ Exclusions (one per line)</label>
+                        <textarea rows={5}
+                          value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : ''}
+                          onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n').filter(Boolean) }))}
+                          placeholder="Personal expenses&#10;Visa fees&#10;Travel insurance&#10;Optional activities"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-red-300" />
+                      </div>
+                    </div>
+                  }
+                />
+
+                {/* ── Section: Day-wise Itinerary ── */}
+                <PkgSection
+                  title="Day-Wise Itinerary"
+                  isEditing={editingSection === 'itinerary'}
+                  onEdit={() => setEditingSection(editingSection === 'itinerary' ? null : 'itinerary')}
+                  view={
+                    customForm.dayWiseItinerary
+                      ? <div className="space-y-1.5">{customForm.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) => (
+                          <div key={i} className={`text-sm ${line.toLowerCase().startsWith('day') ? 'font-bold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-3'}`}>{line}</div>
+                        ))}</div>
+                      : <p className="text-sm text-gray-400 italic">No itinerary yet — click ✏️ to add day-by-day plan</p>
+                  }
+                  edit={
+                    <div>
+                      <textarea rows={8}
+                        value={customForm.dayWiseItinerary || ''}
+                        onChange={e => setCustomForm(p => ({ ...p, dayWiseItinerary: e.target.value }))}
+                        placeholder="Day 1: Arrive at airport, check-in hotel&#10;Day 2: Visit beach, sunset cruise&#10;Day 3: Scuba diving, local market&#10;Day 4: Island hopping&#10;Day 5: Free time, departure"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      <p className="text-[10px] text-gray-400 mt-1">Start each day with "Day 1:", "Day 2:" etc.</p>
+                    </div>
+                  }
+                />
+              </div>
+            )}
+
+            {/* ── Footer actions ── */}
+            {!loadingPkg && (
+              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  {customSaved && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
+                      <CheckCircle className="w-3.5 h-3.5" />Saved
+                    </span>
+                  )}
+                  <p className="text-xs text-gray-400">Edits only affect this quotation</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveCustomPackage(false)}
+                    disabled={savingCustom || sharingCustom}
+                    className="flex items-center gap-1.5 text-xs font-semibold border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
+                  >
+                    {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
+                    Save My Version
+                  </button>
+                  <button
+                    onClick={() => saveCustomPackage(true)}
+                    disabled={savingCustom || sharingCustom}
+                    className="flex items-center gap-1.5 text-xs font-bold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm shadow-primary/30"
+                  >
+                    {sharingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    Share to Agent
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Quotation PDF Modal ──────────────────────────────────────────────── */}
       {pdfQuot && (
         <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 print:bg-white print:p-0 print:block">
@@ -1830,6 +2326,42 @@ export default function SubAgentDashboardPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── PkgSection: reusable collapsible section with pencil edit ─────────────────
+function PkgSection({
+  title, isEditing, onEdit, view, edit,
+}: {
+  title: string
+  isEditing: boolean
+  onEdit: () => void
+  view: React.ReactNode
+  edit: React.ReactNode
+}) {
+  return (
+    <div className="border border-gray-200 rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <p className="text-sm font-bold text-gray-800">{title}</p>
+        <button
+          onClick={onEdit}
+          className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+            isEditing
+              ? 'bg-primary text-white'
+              : 'text-gray-500 hover:text-primary hover:bg-primary/10 border border-gray-200'
+          }`}
+        >
+          {isEditing ? (
+            <><span className="text-xs">✓</span> Done</>
+          ) : (
+            <><span className="text-xs">✏️</span> Edit</>
+          )}
+        </button>
+      </div>
+      <div className="px-4 py-4">
+        {isEditing ? edit : view}
+      </div>
     </div>
   )
 }
