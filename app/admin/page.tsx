@@ -20,6 +20,7 @@ import {
 import { db } from '@/lib/firebase'
 import PackageForm from '@/components/admin/PackageForm'
 import ViewModal from '@/components/admin/ViewModal'
+import ImageUploader from '@/components/admin/ImageUploader'
 import AIPackageGenerator from '@/components/admin/AIPackageGenerator'
 import ItineraryGenerator from '@/components/admin/ItineraryGenerator'
 import CustomerRecordsManager from '@/components/admin/CustomerRecordsManager'
@@ -3400,14 +3401,12 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL *</label>
-                      <input
-                        type="url"
-                        name="image"
+                      <ImageUploader
+                        label="Blog Cover Image"
                         value={blogFormData.image || ''}
-                        onChange={handleBlogInputChange}
+                        onChange={url => setBlogFormData((p: any) => ({ ...p, image: url }))}
+                        folder="/blogs"
                         required
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -3629,16 +3628,11 @@ export default function AdminDashboard() {
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              OG Image URL (for social sharing) - Leave empty to use main image
-                            </label>
-                            <input
-                              type="url"
-                              name="ogImage"
+                            <ImageUploader
+                              label="OG Image (for social sharing) — leave empty to use main image"
                               value={blogFormData.ogImage || ''}
-                              onChange={handleBlogInputChange}
-                              placeholder="https://images.unsplash.com/..."
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                              onChange={url => setBlogFormData((p: any) => ({ ...p, ogImage: url }))}
+                              folder="/blogs/og"
                             />
                           </div>
                         </div>
@@ -4075,11 +4069,12 @@ export default function AdminDashboard() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Photo URL</label>
-                      <input type="url" value={authorFormData.photo || ''}
-                        onChange={e => setAuthorFormData(p => ({ ...p, photo: e.target.value }))}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                      <ImageUploader
+                        label="Author Photo"
+                        value={authorFormData.photo || ''}
+                        onChange={url => setAuthorFormData(p => ({ ...p, photo: url }))}
+                        folder="/authors"
+                      />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-1">Short Bio <span className="text-xs font-normal text-gray-400">(shown on blog cards, max ~160 chars)</span></label>
@@ -4300,14 +4295,12 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Image URL *</label>
-                        <input
-                          type="url"
+                        <ImageUploader
+                          label="Destination Image"
                           value={destinationFormData.image || ''}
-                          onChange={(e) => setDestinationFormData({ ...destinationFormData, image: e.target.value })}
+                          onChange={url => setDestinationFormData({ ...destinationFormData, image: url })}
+                          folder="/destinations"
                           required
-                          placeholder="https://images.unsplash.com/..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       </div>
                       <div>

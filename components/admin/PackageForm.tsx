@@ -1,5 +1,7 @@
 'use client'
 
+import ImageUploader from './ImageUploader'
+
 interface DestinationPackage {
   id?: string
   Destination_ID: string
@@ -657,28 +659,18 @@ export default function PackageForm({
       <div>
         <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Media & SEO</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Image URL </label>
-            <input
-              type="url"
-              name="Primary_Image_URL"
-              value={formData.Primary_Image_URL || ''}
-              onChange={handleInputChange}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Meta Image URL </label>
-            <input
-              type="url"
-              name="Meta_Image_URL"
-              value={formData.Meta_Image_URL || ''}
-              onChange={handleInputChange}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+          <ImageUploader
+            label="Primary Image"
+            value={formData.Primary_Image_URL || ''}
+            onChange={url => setFormData?.(p => ({ ...p, Primary_Image_URL: url }))}
+            folder="/packages"
+          />
+          <ImageUploader
+            label="Meta Image"
+            value={formData.Meta_Image_URL || ''}
+            onChange={url => setFormData?.(p => ({ ...p, Meta_Image_URL: url }))}
+            folder="/packages/meta"
+          />
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Booking URL </label>
             <input

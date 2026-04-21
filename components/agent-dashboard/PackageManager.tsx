@@ -100,6 +100,10 @@ export default function PackageManager({ agentId }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [showPdfPreview, setShowPdfPreview] = useState(false)
 
+  // Image upload state
+  const imgInputRef = useRef<HTMLInputElement>(null)
+  const [imgUploading, setImgUploading] = useState(false)
+
   // CSV state
   const csvInputRef = useRef<HTMLInputElement>(null)
   const [csvUploading, setCsvUploading] = useState(false)
@@ -267,6 +271,26 @@ export default function PackageManager({ agentId }: Props) {
     setEditingId(pkg.id)
     setError('')
     setShowForm(true)
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImgUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', '/packages')
+      fd.append('fileName', `pkg_${agentId}_${Date.now()}`)
+      const res = await fetch('/api/imagekit/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.success) {
+        setForm(p => ({ ...p, primaryImageUrl: data.url }))
+      }
+    } catch (e) { console.error(e) } finally {
+      setImgUploading(false)
+      if (imgInputRef.current) imgInputRef.current.value = ''
+    }
   }
 
   async function handleSave() {
@@ -754,8 +778,37 @@ export default function PackageManager({ agentId }: Props) {
                       </div>
                     </div>
                     <div className="col-span-2">
-                      <label className="label">Cover Image URL</label>
-                      <input name="primaryImageUrl" value={form.primaryImageUrl} onChange={handleChange} placeholder="https://..." className="input" />
+                      <label className="label">Cover Image</label>
+                      <input ref={imgInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                      {form.primaryImageUrl ? (
+                        <div className="relative rounded-2xl overflow-hidden border border-gray-200 h-44 group">
+                          <img src={form.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                            <button type="button" onClick={() => imgInputRef.current?.click()}
+                              className="flex items-center gap-1.5 bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100">
+                              <Upload className="w-3.5 h-3.5" /> Change
+                            </button>
+                            <button type="button" onClick={() => setForm(p => ({ ...p, primaryImageUrl: '' }))}
+                              className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-600">
+                              <X className="w-3.5 h-3.5" /> Remove
+                            </button>
+                          </div>
+                          {imgUploading && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Loader2 className="w-6 h-6 animate-spin text-white" />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => imgInputRef.current?.click()} disabled={imgUploading}
+                          className="w-full h-32 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50/40 transition-colors text-gray-400 hover:text-purple-600">
+                          {imgUploading ? (
+                            <><Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm font-medium">Uploading…</span></>
+                          ) : (
+                            <><Upload className="w-6 h-6" /><span className="text-sm font-medium">Click to upload cover image</span><span className="text-xs">JPG, PNG, WEBP · Max 10 MB</span></>
+                          )}
+                        </button>
+                      )}
                     </div>
                     <div className="col-span-2">
                       <label className="label">Overview / Description</label>

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { deleteDoc, doc, updateDoc, addDoc, collection } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { Destination } from './types'
+import ImageUploader from './ImageUploader'
 
 interface DestinationsSectionProps {
     destinations: Destination[]
@@ -173,10 +174,13 @@ export default function DestinationsSection({
                             <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
                             <input type="text" value={formData.slug || ''} onChange={(e) => setFormData({ ...formData, slug: e.target.value })} placeholder="auto-generated-from-name" className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Image URL *</label>
-                            <input type="url" value={formData.image || ''} onChange={(e) => setFormData({ ...formData, image: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
-                        </div>
+                        <ImageUploader
+                            label="Destination Image"
+                            value={formData.image || ''}
+                            onChange={url => setFormData({ ...formData, image: url })}
+                            folder="/destinations"
+                            required
+                        />
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Best Time to Visit</label>
                             <input type="text" value={formData.bestTimeToVisit || ''} onChange={(e) => setFormData({ ...formData, bestTimeToVisit: e.target.value })} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
