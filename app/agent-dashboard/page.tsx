@@ -21,10 +21,11 @@ import CRMAnalytics from '@/components/agent-dashboard/CRMAnalytics'
 import EmbedCode from '@/components/agent-dashboard/EmbedCode'
 import AgentSettings from '@/components/agent-dashboard/AgentSettings'
 import QuotationsManager from '@/components/agent-dashboard/QuotationsManager'
+import QuotationHistory from '@/components/agent-dashboard/QuotationHistory'
 import DemoDataLoader from '@/components/agent-dashboard/DemoDataLoader'
 import type { Agent } from '@/lib/types/agent'
 
-type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'quotations' | 'crm' | 'embed' | 'settings'
+type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'quotations' | 'quotation_history' | 'crm' | 'embed' | 'settings'
 
 interface TabDef {
   id: Tab
@@ -140,6 +141,7 @@ export default function AgentDashboardPage() {
     { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
     { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
     { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" /> },
+    { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },
     { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
     { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
@@ -151,7 +153,7 @@ export default function AgentDashboardPage() {
   const TAB_LABELS: Record<Tab, string> = {
     home: 'Dashboard', packages: 'Packages', bookings: 'Bookings',
     analytics: 'Analytics', customers: 'Customers', team: 'Travel Agents',
-    quotations: 'Quotations', crm: 'CRM & Analytics', embed: 'Embed Planner', settings: 'Settings',
+    quotations: 'Quotations', quotation_history: 'Quote History', crm: 'CRM & Analytics', embed: 'Embed Planner', settings: 'Settings',
   }
 
   return (
@@ -313,6 +315,9 @@ export default function AgentDashboardPage() {
                     agentName={agentData?.companyName || agentData?.contactName || ''}
                     currentUserId={currentUser.uid}
                   />
+                )}
+                {tab === 'quotation_history' && (
+                  <QuotationHistory agentId={currentUser.uid} />
                 )}
                 {tab === 'crm' && <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'embed' && <EmbedCode agentSlug={agentSlug} />}

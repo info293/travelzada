@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar } from 'lucide-react'
-import { AgentPackage } from '@/lib/types/agent'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp } from 'lucide-react'
+import { AgentPackage, HotelEntry } from '@/lib/types/agent'
 
 interface Props {
   agentId: string
@@ -30,12 +30,20 @@ const EMPTY_FORM = {
   seasonalAvailability: 'Year Round',
 }
 
+const MEAL_PLANS = ['Breakfast', 'Half Board', 'Full Board', 'All Inclusive', 'Room Only']
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
 const STAR_CATEGORIES = ['3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
 
 interface CsvResult { success: number; failed: number; errors: string[] }
+
+interface DayItem {
+  id: string
+  title: string
+  description: string
+  tags: string[]
+}
 
 // Minimal CSV parser — handles quoted fields containing commas/newlines
 function parseCsv(text: string): Record<string, string>[] {
@@ -84,6 +92,14 @@ export default function PackageManager({ agentId }: Props) {
   const [previewPkg, setPreviewPkg] = useState<AgentPackage | null>(null)
   const [showFormPreview, setShowFormPreview] = useState(false)
 
+  // Day-wise itinerary items
+  const [dayItems, setDayItems] = useState<DayItem[]>([])
+  const [hotelEntries, setHotelEntries] = useState<HotelEntry[]>([])
+  const [markupEnabled, setMarkupEnabled] = useState(false)
+  const [markupPercent, setMarkupPercent] = useState('15')
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [showPdfPreview, setShowPdfPreview] = useState(false)
+
   // CSV state
   const csvInputRef = useRef<HTMLInputElement>(null)
   const [csvUploading, setCsvUploading] = useState(false)
@@ -105,9 +121,118 @@ export default function PackageManager({ agentId }: Props) {
 
   useEffect(() => { fetchPackages() }, [fetchPackages])
 
+  function parseDayItems(text: string): DayItem[] {
+    if (!text?.trim()) return []
+    const lines = text.split('\n')
+    const items: DayItem[] = []
+    let current: DayItem | null = null
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line) continue
+      if (/^day\s*\d+/i.test(line)) {
+        if (current) items.push(current)
+        current = { id: crypto.randomUUID(), title: line, description: '', tags: [] }
+      } else if (current) {
+        current.description += (current.description ? '\n' : '') + line
+      }
+    }
+    if (current) items.push(current)
+    return items
+  }
+
+  function serializeDayItems(items: DayItem[]): string {
+    return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
+  }
+
+  function addDayItem() {
+    const idx = dayItems.length + 1
+    setDayItems(prev => [...prev, { id: crypto.randomUUID(), title: `Day ${idx}`, description: '', tags: [] }])
+  }
+
+  function updateDayItem(id: string, field: 'title' | 'description', value: string) {
+    setDayItems(prev => prev.map(d => d.id === id ? { ...d, [field]: value } : d))
+  }
+
+  function removeDayItem(id: string) {
+    setDayItems(prev => prev.filter(d => d.id !== id))
+  }
+
+  function addTagToDayItem(id: string, tag: string) {
+    const t = tag.trim()
+    if (!t) return
+    setDayItems(prev => prev.map(d => d.id === id && !d.tags.includes(t) ? { ...d, tags: [...d.tags, t] } : d))
+  }
+
+  function removeTagFromDayItem(id: string, tag: string) {
+    setDayItems(prev => prev.map(d => d.id === id ? { ...d, tags: d.tags.filter(t => t !== tag) } : d))
+  }
+
+  function addHotelEntry() {
+    setHotelEntries(prev => [...prev, { id: crypto.randomUUID(), destination: '', nights: 1, hotels: '', mealPlan: 'Breakfast', roomType: '' }])
+  }
+
+  function updateHotelEntry(id: string, field: keyof HotelEntry, value: string | number) {
+    setHotelEntries(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h))
+  }
+
+  function removeHotelEntry(id: string) {
+    setHotelEntries(prev => prev.filter(h => h.id !== id))
+  }
+
+  function sharePackageOnWhatsApp() {
+    const base = Number(form.pricePerPerson) || 0
+    const final = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
+    const lines: string[] = [
+      `🌍 *${form.title || 'Travel Package'}*`,
+      `📍 ${form.destination}${form.destinationCountry ? ', ' + form.destinationCountry : ''}`,
+      `🗓️ ${form.durationDays}D / ${form.durationNights}N  |  ⭐ ${form.starCategory}  |  🎒 ${form.travelType}`,
+      `💰 *₹${final.toLocaleString('en-IN')} per person*`,
+      '',
+    ]
+    if (form.overview) lines.push(form.overview, '')
+    if (form.highlights) {
+      lines.push('✨ *Highlights*')
+      form.highlights.split('\n').filter(Boolean).forEach(h => lines.push(`  • ${h}`))
+      lines.push('')
+    }
+    if (hotelEntries.length > 0) {
+      lines.push('🏨 *Hotels*')
+      hotelEntries.forEach(h => {
+        lines.push(`  📍 *${h.destination}${h.nights ? ` (${h.nights}N)` : ''}*`)
+        lines.push(`     ${h.hotels.split('\n')[0]}`)
+        lines.push(`     ${h.mealPlan} · ${h.roomType.split('\n')[0]}`)
+      })
+      lines.push('')
+    }
+    if (dayItems.length > 0) {
+      lines.push('📅 *Itinerary*')
+      dayItems.forEach(d => {
+        lines.push(`  *${d.title}*`)
+        if (d.description) lines.push(`  ${d.description.split('\n')[0]}`)
+      })
+      lines.push('')
+    }
+    if (form.inclusions) {
+      lines.push('✅ *Inclusions*')
+      form.inclusions.split('\n').filter(Boolean).slice(0, 5).forEach(i => lines.push(`  ✓ ${i}`))
+      lines.push('')
+    }
+    lines.push('_Contact us to book this package!_')
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank')
+  }
+
+  function sharePackageAsPdfWA() {
+    setShowPdfPreview(true)
+  }
+
   function openNewForm() {
     setForm(EMPTY_FORM)
     setEditingId(null)
+    setDayItems([])
+    setHotelEntries([])
+    setMarkupEnabled(false)
+    setMarkupPercent('15')
+    setDetailsOpen(true)
     setError('')
     setShowForm(true)
   }
@@ -134,6 +259,11 @@ export default function PackageManager({ agentId }: Props) {
       primaryImageUrl: pkg.primaryImageUrl || '',
       seasonalAvailability: pkg.seasonalAvailability || 'Year Round',
     })
+    setDayItems(parseDayItems(pkg.dayWiseItinerary || ''))
+    setHotelEntries(Array.isArray(pkg.hotels) ? pkg.hotels : [])
+    setMarkupEnabled(false)
+    setMarkupPercent('15')
+    setDetailsOpen(true)
     setEditingId(pkg.id)
     setError('')
     setShowForm(true)
@@ -166,9 +296,11 @@ export default function PackageManager({ agentId }: Props) {
         inclusions: form.inclusions.split('\n').filter(Boolean),
         exclusions: form.exclusions.split('\n').filter(Boolean),
         highlights: form.highlights.split('\n').filter(Boolean),
-        dayWiseItinerary: form.dayWiseItinerary,
+        dayWiseItinerary: dayItems.length > 0 ? serializeDayItems(dayItems) : form.dayWiseItinerary,
+        hotels: hotelEntries,
         primaryImageUrl: form.primaryImageUrl,
         seasonalAvailability: form.seasonalAvailability,
+        markupPercent: markupEnabled ? Number(markupPercent) : 0,
       }
 
       let res: Response
@@ -495,131 +627,475 @@ export default function PackageManager({ agentId }: Props) {
         </div>
       )}
 
-      {/* Slide-over form */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowForm(false)} />
-          <div className="relative ml-auto w-full max-w-2xl bg-white h-full overflow-y-auto shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-              <h3 className="font-bold text-gray-900">{editingId ? 'Edit Package' : 'New Package'}</h3>
-              <button onClick={() => setShowForm(false)} className="p-1 text-gray-400 hover:text-gray-700">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Two-panel package editor */}
+      {showForm && (() => {
+        const basePrice = Number(form.pricePerPerson) || 0
+        const markup = markupEnabled ? (Number(markupPercent) || 0) : 0
+        const finalPrice = basePrice * (1 + markup / 100)
+        return (
+        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-50 flex flex-col bg-[#f4f5f9]">
 
-            <div className="p-6 space-y-4 flex-1">
+          {/* Main: two columns */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Left: editor */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
+
               {error && (
-                <div className="bg-red-50 text-red-700 text-sm px-4 py-2 rounded-lg">{error}</div>
+                <div className="flex items-center gap-2 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-xl border border-red-100">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+                </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="label">Package Title *</label>
-                  <input name="title" value={form.title} onChange={handleChange} placeholder="Andaman Luxury 5N 6D" className="input" />
+              {/* Package Identity */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3">Package Identity</p>
+                <input
+                  name="title"
+                  value={form.title}
+                  onChange={handleChange}
+                  placeholder="e.g. Swiss Alps Luxury Getaway"
+                  className="w-full text-2xl font-bold text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300 mb-4"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Clock className="w-3.5 h-3.5 text-gray-500" />
+                    {form.durationDays || '?'} Days / {form.durationNights || '?'} Nights
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Star className="w-3.5 h-3.5 text-amber-400" />
+                    {form.starCategory}
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                    {form.seasonalAvailability || 'Year Round'}
+                  </span>
+                  {form.travelType && (
+                    <span className="flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                      {form.travelType}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="label">Destination *</label>
-                  <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
+                <button
+                  onClick={() => setDetailsOpen(v => !v)}
+                  className="mt-4 flex items-center gap-1.5 text-xs text-blue-500 font-semibold hover:text-blue-700"
+                >
+                  {detailsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  {detailsOpen ? 'Hide details' : 'Edit all details'}
+                </button>
+                {detailsOpen && (
+                  <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">Destination *</label>
+                      <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Country</label>
+                      <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Days</label>
+                      <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Nights</label>
+                      <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Min Group</label>
+                      <input name="minGroupSize" type="number" min="1" value={form.minGroupSize} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Max Group</label>
+                      <input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label">Seasonal Availability</label>
+                      <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label mb-2">Travel Type</label>
+                      <div className="flex flex-wrap gap-2">
+                        {TRAVEL_TYPES.map(t => (
+                          <button key={t} type="button" onClick={() => setForm(p => ({ ...p, travelType: t }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.travelType === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                          >{t}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label mb-2">Star Category</label>
+                      <div className="flex flex-wrap gap-2">
+                        {STAR_CATEGORIES.map(s => (
+                          <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-200'}`}
+                          >{s}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label mb-2">Theme</label>
+                      <div className="flex flex-wrap gap-2">
+                        {THEMES.map(t => (
+                          <button key={t} type="button" onClick={() => setForm(p => ({ ...p, theme: form.theme === t ? '' : t }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                          >{t}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label mb-2">Mood / Vibe</label>
+                      <div className="flex flex-wrap gap-2">
+                        {MOODS.map(m => (
+                          <button key={m} type="button" onClick={() => setForm(p => ({ ...p, mood: form.mood === m ? '' : m }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-gray-600 border-gray-200'}`}
+                          >{m}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label">Cover Image URL</label>
+                      <input name="primaryImageUrl" value={form.primaryImageUrl} onChange={handleChange} placeholder="https://..." className="input" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label">Overview / Description</label>
+                      <textarea name="overview" value={form.overview} onChange={handleChange} rows={3} placeholder="Describe this package…" className="input resize-none" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="label">Highlights (one per line)</label>
+                      <textarea name="highlights" value={form.highlights} onChange={handleChange} rows={3} className="input resize-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-green-700">✓ Inclusions (one per line)</label>
+                      <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} className="input resize-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-red-600">✗ Exclusions (one per line)</label>
+                      <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} className="input resize-none text-sm" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Pricing Configuration */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-base">💰</div>
+                  <h3 className="font-bold text-gray-900 text-sm">Pricing Configuration</h3>
                 </div>
-                <div>
-                  <label className="label">Country</label>
-                  <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Cost (per person)</p>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-gray-400 font-semibold text-lg">₹</span>
+                        <input
+                          name="pricePerPerson"
+                          type="number"
+                          value={form.pricePerPerson}
+                          onChange={handleChange}
+                          className="text-3xl font-bold text-gray-900 border-none outline-none w-40 bg-transparent"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-gray-700">Agency Markup</p>
+                        <p className="text-[10px] text-gray-400">Apply {markupPercent}% standard profit</p>
+                      </div>
+                      <input
+                        type="number"
+                        value={markupPercent}
+                        onChange={e => setMarkupPercent(e.target.value)}
+                        className="w-14 text-center text-sm font-bold border border-gray-200 rounded-lg px-2 py-1 bg-white"
+                      />
+                      <span className="text-xs text-gray-400 font-semibold">%</span>
+                      <button
+                        type="button"
+                        onClick={() => setMarkupEnabled(v => !v)}
+                        className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${markupEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${markupEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-purple-600 text-white rounded-2xl p-4 min-w-[160px] flex-shrink-0 text-center shadow-lg shadow-purple-200">
+                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-2">Final Quotation Price</p>
+                    <p className="text-2xl font-bold leading-tight">
+                      ₹{finalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] opacity-60 mt-1.5">
+                      {markupEnabled ? `Includes ${markup}% markup` : 'No markup applied'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="label">Duration (Days)</label>
-                  <input name="durationDays" type="number" value={form.durationDays} onChange={handleChange} className="input" />
+              </div>
+
+              {/* Hotels & Accommodation */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center text-base">🏨</div>
+                    <h3 className="font-bold text-gray-900 text-sm">Hotels & Accommodation</h3>
+                  </div>
+                  <button onClick={addHotelEntry} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                    <Plus className="w-3.5 h-3.5" /> Add Hotel
+                  </button>
                 </div>
-                <div>
-                  <label className="label">Duration (Nights) *</label>
-                  <input name="durationNights" type="number" value={form.durationNights} onChange={handleChange} className="input" />
+
+                {hotelEntries.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No hotels added yet</p>
+                    <button onClick={addHotelEntry} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add first hotel</button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Destination</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-12">Nights</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Hotel(s)</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-32">Meal Plan</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Room Type</th>
+                          <th className="pb-2 w-6" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {hotelEntries.map(h => (
+                          <tr key={h.id} className="group">
+                            <td className="py-2 pr-3">
+                              <input
+                                value={h.destination}
+                                onChange={e => updateHotelEntry(h.id, 'destination', e.target.value)}
+                                placeholder="Kuta"
+                                className="w-full text-sm font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                type="number"
+                                min="1"
+                                value={h.nights}
+                                onChange={e => updateHotelEntry(h.id, 'nights', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <textarea
+                                value={h.hotels}
+                                onChange={e => updateHotelEntry(h.id, 'hotels', e.target.value)}
+                                placeholder={'Fairfield by Marriott\nOr: The Sakala Resort'}
+                                rows={2}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 resize-none"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <select
+                                value={h.mealPlan}
+                                onChange={e => updateHotelEntry(h.id, 'mealPlan', e.target.value)}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              >
+                                {MEAL_PLANS.map(m => <option key={m}>{m}</option>)}
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <textarea
+                                value={h.roomType}
+                                onChange={e => updateHotelEntry(h.id, 'roomType', e.target.value)}
+                                placeholder={'Room with King Bed\nOr: Deluxe Suite'}
+                                rows={2}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 resize-none"
+                              />
+                            </td>
+                            <td className="py-2">
+                              <button onClick={() => removeHotelEntry(h.id)} className="p-1 text-gray-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Master Itinerary */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-sm">Master Itinerary</h3>
+                  </div>
+                  <button onClick={addDayItem} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                    <Plus className="w-3.5 h-3.5" /> Add New Day
+                  </button>
                 </div>
-                <div>
-                  <label className="label">Price per Person (₹) *</label>
-                  <input name="pricePerPerson" type="number" value={form.pricePerPerson} onChange={handleChange} className="input" />
-                </div>
-                <div>
-                  <label className="label">Max Group Size</label>
-                  <input name="maxGroupSize" type="number" value={form.maxGroupSize} onChange={handleChange} className="input" />
-                </div>
-                <div>
-                  <label className="label">Travel Type</label>
-                  <select name="travelType" value={form.travelType} onChange={handleChange} className="input">
-                    {TRAVEL_TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Star Category</label>
-                  <select name="starCategory" value={form.starCategory} onChange={handleChange} className="input">
-                    {STAR_CATEGORIES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Theme</label>
-                  <select name="theme" value={form.theme} onChange={handleChange} className="input">
-                    <option value="">Select theme</option>
-                    {THEMES.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Mood / Vibe</label>
-                  <select name="mood" value={form.mood} onChange={handleChange} className="input">
-                    <option value="">Select mood</option>
-                    {MOODS.map(m => <option key={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Seasonal Availability</label>
-                  <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct-Mar" className="input" />
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Primary Image URL</label>
-                  <input name="primaryImageUrl" value={form.primaryImageUrl} onChange={handleChange} placeholder="https://..." className="input" />
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Overview / Description</label>
-                  <textarea name="overview" value={form.overview} onChange={handleChange} rows={3} placeholder="Describe this package..." className="input resize-none" />
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Highlights (one per line)</label>
-                  <textarea name="highlights" value={form.highlights} onChange={handleChange} rows={3} placeholder="Scuba diving at Neil Island&#10;Havelock sunrise cruise" className="input resize-none" />
-                </div>
-                <div>
-                  <label className="label">Inclusions (one per line)</label>
-                  <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} placeholder="Flights&#10;Accommodation&#10;Daily breakfast" className="input resize-none" />
-                </div>
-                <div>
-                  <label className="label">Exclusions (one per line)</label>
-                  <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} placeholder="Personal expenses&#10;Travel insurance" className="input resize-none" />
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Day-Wise Itinerary</label>
-                  <textarea name="dayWiseItinerary" value={form.dayWiseItinerary} onChange={handleChange} rows={8} placeholder="Day 1: Arrive in Port Blair...&#10;Day 2: Havelock Island..." className="input resize-none" />
-                </div>
+                {dayItems.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No days added yet</p>
+                    <button onClick={addDayItem} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add Day 1</button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dayItems.map((day, idx) => (
+                      <DayCard
+                        key={day.id}
+                        day={day}
+                        idx={idx}
+                        onTitleChange={v => updateDayItem(day.id, 'title', v)}
+                        onDescChange={v => updateDayItem(day.id, 'description', v)}
+                        onAddTag={tag => addTagToDayItem(day.id, tag)}
+                        onRemoveTag={tag => removeTagFromDayItem(day.id, tag)}
+                        onRemove={() => removeDayItem(day.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3 sticky bottom-0 bg-white">
-              <button onClick={() => setShowForm(false)} className="py-2 px-4 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50">
-                Cancel
+            {/* Right: live preview */}
+            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-700">Live Preview</span>
+                <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setPreviewPkg(formAsPackage())}>
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="p-4">
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                  <div className="relative h-44">
+                    {form.primaryImageUrl ? (
+                      <img src={form.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-200 to-indigo-300 flex items-center justify-center">
+                        <Package className="w-14 h-14 text-white/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full text-gray-800 shadow">Travelzada</span>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Personalized Itinerary</p>
+                      <p className="text-white font-bold text-base leading-snug line-clamp-2">{form.title || 'Your Package Title'}</p>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-xs font-bold text-gray-900 mb-3">Trip Overview</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { emoji: '🏨', label: 'Stay', val: form.starCategory || '–' },
+                        { emoji: '✈️', label: 'Type', val: form.travelType || '–' },
+                        { emoji: '🌙', label: 'Nights', val: form.durationNights || '–' },
+                      ].map(({ emoji, label, val }) => (
+                        <div key={label} className="text-center">
+                          <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-1 text-base">{emoji}</div>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase">{label}</p>
+                          <p className="text-[10px] font-bold text-gray-700">{val}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mx-4 mb-4 bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+                    <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
+                    <p className="text-xl font-bold text-purple-700">
+                      ₹{finalPrice > 0 ? finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '–'}
+                    </p>
+                    <p className="text-[10px] text-purple-400">per person</p>
+                  </div>
+                  {dayItems.length > 0 && (
+                    <div className="px-4 pb-3">
+                      <p className="text-xs font-bold text-gray-700 mb-2">Itinerary ({dayItems.length} days)</p>
+                      <div className="space-y-2">
+                        {dayItems.slice(0, 3).map((d, i) => (
+                          <div key={d.id} className="flex items-start gap-2">
+                            <span className="w-5 h-5 bg-purple-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
+                            <div>
+                              <p className="text-[10px] font-bold text-gray-800 leading-tight">{d.title}</p>
+                              {d.description && <p className="text-[10px] text-gray-400 leading-snug line-clamp-2 mt-0.5">{d.description}</p>}
+                            </div>
+                          </div>
+                        ))}
+                        {dayItems.length > 3 && <p className="text-[10px] text-gray-400 pl-7">+{dayItems.length - 3} more days…</p>}
+                      </div>
+                    </div>
+                  )}
+                  {hotelEntries.length > 0 && (
+                    <div className="px-4 pb-4">
+                      <p className="text-xs font-bold text-gray-700 mb-2">🏨 Hotels ({hotelEntries.length})</p>
+                      <div className="space-y-1.5">
+                        {hotelEntries.map(h => (
+                          <div key={h.id} className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[10px] font-bold text-amber-700">{h.destination}{h.nights ? ` (${h.nights}N)` : ''}</span>
+                              <span className="text-[9px] bg-amber-200 text-amber-800 font-semibold px-1.5 py-0.5 rounded-full">{h.mealPlan}</span>
+                            </div>
+                            {h.hotels && <p className="text-[10px] text-gray-600 leading-snug">{h.hotels.split('\n')[0]}</p>}
+                            {h.roomType && <p className="text-[10px] text-gray-400">{h.roomType.split('\n')[0]}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom action bar */}
+          <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-100 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? 'Saving…' : 'Save as Draft'}
               </button>
               <button
                 onClick={() => setPreviewPkg(formAsPackage())}
-                className="py-2 px-4 rounded-xl border border-indigo-200 text-indigo-700 bg-indigo-50 text-sm font-semibold hover:bg-indigo-100 flex items-center gap-1.5"
+                className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
-                <Eye className="w-4 h-4" />Preview
+                <Download className="w-4 h-4" /> Download PDF
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={sharePackageOnWhatsApp}
+                className="flex items-center gap-2 text-sm font-bold text-white bg-green-500 hover:bg-green-600 px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-green-200"
+                title="Send full package details as formatted text"
+              >
+                <span>📱</span> WA Text
+              </button>
+              <button
+                onClick={sharePackageAsPdfWA}
+                className="flex items-center gap-2 text-sm font-bold text-green-700 bg-green-100 hover:bg-green-200 border border-green-300 px-4 py-2.5 rounded-xl transition-colors"
+                title="Generate PDF then share on WhatsApp"
+              >
+                <span>📄</span> WA PDF
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-2 rounded-xl text-sm"
+                className="flex items-center gap-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-5 py-2.5 rounded-xl transition-colors shadow-sm shadow-blue-200"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? 'Saving…' : 'Save Package'}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {editingId ? 'Update Package' : 'Publish Package'}
               </button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* ── Package Preview Modal ─────────────────────────────────────────── */}
       {previewPkg && (
@@ -777,11 +1253,264 @@ export default function PackageManager({ agentId }: Props) {
         </div>
       )}
 
+      {/* PDF Preview Modal */}
+      {showPdfPreview && (() => {
+        const base = Number(form.pricePerPerson) || 0
+        const final = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
+        return (
+          <div className="fixed inset-0 z-[70] bg-black/60 flex items-start justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:block">
+            <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl print:shadow-none print:rounded-none print:max-w-full">
+              {/* Modal controls — hidden on print */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden">
+                <div>
+                  <h3 className="font-bold text-gray-900">Package PDF Preview</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Print or save as PDF, then share via WhatsApp</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      window.print()
+                      setTimeout(() => {
+                        const base2 = Number(form.pricePerPerson) || 0
+                        const final2 = markupEnabled ? base2 * (1 + Number(markupPercent) / 100) : base2
+                        const msg = `📄 *${form.title || 'Travel Package'}* — Detailed itinerary PDF\n📍 ${form.destination} · ${form.durationDays}D/${form.durationNights}N · ₹${final2.toLocaleString('en-IN')}/person\n\nPlease find the attached PDF with complete itinerary, hotels, and pricing details.\n\n_Contact us to book!_`
+                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                      }, 500)
+                    }}
+                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl"
+                  >
+                    📱 Print & Share on WhatsApp
+                  </button>
+                  <button onClick={() => window.print()} className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50">
+                    🖨️ Print / Save PDF
+                  </button>
+                  <button onClick={() => setShowPdfPreview(false)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* PDF Content */}
+              <div className="p-8 space-y-6 print:p-6">
+                {/* Header */}
+                <div className="flex items-start justify-between border-b border-gray-200 pb-5">
+                  <div>
+                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Travel Package</p>
+                    <h1 className="text-2xl font-bold text-gray-900">{form.title || 'Untitled Package'}</h1>
+                    <p className="text-gray-500 text-sm mt-1">
+                      📍 {form.destination}{form.destinationCountry ? `, ${form.destinationCountry}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Price per Person</p>
+                    <p className="text-3xl font-bold text-purple-600">₹{final.toLocaleString('en-IN')}</p>
+                    {markupEnabled && <p className="text-xs text-gray-400">Includes {markupPercent}% markup</p>}
+                  </div>
+                </div>
+
+                {/* Meta pills */}
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    `🗓️ ${form.durationDays}D / ${form.durationNights}N`,
+                    `⭐ ${form.starCategory}`,
+                    `🎒 ${form.travelType}`,
+                    form.theme && `🌿 ${form.theme}`,
+                    form.mood && `✨ ${form.mood}`,
+                    form.seasonalAvailability && `📅 ${form.seasonalAvailability}`,
+                  ].filter(Boolean).map((tag, i) => (
+                    <span key={i} className="bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1 rounded-full">{tag as string}</span>
+                  ))}
+                </div>
+
+                {/* Overview */}
+                {form.overview && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1.5">Overview</h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">{form.overview}</p>
+                  </div>
+                )}
+
+                {/* Hotels table */}
+                {hotelEntries.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-2">🏨 Hotels & Accommodation</h3>
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="bg-amber-50 border border-amber-100">
+                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Destination</th>
+                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Hotel(s)</th>
+                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Meal Plan</th>
+                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Room Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hotelEntries.map((h, i) => (
+                          <tr key={h.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-3 py-2 border border-gray-100 font-semibold text-gray-800 whitespace-nowrap">
+                              {h.destination}{h.nights ? ` (${h.nights}N)` : ''}
+                            </td>
+                            <td className="px-3 py-2 border border-gray-100 text-gray-700">{h.hotels}</td>
+                            <td className="px-3 py-2 border border-gray-100 text-gray-600 whitespace-nowrap">{h.mealPlan}</td>
+                            <td className="px-3 py-2 border border-gray-100 text-gray-600">{h.roomType}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Inclusions / Exclusions */}
+                {(form.inclusions || form.exclusions) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {form.inclusions && (
+                      <div>
+                        <h3 className="text-sm font-bold text-green-700 mb-1.5">✓ Inclusions</h3>
+                        <ul className="space-y-1">
+                          {form.inclusions.split('\n').filter(Boolean).map((inc, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                              <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>{inc}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {form.exclusions && (
+                      <div>
+                        <h3 className="text-sm font-bold text-red-600 mb-1.5">✗ Exclusions</h3>
+                        <ul className="space-y-1">
+                          {form.exclusions.split('\n').filter(Boolean).map((exc, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                              <span className="text-red-400 mt-0.5 flex-shrink-0">•</span>{exc}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Highlights */}
+                {form.highlights && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1.5">✨ Highlights</h3>
+                    <ul className="space-y-1">
+                      {form.highlights.split('\n').filter(Boolean).map((h, i) => (
+                        <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                          <span className="text-purple-500 mt-0.5 flex-shrink-0">✦</span>{h}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Day-wise itinerary */}
+                {dayItems.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-2">📅 Day-Wise Itinerary</h3>
+                    <div className="space-y-3">
+                      {dayItems.map((d, i) => (
+                        <div key={d.id} className="flex gap-3">
+                          <span className="w-7 h-7 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900">{d.title}</p>
+                            {d.description && <p className="text-xs text-gray-600 leading-relaxed mt-0.5">{d.description}</p>}
+                            {d.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {d.tags.map(t => (
+                                  <span key={t} className="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full">{t}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="border-t border-gray-200 pt-4 text-center">
+                  <p className="text-xs text-gray-400">Powered by Travelzada · This is a preliminary quotation subject to availability</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       <style jsx>{`
-        .label { display: block; font-size: 0.75rem; font-weight: 500; color: #374151; margin-bottom: 0.25rem; }
-        .input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.625rem; font-size: 0.875rem; outline: none; }
-        .input:focus { ring-width: 2px; ring-color: #7c3aed; border-color: #7c3aed; }
+        .label { display: block; font-size: 0.75rem; font-weight: 600; color: #374151; margin-bottom: 0.375rem; }
+        .input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.875rem; outline: none; background: #fff; transition: border-color 0.15s; }
+        .input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
       `}</style>
+    </div>
+  )
+}
+
+interface DayCardProps {
+  day: { id: string; title: string; description: string; tags: string[] }
+  idx: number
+  onTitleChange: (v: string) => void
+  onDescChange: (v: string) => void
+  onAddTag: (tag: string) => void
+  onRemoveTag: (tag: string) => void
+  onRemove: () => void
+}
+
+function DayCard({ day, idx, onTitleChange, onDescChange, onAddTag, onRemoveTag, onRemove }: DayCardProps) {
+  const [tagInput, setTagInput] = useState('')
+
+  function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      onAddTag(tagInput)
+      setTagInput('')
+    }
+  }
+
+  return (
+    <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-gray-100">
+        <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+        <span className="w-6 h-6 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+        <input
+          value={day.title}
+          onChange={e => onTitleChange(e.target.value)}
+          placeholder={`Day ${idx + 1}: Title`}
+          className="flex-1 text-sm font-bold text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300"
+        />
+        <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        <textarea
+          value={day.description}
+          onChange={e => onDescChange(e.target.value)}
+          rows={2}
+          placeholder="Describe activities for this day…"
+          className="w-full text-sm text-gray-600 bg-transparent border-none outline-none resize-none placeholder:text-gray-300"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {day.tags.map(tag => (
+            <span key={tag} className="flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              {tag}
+              <button onClick={() => onRemoveTag(tag)} className="text-gray-300 hover:text-red-400 ml-0.5">×</button>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={e => setTagInput(e.target.value)}
+            onKeyDown={handleTagKey}
+            placeholder="+ tag, Enter"
+            className="text-[10px] text-gray-400 bg-transparent border-none outline-none w-20 placeholder:text-gray-300"
+          />
+        </div>
+      </div>
     </div>
   )
 }

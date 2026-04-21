@@ -35,6 +35,15 @@ export interface Agent {
   adminNotes?: string
 }
 
+export interface HotelEntry {
+  id: string
+  destination: string
+  nights: number
+  hotels: string      // hotel name(s) — can be multiple options separated by /
+  mealPlan: string    // Breakfast | Half Board | Full Board | All Inclusive | Room Only
+  roomType: string
+}
+
 export interface AgentPackage {
   id: string
   agentId: string
@@ -57,6 +66,7 @@ export interface AgentPackage {
   exclusions: string[]
   highlights: string[]
   dayWiseItinerary: string
+  hotels?: HotelEntry[]
   primaryImageUrl?: string
   imageUrls?: string[]
   // Availability

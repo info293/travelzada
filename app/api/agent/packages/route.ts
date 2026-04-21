@@ -70,6 +70,7 @@ export async function POST(request: Request) {
       exclusions: packageData.exclusions || [],
       highlights: packageData.highlights || [],
       dayWiseItinerary: packageData.dayWiseItinerary || '',
+      hotels: packageData.hotels || [],
       primaryImageUrl: packageData.primaryImageUrl || '',
       imageUrls: packageData.imageUrls || [],
       seasonalAvailability: packageData.seasonalAvailability || 'Year Round',

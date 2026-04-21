@@ -13,6 +13,7 @@ import {
   Columns3, List
 } from 'lucide-react'
 import SubAgentDemoLoader from '@/components/sub-agent-dashboard/SubAgentDemoLoader'
+import QuotationHistory from '@/components/agent-dashboard/QuotationHistory'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Booking {
@@ -111,7 +112,7 @@ interface AgentPackage {
   mood?: string
 }
 
-type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'customers' | 'stats' | 'activity' | 'ai'
+type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'quote_history' | 'customers' | 'stats' | 'activity' | 'ai'
 
 const INDIAN_LANGUAGES = [
   { code: 'en-IN', label: 'English' },
@@ -661,7 +662,8 @@ export default function SubAgentDashboardPage() {
     { id: 'home',      label: 'Home',       icon: Home },
     { id: 'bookings',  label: 'Bookings',   icon: BookOpen,     badge: bookings.filter(b => b.status === 'new').length || undefined },
     { id: 'packages',  label: 'Packages',   icon: Package },
-    { id: 'quotations',label: 'Quotations', icon: MessageSquare, badge: pendingQuots || undefined },
+    { id: 'quotations',    label: 'Quotations',   icon: MessageSquare, badge: pendingQuots || undefined },
+    { id: 'quote_history', label: 'Quote History', icon: BarChart3 },
     { id: 'customers', label: 'Customers',  icon: Users },
     { id: 'stats',     label: 'My Stats',   icon: BarChart3 },
     { id: 'activity',  label: 'Activity',   icon: Activity },
@@ -1241,6 +1243,11 @@ export default function SubAgentDashboardPage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* ══════════════════════ QUOTE HISTORY ══════════════════════════ */}
+            {tab === 'quote_history' && currentUser && parentAgentId && (
+              <QuotationHistory agentId={parentAgentId} subAgentId={currentUser.uid} />
             )}
 
             {/* ══════════════════════ CUSTOMERS ══════════════════════════════ */}
