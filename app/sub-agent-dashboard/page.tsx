@@ -1095,37 +1095,41 @@ export default function SubAgentDashboardPage() {
                     ) : filteredQuots.map(q => {
                       const sc = QUOT_STATUS[q.status]
                       return (
-                        <div key={q.id}
-                          className={`relative px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${selQuot?.id === q.id ? 'bg-primary/5 border-l-2 border-primary' : ''}`}>
-                          <button className="w-full text-left" onClick={() => setSelQuot(q)}>
-                            <div className="flex items-start justify-between gap-1 mb-0.5">
-                              <p className="text-sm font-semibold text-gray-900 truncate">{q.customerName}</p>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sc?.color}`}>{sc?.label}</span>
-                            </div>
-                            <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
-                            <div className="flex items-center justify-between mt-1.5">
-                              {q.quotedPrice ? (
-                                <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
-                                  ₹{Number(q.quotedPrice).toLocaleString('en-IN')}
-                                </span>
-                              ) : (
-                                q.messages.length > 0
-                                  ? <span className="text-[10px] text-gray-400">{q.messages.length} msg{q.messages.length !== 1 ? 's' : ''}</span>
-                                  : <span />
-                              )}
-                              {/* View package button */}
-                              <button
-                                onClick={e => { e.stopPropagation(); openPackageView(q) }}
-                                className="flex items-center gap-0.5 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full transition-colors"
-                                title="View & edit package details"
-                              >
-                                <Eye className="w-3 h-3" />View
-                              </button>
-                            </div>
-                            {q.customPackageData && (
-                              <span className="mt-1 inline-block text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">My Version</span>
+                        <div
+                          key={q.id}
+                          onClick={() => setSelQuot(q)}
+                          className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-50 ${selQuot?.id === q.id ? 'bg-primary/5 border-l-2 border-primary' : ''}`}
+                        >
+                          {/* Row 1: name + status */}
+                          <div className="flex items-start justify-between gap-1 mb-0.5">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{q.customerName}</p>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${sc?.color}`}>{sc?.label}</span>
+                          </div>
+                          {/* Row 2: package title */}
+                          <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
+                          {/* Row 3: price/msgs + View button */}
+                          <div className="flex items-center justify-between mt-1.5">
+                            {q.quotedPrice ? (
+                              <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
+                                ₹{Number(q.quotedPrice).toLocaleString('en-IN')}
+                              </span>
+                            ) : (
+                              q.messages.length > 0
+                                ? <span className="text-[10px] text-gray-400">{q.messages.length} msg{q.messages.length !== 1 ? 's' : ''}</span>
+                                : <span />
                             )}
-                          </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); openPackageView(q) }}
+                              className="flex items-center gap-0.5 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full transition-colors"
+                              title="View & edit package details"
+                            >
+                              <Eye className="w-3 h-3" />View
+                            </button>
+                          </div>
+                          {/* My Version badge */}
+                          {q.customPackageData && (
+                            <span className="mt-1 inline-block text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">My Version</span>
+                          )}
                         </div>
                       )
                     })}
@@ -1978,11 +1982,26 @@ export default function SubAgentDashboardPage() {
                   </div>
                 )}
 
+                {/* ── Customer context strip ── */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  {[
+                    { label: 'Customer', value: viewPkgQuot.customerName },
+                    { label: 'Travellers', value: viewPkgQuot.groupSize ? `${viewPkgQuot.groupSize} pax` : `${viewPkgQuot.adults ?? 1}A${viewPkgQuot.kids ? ` ${viewPkgQuot.kids}K` : ''}` },
+                    { label: 'Travel Dates', value: viewPkgQuot.preferredDates || 'Not set' },
+                    { label: 'Status', value: QUOT_STATUS[viewPkgQuot.status]?.label || viewPkgQuot.status },
+                  ].map(item => (
+                    <div key={item.label} className="bg-gray-50 rounded-xl px-3 py-2">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
+                      <p className="text-xs font-semibold text-gray-800 mt-0.5 truncate">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
                 {/* ── Instruction banner ── */}
-                <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <Star className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-800">
-                    Click the <span className="font-bold">pencil ✏️</span> on any section to edit it. Your changes create <span className="font-bold">your own version</span> of this package — the original is not affected. Click <span className="font-bold">"Share to Agent"</span> when ready.
+                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <Eye className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-blue-800">
+                    Click <span className="font-bold">✏️ Edit</span> on any section to customise it. Your edits create <span className="font-bold">your own version</span> — the agent's original package is untouched. Hit <span className="font-bold">"Share to Agent"</span> to notify them.
                   </p>
                 </div>
 
