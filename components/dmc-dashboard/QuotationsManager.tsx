@@ -5,7 +5,7 @@ import {
   MessageSquare, Search, Loader2, IndianRupee, Send,
   CheckCircle, XCircle, Clock, Package, Phone, Mail,
   MapPin, Calendar, Users, User, BookCheck, Edit3, X,
-  Eye, Star, Save, ChevronDown, ChevronUp, FileEdit, Share2, FileText, Printer
+  Eye, Star, Save, ChevronDown, ChevronUp, FileEdit, Share2, FileText, Printer, SlidersHorizontal
 } from 'lucide-react'
 
 interface Message {
@@ -101,6 +101,9 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [filterDate, setFilterDate] = useState<'today' | '7d' | '30d' | 'all'>('all')
+  const [filterSubAgent, setFilterSubAgent] = useState('all')
+  const [filterDest, setFilterDest] = useState('all')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [messageText, setMessageText] = useState('')
   const [sending, setSending] = useState(false)
@@ -364,14 +367,35 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     return acc
   }, {} as Record<string, number>)
 
+  const subAgentOptions = Array.from(new Set(quotations.map(q => q.subAgentName).filter(Boolean))).sort()
+  const destOptions = Array.from(new Set(quotations.map(q => q.destination).filter(Boolean))).sort()
+  const hasActiveFilters = filterStatus !== 'all' || filterDate !== 'all' || filterSubAgent !== 'all' || filterDest !== 'all' || search
+
   const filtered = quotations.filter(q => {
     if (filterStatus !== 'all' && q.status !== filterStatus) return false
+
+    if (filterDate !== 'all') {
+      const now = Date.now()
+      const created = q.createdAt ? q.createdAt.seconds * 1000 : 0
+      if (filterDate === 'today') {
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+        if (created < todayStart.getTime()) return false
+      } else if (filterDate === '7d') {
+        if (created < now - 7 * 24 * 60 * 60 * 1000) return false
+      } else if (filterDate === '30d') {
+        if (created < now - 30 * 24 * 60 * 60 * 1000) return false
+      }
+    }
+
+    if (filterSubAgent !== 'all' && q.subAgentName !== filterSubAgent) return false
+    if (filterDest !== 'all' && q.destination !== filterDest) return false
+
     if (search) {
       const s = search.toLowerCase()
-      return q.customerName?.toLowerCase().includes(s) ||
+      return (q.customerName?.toLowerCase().includes(s) ||
         q.subAgentName?.toLowerCase().includes(s) ||
         q.destination?.toLowerCase().includes(s) ||
-        q.packageTitle?.toLowerCase().includes(s)
+        q.packageTitle?.toLowerCase().includes(s)) ?? false
     }
     return true
   })
@@ -386,16 +410,60 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
 
       {/* ── LEFT — quotation list ─────────────────────────────────────────── */}
       <div className="w-80 flex-shrink-0 flex flex-col">
-        <div className="mb-3">
-          <h2 className="text-xl font-bold text-gray-900">Quotations</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{quotations.length} total</p>
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Quotations</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {hasActiveFilters ? `${filtered.length} of ${quotations.length}` : `${quotations.length} total`}
+            </p>
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            >
+              <X className="w-3 h-3" />Clear
+            </button>
+          )}
         </div>
 
-        <div className="relative mb-3">
+        {/* Search */}
+        <div className="relative mb-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search quotations…"
+            placeholder="Search customer, package, destination…"
             className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+
+        {/* Date filter pills */}
+        <div className="flex gap-1 mb-2">
+          {(['all', 'today', '7d', '30d'] as const).map(d => (
+            <button key={d} onClick={() => setFilterDate(d)}
+              className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition-colors ${filterDate === d ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+              {d === 'all' ? 'All time' : d === 'today' ? 'Today' : d === '7d' ? '7 days' : '30 days'}
+            </button>
+          ))}
+        </div>
+
+        {/* Sub-agent + Destination dropdowns */}
+        <div className="grid grid-cols-2 gap-1.5 mb-2">
+          <div className="relative">
+            <select value={filterSubAgent} onChange={e => setFilterSubAgent(e.target.value)}
+              className="w-full appearance-none text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700 truncate">
+              <option value="all">All agents</option>
+              {subAgentOptions.map(sa => <option key={sa} value={sa}>{sa}</option>)}
+            </select>
+            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select value={filterDest} onChange={e => setFilterDest(e.target.value)}
+              className="w-full appearance-none text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700 truncate">
+              <option value="all">All destinations</option>
+              {destOptions.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Status filters */}
