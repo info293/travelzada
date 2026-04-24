@@ -2,18 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { db } from '@/lib/firebase'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 
 export default function Step2Nights({
     data,
     updateData,
     onNext,
-    onPrev
+    onPrev,
+    agentSlug,
 }: {
     data: any,
     updateData: (data: any) => void,
     onNext: () => void,
-    onPrev: () => void
+    onPrev: () => void,
+    agentSlug?: string,
 }) {
 
     const [availableOptions, setAvailableOptions] = useState<Record<string, { nights: number, label: string }[]>>({})
@@ -48,11 +50,8 @@ export default function Step2Nights({
 
             try {
                 setLoading(true)
-                const packagesRef = collection(db, 'packages')
-                const allPackagesSnapshot = await getDocs(packagesRef)
 
                 const destPackagesOptions: Record<string, { nights: number, label: string }[]> = {}
-                // Collect ALL matching packages per destination before sampling
                 const matchingPackagesByDest: Record<string, any[]> = {}
 
                 data.destinations.forEach((dest: string) => {
@@ -60,82 +59,126 @@ export default function Step2Nights({
                     matchingPackagesByDest[dest] = []
                 })
 
-                allPackagesSnapshot.forEach((doc) => {
-                    const docData = doc.data()
-                    const pkgName = (docData.Destination_Name || '').trim().toLowerCase()
-                    const pkgId = (docData.Destination_ID || '').trim().toLowerCase()
+                const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&auto=format'
 
-                    data.destinations.forEach((dest: string) => {
-                        let normalizedDest = dest.trim().toLowerCase()
-                        if (!normalizedDest) return;
-                        if (normalizedDest.includes('andaman')) normalizedDest = 'andaman';
-                        if (normalizedDest.includes('sri lanka') || normalizedDest.includes('sri-lanka')) normalizedDest = 'sri lanka';
+                if (agentSlug) {
+                    // AGENT MODE: fetch durations from agent_packages
+                    const agentPkgQ = query(
+                        collection(db, 'agent_packages'),
+                        where('agentSlug', '==', agentSlug),
+                        where('isActive', '==', true)
+                    )
+                    const agentPkgSnap = await getDocs(agentPkgQ)
 
-                        const hasMatch = (pkgName && (pkgName.includes(normalizedDest) || normalizedDest.includes(pkgName))) ||
-                                         (pkgId && (pkgId.includes(normalizedDest) || normalizedDest.includes(pkgId)));
+                    agentPkgSnap.forEach((doc) => {
+                        const docData = doc.data()
+                        const pkgDest = (docData.destination || '').trim().toLowerCase()
 
-                        if (hasMatch) {
-                            // --- Precision Location: Extract from first day of the itinerary ---
-                            let firstDayLocation = dest // default to destination name
-                            const itineraryDetails = docData.Day_Wise_Itinerary_Details
-                            if (Array.isArray(itineraryDetails) && itineraryDetails.length > 0) {
-                                const firstDay = itineraryDetails[0]
-                                // Try various field names developers use for location
-                                firstDayLocation =
-                                    firstDay.location || firstDay.Location ||
-                                    firstDay.city || firstDay.City ||
-                                    firstDay.place || firstDay.Place ||
-                                    firstDay.title || firstDay.Title ||
-                                    dest
-                            } else if (typeof docData.Day_Wise_Itinerary === 'string') {
-                                // Parse "Day 1: Ubud | Day 2: Kuta" style strings
-                                const match = docData.Day_Wise_Itinerary.match(/Day\s*1\s*[:\-\s]+([^|,\n]+)/i)
-                                if (match) firstDayLocation = match[1].trim()
-                            }
+                        data.destinations.forEach((dest: string) => {
+                            const normalizedDest = dest.trim().toLowerCase()
+                            if (!normalizedDest) return
 
-                            // Correct image field per actual Firestore schema
-                            const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&auto=format'
-                            const image =
-                                docData.Primary_Image_URL ||
-                                docData.Image_URL ||
-                                (Array.isArray(docData.Images) && docData.Images[0]) ||
-                                FALLBACK_IMAGE
+                            const hasMatch = pkgDest && (pkgDest.includes(normalizedDest) || normalizedDest.includes(pkgDest))
+                            if (!hasMatch) return
 
+                            const image = docData.primaryImageUrl || FALLBACK_IMAGE
                             matchingPackagesByDest[dest].push({
                                 id: doc.id,
-                                name: docData.Destination_Name || dest,
-                                packageTitle: docData.Package_Name || docData.Destination_Name || dest,
-                                location: firstDayLocation,
+                                name: docData.destination || dest,
+                                packageTitle: docData.title || docData.destination || dest,
+                                location: docData.destination || dest,
                                 image,
                                 dest,
-                                starCategory: docData.Star_Category || '', // e.g. "4-star", "5-star"
-                                duration: docData.Duration || '',
+                                starCategory: docData.starCategory || '',
+                                duration: docData.durationDays ? `${docData.durationDays}D/${docData.durationNights}N` : '',
                             })
 
-                            let nights = docData.Duration_Nights
-                            if (!nights && docData.Duration) {
-                                const match = String(docData.Duration).match(/(\d+)\s*[Nn]ight/)
-                                if (match) nights = parseInt(match[1])
+                            const nights = typeof docData.durationNights === 'number' ? docData.durationNights : parseInt(docData.durationNights || '0')
+                            const days = typeof docData.durationDays === 'number' ? docData.durationDays : parseInt(docData.durationDays || '0')
+                            if (nights > 0 && !destPackagesOptions[dest].find(o => o.nights === nights)) {
+                                destPackagesOptions[dest].push({
+                                    nights,
+                                    label: days > 0 ? `${days} Days / ${nights} Nights` : `${nights} Nights`
+                                })
                             }
+                        })
+                    })
+                } else {
+                    // MAIN SITE MODE: fetch from global packages collection
+                    const allPackagesSnapshot = await getDocs(collection(db, 'packages'))
 
-                            let days = docData.Duration_Days
-                            if (!days && docData.Duration) {
-                                const match = String(docData.Duration).match(/(\d+)\s*[Dd]ay/)
-                                if (match) days = parseInt(match[1])
-                            }
+                    allPackagesSnapshot.forEach((doc) => {
+                        const docData = doc.data()
+                        const pkgName = (docData.Destination_Name || '').trim().toLowerCase()
+                        const pkgId = (docData.Destination_ID || '').trim().toLowerCase()
 
-                            if (nights) {
-                                const parsedNights = typeof nights === 'string' ? parseInt(nights) : nights
-                                if (!destPackagesOptions[dest].find(o => o.nights === parsedNights)) {
-                                    destPackagesOptions[dest].push({
-                                        nights: parsedNights,
-                                        label: days ? `${days} Days / ${parsedNights} Nights` : `${parsedNights} Nights`
-                                    })
+                        data.destinations.forEach((dest: string) => {
+                            let normalizedDest = dest.trim().toLowerCase()
+                            if (!normalizedDest) return;
+                            if (normalizedDest.includes('andaman')) normalizedDest = 'andaman';
+                            if (normalizedDest.includes('sri lanka') || normalizedDest.includes('sri-lanka')) normalizedDest = 'sri lanka';
+
+                            const hasMatch = (pkgName && (pkgName.includes(normalizedDest) || normalizedDest.includes(pkgName))) ||
+                                             (pkgId && (pkgId.includes(normalizedDest) || normalizedDest.includes(pkgId)));
+
+                            if (hasMatch) {
+                                let firstDayLocation = dest
+                                const itineraryDetails = docData.Day_Wise_Itinerary_Details
+                                if (Array.isArray(itineraryDetails) && itineraryDetails.length > 0) {
+                                    const firstDay = itineraryDetails[0]
+                                    firstDayLocation =
+                                        firstDay.location || firstDay.Location ||
+                                        firstDay.city || firstDay.City ||
+                                        firstDay.place || firstDay.Place ||
+                                        firstDay.title || firstDay.Title ||
+                                        dest
+                                } else if (typeof docData.Day_Wise_Itinerary === 'string') {
+                                    const match = docData.Day_Wise_Itinerary.match(/Day\s*1\s*[:\-\s]+([^|,\n]+)/i)
+                                    if (match) firstDayLocation = match[1].trim()
+                                }
+
+                                const image =
+                                    docData.Primary_Image_URL ||
+                                    docData.Image_URL ||
+                                    (Array.isArray(docData.Images) && docData.Images[0]) ||
+                                    FALLBACK_IMAGE
+
+                                matchingPackagesByDest[dest].push({
+                                    id: doc.id,
+                                    name: docData.Destination_Name || dest,
+                                    packageTitle: docData.Package_Name || docData.Destination_Name || dest,
+                                    location: firstDayLocation,
+                                    image,
+                                    dest,
+                                    starCategory: docData.Star_Category || '',
+                                    duration: docData.Duration || '',
+                                })
+
+                                let nights = docData.Duration_Nights
+                                if (!nights && docData.Duration) {
+                                    const match = String(docData.Duration).match(/(\d+)\s*[Nn]ight/)
+                                    if (match) nights = parseInt(match[1])
+                                }
+
+                                let days = docData.Duration_Days
+                                if (!days && docData.Duration) {
+                                    const match = String(docData.Duration).match(/(\d+)\s*[Dd]ay/)
+                                    if (match) days = parseInt(match[1])
+                                }
+
+                                if (nights) {
+                                    const parsedNights = typeof nights === 'string' ? parseInt(nights) : nights
+                                    if (!destPackagesOptions[dest].find(o => o.nights === parsedNights)) {
+                                        destPackagesOptions[dest].push({
+                                            nights: parsedNights,
+                                            label: days ? `${days} Days / ${parsedNights} Nights` : `${parsedNights} Nights`
+                                        })
+                                    }
                                 }
                             }
-                        }
+                        })
                     })
-                })
+                }
 
                 // --- Smart Package Selection per Destination ---
                 // Shuffle → Deduplicate by location → Cap at 10
@@ -214,7 +257,7 @@ export default function Step2Nights({
         } else {
             setLoading(false)
         }
-    }, [data.destinations]) // Only re-fetch if destinations change
+    }, [data.destinations, agentSlug]) // Re-fetch if destinations or agent changes
 
     const selectNights = (index: number, nights: number) => {
         const newItems = [...routeItems]

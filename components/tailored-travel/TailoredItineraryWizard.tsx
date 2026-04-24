@@ -186,6 +186,7 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                                             updateData={updateData}
                                             onNext={handleNext}
                                             onPrev={handlePrev}
+                                            agentSlug={agentSlug}
                                         />
                                     )}
                                     {currentStep === 3 && (

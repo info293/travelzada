@@ -25,7 +25,7 @@ export default function AgentLoginPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!loading && currentUser && isAgent) router.push('/agent-dashboard')
+    if (!loading && currentUser && isAgent) router.push('/dmc-dashboard')
   }, [currentUser, isAgent, loading, router])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,7 +34,7 @@ export default function AgentLoginPage() {
     setSubmitting(true)
     try {
       await login(email, password)
-      router.push('/agent-dashboard')
+      router.push('/dmc-dashboard')
     } catch (err: any) {
       const code = err.code || ''
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {

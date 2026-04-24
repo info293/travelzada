@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
 import { AgentPackage, HotelEntry } from '@/lib/types/agent'
 
 interface Props {
@@ -109,6 +109,11 @@ export default function PackageManager({ agentId }: Props) {
   const [csvUploading, setCsvUploading] = useState(false)
   const [csvResult, setCsvResult] = useState<CsvResult | null>(null)
   const [showCsvGuide, setShowCsvGuide] = useState(false)
+
+  // List filters
+  const [pkgSearch, setPkgSearch] = useState('')
+  const [pkgStatusFilter, setPkgStatusFilter] = useState<'all' | 'active' | 'paused'>('all')
+  const [pkgDestFilter, setPkgDestFilter] = useState('all')
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -608,9 +613,55 @@ export default function PackageManager({ agentId }: Props) {
             + Add your first package
           </button>
         </div>
-      ) : (
+      ) : (() => {
+        const destOptions = ['all', ...Array.from(new Set(packages.map(p => p.destination).filter(Boolean)))]
+        const filteredPackages = packages.filter(pkg => {
+          const q = pkgSearch.toLowerCase()
+          const matchSearch = !q || pkg.title.toLowerCase().includes(q) || pkg.destination.toLowerCase().includes(q) || (pkg.travelType || '').toLowerCase().includes(q)
+          const matchStatus = pkgStatusFilter === 'all' || (pkgStatusFilter === 'active' ? pkg.isActive : !pkg.isActive)
+          const matchDest = pkgDestFilter === 'all' || pkg.destination === pkgDestFilter
+          return matchSearch && matchStatus && matchDest
+        })
+        return (
+        <>
+          {/* Filter bar */}
+          <div className="flex flex-wrap items-center gap-2.5 mb-3">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                value={pkgSearch}
+                onChange={e => setPkgSearch(e.target.value)}
+                placeholder="Search packages, destinations…"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {(['all', 'active', 'paused'] as const).map(s => (
+                <button key={s} onClick={() => setPkgStatusFilter(s)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-full capitalize transition-colors ${pkgStatusFilter === s ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {s === 'all' ? `All (${packages.length})` : s === 'active' ? `Active (${packages.filter(p => p.isActive).length})` : `Paused (${packages.filter(p => !p.isActive).length})`}
+                </button>
+              ))}
+            </div>
+            {destOptions.length > 2 && (
+              <select value={pkgDestFilter} onChange={e => setPkgDestFilter(e.target.value)}
+                className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-200 bg-white">
+                {destOptions.map(d => <option key={d} value={d}>{d === 'all' ? 'All Destinations' : d}</option>)}
+              </select>
+            )}
+            <span className="text-xs text-gray-400 ml-auto">{filteredPackages.length} of {packages.length}</span>
+          </div>
+
+          {filteredPackages.length === 0 ? (
+            <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-500 text-sm">No packages match your filters</p>
+              <button onClick={() => { setPkgSearch(''); setPkgStatusFilter('all'); setPkgDestFilter('all') }}
+                className="mt-2 text-purple-600 text-xs font-semibold hover:underline">Clear filters</button>
+            </div>
+          ) : (
         <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
-          {packages.map(pkg => (
+          {filteredPackages.map(pkg => (
             <div key={pkg.id} className="flex items-center gap-4 p-4 bg-white hover:bg-gray-50">
               {pkg.primaryImageUrl ? (
                 <img
@@ -649,7 +700,10 @@ export default function PackageManager({ agentId }: Props) {
             </div>
           ))}
         </div>
-      )}
+          )}
+        </>
+        )
+      })()}
 
       {/* Two-panel package editor */}
       {showForm && (() => {
@@ -658,6 +712,40 @@ export default function PackageManager({ agentId }: Props) {
         const finalPrice = basePrice * (1 + markup / 100)
         return (
         <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-50 flex flex-col bg-[#f4f5f9]">
+
+          {/* Top bar */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                Back
+              </button>
+              <div className="h-4 w-px bg-gray-200" />
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${editingId ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                {editingId ? 'Editing' : 'New Package'}
+              </span>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">{form.title || '—'}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex items-center gap-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {saving ? 'Saving…' : (editingId ? 'Update' : 'Publish')}
+              </button>
+              <button
+                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
           {/* Main: two columns */}
           <div className="flex flex-1 overflow-hidden">
@@ -671,163 +759,179 @@ export default function PackageManager({ agentId }: Props) {
                 </div>
               )}
 
-              {/* Package Identity */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3">Package Identity</p>
-                <input
-                  name="title"
-                  value={form.title}
-                  onChange={handleChange}
-                  placeholder="e.g. Swiss Alps Luxury Getaway"
-                  className="w-full text-2xl font-bold text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300 mb-4"
-                />
-                <div className="flex flex-wrap gap-2">
-                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    <Clock className="w-3.5 h-3.5 text-gray-500" />
-                    {form.durationDays || '?'} Days / {form.durationNights || '?'} Nights
-                  </span>
-                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    <Star className="w-3.5 h-3.5 text-amber-400" />
-                    {form.starCategory}
-                  </span>
-                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    <Calendar className="w-3.5 h-3.5 text-gray-500" />
-                    {form.seasonalAvailability || 'Year Round'}
-                  </span>
-                  {form.travelType && (
-                    <span className="flex items-center gap-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                      {form.travelType}
-                    </span>
-                  )}
+              {/* ── 1. Title ──────────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-600 to-indigo-500 px-5 pt-4 pb-3">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
+                  <input
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                    placeholder="e.g. Swiss Alps Luxury Getaway"
+                    className="w-full text-xl font-bold text-white bg-transparent border-none outline-none placeholder:text-white/30"
+                  />
                 </div>
-                <button
-                  onClick={() => setDetailsOpen(v => !v)}
-                  className="mt-4 flex items-center gap-1.5 text-xs text-blue-500 font-semibold hover:text-blue-700"
-                >
-                  {detailsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  {detailsOpen ? 'Hide details' : 'Edit all details'}
-                </button>
-                {detailsOpen && (
-                  <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="label">Destination *</label>
-                      <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Country</label>
-                      <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Days</label>
-                      <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Nights</label>
-                      <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Min Group</label>
-                      <input name="minGroupSize" type="number" min="1" value={form.minGroupSize} onChange={handleChange} className="input" />
-                    </div>
-                    <div>
-                      <label className="label">Max Group</label>
-                      <input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label">Seasonal Availability</label>
-                      <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label mb-2">Travel Type</label>
-                      <div className="flex flex-wrap gap-2">
-                        {TRAVEL_TYPES.map(t => (
-                          <button key={t} type="button" onClick={() => setForm(p => ({ ...p, travelType: t }))}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.travelType === t ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}
-                          >{t}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label mb-2">Star Category</label>
-                      <div className="flex flex-wrap gap-2">
-                        {STAR_CATEGORIES.map(s => (
-                          <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-gray-600 border-gray-200'}`}
-                          >{s}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label mb-2">Theme</label>
-                      <div className="flex flex-wrap gap-2">
-                        {THEMES.map(t => (
-                          <button key={t} type="button" onClick={() => setForm(p => ({ ...p, theme: form.theme === t ? '' : t }))}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'}`}
-                          >{t}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label mb-2">Mood / Vibe</label>
-                      <div className="flex flex-wrap gap-2">
-                        {MOODS.map(m => (
-                          <button key={m} type="button" onClick={() => setForm(p => ({ ...p, mood: form.mood === m ? '' : m }))}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-gray-600 border-gray-200'}`}
-                          >{m}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label">Cover Image</label>
-                      <input ref={imgInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                      {form.primaryImageUrl ? (
-                        <div className="relative rounded-2xl overflow-hidden border border-gray-200 h-44 group">
-                          <img src={form.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                            <button type="button" onClick={() => imgInputRef.current?.click()}
-                              className="flex items-center gap-1.5 bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100">
-                              <Upload className="w-3.5 h-3.5" /> Change
-                            </button>
-                            <button type="button" onClick={() => setForm(p => ({ ...p, primaryImageUrl: '' }))}
-                              className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-600">
-                              <X className="w-3.5 h-3.5" /> Remove
-                            </button>
-                          </div>
-                          {imgUploading && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <Loader2 className="w-6 h-6 animate-spin text-white" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <button type="button" onClick={() => imgInputRef.current?.click()} disabled={imgUploading}
-                          className="w-full h-32 border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50/40 transition-colors text-gray-400 hover:text-purple-600">
-                          {imgUploading ? (
-                            <><Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm font-medium">Uploading…</span></>
-                          ) : (
-                            <><Upload className="w-6 h-6" /><span className="text-sm font-medium">Click to upload cover image</span><span className="text-xs">JPG, PNG, WEBP · Max 10 MB</span></>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label">Overview / Description</label>
-                      <textarea name="overview" value={form.overview} onChange={handleChange} rows={3} placeholder="Describe this package…" className="input resize-none" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="label">Highlights (one per line)</label>
-                      <textarea name="highlights" value={form.highlights} onChange={handleChange} rows={3} className="input resize-none text-sm" />
-                    </div>
-                    <div>
-                      <label className="label text-green-700">✓ Inclusions (one per line)</label>
-                      <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} className="input resize-none text-sm" />
-                    </div>
-                    <div>
-                      <label className="label text-red-600">✗ Exclusions (one per line)</label>
-                      <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} className="input resize-none text-sm" />
+                <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-gray-50">
+                  <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Clock className="w-3 h-3" />{form.durationDays || '?'}D / {form.durationNights || '?'}N
+                  </span>
+                  <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Star className="w-3 h-3" />{form.starCategory}
+                  </span>
+                  {form.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.travelType}</span>}
+                  {form.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.theme}</span>}
+                </div>
+              </div>
+
+              {/* ── 2. Basic Info ─────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
+                  <p className="text-sm font-bold text-gray-800">Basic Info</p>
+                </div>
+                <div className="p-5 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Destination *</label>
+                    <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Country</label>
+                    <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Days</label>
+                    <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Nights</label>
+                    <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Min Group</label>
+                    <input name="minGroupSize" type="number" min="1" value={form.minGroupSize} onChange={handleChange} className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Max Group</label>
+                    <input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="label">Seasonal Availability</label>
+                    <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 3. Package Type ───────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎯</span>
+                  <p className="text-sm font-bold text-gray-800">Package Type</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="label mb-2">Travel Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {TRAVEL_TYPES.map(t => (
+                        <button key={t} type="button" onClick={() => setForm(p => ({ ...p, travelType: t }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.travelType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-300'}`}
+                        >{t}</button>
+                      ))}
                     </div>
                   </div>
-                )}
+                  <div>
+                    <label className="label mb-2">Star Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {STAR_CATEGORIES.map(s => (
+                        <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}
+                        >{s}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label mb-2">Theme</label>
+                    <div className="flex flex-wrap gap-2">
+                      {THEMES.map(t => (
+                        <button key={t} type="button" onClick={() => setForm(p => ({ ...p, theme: form.theme === t ? '' : t }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300'}`}
+                        >{t}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label mb-2">Mood / Vibe</label>
+                    <div className="flex flex-wrap gap-2">
+                      {MOODS.map(m => (
+                        <button key={m} type="button" onClick={() => setForm(p => ({ ...p, mood: form.mood === m ? '' : m }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-pink-300'}`}
+                        >{m}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 4. Cover Image ────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">🖼️</span>
+                  <p className="text-sm font-bold text-gray-800">Cover Image</p>
+                </div>
+                <div className="p-5">
+                  <input ref={imgInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  {form.primaryImageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200 h-44 group">
+                      <img src={form.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <button type="button" onClick={() => imgInputRef.current?.click()}
+                          className="flex items-center gap-1.5 bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100">
+                          <Upload className="w-3.5 h-3.5" /> Change
+                        </button>
+                        <button type="button" onClick={() => setForm(p => ({ ...p, primaryImageUrl: '' }))}
+                          className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-600">
+                          <X className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </div>
+                      {imgUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>}
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => imgInputRef.current?.click()} disabled={imgUploading}
+                      className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-purple-400 hover:bg-purple-50/40 transition-colors text-gray-400 hover:text-purple-600">
+                      {imgUploading
+                        ? <><Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm font-medium">Uploading…</span></>
+                        : <><Upload className="w-6 h-6" /><span className="text-sm font-medium">Click to upload cover image</span><span className="text-xs">JPG, PNG, WEBP · Max 10 MB</span></>
+                      }
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* ── 5. Description ────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
+                  <p className="text-sm font-bold text-gray-800">Description & Content</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="label">Overview</label>
+                    <textarea name="overview" value={form.overview} onChange={handleChange} rows={3} placeholder="Describe this package in a few sentences…" className="input resize-none" />
+                  </div>
+                  <div>
+                    <label className="label">Highlights <span className="font-normal text-gray-400">(one per line)</span></label>
+                    <textarea name="highlights" value={form.highlights} onChange={handleChange} rows={3} placeholder="Sunset cruise&#10;Scuba diving at Neil Island&#10;Elephant beach visit" className="input resize-none text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label text-green-700">✓ Inclusions</label>
+                      <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast" className="input resize-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-red-500">✗ Exclusions</label>
+                      <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities" className="input resize-none text-sm" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Pricing Configuration */}

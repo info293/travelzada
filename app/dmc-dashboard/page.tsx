@@ -11,18 +11,18 @@ import {
   Building2, Clock, AlertCircle, Loader2, UserCog, Activity, Code2,
   Home, Settings, MessageSquare
 } from 'lucide-react'
-import DashboardHome from '@/components/agent-dashboard/DashboardHome'
-import PackageManager from '@/components/agent-dashboard/PackageManager'
-import BookingInbox from '@/components/agent-dashboard/BookingInbox'
-import Analytics from '@/components/agent-dashboard/Analytics'
-import CustomerRecords from '@/components/agent-dashboard/CustomerRecords'
-import TeamManager from '@/components/agent-dashboard/TeamManager'
-import CRMAnalytics from '@/components/agent-dashboard/CRMAnalytics'
-import EmbedCode from '@/components/agent-dashboard/EmbedCode'
-import AgentSettings from '@/components/agent-dashboard/AgentSettings'
-import QuotationsManager from '@/components/agent-dashboard/QuotationsManager'
-import QuotationHistory from '@/components/agent-dashboard/QuotationHistory'
-import DemoDataLoader from '@/components/agent-dashboard/DemoDataLoader'
+import DashboardHome from '@/components/dmc-dashboard/DashboardHome'
+import PackageManager from '@/components/dmc-dashboard/PackageManager'
+import BookingInbox from '@/components/dmc-dashboard/BookingInbox'
+import Analytics from '@/components/dmc-dashboard/Analytics'
+import CustomerRecords from '@/components/dmc-dashboard/CustomerRecords'
+import TeamManager from '@/components/dmc-dashboard/TeamManager'
+import CRMAnalytics from '@/components/dmc-dashboard/CRMAnalytics'
+import EmbedCode from '@/components/dmc-dashboard/EmbedCode'
+import AgentSettings from '@/components/dmc-dashboard/AgentSettings'
+import QuotationsManager from '@/components/dmc-dashboard/QuotationsManager'
+import QuotationHistory from '@/components/dmc-dashboard/QuotationHistory'
+import DemoDataLoader from '@/components/dmc-dashboard/DemoDataLoader'
 import type { Agent } from '@/lib/types/agent'
 
 type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'quotations' | 'quotation_history' | 'crm' | 'embed' | 'settings'
@@ -48,7 +48,7 @@ export default function AgentDashboardPage() {
   useEffect(() => {
     if (!authLoading) {
       if (!currentUser) router.push('/agent-login')
-      else if (isSubAgent) router.push('/sub-agent-dashboard')
+      else if (isSubAgent) router.push('/travel-agent-dashboard')
       else if (!isAgent) router.push('/')
     }
   }, [authLoading, currentUser, isAgent, isSubAgent, router])
@@ -173,9 +173,9 @@ export default function AgentDashboardPage() {
               )}
               <div className="min-w-0">
                 <p className="font-bold text-gray-900 text-sm leading-tight truncate">
-                  {agentData?.companyName || 'Agent Dashboard'}
+                  {agentData?.companyName || 'DMC Dashboard'}
                 </p>
-                <p className="text-xs text-gray-400">Travelzada Partner</p>
+                <p className="text-xs text-gray-400">DMC Partner</p>
               </div>
             </div>
           </div>

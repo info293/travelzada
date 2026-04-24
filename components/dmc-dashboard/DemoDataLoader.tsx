@@ -65,7 +65,7 @@ const FEATURES = [
   },
 ]
 
-// ─── Demo packages ───────────────────────────────────────────────────────────
+// ─── Demo packages (fallback if API returns nothing) ─────────────────────────
 const DEMO_PACKAGES = [
   {
     title: 'Andaman Island Escape — 5N 6D',
@@ -256,10 +256,10 @@ export default function DemoDataLoader({ agentId, agentSlug, onDone }: Props) {
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'tour' | 'load'>('tour')
   const [steps, setSteps] = useState<Step[]>([
-    { id: 'packages',   label: 'Creating 4 demo packages',          status: 'idle' },
-    { id: 'bookings',   label: 'Creating 4 demo bookings + customers', status: 'idle' },
-    { id: 'sessions',   label: 'Adding 20 analytics events',         status: 'idle' },
-    { id: 'quotations', label: 'Creating 2 quotations with chat',    status: 'idle' },
+    { id: 'packages',   label: 'Importing packages from Rajasthan, Kashmir & Kerala', status: 'idle' },
+    { id: 'bookings',   label: 'Creating demo bookings + customers', status: 'idle' },
+    { id: 'sessions',   label: 'Adding analytics events',            status: 'idle' },
+    { id: 'quotations', label: 'Creating quotations with chat',      status: 'idle' },
   ])
   const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
@@ -272,10 +272,18 @@ export default function DemoDataLoader({ agentId, agentSlug, onDone }: Props) {
     setRunning(true)
     setDone(false)
 
-    // ── 1. Packages ──────────────────────────────────────────────────────────
+    // ── 1. Packages — import real Rajasthan / Kashmir / Kerala packages ───────
     updateStep('packages', { status: 'loading' })
     let pkgOk = 0
-    for (const pkg of DEMO_PACKAGES) {
+    let packagesToLoad = DEMO_PACKAGES
+    try {
+      const importRes = await fetch('/api/agent/import-packages')
+      const importData = await importRes.json()
+      if (importData.success && importData.packages.length > 0) {
+        packagesToLoad = importData.packages
+      }
+    } catch { }
+    for (const pkg of packagesToLoad) {
       try {
         const res = await fetch('/api/agent/packages', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -284,7 +292,7 @@ export default function DemoDataLoader({ agentId, agentSlug, onDone }: Props) {
         if (res.ok) pkgOk++
       } catch { }
     }
-    updateStep('packages', { status: pkgOk > 0 ? 'done' : 'error', detail: `${pkgOk}/${DEMO_PACKAGES.length} created` })
+    updateStep('packages', { status: pkgOk > 0 ? 'done' : 'error', detail: `${pkgOk} packages imported` })
 
     // ── 2. Bookings (+ customer tags/notes via PATCH on customer record) ─────
     updateStep('bookings', { status: 'loading' })
@@ -464,7 +472,7 @@ export default function DemoDataLoader({ agentId, agentSlug, onDone }: Props) {
                       {/* Preview grid */}
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { icon: Package, color: 'text-purple-600 bg-purple-50', label: '4 Packages', sub: 'Andaman · Kerala · Rajasthan · Spiti' },
+                          { icon: Package, color: 'text-purple-600 bg-purple-50', label: '30 Real Packages', sub: 'Rajasthan (9) · Kashmir (9) · Kerala (12)' },
                           { icon: Inbox, color: 'text-blue-600 bg-blue-50', label: '4 Bookings', sub: 'New, contacted, confirmed, completed' },
                           { icon: BarChart2, color: 'text-teal-600 bg-teal-50', label: '20 Analytics Events', sub: 'Visits, itineraries, bookings' },
                           { icon: MessageSquare, color: 'text-green-600 bg-green-50', label: '2 Quotations', sub: 'Full chat: 4–5 messages each' },
@@ -504,7 +512,7 @@ export default function DemoDataLoader({ agentId, agentSlug, onDone }: Props) {
                         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
                           <CheckCircle className="w-7 h-7 text-green-500 mx-auto mb-2" />
                           <p className="font-bold text-green-800">Demo data loaded successfully!</p>
-                          <p className="text-xs text-green-700 mt-1">Explore Packages, Bookings, Analytics, Customers, and Quotations tabs to see everything.</p>
+                          <p className="text-xs text-green-700 mt-1">Real Rajasthan, Kashmir & Kerala packages are now in your Packages tab. Explore Bookings, Analytics, Customers, and Quotations too.</p>
                         </div>
                       )}
 

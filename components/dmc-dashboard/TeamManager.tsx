@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import {
   UserCog, Plus, X, Eye, EyeOff, ToggleLeft, ToggleRight,
   Trash2, Phone, Mail, Calendar, Loader2, AlertCircle, CheckCircle,
-  Copy, Check, Link as LinkIcon, Clock, UserCheck, UserX
+  Copy, Check, Link as LinkIcon, Clock, UserCheck, UserX, Search
 } from 'lucide-react'
 
 interface TravelAgent {
@@ -39,6 +39,7 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'active' | 'suspended'>('all')
+  const [teamSearch, setTeamSearch] = useState('')
 
   const registrationUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/join/${agentSlug}`
@@ -131,7 +132,12 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
   }
 
   const pendingCount = agents.filter(a => a.status === 'pending').length
-  const filtered = agents.filter(a => filterStatus === 'all' || a.status === filterStatus)
+  const filtered = agents.filter(a => {
+    const matchStatus = filterStatus === 'all' || a.status === filterStatus
+    const q = teamSearch.toLowerCase()
+    const matchSearch = !q || a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.phone || '').includes(q)
+    return matchStatus && matchSearch
+  })
 
   return (
     <div className="space-y-6">
@@ -254,16 +260,27 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
         )}
       </AnimatePresence>
 
-      {/* Status filter */}
-      <div className="flex gap-2 flex-wrap">
-        {(['all', 'pending', 'active', 'suspended'] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
-              filterStatus === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}>
-            {s} ({s === 'all' ? agents.length : agents.filter(a => a.status === s).length})
-          </button>
-        ))}
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
+            placeholder="Search by name, email…"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {(['all', 'pending', 'active', 'suspended'] as const).map(s => (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
+                filterStatus === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>
+              {s} ({s === 'all' ? agents.length : agents.filter(a => a.status === s).length})
+            </button>
+          ))}
+        </div>
+        {(teamSearch || filterStatus !== 'all') && (
+          <span className="text-xs text-gray-400">{filtered.length} of {agents.length} agents</span>
+        )}
       </div>
 
       {/* Table */}

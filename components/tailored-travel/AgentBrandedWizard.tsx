@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import TailoredItineraryWizard from './TailoredItineraryWizard'
 import AgentLoginGate from './AgentLoginGate'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { v4 as uuidv4 } from 'uuid'
@@ -109,8 +107,6 @@ export default function AgentBrandedWizard({ agent }: Props) {
         <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]" />
       </div>
 
-      {/* Header — hidden in embed mode */}
-      {!isEmbed && <Header />}
 
       {/* Login gate — hidden in embed mode */}
       {gateVisible && !loading && !isEmbed && (
@@ -172,8 +168,6 @@ export default function AgentBrandedWizard({ agent }: Props) {
         />
       </div>
 
-      {/* Footer — hidden in embed mode */}
-      {!isEmbed && <Footer />}
     </main>
   )
 }
