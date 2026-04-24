@@ -159,14 +159,15 @@ function fmtDT(ts?: { seconds: number }) {
     d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
-function buildPackageWhatsAppMessage(pkg: AgentPackage): string {
+function buildPackageWhatsAppMessage(pkg: AgentPackage, finalPrice?: number): string {
   const lines: string[] = []
+  const displayPrice = finalPrice ?? pkg.pricePerPerson
 
   lines.push(`✈️ *${pkg.title}*`)
   lines.push(`📍 ${pkg.destination}${pkg.destinationCountry ? ', ' + pkg.destinationCountry : ''}`)
   lines.push(`🗓️ ${pkg.durationDays} Days / ${pkg.durationNights} Nights`)
   lines.push(`⭐ ${pkg.starCategory}  |  🎒 ${pkg.travelType}${pkg.theme ? '  |  🎨 ' + pkg.theme : ''}${pkg.mood ? '  |  💫 ' + pkg.mood : ''}`)
-  lines.push(`💰 *₹${pkg.pricePerPerson.toLocaleString('en-IN')} per person*`)
+  lines.push(`💰 *₹${displayPrice.toLocaleString('en-IN')} per person*`)
 
   if (pkg.overview) {
     lines.push('')
@@ -226,6 +227,14 @@ export default function SubAgentDashboardPage() {
   // Package detail view modal (browse packages)
   const [viewPkgDetail, setViewPkgDetail] = useState<AgentPackage | null>(null)
   const [copiedPkgId, setCopiedPkgId] = useState<string | null>(null)
+
+  // Markup popup: shown before WhatsApp share or PDF download
+  const [markupPkg, setMarkupPkg] = useState<AgentPackage | null>(null)
+  const [markupPct, setMarkupPct] = useState<number>(0)
+  const [markupAction, setMarkupAction] = useState<'whatsapp' | 'pdf'>('whatsapp')
+  // Package quote PDF (after markup applied)
+  const [pkgPdfPkg, setPkgPdfPkg] = useState<AgentPackage | null>(null)
+  const [pkgPdfFinalPrice, setPkgPdfFinalPrice] = useState<number>(0)
 
   // Package view/edit modal (quotation flow)
   const [viewPkgQuot, setViewPkgQuot] = useState<Quotation | null>(null)
@@ -1153,11 +1162,9 @@ export default function SubAgentDashboardPage() {
                                 <Package className="w-10 h-10 text-primary/30" />
                               </div>
                             )}
-                            {/* Duration badge */}
                             <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
                               {pkg.durationDays}D / {pkg.durationNights}N
                             </span>
-                            {/* Travel type badge */}
                             <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                               {pkg.travelType}
                             </span>
@@ -1177,29 +1184,29 @@ export default function SubAgentDashboardPage() {
                             )}
                             <p className="text-lg font-bold text-primary mt-auto mb-3">
                               ₹{pkg.pricePerPerson.toLocaleString('en-IN')}
-                              <span className="text-xs font-normal text-gray-400">/person</span>
+                              <span className="text-xs font-normal text-gray-400">/person (base)</span>
                             </p>
-                            {/* Action buttons */}
-                            <div className="flex gap-2">
+                            {/* Action buttons — no copy link; markup popup before share/download */}
+                            <div className="grid grid-cols-3 gap-1.5">
                               <button
                                 onClick={() => setViewPkgDetail(pkg)}
-                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold bg-gray-900 text-white py-2 rounded-xl hover:bg-gray-700 transition-colors"
+                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-gray-900 text-white py-2 rounded-xl hover:bg-gray-700 transition-colors"
                               >
-                                <Eye className="w-3.5 h-3.5" />View
+                                <Eye className="w-3 h-3" />View
                               </button>
                               <button
-                                onClick={shareWhatsApp}
-                                className="flex items-center justify-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-2 rounded-xl hover:bg-green-600 transition-colors"
-                                title="Share on WhatsApp"
+                                onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('whatsapp') }}
+                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-green-500 text-white py-2 rounded-xl hover:bg-green-600 transition-colors"
+                                title="Send on WhatsApp"
                               >
-                                <Share2 className="w-3.5 h-3.5" />
+                                <Share2 className="w-3 h-3" />WA
                               </button>
                               <button
-                                onClick={copyLink}
-                                className={`flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors ${isCopied ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
-                                title="Copy planner link"
+                                onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('pdf') }}
+                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-primary/10 text-primary py-2 rounded-xl hover:bg-primary/20 transition-colors"
+                                title="Download Quote PDF"
                               >
-                                {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                <IndianRupee className="w-3 h-3" />Quote
                               </button>
                             </div>
                           </div>
@@ -2239,24 +2246,16 @@ export default function SubAgentDashboardPage() {
             {/* Footer actions */}
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button
-                onClick={() => {
-                  const msg = buildPackageWhatsAppMessage(viewPkgDetail)
-                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-                }}
+                onClick={() => { setMarkupPkg(viewPkgDetail); setMarkupPct(0); setMarkupAction('whatsapp'); setViewPkgDetail(null) }}
                 className="flex-1 flex items-center justify-center gap-2 bg-green-500 text-white font-semibold text-sm py-2.5 rounded-xl hover:bg-green-600 transition-colors"
               >
-                <Share2 className="w-4 h-4" />Share on WhatsApp
+                <Share2 className="w-4 h-4" />Send on WhatsApp
               </button>
               <button
-                onClick={() => {
-                  const plannerUrl = `${window.location.origin}/tailored-travel/${parentAgentSlug}?subAgent=${currentUser?.uid}`
-                  navigator.clipboard.writeText(plannerUrl)
-                  setCopiedPkgId(viewPkgDetail.id)
-                  setTimeout(() => setCopiedPkgId(null), 2000)
-                }}
-                className={`flex items-center justify-center gap-2 font-semibold text-sm px-4 py-2.5 rounded-xl transition-colors ${copiedPkgId === viewPkgDetail.id ? 'bg-green-100 text-green-700' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+                onClick={() => { setMarkupPkg(viewPkgDetail); setMarkupPct(0); setMarkupAction('pdf'); setViewPkgDetail(null) }}
+                className="flex items-center justify-center gap-2 bg-primary text-white font-semibold text-sm px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors"
               >
-                {copiedPkgId === viewPkgDetail.id ? <><Check className="w-4 h-4" />Copied!</> : <><Copy className="w-4 h-4" />Copy Link</>}
+                <FileText className="w-4 h-4" />Download Quote
               </button>
             </div>
           </div>
@@ -2671,6 +2670,274 @@ export default function SubAgentDashboardPage() {
               {/* Footer */}
               <div className="text-center pt-2 border-t border-gray-100">
                 <p className="text-xs text-gray-400">Thank you for choosing us for your travel needs ✈️</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Markup Popup ─────────────────────────────────────────────────────── */}
+      {markupPkg && (() => {
+        const base = markupPkg.pricePerPerson
+        const markupAmt = Math.round(base * markupPct / 100)
+        const finalPrice = base + markupAmt
+        function proceed() {
+          if (markupAction === 'whatsapp') {
+            const msg = buildPackageWhatsAppMessage(markupPkg!, finalPrice)
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+            setMarkupPkg(null)
+          } else {
+            setPkgPdfPkg(markupPkg)
+            setPkgPdfFinalPrice(finalPrice)
+            setMarkupPkg(null)
+          }
+        }
+        return (
+          <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" onClick={() => setMarkupPkg(null)}>
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">Set Your Price</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[220px]">{markupPkg.title}</p>
+                </div>
+                <button onClick={() => setMarkupPkg(null)} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Base price display */}
+                <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Base (DMC) price</span>
+                  <span className="font-bold text-gray-700">₹{base.toLocaleString('en-IN')}/person</span>
+                </div>
+
+                {/* Quick markup pills */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">Add your markup (%)</p>
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    {[0, 5, 10, 15, 20].map(p => (
+                      <button key={p} onClick={() => setMarkupPct(p)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${markupPct === p ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {p === 0 ? 'No markup' : `+${p}%`}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={0} max={200} value={markupPct}
+                      onChange={e => setMarkupPct(Math.max(0, Number(e.target.value)))}
+                      className="w-24 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 text-center font-bold"
+                    />
+                    <span className="text-sm text-gray-500">% markup</span>
+                  </div>
+                </div>
+
+                {/* Price breakdown */}
+                <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 space-y-1">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Base price</span><span>₹{base.toLocaleString('en-IN')}</span>
+                  </div>
+                  {markupAmt > 0 && (
+                    <div className="flex justify-between text-xs text-green-600">
+                      <span>Your markup (+{markupPct}%)</span><span>+₹{markupAmt.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-primary border-t border-primary/20 pt-1 mt-1">
+                    <span>Customer pays</span><span>₹{finalPrice.toLocaleString('en-IN')}/person</span>
+                  </div>
+                  {markupAmt > 0 && (
+                    <p className="text-[11px] text-gray-400">Your profit: ₹{markupAmt.toLocaleString('en-IN')} per person</p>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="grid grid-cols-1 gap-2 pt-1">
+                  <button
+                    onClick={proceed}
+                    className={`w-full flex items-center justify-center gap-2 font-semibold text-sm py-3 rounded-xl transition-colors ${
+                      markupAction === 'whatsapp'
+                        ? 'bg-green-500 hover:bg-green-600 text-white'
+                        : 'bg-primary hover:bg-primary/90 text-white'
+                    }`}
+                  >
+                    {markupAction === 'whatsapp'
+                      ? <><Share2 className="w-4 h-4" />Send on WhatsApp</>
+                      : <><FileText className="w-4 h-4" />Generate Quote PDF</>
+                    }
+                  </button>
+                  <button
+                    onClick={() => {
+                      const altAction: 'whatsapp' | 'pdf' = markupAction === 'whatsapp' ? 'pdf' : 'whatsapp'
+                      setMarkupAction(altAction)
+                    }}
+                    className="w-full flex items-center justify-center gap-2 font-semibold text-sm py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    {markupAction === 'whatsapp'
+                      ? <><FileText className="w-4 h-4" />Switch to: Download Quote PDF</>
+                      : <><Share2 className="w-4 h-4" />Switch to: Send on WhatsApp</>
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Package Quote PDF Modal ───────────────────────────────────────────── */}
+      {pkgPdfPkg && (
+        <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4 print:bg-white print:p-0 print:block">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:rounded-none print:max-h-none">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" />
+                <span className="font-bold text-gray-900 text-sm">Package Quote</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const msg = buildPackageWhatsAppMessage(pkgPdfPkg, pkgPdfFinalPrice)
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5" />WhatsApp
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />Print / Save PDF
+                </button>
+                <button onClick={() => setPkgPdfPkg(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable content */}
+            <div className="flex-1 overflow-y-auto p-6 print:p-8 space-y-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Package Quote</h1>
+                  <p className="text-sm text-gray-400 mt-0.5">Prepared by {subAgentName || 'Travel Agent'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400">Date</p>
+                  <p className="text-sm font-semibold text-gray-700">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-200" />
+
+              {/* Package hero */}
+              {pkgPdfPkg.primaryImageUrl && (
+                <div className="relative h-44 rounded-2xl overflow-hidden">
+                  <img src={pkgPdfPkg.primaryImageUrl} alt={pkgPdfPkg.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-3 left-4">
+                    <p className="text-white font-bold text-lg">{pkgPdfPkg.title}</p>
+                    <p className="text-white/80 text-sm flex items-center gap-1"><MapPin className="w-3 h-3" />{pkgPdfPkg.destination}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Key stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Duration', value: `${pkgPdfPkg.durationDays}D / ${pkgPdfPkg.durationNights}N` },
+                  { label: 'Category', value: pkgPdfPkg.starCategory },
+                  { label: 'Type', value: pkgPdfPkg.travelType },
+                  { label: 'Travel Theme', value: pkgPdfPkg.theme || pkgPdfPkg.mood || '—' },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
+                    <p className="font-bold text-gray-900 text-xs mt-0.5">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price block */}
+              <div className={`rounded-2xl p-5 border-2 ${pkgPdfFinalPrice > pkgPdfPkg.pricePerPerson ? 'border-primary/30 bg-primary/5' : 'border-emerald-200 bg-emerald-50'}`}>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary mb-1">Your Price</p>
+                <p className="text-3xl font-bold text-primary">₹{pkgPdfFinalPrice.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">per person (all inclusive)</p>
+              </div>
+
+              {/* Overview */}
+              {pkgPdfPkg.overview && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Overview</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{pkgPdfPkg.overview}</p>
+                </div>
+              )}
+
+              {/* Highlights */}
+              {pkgPdfPkg.highlights && pkgPdfPkg.highlights.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Highlights</p>
+                  <ul className="space-y-1">
+                    {pkgPdfPkg.highlights.map((h, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="text-primary flex-shrink-0 mt-0.5">✦</span>{h}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Inclusions / Exclusions */}
+              {((pkgPdfPkg.inclusions?.length ?? 0) > 0 || (pkgPdfPkg.exclusions?.length ?? 0) > 0) && (
+                <div className="grid grid-cols-2 gap-4">
+                  {pkgPdfPkg.inclusions && pkgPdfPkg.inclusions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-green-700 uppercase tracking-wide mb-2">✓ Inclusions</p>
+                      <ul className="space-y-1">
+                        {pkgPdfPkg.inclusions.map((inc, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5"><span className="text-green-500 flex-shrink-0 mt-0.5">•</span>{inc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {pkgPdfPkg.exclusions && pkgPdfPkg.exclusions.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-red-600 uppercase tracking-wide mb-2">✗ Exclusions</p>
+                      <ul className="space-y-1">
+                        {pkgPdfPkg.exclusions.map((exc, i) => (
+                          <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5"><span className="text-red-400 flex-shrink-0 mt-0.5">•</span>{exc}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Itinerary */}
+              {pkgPdfPkg.dayWiseItinerary && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Day-wise Itinerary</p>
+                  <div className="space-y-1.5">
+                    {pkgPdfPkg.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) => (
+                      <div key={i} className={`text-sm ${/^day\s*\d+/i.test(line) ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-4">
+                <p className="font-semibold text-gray-500">Terms & Conditions</p>
+                <p>• This quote is valid for 7 days from the date of issue.</p>
+                <p>• Prices are subject to availability at the time of booking.</p>
+                <p>• A deposit may be required to confirm the booking.</p>
+              </div>
+
+              <div className="text-center pt-2 border-t border-gray-100">
+                <p className="text-xs text-gray-400">Thank you for choosing {subAgentName || 'us'} for your travel needs ✈️</p>
               </div>
             </div>
           </div>

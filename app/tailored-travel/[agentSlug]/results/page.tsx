@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -49,7 +49,9 @@ const cinematicTexts = [
 export default function AgentResultsPage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const agentSlug = params.agentSlug as string
+  const isEmbed = searchParams.get('embed') === '1'
 
   const [wizardData, setWizardData] = useState<any>(null)
   const [packages, setPackages] = useState<MatchedPackage[]>([])
@@ -86,7 +88,7 @@ export default function AgentResultsPage() {
     if (typeof window === 'undefined') return
     const stored = sessionStorage.getItem('tailored_wizard_data')
     if (!stored) {
-      router.push(`/tailored-travel/${agentSlug}`)
+      router.push(`/tailored-travel/${agentSlug}${isEmbed ? '?embed=1' : ''}`)
       return
     }
     try {
@@ -132,7 +134,7 @@ export default function AgentResultsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        {!isEmbed && <Header />}
         <div className="flex-1 flex flex-col items-center justify-center gap-6">
           {/* Agent badge while loading */}
           {agentInfo && (
@@ -203,12 +205,12 @@ export default function AgentResultsPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        {!isEmbed && <Header />}
         <AgentStrip />
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
           <p className="text-red-600 mb-4 text-sm">{error}</p>
           <button
-            onClick={() => router.push(`/tailored-travel/${agentSlug}`)}
+            onClick={() => router.push(`/tailored-travel/${agentSlug}${isEmbed ? '?embed=1' : ''}`)}
             className="flex items-center gap-2 text-purple-600 font-semibold hover:underline text-sm"
           >
             <ArrowLeft className="w-4 h-4" /> Try again
@@ -222,7 +224,7 @@ export default function AgentResultsPage() {
   if (noPackages || packages.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
-        <Header />
+        {!isEmbed && <Header />}
         <AgentStrip />
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
           <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
@@ -234,7 +236,7 @@ export default function AgentResultsPage() {
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <button
-              onClick={() => router.push(`/tailored-travel/${agentSlug}`)}
+              onClick={() => router.push(`/tailored-travel/${agentSlug}${isEmbed ? '?embed=1' : ''}`)}
               className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Change destination
@@ -248,7 +250,7 @@ export default function AgentResultsPage() {
   // ── Results ──────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+      {!isEmbed && <Header />}
       <AgentStrip />
 
       <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 md:py-8">
@@ -306,9 +308,47 @@ export default function AgentResultsPage() {
         )}
       </AnimatePresence>
 
-      <Footer />
+      {!isEmbed && <Footer />}
     </div>
   )
+}
+
+// ── WhatsApp message builder for a matched package ───────────────────────────
+function buildWhatsAppMsg(pkg: MatchedPackage): string {
+  const title = pkg.agentPackageTitle || pkg.Destination_Name
+  const inclusions = typeof pkg.Inclusions === 'string'
+    ? pkg.Inclusions.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : Array.isArray(pkg.Inclusions) ? pkg.Inclusions : []
+
+  const lines: string[] = []
+  lines.push(`✈️ *${title}*`)
+  lines.push(`📍 ${pkg.Destination_Name}`)
+  lines.push(`🗓️ ${pkg.Duration_Days} Days / ${pkg.Duration_Nights} Nights`)
+  const tags = [pkg.Star_Category, pkg.Travel_Type].filter(Boolean).join('  |  ')
+  if (tags) lines.push(`⭐ ${tags}`)
+  lines.push(`💰 *₹${pkg.Price_Min_INR.toLocaleString('en-IN')} per person*`)
+
+  if (pkg.Overview) {
+    lines.push('')
+    lines.push(`📝 *Overview*`)
+    lines.push(pkg.Overview)
+  }
+
+  if (inclusions.length > 0) {
+    lines.push('')
+    lines.push(`✅ *Inclusions*`)
+    inclusions.forEach((inc: string) => lines.push(`  ✓ ${inc}`))
+  }
+
+  if (pkg.Day_Wise_Itinerary) {
+    lines.push('')
+    lines.push(`🗺️ *Day-wise Itinerary*`)
+    String(pkg.Day_Wise_Itinerary).split('\n').filter(Boolean).forEach(line => {
+      lines.push(/^day\s*\d+/i.test(line) ? `*${line}*` : `  ${line}`)
+    })
+  }
+
+  return lines.join('\n')
 }
 
 // ── Package card ─────────────────────────────────────────────────────────────
@@ -416,10 +456,20 @@ function PackageCard({
           </div>
         )}
 
-        <div className="mt-auto">
+        <div className="mt-auto flex gap-2">
+          <button
+            onClick={() => {
+              const msg = buildWhatsAppMsg(pkg)
+              window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+            }}
+            className="flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-3.5 py-2.5 rounded-xl transition-colors text-sm flex-shrink-0"
+            title="Share all package details on WhatsApp"
+          >
+            <Send className="w-4 h-4" />
+          </button>
           <button
             onClick={onRequest}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
           >
             Request This Package
           </button>

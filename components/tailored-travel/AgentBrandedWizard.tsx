@@ -165,6 +165,7 @@ export default function AgentBrandedWizard({ agent }: Props) {
           agentSlug={agent.agentSlug}
           subAgentId={subAgentId}
           sessionId={sessionId}
+          isEmbed={isEmbed}
         />
       </div>
 

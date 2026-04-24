@@ -15,9 +15,10 @@ interface TailoredItineraryWizardProps {
     agentSlug?: string
     subAgentId?: string
     sessionId?: string
+    isEmbed?: boolean
 }
 
-export default function TailoredItineraryWizard({ agentSlug, subAgentId, sessionId }: TailoredItineraryWizardProps = {}) {
+export default function TailoredItineraryWizard({ agentSlug, subAgentId, sessionId, isEmbed }: TailoredItineraryWizardProps = {}) {
     const [currentStep, setCurrentStep] = useState(1)
     const [direction, setDirection] = useState(0)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -103,9 +104,10 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
             }).catch(() => {})
         }
 
+        const embedSuffix = isEmbed ? '?embed=1' : ''
         const resultsPath = agentSlug
-            ? `/tailored-travel/${agentSlug}/results`
-            : '/tailored-travel/results'
+            ? `/tailored-travel/${agentSlug}/results${embedSuffix}`
+            : `/tailored-travel/results${embedSuffix}`
         router.push(resultsPath)
     }
 
