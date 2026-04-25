@@ -141,8 +141,8 @@ export default function AgentDashboardPage() {
     { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
     { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
     { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" /> },
-    { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },
-    { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
+    // { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },
+    // { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
     { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
   ]

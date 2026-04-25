@@ -56,6 +56,8 @@ export async function POST(request: Request) {
       selectedPackage,
       chatMessages,
       subAgentId,
+      bookingValue,
+      quotedPrice,
     } = body
 
     if (!agentId || !customerName) {
@@ -85,7 +87,8 @@ export async function POST(request: Request) {
       chatMessages: chatMessages || [],
       subAgentId: subAgentId || null,
       status: 'new',
-      bookingValue: null,
+      bookingValue: bookingValue || null,
+      quotedPrice: quotedPrice || null,
       commissionAmount: null,
       adminNotes: '',
       agentNotes: '',

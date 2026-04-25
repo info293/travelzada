@@ -27,8 +27,20 @@ interface Booking {
   groupSize: number
   adults: number
   kids: number
+  rooms?: number
   status: string
   bookingValue?: number
+  quotedPrice?: number
+  specialRequests?: string
+  selectedPackage?: {
+    title?: string
+    primaryImageUrl?: string
+    pricePerPerson?: number
+    durationDays?: number
+    durationNights?: number
+    starCategory?: string
+    travelType?: string
+  }
   createdAt?: { seconds: number }
 }
 
@@ -260,8 +272,9 @@ export default function SubAgentDashboardPage() {
   // Quotation search
   const [quotSearch, setQuotSearch] = useState('')
 
-  // Customer search
+  // Customer search / expand
   const [custSearch, setCustSearch] = useState('')
+  const [expandedCust, setExpandedCust] = useState<string | null>(null)
 
   // Activity filter
   const [actFilter, setActFilter] = useState('all')
@@ -699,12 +712,19 @@ export default function SubAgentDashboardPage() {
   const totalRevenue = confirmedBks.reduce((s, b) => s + (b.bookingValue || 0), 0)
   const pendingQuots = quotations.filter(q => q.status === 'pending' || q.status === 'in_discussion').length
 
-  // Customers derived from bookings
-  const customerMap = new Map<string, { name: string; email: string; phone?: string; bookings: Booking[] }>()
+  // Customers derived from bookings + quotations
+  const customerMap = new Map<string, { name: string; email: string; phone?: string; bookings: Booking[]; quotations: Quotation[] }>()
   bookings.forEach(b => {
-    const k = b.customerEmail
-    if (!customerMap.has(k)) customerMap.set(k, { name: b.customerName, email: b.customerEmail, phone: b.customerPhone, bookings: [] })
+    const k = (b.customerEmail || '').toLowerCase()
+    if (!k) return
+    if (!customerMap.has(k)) customerMap.set(k, { name: b.customerName, email: b.customerEmail, phone: b.customerPhone, bookings: [], quotations: [] })
     customerMap.get(k)!.bookings.push(b)
+  })
+  quotations.forEach(q => {
+    const k = (q.customerEmail || '').toLowerCase()
+    if (!k) return
+    if (!customerMap.has(k)) customerMap.set(k, { name: q.customerName, email: q.customerEmail, phone: q.customerPhone, bookings: [], quotations: [] })
+    customerMap.get(k)!.quotations.push(q)
   })
   const customers = Array.from(customerMap.values())
 
@@ -733,10 +753,10 @@ export default function SubAgentDashboardPage() {
     { id: 'bookings',  label: 'Bookings',   icon: BookOpen,     badge: bookings.filter(b => b.status === 'new').length || undefined },
     { id: 'packages',  label: 'Packages',   icon: Package },
     { id: 'quotations',    label: 'Quotations',   icon: MessageSquare, badge: pendingQuots || undefined },
-    { id: 'quote_history', label: 'Quote History', icon: BarChart3 },
+    // { id: 'quote_history', label: 'Quote History', icon: BarChart3 },
     { id: 'customers', label: 'Customers',  icon: Users },
     { id: 'stats',     label: 'My Stats',   icon: BarChart3 },
-    { id: 'activity',  label: 'Activity',   icon: Activity },
+    // { id: 'activity',  label: 'Activity',   icon: Activity },
     { id: 'ai',        label: 'AI',         icon: Bot },
   ]
 
@@ -1060,27 +1080,82 @@ export default function SubAgentDashboardPage() {
                                   <span className="flex items-center gap-1"><Users className="w-3 h-3" />{b.groupSize} guests</span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 flex-shrink-0">
-                                {b.bookingValue ? (
-                                  <div className="text-right">
-                                    <p className="text-lg font-bold text-gray-900">₹{b.bookingValue.toLocaleString('en-IN')}</p>
-                                    <p className="text-xs text-gray-400">booking value</p>
-                                  </div>
-                                ) : null}
+                                      <div className="flex items-center gap-3 flex-shrink-0">
+                                {(() => {
+                                  const price = b.bookingValue || (b.selectedPackage?.pricePerPerson ? b.selectedPackage.pricePerPerson * (b.groupSize || b.adults || 1) : 0) || b.quotedPrice
+                                  return price ? (
+                                    <div className="text-right">
+                                      <p className={`text-base font-bold ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>₹{Number(price).toLocaleString('en-IN')}</p>
+                                      <p className="text-[10px] text-gray-400">{b.bookingValue ? 'confirmed' : 'est. value'}</p>
+                                    </div>
+                                  ) : null
+                                })()}
                                 {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                               </div>
                             </div>
                           </button>
                           {expanded && (
-                            <div className="px-5 pb-5 border-t border-gray-100 pt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                              <div><p className="text-xs text-gray-400 mb-0.5">Email</p>
-                                <a href={`mailto:${b.customerEmail}`} className="text-primary font-medium hover:underline text-xs">{b.customerEmail}</a>
+                            <div className="border-t border-gray-100 bg-gray-50/40">
+                              {/* Package strip */}
+                              {b.selectedPackage && (
+                                <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+                                  {b.selectedPackage.primaryImageUrl && (
+                                    <img src={b.selectedPackage.primaryImageUrl} alt="" className="w-12 h-9 object-cover rounded-lg flex-shrink-0" />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-gray-800 truncate">{b.selectedPackage.title || b.packageTitle}</p>
+                                    <p className="text-[11px] text-gray-500 mt-0.5">
+                                      {b.selectedPackage.durationNights}N / {b.selectedPackage.durationDays}D
+                                      {b.selectedPackage.starCategory && ` · ${b.selectedPackage.starCategory}`}
+                                      {b.selectedPackage.travelType && ` · ${b.selectedPackage.travelType}`}
+                                    </p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-[10px] text-gray-400">Per person</p>
+                                    <p className="text-sm font-bold text-purple-700">₹{Number(b.selectedPackage.pricePerPerson).toLocaleString('en-IN')}</p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="px-5 pb-5 pt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-0.5">Email</p>
+                                  {b.customerEmail
+                                    ? <a href={`mailto:${b.customerEmail}`} className="text-primary font-medium hover:underline text-xs">{b.customerEmail}</a>
+                                    : <p className="text-xs text-gray-400 italic">Not provided</p>}
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-0.5">Phone</p>
+                                  {b.customerPhone
+                                    ? <a href={`https://wa.me/${b.customerPhone.replace(/\D/g,'')}`} target="_blank" className="text-green-600 font-medium hover:underline text-xs">{b.customerPhone}</a>
+                                    : <p className="text-xs text-gray-400 italic">Not provided</p>}
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-0.5">Group</p>
+                                  <p className="font-medium text-xs">{b.adults || 1} adult{(b.adults || 1) !== 1 ? 's' : ''}{b.kids ? `, ${b.kids} kids` : ''} · {b.rooms || 1} room</p>
+                                </div>
+                                {b.preferredDates && (
+                                  <div>
+                                    <p className="text-xs text-gray-400 mb-0.5">Travel Dates</p>
+                                    <p className="font-medium text-xs">{b.preferredDates}</p>
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-xs text-gray-400 mb-0.5">Submitted</p>
+                                  <p className="font-medium text-xs">{fmt(b.createdAt)}</p>
+                                </div>
+                                {b.bookingValue && (
+                                  <div>
+                                    <p className="text-xs text-gray-400 mb-0.5">Confirmed Value</p>
+                                    <p className="font-bold text-xs text-emerald-700">₹{Number(b.bookingValue).toLocaleString('en-IN')}</p>
+                                  </div>
+                                )}
+                                {b.specialRequests && (
+                                  <div className="col-span-2 sm:col-span-3 bg-white rounded-xl p-3 border border-gray-200">
+                                    <p className="text-xs text-gray-400 mb-0.5">Special Requests</p>
+                                    <p className="text-xs text-gray-700">{b.specialRequests}</p>
+                                  </div>
+                                )}
                               </div>
-                              {b.customerPhone && <div><p className="text-xs text-gray-400 mb-0.5">Phone</p>
-                                <a href={`https://wa.me/${b.customerPhone.replace(/\D/g,'')}`} target="_blank" className="text-green-600 font-medium hover:underline text-xs">{b.customerPhone}</a>
-                              </div>}
-                              <div><p className="text-xs text-gray-400 mb-0.5">Group</p><p className="font-medium text-xs">{b.adults} adults{b.kids ? `, ${b.kids} kids` : ''}</p></div>
-                              <div><p className="text-xs text-gray-400 mb-0.5">Submitted</p><p className="font-medium text-xs">{fmt(b.createdAt)}</p></div>
                             </div>
                           )}
                         </div>
@@ -1267,7 +1342,7 @@ export default function SubAgentDashboardPage() {
                           </div>
                           {/* Row 2: package title */}
                           <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
-                          {/* Row 3: price/msgs + View button */}
+                          {/* Row 3: price/msgs */}
                           <div className="flex items-center justify-between mt-1.5">
                             {q.quotedPrice ? (
                               <span className={`text-xs font-bold ${q.status === 'converted' ? 'text-purple-700' : 'text-emerald-700'}`}>
@@ -1278,13 +1353,6 @@ export default function SubAgentDashboardPage() {
                                 ? <span className="text-[10px] text-gray-400">{q.messages.length} msg{q.messages.length !== 1 ? 's' : ''}</span>
                                 : <span />
                             )}
-                            <button
-                              onClick={e => { e.stopPropagation(); openPackageView(q) }}
-                              className="flex items-center gap-0.5 text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-full transition-colors"
-                              title="View & edit package details"
-                            >
-                              <Eye className="w-3 h-3" />View
-                            </button>
                           </div>
                           {/* My Version badge */}
                           {q.customPackageData && (
@@ -1319,6 +1387,13 @@ export default function SubAgentDashboardPage() {
                             <div className="flex gap-3 mt-2">
                               {selQuot.customerEmail && <a href={`mailto:${selQuot.customerEmail}`} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"><Mail className="w-3 h-3" />Email</a>}
                               {selQuot.customerPhone && <a href={`https://wa.me/${selQuot.customerPhone.replace(/\D/g,'')}`} target="_blank" className="text-xs text-green-600 font-semibold hover:underline flex items-center gap-1"><Phone className="w-3 h-3" />WhatsApp</a>}
+                              <button
+                                onClick={() => openPackageView(selQuot)}
+                                className="flex items-center gap-1 text-xs bg-purple-600 text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-purple-700 transition-colors"
+                                title="View & edit package details"
+                              >
+                                <Eye className="w-3 h-3" />View Package
+                              </button>
                               <button
                                 onClick={() => shareQuotationWhatsApp(selQuot)}
                                 className="flex items-center gap-1 text-xs bg-green-500 text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-green-600 transition-colors"
@@ -1411,21 +1486,43 @@ export default function SubAgentDashboardPage() {
             {/* ══════════════════════ CUSTOMERS ══════════════════════════════ */}
             {tab === 'customers' && (
               <div className="space-y-4">
-                {customers.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[200px]">
+                {/* Header */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Customers</h2>
+                    <p className="text-sm text-gray-500">{customers.length} customer{customers.length !== 1 ? 's' : ''}</p>
+                  </div>
+                  {customers.length > 0 && (
+                    <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input value={custSearch} onChange={e => setCustSearch(e.target.value)}
                         placeholder="Search by name, email, phone…"
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                        className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 w-56" />
                     </div>
-                    <span className="text-sm text-gray-500">{filteredCustomers.length} of {customers.length} customer{customers.length !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
+
+                {/* KPI row */}
+                {customers.length > 0 && (
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Total Customers', value: customers.length, color: 'bg-purple-50 text-purple-600' },
+                      { label: 'Total Bookings', value: customers.reduce((s, c) => s + c.bookings.length, 0), color: 'bg-blue-50 text-blue-600' },
+                      { label: 'Quotations Sent', value: customers.reduce((s, c) => s + c.quotations.length, 0), color: 'bg-amber-50 text-amber-600' },
+                    ].map(s => (
+                      <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
+                        <p className={`text-2xl font-bold ${s.color.split(' ')[1]}`}>{s.value}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
+
                 {customers.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-                    <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">No customers yet. Customers appear automatically from your bookings.</p>
+                  <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
+                    <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500">No customers yet</p>
+                    <p className="text-sm text-gray-400 mt-1">Customers appear automatically from your bookings and quotations.</p>
                   </div>
                 ) : filteredCustomers.length === 0 ? (
                   <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
@@ -1434,36 +1531,170 @@ export default function SubAgentDashboardPage() {
                     <button onClick={() => setCustSearch('')} className="mt-2 text-xs text-primary font-semibold hover:underline">Clear search</button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {filteredCustomers.map(c => {
-                      const spend = c.bookings.reduce((s, b) => s + (b.bookingValue || 0), 0)
+                      const spend = c.bookings.reduce((s, b) => s + (b.bookingValue || b.quotedPrice || 0), 0)
                       const confirmedCount = c.bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length
+                      const isExpanded = expandedCust === c.email
+                      const totalActivity = c.bookings.length + c.quotations.length
+
                       return (
-                        <div key={c.email} className="bg-white rounded-2xl border border-gray-200 p-5">
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div>
-                              <p className="font-bold text-gray-900">{c.name}</p>
-                              <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
-                                <a href={`mailto:${c.email}`} className="flex items-center gap-1 text-primary hover:underline"><Mail className="w-3 h-3" />{c.email}</a>
-                                {c.phone && <a href={`https://wa.me/${c.phone.replace(/\D/g,'')}`} target="_blank" className="flex items-center gap-1 text-green-600 hover:underline"><Phone className="w-3 h-3" />{c.phone}</a>}
+                        <div key={c.email} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                          {/* Row */}
+                          <div
+                            className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/60 transition-colors"
+                            onClick={() => setExpandedCust(isExpanded ? null : c.email)}
+                          >
+                            {/* Avatar */}
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                              {c.name?.charAt(0).toUpperCase() || '?'}
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-gray-900 text-sm">{c.name}</p>
+                              <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                                <span className="flex items-center gap-1 text-xs text-gray-400">
+                                  <Mail className="w-3 h-3" />
+                                  <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="hover:text-primary transition-colors">{c.email}</a>
+                                </span>
+                                {c.phone && (
+                                  <span className="flex items-center gap-1 text-xs text-gray-400">
+                                    <Phone className="w-3 h-3" />{c.phone}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                            <div className="flex gap-4 text-center flex-shrink-0">
-                              <div><p className="text-lg font-bold text-gray-900">{c.bookings.length}</p><p className="text-xs text-gray-400">trips</p></div>
-                              {spend > 0 && <div><p className="text-lg font-bold text-gray-900">₹{(spend / 1000).toFixed(0)}K</p><p className="text-xs text-gray-400">spend</p></div>}
-                              <div><p className="text-lg font-bold text-gray-900">{confirmedCount}</p><p className="text-xs text-gray-400">confirmed</p></div>
+
+                            {/* Stats */}
+                            <div className="hidden sm:flex items-center gap-4 text-center flex-shrink-0 mr-1">
+                              <div>
+                                <p className="text-sm font-bold text-gray-900">{c.bookings.length}</p>
+                                <p className="text-[10px] text-gray-400">bookings</p>
+                              </div>
+                              {c.quotations.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-bold text-gray-900">{c.quotations.length}</p>
+                                  <p className="text-[10px] text-gray-400">quotes</p>
+                                </div>
+                              )}
+                              {spend > 0 && (
+                                <div>
+                                  <p className="text-sm font-bold text-emerald-700">₹{(spend / 1000).toFixed(0)}K</p>
+                                  <p className="text-[10px] text-gray-400">spend</p>
+                                </div>
+                              )}
                             </div>
+
+                            {/* Mobile */}
+                            <div className="sm:hidden text-right flex-shrink-0">
+                              <p className="text-sm font-bold text-gray-900">{totalActivity}</p>
+                              <p className="text-[10px] text-gray-400">activities</p>
+                            </div>
+
+                            {isExpanded
+                              ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            }
                           </div>
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {c.bookings.map(b => {
-                              const s = BOOKING_STATUS[b.status] || BOOKING_STATUS.new
-                              return (
-                                <span key={b.id} className={`text-xs font-medium px-2.5 py-1 rounded-full ${s.color}`}>
-                                  {b.packageTitle.split('—')[0].trim()} · {s.label}
-                                </span>
-                              )
-                            })}
-                          </div>
+
+                          {/* Expanded */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-100 bg-gray-50/40">
+                              {/* Quick contact */}
+                              <div className="px-4 pt-3 pb-2 flex flex-wrap gap-2">
+                                <a
+                                  href={`mailto:${c.email}`}
+                                  className="flex items-center gap-1.5 text-xs font-semibold bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl hover:border-primary hover:text-primary transition-colors"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />Email
+                                </a>
+                                {c.phone && (
+                                  <>
+                                    <a
+                                      href={`tel:${c.phone}`}
+                                      className="flex items-center gap-1.5 text-xs font-semibold bg-white border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl hover:border-primary hover:text-primary transition-colors"
+                                    >
+                                      <Phone className="w-3.5 h-3.5" />Call
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/${c.phone.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      className="flex items-center gap-1.5 text-xs font-semibold bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors"
+                                    >
+                                      <MessageSquare className="w-3.5 h-3.5" />WhatsApp
+                                    </a>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="px-4 pb-4 space-y-3">
+                                {/* Stats row */}
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-lg font-bold text-gray-900">{c.bookings.length}</p>
+                                    <p className="text-[10px] text-gray-500">Bookings</p>
+                                  </div>
+                                  <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-lg font-bold text-gray-900">{confirmedCount}</p>
+                                    <p className="text-[10px] text-gray-500">Confirmed</p>
+                                  </div>
+                                  <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                                    <p className="text-lg font-bold text-emerald-700">{spend > 0 ? `₹${(spend/1000).toFixed(0)}K` : '—'}</p>
+                                    <p className="text-[10px] text-gray-500">Revenue</p>
+                                  </div>
+                                </div>
+
+                                {/* Bookings list */}
+                                {c.bookings.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Booking History</p>
+                                    <div className="space-y-1.5">
+                                      {c.bookings.map(b => {
+                                        const s = BOOKING_STATUS[b.status] || BOOKING_STATUS.new
+                                        const val = b.bookingValue || b.quotedPrice
+                                        return (
+                                          <div key={b.id} className="bg-white rounded-xl border border-gray-200 px-3 py-2.5 flex items-center gap-3">
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-xs font-semibold text-gray-900 truncate">{b.packageTitle}</p>
+                                              {b.destination && <p className="text-[11px] text-gray-400">{b.destination}{b.groupSize ? ` · ${b.groupSize} pax` : ''}</p>}
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                              {val ? <p className="text-xs font-bold text-emerald-700">₹{Number(val).toLocaleString('en-IN')}</p> : null}
+                                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
+                                            </div>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Quotations list */}
+                                {c.quotations.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Quotation History</p>
+                                    <div className="space-y-1.5">
+                                      {c.quotations.map(q => (
+                                        <div key={q.id} className="bg-white rounded-xl border border-gray-200 px-3 py-2.5 flex items-center gap-3">
+                                          <div className="w-2 h-2 rounded-full flex-shrink-0 bg-purple-400" />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-gray-900 truncate">{q.packageTitle}</p>
+                                            {q.destination && <p className="text-[11px] text-gray-400">{q.destination}</p>}
+                                          </div>
+                                          <div className="text-right flex-shrink-0">
+                                            {q.quotedPrice ? <p className="text-xs font-bold text-purple-700">₹{Number(q.quotedPrice).toLocaleString('en-IN')}</p> : null}
+                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 capitalize">{q.status}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -2262,303 +2493,303 @@ export default function SubAgentDashboardPage() {
         </div>
       )}
 
-      {/* ── Package View / Edit Modal ────────────────────────────────────────── */}
+      {/* ── Package View — DMC-style full-screen, sidebar-aware ─────────────── */}
       {viewPkgQuot && (
-        <div className="fixed inset-0 z-[70] bg-black/60 flex items-start justify-center overflow-y-auto py-6 px-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden">
+        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[70] flex flex-col bg-[#f4f5f9]">
 
-            {/* ── Header ── */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-              <div className="flex items-center gap-3 min-w-0">
-                <div>
-                  <p className="font-bold text-gray-900 truncate">{customForm.title || viewPkgQuot.packageTitle}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-gray-400">{viewPkgQuot.customerName}</p>
-                    {viewPkgQuot.customPackageData && (
-                      <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">My Version</span>
+          {/* Top bar */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setViewPkgQuot(null)}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+                Back
+              </button>
+              <div className="h-4 w-px bg-gray-200" />
+              <span className="text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">Package View</span>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">
+                {customForm.title || viewPkgQuot.packageTitle}
+              </p>
+            </div>
+            <button
+              onClick={() => setViewPkgQuot(null)}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {loadingPkg ? (
+            <div className="flex-1 flex items-center justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="flex flex-1 overflow-hidden">
+
+              {/* Left: scrollable package details */}
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 min-w-0">
+
+                {/* Package title card with gradient header */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-600 to-indigo-500 px-5 pt-4 pb-3">
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
+                    <p className="text-xl font-bold text-white leading-tight">{customForm.title || viewPkgQuot.packageTitle}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 px-5 py-3">
+                    <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <Clock className="w-3 h-3" />{customForm.durationDays || '?'}D / {customForm.durationNights || '?'}N
+                    </span>
+                    {customForm.starCategory && (
+                      <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        <Star className="w-3 h-3" />{customForm.starCategory}
+                      </span>
+                    )}
+                    {customForm.travelType && (
+                      <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.travelType}</span>
                     )}
                   </div>
                 </div>
-              </div>
-              <button onClick={() => setViewPkgQuot(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg flex-shrink-0">
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
 
-            {loadingPkg ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="p-6 space-y-5 overflow-y-auto">
+                {/* Customer context */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">👤</span>
+                    <p className="text-sm font-bold text-gray-800">Customer Details</p>
+                  </div>
+                  <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Customer', value: viewPkgQuot.customerName },
+                      { label: 'Travellers', value: viewPkgQuot.groupSize ? `${viewPkgQuot.groupSize} pax` : `${viewPkgQuot.adults ?? 1}A${viewPkgQuot.kids ? ` ${viewPkgQuot.kids}K` : ''}` },
+                      { label: 'Travel Dates', value: viewPkgQuot.preferredDates || 'Not set' },
+                      { label: 'Status', value: QUOT_STATUS[viewPkgQuot.status]?.label || viewPkgQuot.status },
+                    ].map(item => (
+                      <div key={item.label} className="bg-gray-50 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
+                        <p className="text-xs font-semibold text-gray-800 mt-0.5 truncate">{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                {/* ── Hero image ── */}
-                {customForm.primaryImageUrl ? (
-                  <div className="relative h-48 rounded-2xl overflow-hidden">
-                    <img src={customForm.primaryImageUrl} alt={customForm.title} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="absolute bottom-3 left-4">
-                      <p className="text-white font-bold text-lg">{customForm.title}</p>
-                      <p className="text-white/80 text-sm flex items-center gap-1"><MapPin className="w-3 h-3" />{customForm.destination}</p>
+                {/* Price — only editable field */}
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">💰</span>
+                    <p className="text-sm font-bold text-gray-800">Your Quoted Price</p>
+                    <span className="text-[10px] bg-green-100 text-green-700 font-semibold px-2 py-0.5 rounded-full ml-auto">Editable</span>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold text-gray-500 block mb-1.5">Price per Person (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₹</span>
+                          <input
+                            type="number"
+                            value={customForm.pricePerPerson ?? ''}
+                            onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) }))}
+                            placeholder="Enter your price"
+                            className="w-full pl-7 pr-4 py-2.5 border-2 border-purple-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      {customForm.pricePerPerson && (
+                        <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-center flex-shrink-0">
+                          <p className="text-[10px] text-purple-400 font-semibold uppercase">Total (2 pax)</p>
+                          <p className="text-lg font-bold text-purple-700">₹{(Number(customForm.pricePerPerson) * 2).toLocaleString('en-IN')}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <div className="h-28 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl flex items-center justify-center">
-                    <div className="text-center">
-                      <Package className="w-8 h-8 text-primary/40 mx-auto mb-1" />
-                      <p className="font-bold text-gray-700">{customForm.title}</p>
-                      <p className="text-xs text-gray-400 flex items-center gap-1 justify-center mt-0.5"><MapPin className="w-3 h-3" />{customForm.destination}</p>
+                </div>
+
+                {/* Overview — read only */}
+                {customForm.overview && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                      <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">📝</span>
+                      <p className="text-sm font-bold text-gray-800">Overview</p>
+                    </div>
+                    <div className="p-5">
+                      <p className="text-sm text-gray-700 leading-relaxed">{customForm.overview}</p>
                     </div>
                   </div>
                 )}
 
-                {/* ── Customer context strip ── */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                  {[
-                    { label: 'Customer', value: viewPkgQuot.customerName },
-                    { label: 'Travellers', value: viewPkgQuot.groupSize ? `${viewPkgQuot.groupSize} pax` : `${viewPkgQuot.adults ?? 1}A${viewPkgQuot.kids ? ` ${viewPkgQuot.kids}K` : ''}` },
-                    { label: 'Travel Dates', value: viewPkgQuot.preferredDates || 'Not set' },
-                    { label: 'Status', value: QUOT_STATUS[viewPkgQuot.status]?.label || viewPkgQuot.status },
-                  ].map(item => (
-                    <div key={item.label} className="bg-gray-50 rounded-xl px-3 py-2">
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wide">{item.label}</p>
-                      <p className="text-xs font-semibold text-gray-800 mt-0.5 truncate">{item.value}</p>
+                {/* Highlights — read only */}
+                {Array.isArray(customForm.highlights) && customForm.highlights.length > 0 && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                      <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">✨</span>
+                      <p className="text-sm font-bold text-gray-800">Highlights</p>
                     </div>
-                  ))}
-                </div>
-
-                {/* ── Instruction banner ── */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <Eye className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-blue-800">
-                    Click <span className="font-bold">✏️ Edit</span> on any section to customise it. Your edits create <span className="font-bold">your own version</span> — the agent's original package is untouched. Hit <span className="font-bold">"Share to Agent"</span> to notify them.
-                  </p>
-                </div>
-
-                {/* ── Section: Title & Basic Info ── */}
-                <PkgSection
-                  title="Package Title & Destination"
-                  isEditing={editingSection === 'basic'}
-                  onEdit={() => setEditingSection(editingSection === 'basic' ? null : 'basic')}
-                  view={
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div><p className="text-xs text-gray-400 mb-0.5">Title</p><p className="font-semibold text-gray-800">{customForm.title || '—'}</p></div>
-                      <div><p className="text-xs text-gray-400 mb-0.5">Destination</p><p className="font-semibold text-gray-800">{customForm.destination || '—'}</p></div>
-                      {customForm.travelType && <div><p className="text-xs text-gray-400 mb-0.5">Travel Type</p><p className="font-semibold text-gray-800">{customForm.travelType}</p></div>}
-                      {customForm.starCategory && <div><p className="text-xs text-gray-400 mb-0.5">Category</p><p className="font-semibold text-gray-800">{customForm.starCategory}</p></div>}
+                    <div className="p-5">
+                      <ul className="space-y-1.5">{customForm.highlights.map((h, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-gray-700"><span className="text-primary mt-0.5">✦</span>{h}</li>
+                      ))}</ul>
                     </div>
-                  }
-                  edit={
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2">
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Package Title</label>
-                        <input value={customForm.title || ''} onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Destination</label>
-                        <input value={customForm.destination || ''} onChange={e => setCustomForm(p => ({ ...p, destination: e.target.value }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Travel Type</label>
-                        <input value={customForm.travelType || ''} onChange={e => setCustomForm(p => ({ ...p, travelType: e.target.value }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                    </div>
-                  }
-                />
+                  </div>
+                )}
 
-                {/* ── Section: Duration & Price ── */}
-                <PkgSection
-                  title="Duration & Pricing"
-                  isEditing={editingSection === 'duration'}
-                  onEdit={() => setEditingSection(editingSection === 'duration' ? null : 'duration')}
-                  view={
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Nights</p>
-                        <p className="font-bold text-gray-900 text-lg">{customForm.durationNights ?? '—'}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wide">Days</p>
-                        <p className="font-bold text-gray-900 text-lg">{customForm.durationDays ?? '—'}</p>
-                      </div>
-                      <div className="bg-primary/5 border border-primary/20 rounded-xl px-3 py-2 text-center">
-                        <p className="text-[10px] text-primary uppercase tracking-wide font-semibold">Price/Person</p>
-                        <p className="font-bold text-primary text-lg">{customForm.pricePerPerson ? `₹${customForm.pricePerPerson.toLocaleString('en-IN')}` : '—'}</p>
-                      </div>
+                {/* Inclusions & Exclusions — read only */}
+                {((Array.isArray(customForm.inclusions) && customForm.inclusions.length > 0) || (Array.isArray(customForm.exclusions) && customForm.exclusions.length > 0)) && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                      <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">✅</span>
+                      <p className="text-sm font-bold text-gray-800">Inclusions & Exclusions</p>
                     </div>
-                  }
-                  edit={
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Nights</label>
-                        <input type="number" value={customForm.durationNights ?? ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Days</label>
-                        <input type="number" value={customForm.durationDays ?? ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 block mb-1">Price/Person (₹)</label>
-                        <input type="number" value={customForm.pricePerPerson ?? ''} onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) }))}
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                    </div>
-                  }
-                />
-
-                {/* ── Section: Overview ── */}
-                <PkgSection
-                  title="Overview"
-                  isEditing={editingSection === 'overview'}
-                  onEdit={() => setEditingSection(editingSection === 'overview' ? null : 'overview')}
-                  view={
-                    customForm.overview
-                      ? <p className="text-sm text-gray-700 leading-relaxed">{customForm.overview}</p>
-                      : <p className="text-sm text-gray-400 italic">No overview yet — click ✏️ to add one</p>
-                  }
-                  edit={
-                    <textarea rows={4} value={customForm.overview || ''} onChange={e => setCustomForm(p => ({ ...p, overview: e.target.value }))}
-                      placeholder="Write a compelling overview of this package…"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  }
-                />
-
-                {/* ── Section: Highlights ── */}
-                <PkgSection
-                  title="Highlights"
-                  isEditing={editingSection === 'highlights'}
-                  onEdit={() => setEditingSection(editingSection === 'highlights' ? null : 'highlights')}
-                  view={
-                    Array.isArray(customForm.highlights) && customForm.highlights.length > 0
-                      ? <ul className="space-y-1.5">{customForm.highlights.map((h, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                            <span className="text-primary mt-0.5">✦</span>{h}
-                          </li>
-                        ))}</ul>
-                      : <p className="text-sm text-gray-400 italic">No highlights yet — click ✏️ to add</p>
-                  }
-                  edit={
-                    <div>
-                      <textarea rows={4}
-                        value={Array.isArray(customForm.highlights) ? customForm.highlights.join('\n') : ''}
-                        onChange={e => setCustomForm(p => ({ ...p, highlights: e.target.value.split('\n').filter(Boolean) }))}
-                        placeholder="One highlight per line&#10;Beautiful beaches&#10;Scuba diving spots&#10;Sunset cruise"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      <p className="text-[10px] text-gray-400 mt-1">One highlight per line</p>
-                    </div>
-                  }
-                />
-
-                {/* ── Section: Inclusions & Exclusions ── */}
-                <PkgSection
-                  title="Inclusions & Exclusions"
-                  isEditing={editingSection === 'inclusions'}
-                  onEdit={() => setEditingSection(editingSection === 'inclusions' ? null : 'inclusions')}
-                  view={
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="p-5 grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs font-bold text-green-700 mb-2">✓ Inclusions</p>
                         {Array.isArray(customForm.inclusions) && customForm.inclusions.length > 0
                           ? <ul className="space-y-1">{customForm.inclusions.map((inc, i) => (
-                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><span className="text-green-500 mt-0.5">•</span>{inc}</li>
+                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" />{inc}</li>
                             ))}</ul>
-                          : <p className="text-xs text-gray-400 italic">None added</p>}
+                          : <p className="text-xs text-gray-400 italic">None</p>}
                       </div>
                       <div>
                         <p className="text-xs font-bold text-red-600 mb-2">✗ Exclusions</p>
                         {Array.isArray(customForm.exclusions) && customForm.exclusions.length > 0
                           ? <ul className="space-y-1">{customForm.exclusions.map((exc, i) => (
-                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><span className="text-red-400 mt-0.5">•</span>{exc}</li>
+                              <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5"><XCircle className="w-3 h-3 text-red-400 flex-shrink-0 mt-0.5" />{exc}</li>
                             ))}</ul>
-                          : <p className="text-xs text-gray-400 italic">None added</p>}
+                          : <p className="text-xs text-gray-400 italic">None</p>}
                       </div>
                     </div>
-                  }
-                  edit={
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs font-semibold text-green-700 block mb-1">✓ Inclusions (one per line)</label>
-                        <textarea rows={5}
-                          value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : ''}
-                          onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n').filter(Boolean) }))}
-                          placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast&#10;Airport transfers"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-green-300" />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-red-600 block mb-1">✗ Exclusions (one per line)</label>
-                        <textarea rows={5}
-                          value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : ''}
-                          onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n').filter(Boolean) }))}
-                          placeholder="Personal expenses&#10;Visa fees&#10;Travel insurance&#10;Optional activities"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-red-300" />
-                      </div>
-                    </div>
-                  }
-                />
+                  </div>
+                )}
 
-                {/* ── Section: Day-wise Itinerary ── */}
-                <PkgSection
-                  title="Day-Wise Itinerary"
-                  isEditing={editingSection === 'itinerary'}
-                  onEdit={() => setEditingSection(editingSection === 'itinerary' ? null : 'itinerary')}
-                  view={
-                    customForm.dayWiseItinerary
-                      ? <div className="space-y-1.5">{customForm.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) => (
-                          <div key={i} className={`text-sm ${line.toLowerCase().startsWith('day') ? 'font-bold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-3'}`}>{line}</div>
-                        ))}</div>
-                      : <p className="text-sm text-gray-400 italic">No itinerary yet — click ✏️ to add day-by-day plan</p>
-                  }
-                  edit={
-                    <div>
-                      <textarea rows={8}
-                        value={customForm.dayWiseItinerary || ''}
-                        onChange={e => setCustomForm(p => ({ ...p, dayWiseItinerary: e.target.value }))}
-                        placeholder="Day 1: Arrive at airport, check-in hotel&#10;Day 2: Visit beach, sunset cruise&#10;Day 3: Scuba diving, local market&#10;Day 4: Island hopping&#10;Day 5: Free time, departure"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      <p className="text-[10px] text-gray-400 mt-1">Start each day with "Day 1:", "Day 2:" etc.</p>
+                {/* Day-wise itinerary — read only */}
+                {customForm.dayWiseItinerary && (
+                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                      <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🗺️</span>
+                      <p className="text-sm font-bold text-gray-800">Day-Wise Itinerary</p>
                     </div>
-                  }
-                />
-              </div>
-            )}
+                    <div className="p-5 space-y-2">
+                      {customForm.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) =>
+                        /^day\s*\d+/i.test(line) ? (
+                          <div key={i} className="flex items-center gap-2 mt-4 first:mt-0">
+                            <span className="w-6 h-6 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                              {(line.match(/\d+/) || ['?'])[0]}
+                            </span>
+                            <p className="text-sm font-bold text-gray-900">{line}</p>
+                          </div>
+                        ) : (
+                          <p key={i} className="text-sm text-gray-600 pl-8 border-l-2 border-purple-100 ml-3 leading-relaxed">{line}</p>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
 
-            {/* ── Footer actions ── */}
-            {!loadingPkg && (
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  {customSaved && (
-                    <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
-                      <CheckCircle className="w-3.5 h-3.5" />Saved
-                    </span>
-                  )}
-                  <p className="text-xs text-gray-400">Edits only affect this quotation</p>
+              </div>
+
+              {/* Right: Live Preview */}
+              <div className="w-72 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto hidden md:flex">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <span className="text-xs font-bold text-gray-700">Live Preview</span>
+                  <span className="text-[10px] text-gray-400">As DMC sees it</span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => saveCustomPackage(false)}
-                    disabled={savingCustom || sharingCustom}
-                    className="flex items-center gap-1.5 text-xs font-semibold border border-gray-200 bg-white text-gray-700 px-4 py-2 rounded-xl hover:border-primary hover:text-primary transition-colors disabled:opacity-50"
-                  >
-                    {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5" />}
-                    Save My Version
-                  </button>
-                  <button
-                    onClick={() => saveCustomPackage(true)}
-                    disabled={savingCustom || sharingCustom}
-                    className="flex items-center gap-1.5 text-xs font-bold bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm shadow-primary/30"
-                  >
-                    {sharingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    Share to Agent
-                  </button>
+                <div className="p-4">
+                  <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                    <div className="relative h-40">
+                      {customForm.primaryImageUrl ? (
+                        <img src={customForm.primaryImageUrl} alt={customForm.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-200 to-indigo-300 flex items-center justify-center">
+                          <Package className="w-12 h-12 text-white/50" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                      <div className="absolute top-2 left-2">
+                        <span className="bg-white text-[10px] font-bold px-2 py-0.5 rounded-full text-gray-800 shadow">Travelzada</span>
+                      </div>
+                      <div className="absolute bottom-2 left-3 right-3">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Personalized Itinerary</p>
+                        <p className="text-white font-bold text-sm leading-snug line-clamp-2">{customForm.title || 'Your Package Title'}</p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-[10px] font-bold text-gray-900 mb-2">Trip Overview</p>
+                      <div className="grid grid-cols-3 gap-1.5 mb-3">
+                        {[
+                          { emoji: '🏨', label: 'Stay', val: customForm.starCategory || '–' },
+                          { emoji: '✈️', label: 'Type', val: customForm.travelType || '–' },
+                          { emoji: '🌙', label: 'Nights', val: String(customForm.durationNights || '–') },
+                        ].map(({ emoji, label, val }) => (
+                          <div key={label} className="text-center">
+                            <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center mx-auto mb-0.5 text-sm">{emoji}</div>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase">{label}</p>
+                            <p className="text-[9px] font-bold text-gray-700">{val}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="bg-purple-50 border border-purple-100 rounded-xl p-2.5 text-center mb-3">
+                        <p className="text-[9px] text-purple-400 font-semibold uppercase">Your Price</p>
+                        <p className="text-lg font-bold text-purple-700">
+                          {customForm.pricePerPerson ? `₹${Number(customForm.pricePerPerson).toLocaleString('en-IN')}` : '—'}
+                        </p>
+                        <p className="text-[9px] text-purple-400">per person</p>
+                      </div>
+                      <div className="bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-2">
+                        <p className="text-[9px] font-bold text-blue-600 mb-1">For Customer</p>
+                        <p className="text-[10px] font-semibold text-blue-800">{viewPkgQuot.customerName}</p>
+                        <p className="text-[9px] text-blue-500">{viewPkgQuot.destination} · {viewPkgQuot.preferredDates || 'Dates TBD'}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Bottom action bar */}
+          {!loadingPkg && (
+            <div className="flex items-center justify-between gap-2 px-4 md:px-6 py-3.5 bg-white border-t border-gray-100 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex-shrink-0 flex-wrap">
+              <div className="flex items-center gap-2">
+                {customSaved && (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
+                    <CheckCircle className="w-3.5 h-3.5" />Saved
+                  </span>
+                )}
+                <button
+                  onClick={() => saveCustomPackage(false)}
+                  disabled={savingCustom || sharingCustom}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  {savingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <BookOpen className="w-4 h-4" />}
+                  Save Itinerary
+                </button>
+                <button
+                  onClick={() => { setPdfQuot(viewPkgQuot); setViewPkgQuot(null) }}
+                  className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />Send PDF
+                </button>
+                <button
+                  onClick={() => {
+                    shareQuotationWhatsApp(viewPkgQuot)
+                  }}
+                  className="flex items-center gap-2 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-green-200"
+                >
+                  <Share2 className="w-4 h-4" />Share on WhatsApp
+                </button>
+              </div>
+              <button
+                onClick={() => saveCustomPackage(true)}
+                disabled={savingCustom || sharingCustom}
+                className="flex items-center gap-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50 shadow-sm shadow-primary/30"
+              >
+                {sharingCustom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Share to DMC
+              </button>
+            </div>
+          )}
         </div>
       )}
 

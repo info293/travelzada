@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 
 // SSR-safe Header component
@@ -18,8 +18,34 @@ export default function Header() {
   // Auth state - only accessed after mount to prevent SSR issues
   const auth = useAuth()
   const currentUser = isMounted ? auth.currentUser : null
-  const isAdmin = isMounted ? auth.isAdmin : false
+  const isAdmin    = isMounted ? auth.isAdmin    : false
+  const isAgent    = isMounted ? auth.isAgent    : false
+  const isSubAgent = isMounted ? auth.isSubAgent : false
+  const agentSlug  = isMounted ? auth.agentSlug  : null
+  const subAgentName = isMounted ? auth.subAgentName : null
   const logout = auth.logout
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close user menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Derive role label + dashboard link
+  const roleLabel  = isAdmin ? 'Admin' : isAgent ? 'DMC Agent' : isSubAgent ? 'Travel Agent' : 'Member'
+  const roleColor  = isAdmin ? 'bg-red-100 text-red-700' : isAgent ? 'bg-purple-100 text-purple-700' : isSubAgent ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+  const dashLink   = isAdmin ? '/admin' : isAgent ? '/dmc-dashboard' : isSubAgent ? '/travel-agent-dashboard' : null
+  const dashLabel  = isAdmin ? 'Admin Panel' : isAgent ? 'DMC Dashboard' : isSubAgent ? 'Agent Dashboard' : null
+  const displayName = isSubAgent && subAgentName ? subAgentName : currentUser?.email || ''
+  const initials = displayName.charAt(0).toUpperCase()
 
   // Mark as mounted after first render (client-side only)
   useEffect(() => {
@@ -147,17 +173,59 @@ export default function Header() {
         {/* Auth Buttons - SSR-safe: always show Sign In/Sign Up initially */}
         <div className="flex items-center gap-3">
           {isMounted && currentUser ? (
-            <>
-              <span className="hidden sm:inline-block text-sm text-gray-600">
-                {currentUser.email}
-              </span>
+            <div ref={userMenuRef} className="relative hidden sm:block">
+              {/* Avatar button */}
               <button
-                onClick={logout}
-                className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 group"
               >
-                Sign Out
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+                  {initials}
+                </div>
+                <span className="text-sm text-gray-700 font-medium max-w-[140px] truncate">{displayName}</span>
+                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
-            </>
+
+              {/* Dropdown */}
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl z-50 overflow-hidden">
+                  {/* Role header */}
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                    <p className="text-xs text-gray-400 truncate">{currentUser.email}</p>
+                    <span className={`mt-1 inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full ${roleColor}`}>
+                      {roleLabel}
+                    </span>
+                  </div>
+
+                  {/* Dashboard link (role-specific) */}
+                  {dashLink && (
+                    <Link
+                      href={dashLink}
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-primary/5 hover:text-primary transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                      </svg>
+                      {dashLabel}
+                    </Link>
+                  )}
+
+                  {/* Sign Out */}
+                  <button
+                    onClick={() => { logout(); setUserMenuOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <>
               <Link
@@ -228,14 +296,33 @@ export default function Header() {
               <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
                 {isMounted && currentUser ? (
                   <>
-                    <div className="py-2 text-base font-medium text-gray-700">
-                      {currentUser.email}
+                    {/* User info + role */}
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                        {initials}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{displayName}</p>
+                        <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full ${roleColor}`}>
+                          {roleLabel}
+                        </span>
+                      </div>
                     </div>
+                    {/* Dashboard link */}
+                    {dashLink && (
+                      <Link
+                        href={dashLink}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex items-center gap-2 py-2 text-base font-semibold text-primary hover:underline"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                        </svg>
+                        {dashLabel}
+                      </Link>
+                    )}
                     <button
-                      onClick={() => {
-                        logout()
-                        setIsMobileMenuOpen(false)
-                      }}
+                      onClick={() => { logout(); setIsMobileMenuOpen(false) }}
                       className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
                     >
                       Sign Out

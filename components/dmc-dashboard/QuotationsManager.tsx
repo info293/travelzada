@@ -293,6 +293,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
           rooms: active.rooms || 1,
           specialRequests: active.specialRequests || '',
           subAgentId: active.subAgentId,
+          quotedPrice: active.quotedPrice || null,
           bookingValue: active.quotedPrice || null,
         }),
       })

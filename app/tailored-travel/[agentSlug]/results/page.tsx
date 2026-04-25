@@ -8,7 +8,8 @@ import Footer from '@/components/Footer'
 import Link from 'next/link'
 import {
   Loader2, ArrowLeft, X, Send, User, Phone, Mail, Calendar,
-  Users, Star, Clock, CheckCircle, MapPin, IndianRupee, Package
+  Users, Star, Clock, CheckCircle, MapPin, IndianRupee, Package,
+  FileText, Printer, Eye
 } from 'lucide-react'
 
 interface MatchedPackage {
@@ -175,7 +176,7 @@ export default function AgentResultsPage() {
 
   // ── Agent branding strip ─────────────────────────────────────────────────
   const AgentStrip = () => agentInfo ? (
-    <div className="bg-white border-b border-gray-100 shadow-sm sticky top-16 md:top-20 z-30">
+    <div className={`bg-white border-b border-gray-100 shadow-sm sticky z-30 ${isEmbed ? 'top-0' : 'top-16 md:top-20'}`}>
       <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           {agentInfo.logoUrl ? (
@@ -362,6 +363,8 @@ function PackageCard({
   onRequest: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [showPdf, setShowPdf] = useState(false)
+  const [showItinerary, setShowItinerary] = useState(false)
   const title = pkg.agentPackageTitle || pkg.Destination_Name
   const inclusions = typeof pkg.Inclusions === 'string'
     ? pkg.Inclusions.split(',').map(s => s.trim()).filter(Boolean)
@@ -462,19 +465,431 @@ function PackageCard({
               const msg = buildWhatsAppMsg(pkg)
               window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
             }}
-            className="flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white font-semibold px-3.5 py-2.5 rounded-xl transition-colors text-sm flex-shrink-0"
-            title="Share all package details on WhatsApp"
+            className="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-2.5 rounded-xl transition-colors flex-shrink-0"
+            title="Share on WhatsApp"
           >
             <Send className="w-4 h-4" />
           </button>
           <button
-            onClick={onRequest}
+            onClick={() => setShowPdf(true)}
+            className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2.5 rounded-xl transition-colors flex-shrink-0"
+            title="Download / Print PDF"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowItinerary(true)}
             className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
           >
-            Request This Package
+            View Itinerary
           </button>
         </div>
       </div>
+
+      {/* ── Full Itinerary — DMC-style full-page two-column view ─────────── */}
+      {showItinerary && (
+        <div className="fixed inset-0 z-[90] flex flex-col bg-[#f4f5f9]">
+
+          {/* Top bar */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => setShowItinerary(false)}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+                Back
+              </button>
+              <div className="h-4 w-px bg-gray-200" />
+              <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{pkg.matchScore}% match</span>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">{title}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { const msg = buildWhatsAppMsg(pkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
+                className="flex items-center gap-1.5 text-xs font-bold bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">WhatsApp</span>
+              </button>
+              <button
+                onClick={() => { setShowItinerary(false); setShowPdf(true) }}
+                className="flex items-center gap-1.5 text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">PDF</span>
+              </button>
+              <button
+                onClick={() => setShowItinerary(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Main: left content + right preview */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Left: scrollable itinerary content */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 min-w-0">
+
+              {/* Package title card with gradient header */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-r from-purple-600 to-indigo-500 px-5 pt-5 pb-4">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Itinerary</p>
+                  <h1 className="text-xl font-bold text-white leading-tight">{title}</h1>
+                  <p className="text-sm text-white/70 flex items-center gap-1 mt-1.5">
+                    <MapPin className="w-3.5 h-3.5" />{pkg.Destination_Name}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 px-5 py-3">
+                  <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Clock className="w-3 h-3" />{pkg.Duration_Days}D / {pkg.Duration_Nights}N
+                  </span>
+                  {pkg.Star_Category && (
+                    <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <Star className="w-3 h-3" />{pkg.Star_Category}
+                    </span>
+                  )}
+                  {pkg.Travel_Type && (
+                    <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{pkg.Travel_Type}</span>
+                  )}
+                  <span className="bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">{pkg.matchScore}% AI Match</span>
+                </div>
+              </div>
+
+              {/* Hero image */}
+              {pkg.Primary_Image_URL && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="relative h-52 md:h-64">
+                    <img src={pkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-5">
+                      <p className="text-white font-bold text-lg leading-tight drop-shadow">{title}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Why it matches */}
+              {pkg.matchReason && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-sm">🎯</span>
+                    <p className="text-sm font-bold text-gray-800">Why It Matches You</p>
+                  </div>
+                  <div className="p-5">
+                    <p className="text-sm text-indigo-800 leading-relaxed">{pkg.matchReason}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Overview */}
+              {pkg.Overview && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📝</span>
+                    <p className="text-sm font-bold text-gray-800">Overview</p>
+                  </div>
+                  <div className="p-5">
+                    <p className="text-sm text-gray-600 leading-relaxed">{pkg.Overview}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Inclusions */}
+              {inclusions.length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">✅</span>
+                    <p className="text-sm font-bold text-gray-800">Inclusions</p>
+                  </div>
+                  <div className="p-5">
+                    <ul className="space-y-2">
+                      {inclusions.map((inc: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
+                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />{inc}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Day-wise itinerary */}
+              {pkg.Day_Wise_Itinerary && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🗺️</span>
+                    <p className="text-sm font-bold text-gray-800">Day-Wise Itinerary</p>
+                  </div>
+                  <div className="p-5 space-y-2">
+                    {String(pkg.Day_Wise_Itinerary).split('\n').filter(Boolean).map((line, i) => (
+                      /^day\s*\d+/i.test(line) ? (
+                        <div key={i} className="flex items-center gap-2 mt-4 first:mt-0">
+                          <span className="w-6 h-6 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                            {(line.match(/\d+/) || ['?'])[0]}
+                          </span>
+                          <p className="text-sm font-bold text-gray-900">{line}</p>
+                        </div>
+                      ) : (
+                        <p key={i} className="text-sm text-gray-600 pl-8 border-l-2 border-purple-100 ml-3 leading-relaxed">{line}</p>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* T&C footer */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-xs text-gray-400 space-y-1">
+                <p className="font-semibold text-gray-500">Terms & Conditions</p>
+                <p>• Prices are subject to availability at the time of booking.</p>
+                <p>• This is an indicative package — final price confirmed on booking.</p>
+                <p>• A deposit may be required to confirm the booking.</p>
+              </div>
+
+            </div>
+
+            {/* Right: sticky Live Preview card */}
+            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto hidden md:flex">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-700">Package Preview</span>
+                <span className="text-[10px] text-gray-400">As customer sees it</span>
+              </div>
+              <div className="p-4">
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                  {/* Preview image */}
+                  <div className="relative h-44">
+                    {pkg.Primary_Image_URL ? (
+                      <img src={pkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-200 to-indigo-300 flex items-center justify-center">
+                        <Package className="w-14 h-14 text-white/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full text-gray-800 shadow">Travelzada</span>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Personalized Itinerary</p>
+                      <p className="text-white font-bold text-base leading-snug line-clamp-2">{title}</p>
+                    </div>
+                  </div>
+
+                  {/* Stats grid */}
+                  <div className="p-4">
+                    <p className="text-xs font-bold text-gray-900 mb-3">Trip Overview</p>
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      {[
+                        { emoji: '🏨', label: 'Stay', val: pkg.Star_Category || '—' },
+                        { emoji: '✈️', label: 'Type', val: pkg.Travel_Type || '—' },
+                        { emoji: '🌙', label: 'Nights', val: String(pkg.Duration_Nights) },
+                      ].map(({ emoji, label, val }) => (
+                        <div key={label} className="text-center">
+                          <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-1 text-base">{emoji}</div>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase">{label}</p>
+                          <p className="text-[10px] font-bold text-gray-700">{val}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Match score */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 flex items-center gap-2 mb-3">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
+                      <p className="text-xs font-semibold text-amber-800">{pkg.matchScore}% AI Match Score</p>
+                    </div>
+
+                    {/* Price */}
+                    <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
+                      <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
+                      <p className="text-xl font-bold text-purple-700">₹{pkg.Price_Min_INR.toLocaleString('en-IN')}</p>
+                      <p className="text-[10px] text-purple-400">per person</p>
+                    </div>
+
+                    {/* Inclusions preview */}
+                    {inclusions.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-bold text-gray-700 mb-2">Inclusions ({inclusions.length})</p>
+                        <div className="space-y-1.5">
+                          {inclusions.slice(0, 4).map((inc: string, i: number) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                              <p className="text-[10px] text-gray-600 leading-tight line-clamp-1">{inc}</p>
+                            </div>
+                          ))}
+                          {inclusions.length > 4 && (
+                            <p className="text-[10px] text-gray-400 pl-4.5">+{inclusions.length - 4} more…</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom action bar */}
+          <div className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-white border-t border-gray-100 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { const msg = buildWhatsAppMsg(pkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-green-500 hover:bg-green-600 px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-green-200"
+              >
+                <Send className="w-4 h-4" /> Share on WhatsApp
+              </button>
+              <button
+                onClick={() => { setShowItinerary(false); setShowPdf(true) }}
+                className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                <FileText className="w-4 h-4" /> Download PDF
+              </button>
+            </div>
+            <button
+              onClick={() => { setShowItinerary(false); onRequest() }}
+              className="flex items-center gap-2 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 px-5 py-2.5 rounded-xl transition-colors shadow-sm shadow-purple-200"
+            >
+              Request This Package
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── PDF Modal ─────────────────────────────────────────────────────── */}
+      {showPdf && (
+        <div className="fixed inset-0 z-[90] bg-black/60 flex items-center justify-center p-4 print:bg-white print:p-0 print:block" onClick={() => setShowPdf(false)}>
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:rounded-none print:max-h-none"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-purple-600" />
+                <span className="font-bold text-gray-900 text-sm">Package Details</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const msg = buildWhatsAppMsg(pkg)
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                  }}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors"
+                >
+                  <Send className="w-3.5 h-3.5" />WhatsApp
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 text-xs font-semibold bg-purple-600 text-white px-3 py-1.5 rounded-xl hover:bg-purple-700 transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />Print / Save PDF
+                </button>
+                <button onClick={() => setShowPdf(false)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable content */}
+            <div className="flex-1 overflow-y-auto p-6 print:p-8 space-y-5">
+              {/* Hero image */}
+              {pkg.Primary_Image_URL && (
+                <div className="relative h-44 rounded-2xl overflow-hidden">
+                  <img src={pkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                  <div className="absolute bottom-3 left-4">
+                    <p className="text-white font-bold text-lg leading-tight">{title}</p>
+                    <p className="text-white/80 text-sm flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3 h-3" />{pkg.Destination_Name}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Key stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: 'Duration', value: `${pkg.Duration_Days}D / ${pkg.Duration_Nights}N` },
+                  { label: 'Category', value: pkg.Star_Category || '—' },
+                  { label: 'Travel Type', value: pkg.Travel_Type || '—' },
+                  { label: 'Match', value: `${pkg.matchScore}%` },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">{s.label}</p>
+                    <p className="font-bold text-gray-900 text-xs mt-0.5">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Price */}
+              <div className="rounded-2xl p-5 border-2 border-purple-200 bg-purple-50">
+                <p className="text-xs font-bold text-purple-500 uppercase tracking-wide mb-1">Price</p>
+                <p className="text-3xl font-bold text-purple-700">₹{pkg.Price_Min_INR.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-purple-400 mt-0.5">per person (starting from)</p>
+              </div>
+
+              {/* Why it matches */}
+              {pkg.matchReason && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
+                  <p className="text-xs font-bold text-indigo-600 mb-1">Why it matches you</p>
+                  <p className="text-sm text-indigo-800 leading-relaxed">{pkg.matchReason}</p>
+                </div>
+              )}
+
+              {/* Overview */}
+              {pkg.Overview && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Overview</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{pkg.Overview}</p>
+                </div>
+              )}
+
+              {/* Inclusions */}
+              {inclusions.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Inclusions</p>
+                  <ul className="space-y-1.5">
+                    {inclusions.map((inc: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />{inc}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Day-wise itinerary */}
+              {pkg.Day_Wise_Itinerary && (
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Day-wise Itinerary</p>
+                  <div className="space-y-1.5">
+                    {String(pkg.Day_Wise_Itinerary).split('\n').filter(Boolean).map((line, i) => (
+                      <div key={i} className={`text-sm ${/^day\s*\d+/i.test(line) ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-4">
+                <p className="font-semibold text-gray-500">Terms & Conditions</p>
+                <p>• Prices are subject to availability at the time of booking.</p>
+                <p>• This is an indicative quote — final price confirmed on booking.</p>
+                <p>• A deposit may be required to confirm the booking.</p>
+              </div>
+
+              <div className="text-center pt-2 border-t border-gray-100">
+                <p className="text-xs text-gray-400">Powered by Travelzada AI ✈️</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

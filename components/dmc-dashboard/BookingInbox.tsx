@@ -267,8 +267,10 @@ export default function BookingInbox({ agentId }: Props) {
                       >
                         <div className="flex items-start justify-between gap-2 mb-1.5">
                           <p className="font-bold text-gray-900 text-xs leading-snug">{b.customerName}</p>
-                          {b.bookingValue ? (
-                            <span className="text-xs font-bold text-emerald-700 flex-shrink-0">₹{(Number(b.bookingValue)/1000).toFixed(0)}K</span>
+                          {(b.bookingValue || b.quotedPrice) ? (
+                            <span className={`text-xs font-bold flex-shrink-0 ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>
+                              ₹{(Number(b.bookingValue || b.quotedPrice)/1000).toFixed(0)}K
+                            </span>
                           ) : null}
                         </div>
                         <p className="text-[11px] text-gray-500 leading-snug mb-1.5 line-clamp-1">{b.packageTitle}</p>
@@ -350,10 +352,12 @@ export default function BookingInbox({ agentId }: Props) {
 
                 <div className="text-right flex-shrink-0 space-y-0.5">
                   {booking.bookingValue ? (
-                    <p className="text-sm font-bold text-gray-900">₹{Number(booking.bookingValue).toLocaleString('en-IN')}</p>
-                  ) : (
-                    <p className="text-xs text-gray-400">No value set</p>
-                  )}
+                    <p className="text-sm font-bold text-emerald-700">₹{Number(booking.bookingValue).toLocaleString('en-IN')}</p>
+                  ) : booking.selectedPackage?.pricePerPerson ? (
+                    <p className="text-sm font-bold text-purple-600">₹{(Number(booking.selectedPackage.pricePerPerson) * (booking.groupSize || booking.adults || 1)).toLocaleString('en-IN')}</p>
+                  ) : booking.quotedPrice ? (
+                    <p className="text-sm font-bold text-purple-600">₹{Number(booking.quotedPrice).toLocaleString('en-IN')}</p>
+                  ) : null}
                   <p className="text-xs text-gray-400">{formatDate(booking.createdAt)}</p>
                 </div>
 
@@ -364,123 +368,136 @@ export default function BookingInbox({ agentId }: Props) {
               </div>
 
               {/* Expanded detail */}
-              {expandedId === booking.id && (
-                <div className="border-t border-gray-100 p-5 space-y-5 bg-gray-50/50">
-                  {/* Contact info */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                    <a href={`mailto:${booking.customerEmail}`} className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                      <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      {booking.customerEmail}
-                    </a>
-                    {booking.customerPhone && (
-                      <a href={`tel:${booking.customerPhone}`} className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                        <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        {booking.customerPhone}
-                      </a>
-                    )}
-                    {booking.customerPhone && (
+              {expandedId === booking.id && (() => {
+                const pkgPrice = booking.selectedPackage?.pricePerPerson || booking.quotedPrice || 0
+                const suggestedValue = booking.bookingValue || pkgPrice
+                return (
+                <div className="border-t border-gray-100 bg-gray-50/50">
+
+                  {/* Package info banner */}
+                  {booking.selectedPackage && (
+                    <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+                      {booking.selectedPackage.primaryImageUrl && (
+                        <img src={booking.selectedPackage.primaryImageUrl} alt="" className="w-12 h-9 object-cover rounded-lg flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gray-800 truncate">{booking.selectedPackage.title || booking.packageTitle}</p>
+                        <p className="text-[11px] text-gray-500 flex items-center gap-2 mt-0.5">
+                          <span>{booking.selectedPackage.durationNights}N / {booking.selectedPackage.durationDays}D</span>
+                          {booking.selectedPackage.starCategory && <span>· {booking.selectedPackage.starCategory}</span>}
+                          {booking.selectedPackage.travelType && <span>· {booking.selectedPackage.travelType}</span>}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[10px] text-gray-400">Package price</p>
+                        <p className="text-sm font-bold text-purple-700">₹{pkgPrice.toLocaleString('en-IN')}<span className="text-[10px] font-normal text-gray-400">/person</span></p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="p-5 space-y-4">
+                    {/* Contact row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      {booking.customerEmail ? (
+                        <a href={`mailto:${booking.customerEmail}`} className="flex items-center gap-2 text-primary hover:underline truncate">
+                          <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />{booking.customerEmail}
+                        </a>
+                      ) : (
+                        <span className="flex items-center gap-2 text-gray-400 text-xs">
+                          <Mail className="w-4 h-4 flex-shrink-0" />No email provided
+                        </span>
+                      )}
+                      {booking.customerPhone ? (
+                        <>
+                          <a href={`tel:${booking.customerPhone}`} className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
+                            <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />{booking.customerPhone}
+                          </a>
+                          <a href={`https://wa.me/${booking.customerPhone.replace(/\D/g, '')}`} target="_blank"
+                            className="flex items-center gap-2 text-green-700 hover:text-green-800 font-medium">
+                            <MessageCircle className="w-4 h-4 flex-shrink-0" />WhatsApp
+                          </a>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-2 text-gray-400 text-xs">
+                          <Phone className="w-4 h-4 flex-shrink-0" />No phone provided
+                        </span>
+                      )}
+                      {booking.preferredDates && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />{booking.preferredDates}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        {booking.adults || 1} adult{(booking.adults || 1) !== 1 ? 's' : ''}
+                        {booking.kids ? `, ${booking.kids} kid${booking.kids !== 1 ? 's' : ''}` : ''}
+                        {' · '}{booking.rooms || 1} room{(booking.rooms || 1) !== 1 ? 's' : ''}
+                      </div>
+                      {booking.destination && (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />{booking.destination}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quick email button */}
+                    {booking.customerEmail && (
                       <a
-                        href={`https://wa.me/${booking.customerPhone.replace(/\D/g, '')}`}
-                        target="_blank"
-                        className="flex items-center gap-2 text-green-700 hover:text-green-800 font-medium transition-colors"
+                        href={`mailto:${booking.customerEmail}?subject=Your ${booking.destination || booking.packageTitle} Trip&body=Hello ${booking.customerName},%0D%0A%0D%0AThank you for booking ${booking.packageTitle || 'our travel package'}.${booking.preferredDates ? `%0D%0A%0D%0ATravel dates: ${booking.preferredDates}` : ''}%0D%0A%0D%0ABest regards`}
+                        className="inline-flex items-center gap-2 text-xs font-semibold bg-primary/5 text-primary border border-primary/20 px-4 py-2 rounded-xl hover:bg-primary/10 transition-colors"
                       >
-                        <MessageCircle className="w-4 h-4 flex-shrink-0" />
-                        WhatsApp
+                        <Send className="w-3.5 h-3.5" />Send Email to {booking.customerName.split(' ')[0]}
                       </a>
                     )}
-                    {booking.preferredDates && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        {booking.preferredDates}
+
+                    {/* Special requests */}
+                    {booking.specialRequests && (
+                      <div className="bg-white rounded-xl p-3 border border-gray-200 text-sm text-gray-700">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Special Requests</p>
+                        {booking.specialRequests}
                       </div>
                     )}
-                    {booking.destination && (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        {booking.destination}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      {booking.adults || 1} adult{(booking.adults || 1) !== 1 ? 's' : ''}
-                      {booking.kids ? `, ${booking.kids} kid${booking.kids !== 1 ? 's' : ''}` : ''}
-                      {' · '}{booking.rooms || 1} room{(booking.rooms || 1) !== 1 ? 's' : ''}
-                    </div>
-                  </div>
 
-                  {/* Quick email button */}
-                  {booking.customerEmail && (
-                    <a
-                      href={`mailto:${booking.customerEmail}?subject=Your ${booking.destination || booking.packageTitle} Trip Enquiry&body=Hello ${booking.customerName},%0D%0A%0D%0AThank you for your interest in ${booking.packageTitle || 'our travel package'}.%0D%0A%0D%0AWe'd love to help plan your trip${booking.preferredDates ? ` for ${booking.preferredDates}` : ''}.%0D%0A%0D%0APlease let us know a convenient time to connect.%0D%0A%0D%0ABest regards`}
-                      className="inline-flex items-center gap-2 text-xs font-semibold bg-primary/5 text-primary border border-primary/20 px-4 py-2 rounded-xl hover:bg-primary/10 transition-colors"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      Send Email to {booking.customerName.split(' ')[0]}
-                    </a>
-                  )}
-
-                  {booking.specialRequests && (
-                    <div className="bg-white rounded-xl p-3 border border-gray-200 text-sm text-gray-700">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Special Requests</p>
-                      {booking.specialRequests}
-                    </div>
-                  )}
-
-                  {/* Booking value + commission */}
-                  <div className="grid grid-cols-2 gap-3">
+                    {/* Booking value — pre-filled from package price */}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Booking Value (₹)
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Booking Value (₹)</label>
+                        {pkgPrice > 0 && !booking.bookingValue && (
+                          <span className="text-[10px] text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-full">
+                            Suggested: ₹{pkgPrice.toLocaleString('en-IN')} × {booking.groupSize || booking.adults || 1} pax = ₹{(pkgPrice * (booking.groupSize || booking.adults || 1)).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </div>
                       <BookingValueEditor
                         bookingId={booking.id}
-                        initial={booking.bookingValue || ''}
+                        initial={booking.bookingValue || (pkgPrice * (booking.groupSize || booking.adults || 1)) || ''}
                         onSave={(val) => updateBooking(booking.id, { bookingValue: Number(val) })}
+                        placeholder={pkgPrice ? String(pkgPrice * (booking.groupSize || booking.adults || 1)) : 'Enter amount'}
                       />
                     </div>
+
+                    {/* Status selector */}
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                        Commission Amount (₹)
-                      </label>
-                      <BookingValueEditor
-                        bookingId={`comm-${booking.id}`}
-                        initial={booking.commissionAmount || ''}
-                        onSave={(val) => updateBooking(booking.id, { commissionAmount: Number(val) })}
-                        placeholder="0"
-                      />
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Update Status</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {STATUS_OPTIONS.map(s => (
+                          <button key={s} disabled={booking.status === s || updatingId === booking.id}
+                            onClick={() => updateBooking(booking.id, { status: s })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-colors ${
+                              booking.status === s ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
+                            } disabled:opacity-50`}
+                          >{s}</button>
+                        ))}
+                        {updatingId === booking.id && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Status selector */}
-                  <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Update Status</p>
-                    <div className="flex gap-2 flex-wrap">
-                      {STATUS_OPTIONS.map(s => (
-                        <button
-                          key={s}
-                          disabled={booking.status === s || updatingId === booking.id}
-                          onClick={() => updateBooking(booking.id, { status: s })}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-colors ${
-                            booking.status === s
-                              ? 'bg-primary text-white'
-                              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
-                          } disabled:opacity-50`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                      {updatingId === booking.id && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
-                    </div>
+                    {/* Agent notes */}
+                    <AgentNotesEditor bookingId={booking.id} initialNotes={booking.agentNotes || ''} onSave={(id, notes) => updateBooking(id, { agentNotes: notes })} />
                   </div>
-
-                  {/* Agent notes */}
-                  <AgentNotesEditor
-                    bookingId={booking.id}
-                    initialNotes={booking.agentNotes || ''}
-                    onSave={(id, notes) => updateBooking(id, { agentNotes: notes })}
-                  />
                 </div>
-              )}
+                )
+              })()}
             </div>
           ))}
         </div>
