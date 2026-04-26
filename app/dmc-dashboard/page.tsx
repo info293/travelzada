@@ -138,7 +138,7 @@ export default function AgentDashboardPage() {
     { id: 'packages', label: 'Packages', icon: <Package className="w-4 h-4" /> },
     { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: newBookingCount || undefined },
     { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
-    { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
+    // { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
     { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
     { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" /> },
     // { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },

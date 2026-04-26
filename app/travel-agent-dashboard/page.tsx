@@ -754,7 +754,7 @@ export default function SubAgentDashboardPage() {
     { id: 'packages',  label: 'Packages',   icon: Package },
     { id: 'quotations',    label: 'Quotations',   icon: MessageSquare, badge: pendingQuots || undefined },
     // { id: 'quote_history', label: 'Quote History', icon: BarChart3 },
-    { id: 'customers', label: 'Customers',  icon: Users },
+    // { id: 'customers', label: 'Customers',  icon: Users },
     { id: 'stats',     label: 'My Stats',   icon: BarChart3 },
     // { id: 'activity',  label: 'Activity',   icon: Activity },
     { id: 'ai',        label: 'AI',         icon: Bot },
