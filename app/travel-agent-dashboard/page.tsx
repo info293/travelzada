@@ -485,21 +485,46 @@ export default function SubAgentDashboardPage() {
     if (!viewPkgQuot || !currentUser) return
     andShare ? setSharingCustom(true) : setSavingCustom(true)
     try {
+      const groupSize = viewPkgQuot.groupSize || viewPkgQuot.adults || 1
+      const newQuotedPrice = customForm.pricePerPerson
+        ? Number(customForm.pricePerPerson) * groupSize
+        : undefined
+
+      // Save customPackageData + quotedPrice (if price was entered)
+      const patchBody: Record<string, any> = {
+        customPackageData: customForm,
+        requesterId: currentUser.uid,
+        requesterRole: 'subagent',
+        requesterName: subAgentName || 'Travel Agent',
+      }
+      if (newQuotedPrice) patchBody.quotedPrice = newQuotedPrice
+
       await fetch(`/api/agent/quotations/${viewPkgQuot.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customPackageData: customForm }),
+        body: JSON.stringify(patchBody),
       })
+
       // Update local state
+      const updatedFields: Partial<Quotation> = { customPackageData: customForm }
+      if (newQuotedPrice) updatedFields.quotedPrice = newQuotedPrice
+
       setQuotations(prev => prev.map(q =>
-        q.id === viewPkgQuot.id ? { ...q, customPackageData: customForm } : q
+        q.id === viewPkgQuot.id ? { ...q, ...updatedFields } : q
       ))
-      setViewPkgQuot(prev => prev ? { ...prev, customPackageData: customForm } : prev)
+      setViewPkgQuot(prev => prev ? { ...prev, ...updatedFields } : prev)
+      if (selQuot?.id === viewPkgQuot.id) {
+        setSelQuot(prev => prev ? { ...prev, ...updatedFields } : prev)
+      }
       setViewPkgData(customForm)
       setCustomSaved(true)
 
       if (andShare) {
-        // Send a message to notify the agent
+        const hasPrice = !!newQuotedPrice
+        const msgText = hasPrice
+          ? `✏️ Package Proposal with Price: "${customForm.title || viewPkgQuot.packageTitle}" · ₹${Number(customForm.pricePerPerson).toLocaleString('en-IN')}/person · Total ₹${newQuotedPrice.toLocaleString('en-IN')} for ${groupSize} pax. Ready for your review.`
+          : `✏️ Custom Package Proposal: I've created a customized package version for ${viewPkgQuot.customerName}'s quotation — "${customForm.title}". Please review and set a price.`
+
         const msgRes = await fetch(`/api/agent/quotations/${viewPkgQuot.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -508,16 +533,14 @@ export default function SubAgentDashboardPage() {
             senderId: currentUser.uid,
             senderRole: 'subagent',
             senderName: subAgentName || 'Travel Agent',
-            text: `✏️ Custom Package Proposal: I've created a customized package version for ${viewPkgQuot.customerName}'s quotation — "${customForm.title}". Please review and set a price.`,
+            text: msgText,
           }),
         })
         const msgData = await msgRes.json()
         if (msgData.success) {
           const updatedMsg = msgData.message
           setQuotations(prev => prev.map(q =>
-            q.id === viewPkgQuot.id
-              ? { ...q, messages: [...q.messages, updatedMsg] }
-              : q
+            q.id === viewPkgQuot.id ? { ...q, messages: [...q.messages, updatedMsg] } : q
           ))
           if (selQuot?.id === viewPkgQuot.id) {
             setSelQuot(prev => prev ? { ...prev, messages: [...prev.messages, updatedMsg] } : prev)
@@ -525,8 +548,7 @@ export default function SubAgentDashboardPage() {
         }
         setViewPkgQuot(null)
       }
-    } catch { }
-    finally {
+    } catch { } finally {
       setSavingCustom(false)
       setSharingCustom(false)
     }
@@ -2597,12 +2619,15 @@ export default function SubAgentDashboardPage() {
                           />
                         </div>
                       </div>
-                      {customForm.pricePerPerson && (
-                        <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-center flex-shrink-0">
-                          <p className="text-[10px] text-purple-400 font-semibold uppercase">Total (2 pax)</p>
-                          <p className="text-lg font-bold text-purple-700">₹{(Number(customForm.pricePerPerson) * 2).toLocaleString('en-IN')}</p>
-                        </div>
-                      )}
+                      {customForm.pricePerPerson && (() => {
+                        const gSize = viewPkgQuot.groupSize || viewPkgQuot.adults || 1
+                        return (
+                          <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 text-center flex-shrink-0">
+                            <p className="text-[10px] text-purple-400 font-semibold uppercase">Total ({gSize} pax)</p>
+                            <p className="text-lg font-bold text-purple-700">₹{(Number(customForm.pricePerPerson) * gSize).toLocaleString('en-IN')}</p>
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>

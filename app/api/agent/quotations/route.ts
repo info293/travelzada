@@ -4,6 +4,25 @@ import {
   collection, addDoc, query, where, getDocs, serverTimestamp
 } from 'firebase/firestore'
 
+async function writeNotification(payload: {
+  agentId: string
+  subAgentId: string
+  subAgentName: string
+  type: string
+  referenceId: string
+  referenceTitle: string
+  customerName: string
+  preview: string
+}) {
+  try {
+    await addDoc(collection(db, 'agent_notifications'), {
+      ...payload,
+      isRead: false,
+      createdAt: serverTimestamp(),
+    })
+  } catch { /* fire-and-forget */ }
+}
+
 // GET /api/agent/quotations?agentId=X  or  ?subAgentId=X
 export async function GET(request: Request) {
   try {
@@ -80,6 +99,19 @@ export async function POST(request: Request) {
     }
 
     const ref = await addDoc(collection(db, 'quotations'), quotation)
+
+    // Notify DMC of new quotation request from travel agent
+    await writeNotification({
+      agentId,
+      subAgentId,
+      subAgentName: subAgentName || 'Travel Agent',
+      type: 'new_quotation',
+      referenceId: ref.id,
+      referenceTitle: packageTitle || destination || 'Custom Request',
+      customerName: customerName || '',
+      preview: `New quotation request for ${packageTitle || destination || 'a trip'} · ${Number(groupSize) || 1} pax${preferredDates ? ` · ${preferredDates}` : ''}`,
+    })
+
     return NextResponse.json({ success: true, quotationId: ref.id })
   } catch (error: any) {
     console.error('[Quotations POST]', error)

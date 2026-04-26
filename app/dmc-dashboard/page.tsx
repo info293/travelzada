@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { db } from '@/lib/firebase'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore'
 import { motion } from 'framer-motion'
 import {
   Package, Inbox, BarChart2, Users, LogOut, Copy, Check, ExternalLink,
   Building2, Clock, AlertCircle, Loader2, UserCog, Activity, Code2,
-  Home, Settings, MessageSquare
+  Home, Settings, MessageSquare, Bell
 } from 'lucide-react'
 import DashboardHome from '@/components/dmc-dashboard/DashboardHome'
 import PackageManager from '@/components/dmc-dashboard/PackageManager'
@@ -23,6 +23,7 @@ import AgentSettings from '@/components/dmc-dashboard/AgentSettings'
 import QuotationsManager from '@/components/dmc-dashboard/QuotationsManager'
 import QuotationHistory from '@/components/dmc-dashboard/QuotationHistory'
 import DemoDataLoader from '@/components/dmc-dashboard/DemoDataLoader'
+import NotificationsPanel from '@/components/dmc-dashboard/NotificationsPanel'
 import type { Agent } from '@/lib/types/agent'
 
 type Tab = 'home' | 'packages' | 'bookings' | 'analytics' | 'customers' | 'team' | 'quotations' | 'quotation_history' | 'crm' | 'embed' | 'settings'
@@ -43,6 +44,9 @@ export default function AgentDashboardPage() {
   const [copied, setCopied] = useState(false)
   const [agentLoading, setAgentLoading] = useState(true)
   const [newBookingCount, setNewBookingCount] = useState(0)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifLoading, setNotifLoading] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
 
   // Redirect non-agents; sub-agents get their own dashboard
   useEffect(() => {
@@ -75,8 +79,64 @@ export default function AgentDashboardPage() {
     } catch { }
   }, [currentUser])
 
+
+  // Manually re-fetch notifications (used by the refresh button in the panel)
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUser) return
+    setNotifLoading(true)
+    try {
+      const res = await fetch(`/api/agent/notifications?agentId=${currentUser.uid}`)
+      const data = await res.json()
+      if (data.success) setNotifications(data.notifications)
+    } catch { } finally {
+      setNotifLoading(false)
+    }
+  }, [currentUser])
+
+  async function markAllNotificationsRead() {
+    if (!currentUser) return
+    await fetch('/api/agent/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId: currentUser.uid }),
+    })
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+  }
+
   useEffect(() => { fetchAgent() }, [fetchAgent])
   useEffect(() => { fetchNewBookings() }, [fetchNewBookings])
+
+  // Real-time listener — updates badge the instant a notification is written
+  useEffect(() => {
+    if (!currentUser) return
+    setNotifLoading(true)
+    const q = query(
+      collection(db, 'agent_notifications'),
+      where('agentId', '==', currentUser.uid)
+    )
+    const unsub = onSnapshot(q, snap => {
+      const notifs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+        .slice(0, 50)
+      setNotifications(notifs)
+      setNotifLoading(false)
+    })
+    return () => unsub()
+  }, [currentUser])
+
+  // When DMC opens a tab, mark its notifications as read locally
+  useEffect(() => {
+    if (tab === 'bookings') setNewBookingCount(0)
+    if (tab === 'quotations' || tab === 'bookings') {
+      setNotifications(prev => prev.map(n => {
+        const isTabNotif = tab === 'quotations'
+          ? ['new_quotation', 'quotation_message', 'price_update', 'quotation_status'].includes(n.type)
+          : n.type === 'new_booking'
+        return isTabNotif ? { ...n, isRead: true } : n
+      }))
+    }
+  }, [tab])
 
   async function handleLogout() {
     await logout()
@@ -133,14 +193,19 @@ export default function AgentDashboardPage() {
     )
   }
 
+  const QUOTATION_NOTIF_TYPES = ['new_quotation', 'quotation_message', 'price_update', 'quotation_status']
+  const quotationNotifCount = notifications.filter(n => !n.isRead && QUOTATION_NOTIF_TYPES.includes(n.type)).length
+  const bookingNotifCount = newBookingCount || notifications.filter(n => !n.isRead && n.type === 'new_booking').length
+  const totalUnread = notifications.filter(n => !n.isRead).length
+
   const TABS: TabDef[] = [
     { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
     { id: 'packages', label: 'Packages', icon: <Package className="w-4 h-4" /> },
-    { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: newBookingCount || undefined },
+    { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: bookingNotifCount || undefined },
     { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
     // { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
     { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
-    { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" /> },
+    { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" />, badge: quotationNotifCount || undefined },
     // { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },
     // { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
     { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
@@ -278,6 +343,32 @@ export default function AgentDashboardPage() {
               >
                 <ExternalLink className="w-3.5 h-3.5" />View Planner
               </a>
+
+              {/* Notifications bell */}
+              <div className="relative">
+                <button
+                  onClick={() => { setNotifOpen(o => !o); if (!notifOpen) fetchNotifications() }}
+                  className="relative p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  <Bell className="w-4 h-4" />
+                  {totalUnread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {totalUnread > 9 ? '9+' : totalUnread}
+                    </span>
+                  )}
+                </button>
+                {notifOpen && (
+                  <NotificationsPanel
+                    notifications={notifications}
+                    loading={notifLoading}
+                    onClose={() => setNotifOpen(false)}
+                    onMarkAllRead={markAllNotificationsRead}
+                    onRefresh={fetchNotifications}
+                    onGoToTab={(t) => setTab(t as Tab)}
+                  />
+                )}
+              </div>
+
               <button onClick={handleLogout} className="md:hidden text-gray-400 hover:text-gray-700">
                 <LogOut className="w-4 h-4" />
               </button>

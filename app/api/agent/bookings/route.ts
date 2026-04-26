@@ -5,6 +5,25 @@ import {
   updateDoc, serverTimestamp
 } from 'firebase/firestore'
 
+async function writeNotification(payload: {
+  agentId: string
+  subAgentId: string
+  subAgentName: string
+  type: string
+  referenceId: string
+  referenceTitle: string
+  customerName: string
+  preview: string
+}) {
+  try {
+    await addDoc(collection(db, 'agent_notifications'), {
+      ...payload,
+      isRead: false,
+      createdAt: serverTimestamp(),
+    })
+  } catch { /* fire-and-forget */ }
+}
+
 // GET - fetch bookings for an agent
 export async function GET(request: Request) {
   try {
@@ -104,6 +123,20 @@ export async function POST(request: Request) {
         name: customerName,
         email: customerEmail,
         phone: customerPhone || '',
+      })
+    }
+
+    // Notify DMC when a travel agent's client submits a booking
+    if (subAgentId) {
+      await writeNotification({
+        agentId,
+        subAgentId,
+        subAgentName: 'Travel Agent',
+        type: 'new_booking',
+        referenceId: docRef.id,
+        referenceTitle: packageTitle || destination || 'Custom Request',
+        customerName: customerName || '',
+        preview: `New booking for ${packageTitle || destination || 'a trip'} · ${Number(groupSize) || 1} pax`,
       })
     }
 
