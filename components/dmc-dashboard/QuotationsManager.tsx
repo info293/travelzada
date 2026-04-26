@@ -5,7 +5,8 @@ import {
   MessageSquare, Search, Loader2, IndianRupee, Send,
   CheckCircle, XCircle, Clock, Package, Phone, Mail,
   MapPin, Calendar, Users, User, BookCheck, Edit3, X,
-  Eye, Star, Save, ChevronDown, ChevronUp, FileEdit, Share2, FileText, Printer, SlidersHorizontal
+  Eye, Star, Save, ChevronDown, ChevronUp, FileEdit, Share2, FileText, Printer, SlidersHorizontal,
+  Plus, GripVertical
 } from 'lucide-react'
 
 interface Message {
@@ -15,6 +16,13 @@ interface Message {
   senderName: string
   text: string
   timestamp: string
+}
+
+interface DayItem {
+  id: string
+  title: string
+  description: string
+  tags: string[]
 }
 
 interface PackageData {
@@ -42,6 +50,7 @@ interface PackageData {
 
 interface Quotation {
   id: string
+  publicId?: string
   subAgentId: string
   subAgentName: string
   packageId?: string
@@ -72,6 +81,11 @@ interface Props {
   currentUserId: string
 }
 
+const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
+const STAR_CATEGORIES = ['3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
+const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
+const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   pending:       { label: 'Pending',       color: 'bg-gray-100 text-gray-600',    icon: Clock },
   in_discussion: { label: 'In Discussion', color: 'bg-blue-100 text-blue-700',    icon: MessageSquare },
@@ -94,6 +108,28 @@ function formatTime(iso: string) {
 function formatDate(ts?: { seconds: number }) {
   if (!ts) return ''
   return new Date(ts.seconds * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function parseDayItems(text: string): DayItem[] {
+  if (!text?.trim()) return []
+  const items: DayItem[] = []
+  let current: DayItem | null = null
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    if (/^day\s*\d+/i.test(line)) {
+      if (current) items.push(current)
+      current = { id: crypto.randomUUID(), title: line, description: '', tags: [] }
+    } else if (current) {
+      current.description += (current.description ? '\n' : '') + line
+    }
+  }
+  if (current) items.push(current)
+  return items
+}
+
+function serializeDayItems(items: DayItem[]): string {
+  return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
 }
 
 export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId }: Props) {
@@ -120,7 +156,9 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const [loadingPkg, setLoadingPkg] = useState(false)
   const [showCustomize, setShowCustomize] = useState(false)
   const [customForm, setCustomForm] = useState<Partial<PackageData>>({})
+  const [customDayItems, setCustomDayItems] = useState<DayItem[]>([])
   const [savingCustom, setSavingCustom] = useState(false)
+  const [creatingPkg, setCreatingPkg] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // ── View full package details ────────────────────────────────────────────────
@@ -145,31 +183,109 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   // ── Open customize form ──────────────────────────────────────────────────────
   async function openCustomize(q: Quotation) {
     setShowCustomize(true)
-    if (q.customPackageData) { setCustomForm(q.customPackageData); return }
-    if (!q.packageId) { setCustomForm({ title: q.packageTitle, destination: q.destination }); return }
+    if (q.customPackageData) {
+      setCustomForm(q.customPackageData)
+      setCustomDayItems(parseDayItems(q.customPackageData.dayWiseItinerary || ''))
+      return
+    }
+    if (!q.packageId) {
+      setCustomForm({ title: q.packageTitle, destination: q.destination })
+      setCustomDayItems([])
+      return
+    }
     setLoadingPkg(true)
     try {
       const res = await fetch(`/api/agent/packages/${q.packageId}`)
       const data = await res.json()
-      if (data.success && data.package) setCustomForm(data.package)
-      else setCustomForm({ title: q.packageTitle, destination: q.destination })
-    } catch { setCustomForm({ title: q.packageTitle, destination: q.destination }) }
+      if (data.success && data.package) {
+        setCustomForm(data.package)
+        setCustomDayItems(parseDayItems(data.package.dayWiseItinerary || ''))
+      } else {
+        setCustomForm({ title: q.packageTitle, destination: q.destination })
+        setCustomDayItems([])
+      }
+    } catch {
+      setCustomForm({ title: q.packageTitle, destination: q.destination })
+      setCustomDayItems([])
+    }
     finally { setLoadingPkg(false) }
   }
 
   // ── Save custom package data to quotation ────────────────────────────────────
   async function saveCustomPackage() {
-    if (!activeId) return
+    if (!activeId || !active) return
     setSavingCustom(true)
     try {
+      const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
+      const merged = { ...customForm, dayWiseItinerary: dayWise }
+      const groupSize = active.groupSize || active.adults || 1
+      const newQuotedPrice = merged.pricePerPerson
+        ? Number(merged.pricePerPerson) * groupSize
+        : undefined
+      const patchBody: Record<string, any> = { customPackageData: merged }
+      if (newQuotedPrice) patchBody.quotedPrice = newQuotedPrice
+
       await fetch(`/api/agent/quotations/${activeId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customPackageData: customForm }),
+        body: JSON.stringify(patchBody),
       })
-      setQuotations(prev => prev.map(q => q.id === activeId ? { ...q, customPackageData: customForm as PackageData } : q))
+      setQuotations(prev => prev.map(q => q.id === activeId ? {
+        ...q,
+        customPackageData: merged as PackageData,
+        ...(newQuotedPrice ? { quotedPrice: newQuotedPrice, status: q.status === 'pending' ? 'quoted' : q.status } : {}),
+      } : q))
       setShowCustomize(false)
     } catch { }
     finally { setSavingCustom(false) }
+  }
+
+  // ── Create a real package in Package Manager from the custom form ─────────────
+  async function createNewPackage() {
+    if (!customForm.title || !customForm.destination) {
+      alert('Package title and destination are required.')
+      return
+    }
+    setCreatingPkg(true)
+    try {
+      const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
+      const res = await fetch('/api/agent/packages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentId,
+          title: customForm.title,
+          destination: customForm.destination || '',
+          destinationCountry: customForm.destinationCountry || 'India',
+          overview: customForm.overview || '',
+          durationDays: Number(customForm.durationDays) || 0,
+          durationNights: Number(customForm.durationNights) || 0,
+          pricePerPerson: Number(customForm.pricePerPerson) || 0,
+          maxGroupSize: Number(customForm.maxGroupSize) || 20,
+          minGroupSize: Number(customForm.minGroupSize) || 1,
+          travelType: customForm.travelType || '',
+          theme: customForm.theme || '',
+          mood: customForm.mood || '',
+          starCategory: customForm.starCategory || '3-Star',
+          inclusions: Array.isArray(customForm.inclusions) ? customForm.inclusions.filter(Boolean) : [],
+          exclusions: Array.isArray(customForm.exclusions) ? customForm.exclusions.filter(Boolean) : [],
+          highlights: Array.isArray(customForm.highlights) ? customForm.highlights.filter(Boolean) : [],
+          dayWiseItinerary: dayWise,
+          primaryImageUrl: customForm.primaryImageUrl || '',
+          seasonalAvailability: customForm.seasonalAvailability || 'Year Round',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create package')
+      alert(`✅ Package "${customForm.title}" created in Package Manager!`)
+    } catch (err: any) {
+      alert('Failed to create package: ' + err.message)
+    } finally {
+      setCreatingPkg(false)
+    }
+  }
+
+  function addCustomDayItem() {
+    const idx = customDayItems.length + 1
+    setCustomDayItems(prev => [...prev, { id: crypto.randomUUID(), title: `Day ${idx}:`, description: '', tags: [] }])
   }
 
   const fetchQuotations = useCallback(async () => {
@@ -192,6 +308,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   useEffect(() => {
     setShowCustomize(false)
     setViewPkg(null)
+    setCustomDayItems([])
   }, [activeId])
 
   const active = quotations.find(q => q.id === activeId) || null
@@ -396,7 +513,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       return (q.customerName?.toLowerCase().includes(s) ||
         q.subAgentName?.toLowerCase().includes(s) ||
         q.destination?.toLowerCase().includes(s) ||
-        q.packageTitle?.toLowerCase().includes(s)) ?? false
+        q.packageTitle?.toLowerCase().includes(s) ||
+        q.publicId?.toLowerCase().includes(s)) ?? false
     }
     return true
   })
@@ -509,6 +627,13 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                     <span className="text-xs text-gray-400">{formatDate(q.createdAt)}</span>
                   )}
                 </div>
+                {q.publicId && (
+                  <div className="mt-1.5">
+                    <span className="text-[10px] font-mono font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                      {q.publicId}
+                    </span>
+                  </div>
+                )}
               </button>
             )
           })}
@@ -533,6 +658,11 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                     <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${STATUS_CONFIG[active.status]?.color || ''}`}>
                       {STATUS_CONFIG[active.status]?.label}
                     </span>
+                    {active.publicId && (
+                      <span className="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md flex-shrink-0">
+                        {active.publicId}
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-500">
                     <span className="flex items-center gap-1"><Package className="w-3 h-3" />{active.packageTitle}</span>
@@ -684,86 +814,6 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
               </div>
             </div>
 
-            {/* ── Customize Package Panel ── */}
-            {showCustomize && (
-              <div className="border-b border-amber-200 bg-amber-50 flex-shrink-0">
-                <div className="px-5 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileEdit className="w-4 h-4 text-amber-600" />
-                    <span className="text-sm font-bold text-amber-800">Customize Package for This Quote</span>
-                    <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Not saved to real package</span>
-                  </div>
-                  <button onClick={() => setShowCustomize(false)} className="text-amber-500 hover:text-amber-700">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="px-5 pb-4 space-y-3 max-h-[380px] overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Package Title</label>
-                      <input value={customForm.title || ''} onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Duration</label>
-                      <div className="flex gap-2">
-                        <input type="number" placeholder="Days" value={customForm.durationDays || ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                        <input type="number" placeholder="Nights" value={customForm.durationNights || ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Price per Person (₹)</label>
-                      <input type="number" value={customForm.pricePerPerson || ''} onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Overview</label>
-                      <textarea rows={2} value={customForm.overview || ''} onChange={e => setCustomForm(p => ({ ...p, overview: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Inclusions (one per line)</label>
-                      <textarea rows={3} value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : (customForm.inclusions || '')}
-                        onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n').filter(Boolean) }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Exclusions (one per line)</label>
-                      <textarea rows={3} value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : (customForm.exclusions || '')}
-                        onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n').filter(Boolean) }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Highlights (one per line)</label>
-                      <textarea rows={2} value={Array.isArray(customForm.highlights) ? customForm.highlights.join('\n') : (customForm.highlights || '')}
-                        onChange={e => setCustomForm(p => ({ ...p, highlights: e.target.value.split('\n').filter(Boolean) }))}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs font-semibold text-gray-600 block mb-1">Day-Wise Itinerary</label>
-                      <textarea rows={4} value={customForm.dayWiseItinerary || ''} onChange={e => setCustomForm(p => ({ ...p, dayWiseItinerary: e.target.value }))}
-                        placeholder="Day 1: Arrive…&#10;Day 2: Explore…"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={() => setShowCustomize(false)} className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-xs font-semibold hover:bg-gray-50">Cancel</button>
-                    <button onClick={saveCustomPackage} disabled={savingCustom}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold disabled:opacity-60">
-                      {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                      Save Custom Package
-                    </button>
-                    <button onClick={() => { saveCustomPackage().then(() => setViewPkg(customForm as PackageData)) }}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold">
-                      <Eye className="w-3.5 h-3.5" />Save & Preview
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* ── Messages ── */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {active.specialRequests && (
@@ -837,156 +887,844 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       </div>
     </div>
 
-    {/* ── Package View Modal ──────────────────────────────────────────────────── */}
-    {viewPkg && (
-      <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 overflow-y-auto py-8 px-4">
-        <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+    {/* ── Package View Full-Screen Overlay ───────────────────────────────────── */}
+    {viewPkg && active && (() => {
+      const groupSize = active.groupSize || active.adults || 1
+      const viewTotalPrice = viewPkg.pricePerPerson ? Number(viewPkg.pricePerPerson) * groupSize : 0
+      const isCustom = !!active.customPackageData
+      return (
+        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+
+          {/* Top bar */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
             <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-indigo-500" />
-              <span className="font-bold text-gray-900 text-sm">Package Details</span>
-              {active?.customPackageData && (
-                <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Custom for this quote</span>
-              )}
-            </div>
-            <button onClick={() => setViewPkg(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {viewPkg.primaryImageUrl ? (
-            <div className="relative h-52 w-full overflow-hidden">
-              <img src={viewPkg.primaryImageUrl} alt={viewPkg.title} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-              <div className="absolute bottom-4 left-5 right-5">
-                <h2 className="text-2xl font-bold text-white">{viewPkg.title}</h2>
-                <p className="text-sm text-white/80 flex items-center gap-1 mt-1">
-                  <MapPin className="w-3.5 h-3.5" />{viewPkg.destination}{viewPkg.destinationCountry ? `, ${viewPkg.destinationCountry}` : ''}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="h-36 bg-gradient-to-br from-indigo-50 to-purple-100 flex flex-col items-center justify-center">
-              <Package className="w-8 h-8 text-purple-300 mb-2" />
-              <h2 className="text-xl font-bold text-gray-800">{viewPkg.title}</h2>
-              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                <MapPin className="w-3.5 h-3.5" />{viewPkg.destination}
-              </p>
-            </div>
-          )}
-
-          {/* Key stats */}
-          {(viewPkg.durationDays || viewPkg.starCategory || viewPkg.travelType) && (
-            <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
-              {[
-                { label: 'Duration', value: viewPkg.durationNights ? `${viewPkg.durationNights}N/${viewPkg.durationDays}D` : viewPkg.durationDays ? `${viewPkg.durationDays} Days` : '—' },
-                { label: 'Category', value: viewPkg.starCategory || '—' },
-                { label: 'Type', value: viewPkg.travelType || '—' },
-                { label: 'Season', value: viewPkg.seasonalAvailability || 'Year Round' },
-              ].map(({ label, value }) => (
-                <div key={label} className="px-3 py-3 text-center">
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</p>
-                  <p className="text-xs font-semibold text-gray-800 mt-0.5">{value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="p-6 space-y-5">
-            {viewPkg.pricePerPerson ? (
-              <div className="bg-purple-50 border border-purple-200 rounded-2xl px-5 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-purple-500">Starting from</p>
-                  <p className="text-2xl font-bold text-purple-700">₹{viewPkg.pricePerPerson.toLocaleString('en-IN')}</p>
-                  <p className="text-xs text-purple-400">per person</p>
-                </div>
-                <div className="flex gap-1 flex-wrap">
-                  {viewPkg.theme && <span className="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{viewPkg.theme}</span>}
-                  {viewPkg.mood && <span className="bg-pink-100 text-pink-700 text-xs font-semibold px-2.5 py-1 rounded-full">{viewPkg.mood}</span>}
-                </div>
-              </div>
-            ) : null}
-
-            {viewPkg.overview && (
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 mb-1.5">Overview</h4>
-                <p className="text-sm text-gray-600 leading-relaxed">{viewPkg.overview}</p>
-              </div>
-            )}
-
-            {Array.isArray(viewPkg.highlights) && viewPkg.highlights.length > 0 && (
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 mb-2">Highlights</h4>
-                <ul className="space-y-1.5">
-                  {viewPkg.highlights.map((h, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                      <span className="text-purple-400 mt-0.5">✦</span>{h}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {(Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.length > 0 ||
-              Array.isArray(viewPkg.exclusions) && viewPkg.exclusions.length > 0) && (
-              <div className="grid grid-cols-2 gap-4">
-                {Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-bold text-green-700 mb-2">✓ Inclusions</h4>
-                    <ul className="space-y-1">
-                      {viewPkg.inclusions.map((inc, i) => (
-                        <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
-                          <span className="text-green-500 mt-0.5">•</span>{inc}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {Array.isArray(viewPkg.exclusions) && viewPkg.exclusions.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-bold text-red-600 mb-2">✗ Exclusions</h4>
-                    <ul className="space-y-1">
-                      {viewPkg.exclusions.map((exc, i) => (
-                        <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
-                          <span className="text-red-400 mt-0.5">•</span>{exc}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {viewPkg.dayWiseItinerary && (
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 mb-2">Day-Wise Itinerary</h4>
-                <div className="space-y-1.5">
-                  {viewPkg.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) => (
-                    <div key={i} className={`text-sm ${line.toLowerCase().startsWith('day') ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-            <p className="text-xs text-gray-400">
-              {active?.customPackageData
-                ? 'This is the customized version for this quotation only.'
-                : 'This is the original package from your Package Manager.'}
-            </p>
-            {!isClosed && (
-              <button onClick={() => { setViewPkg(null); openCustomize(active!) }}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition-colors">
-                <FileEdit className="w-3.5 h-3.5" />Customize for this Quote
+              <button
+                onClick={() => setViewPkg(null)}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-indigo-700 hover:bg-indigo-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                Back
               </button>
-            )}
+              <div className="h-4 w-px bg-gray-200" />
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isCustom ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                {isCustom ? 'Custom Package' : 'Original Package'}
+              </span>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">{viewPkg.title || '—'}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {!isClosed && (
+                <button
+                  onClick={() => { setViewPkg(null); openCustomize(active) }}
+                  className="flex items-center gap-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+                >
+                  <FileEdit className="w-3.5 h-3.5" />
+                  {isCustom ? 'Edit Custom' : 'Customize for this Quote'}
+                </button>
+              )}
+              <button
+                onClick={() => setViewPkg(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Two-column body */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Left: read-only details */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
+
+              {/* ── Title card ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className={`px-5 pt-5 pb-4 ${viewPkg.primaryImageUrl ? 'relative h-48 flex flex-col justify-end' : 'bg-gradient-to-r from-indigo-600 to-purple-600'}`}>
+                  {viewPkg.primaryImageUrl && (
+                    <>
+                      <img src={viewPkg.primaryImageUrl} alt={viewPkg.title} className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    </>
+                  )}
+                  <div className="relative">
+                    <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
+                    <h2 className="text-2xl font-bold text-white leading-snug">{viewPkg.title || '—'}</h2>
+                    {(viewPkg.destination) && (
+                      <p className="text-sm text-white/80 flex items-center gap-1 mt-1">
+                        <MapPin className="w-3.5 h-3.5" />{viewPkg.destination}{viewPkg.destinationCountry ? `, ${viewPkg.destinationCountry}` : ''}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {(viewPkg.durationDays || viewPkg.starCategory || viewPkg.travelType || viewPkg.theme || viewPkg.mood) && (
+                  <div className="flex flex-wrap gap-2 px-5 py-3">
+                    {(viewPkg.durationDays || viewPkg.durationNights) && (
+                      <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        <Clock className="w-3 h-3" />{viewPkg.durationDays || '?'}D / {viewPkg.durationNights || '?'}N
+                      </span>
+                    )}
+                    {viewPkg.starCategory && (
+                      <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        <Star className="w-3 h-3" />{viewPkg.starCategory}
+                      </span>
+                    )}
+                    {viewPkg.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{viewPkg.travelType}</span>}
+                    {viewPkg.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{viewPkg.theme}</span>}
+                    {viewPkg.mood && <span className="bg-pink-50 text-pink-700 text-xs font-semibold px-2.5 py-1 rounded-full">{viewPkg.mood}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Basic Info ── */}
+              {(viewPkg.destination || viewPkg.durationDays || viewPkg.minGroupSize || viewPkg.seasonalAvailability) && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
+                    <p className="text-sm font-bold text-gray-800">Basic Info</p>
+                  </div>
+                  <div className="p-5 grid grid-cols-2 gap-4">
+                    {[
+                      { label: 'Destination', value: viewPkg.destination },
+                      { label: 'Country', value: viewPkg.destinationCountry },
+                      { label: 'Days', value: viewPkg.durationDays },
+                      { label: 'Nights', value: viewPkg.durationNights },
+                      { label: 'Min Group', value: viewPkg.minGroupSize },
+                      { label: 'Max Group', value: viewPkg.maxGroupSize },
+                      { label: 'Season', value: viewPkg.seasonalAvailability, full: true },
+                    ].filter(f => f.value).map(({ label, value, full }) => (
+                      <div key={label} className={full ? 'col-span-2' : ''}>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+                        <p className="text-sm font-semibold text-gray-800">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Package Type ── */}
+              {(viewPkg.travelType || viewPkg.starCategory || viewPkg.theme || viewPkg.mood) && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎯</span>
+                    <p className="text-sm font-bold text-gray-800">Package Type</p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {viewPkg.travelType && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Travel Type</p>
+                        <div className="flex flex-wrap gap-2">
+                          {TRAVEL_TYPES.map(t => (
+                            <span key={t} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${viewPkg.travelType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {viewPkg.starCategory && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Star Category</p>
+                        <div className="flex flex-wrap gap-2">
+                          {STAR_CATEGORIES.map(s => (
+                            <span key={s} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${viewPkg.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {viewPkg.theme && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Theme</p>
+                        <div className="flex flex-wrap gap-2">
+                          {THEMES.map(t => (
+                            <span key={t} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${viewPkg.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {viewPkg.mood && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Mood / Vibe</p>
+                        <div className="flex flex-wrap gap-2">
+                          {MOODS.map(m => (
+                            <span key={m} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${viewPkg.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Description & Content ── */}
+              {(viewPkg.overview || (Array.isArray(viewPkg.highlights) && viewPkg.highlights.filter(Boolean).length > 0) ||
+                (Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.filter(Boolean).length > 0) ||
+                (Array.isArray(viewPkg.exclusions) && viewPkg.exclusions.filter(Boolean).length > 0)) && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
+                    <p className="text-sm font-bold text-gray-800">Description & Content</p>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {viewPkg.overview && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-1.5">Overview</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{viewPkg.overview}</p>
+                      </div>
+                    )}
+                    {Array.isArray(viewPkg.highlights) && viewPkg.highlights.filter(Boolean).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 mb-2">Highlights</p>
+                        <ul className="space-y-1.5">
+                          {viewPkg.highlights.filter(Boolean).map((h, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                              <span className="text-indigo-400 mt-0.5 flex-shrink-0">✦</span>{h}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.filter(Boolean).length > 0 ||
+                      Array.isArray(viewPkg.exclusions) && viewPkg.exclusions.filter(Boolean).length > 0) && (
+                      <div className="grid grid-cols-2 gap-4">
+                        {Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.filter(Boolean).length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-green-700 mb-2">✓ Inclusions</p>
+                            <ul className="space-y-1">
+                              {viewPkg.inclusions.filter(Boolean).map((inc, i) => (
+                                <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                                  <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>{inc}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {Array.isArray(viewPkg.exclusions) && viewPkg.exclusions.filter(Boolean).length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-red-500 mb-2">✗ Exclusions</p>
+                            <ul className="space-y-1">
+                              {viewPkg.exclusions.filter(Boolean).map((exc, i) => (
+                                <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                                  <span className="text-red-400 mt-0.5 flex-shrink-0">•</span>{exc}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Pricing ── */}
+              {viewPkg.pricePerPerson && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm">💰</span>
+                    <p className="text-sm font-bold text-gray-800">Pricing</p>
+                  </div>
+                  <div className="p-5 flex items-center gap-5">
+                    <div className="flex-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Price per Person</p>
+                      <p className="text-3xl font-bold text-gray-900">₹{Number(viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
+                    </div>
+                    {viewTotalPrice > 0 && (
+                      <div className="bg-indigo-600 text-white rounded-2xl p-4 min-w-[160px] text-center shadow-lg shadow-indigo-100">
+                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-1">Total for this Quote</p>
+                        <p className="text-2xl font-bold leading-tight">₹{viewTotalPrice.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] opacity-60 mt-1">for {groupSize} pax</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Day-Wise Itinerary ── */}
+              {viewPkg.dayWiseItinerary && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-sm">🗺️</span>
+                    <p className="text-sm font-bold text-gray-800">Day-Wise Itinerary</p>
+                  </div>
+                  <div className="p-5 space-y-1.5">
+                    {viewPkg.dayWiseItinerary.split('\n').filter(Boolean).map((line, i) => (
+                      <div key={i} className={`text-sm ${line.toLowerCase().startsWith('day') ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>
+                        {line}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Right: Live Preview */}
+            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-700">Preview</span>
+                <p className="text-[10px] text-gray-400 mt-0.5">for {active.customerName} · {groupSize} pax</p>
+              </div>
+              <div className="p-4">
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                  <div className="relative h-40">
+                    {viewPkg.primaryImageUrl ? (
+                      <img src={viewPkg.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-indigo-200 to-purple-300 flex items-center justify-center">
+                        <Package className="w-12 h-12 text-white/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full shadow ${isCustom ? 'bg-amber-400 text-white' : 'bg-white text-gray-800'}`}>
+                        {isCustom ? 'Custom' : 'Travelzada'}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <p className="text-white font-bold text-sm leading-snug line-clamp-2">{viewPkg.title || 'Package'}</p>
+                      {viewPkg.destination && (
+                        <p className="text-white/70 text-[10px] flex items-center gap-0.5 mt-0.5">
+                          <MapPin className="w-2.5 h-2.5" />{viewPkg.destination}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3">
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {[
+                        { emoji: '🏨', label: 'Stay', val: viewPkg.starCategory || '–' },
+                        { emoji: '✈️', label: 'Type', val: viewPkg.travelType || '–' },
+                        { emoji: '🌙', label: 'Nights', val: viewPkg.durationNights || '–' },
+                      ].map(({ emoji, label, val }) => (
+                        <div key={label} className="text-center">
+                          <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-1 text-sm">{emoji}</div>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase">{label}</p>
+                          <p className="text-[10px] font-bold text-gray-700">{String(val)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {viewPkg.pricePerPerson && (
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center mb-3">
+                        <p className="text-[10px] text-indigo-400 font-semibold uppercase">Starting from</p>
+                        <p className="text-xl font-bold text-indigo-700">₹{Number(viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-indigo-400">per person</p>
+                        {viewTotalPrice > 0 && (
+                          <p className="text-[10px] font-semibold text-indigo-600 mt-1 border-t border-indigo-100 pt-1">
+                            Total ₹{viewTotalPrice.toLocaleString('en-IN')} for {groupSize} pax
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {Array.isArray(viewPkg.highlights) && viewPkg.highlights.filter(Boolean).length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">Highlights</p>
+                        <ul className="space-y-1">
+                          {viewPkg.highlights.filter(Boolean).slice(0, 4).map((h, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-600">
+                              <span className="text-indigo-400 mt-0.5 flex-shrink-0">✦</span>{h}
+                            </li>
+                          ))}
+                          {viewPkg.highlights.filter(Boolean).length > 4 && (
+                            <li className="text-[10px] text-gray-400 pl-4">+{viewPkg.highlights.filter(Boolean).length - 4} more…</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+
+                    {Array.isArray(viewPkg.inclusions) && viewPkg.inclusions.filter(Boolean).length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-green-700 mb-1">✓ Inclusions</p>
+                        <ul className="space-y-0.5">
+                          {viewPkg.inclusions.filter(Boolean).slice(0, 3).map((inc, i) => (
+                            <li key={i} className="text-[10px] text-gray-500 flex items-start gap-1">
+                              <span className="text-green-400 flex-shrink-0">•</span>{inc}
+                            </li>
+                          ))}
+                          {viewPkg.inclusions.filter(Boolean).length > 3 && (
+                            <li className="text-[10px] text-gray-400 pl-3">+{viewPkg.inclusions.filter(Boolean).length - 3} more…</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[10px] text-gray-500 space-y-1">
+                  <p className="font-semibold text-gray-700">Quotation Context</p>
+                  <p>Customer: <span className="font-medium text-gray-800">{active.customerName}</span></p>
+                  <p>Group: <span className="font-medium text-gray-800">{active.adults}A{active.kids ? ` + ${active.kids}K` : ''}</span></p>
+                  {active.preferredDates && <p>Dates: <span className="font-medium text-gray-800">{active.preferredDates}</span></p>}
+                  <p>Agent: <span className="font-medium text-gray-800">{active.subAgentName}</span></p>
+                  <p className="text-gray-400 pt-1 border-t border-gray-200">
+                    {isCustom ? 'Customized version — not from Package Manager.' : 'Original package from Package Manager.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
-    )}
+      )
+    })()}
+
+    {/* ── Full-Screen Customize Overlay ─────────────────────────────────────── */}
+    {showCustomize && active && (() => {
+      const groupSize = active.groupSize || active.adults || 1
+      const totalPrice = customForm.pricePerPerson ? Number(customForm.pricePerPerson) * groupSize : 0
+      return (
+        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+
+          {/* Top bar */}
+          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCustomize(false)}
+                className="flex items-center gap-1.5 text-gray-500 hover:text-amber-700 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                Back
+              </button>
+              <div className="h-4 w-px bg-gray-200" />
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                {active.customPackageData ? 'Editing Custom' : 'Customizing'}
+              </span>
+              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">
+                {customForm.title || active.packageTitle || '—'}
+              </p>
+              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium hidden sm:block">
+                Not saved to Package Manager
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={createNewPackage}
+                disabled={creatingPkg || savingCustom}
+                className="flex items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+                title="Create this as a new package in Package Manager"
+              >
+                {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                {creatingPkg ? 'Creating…' : 'Create New Package'}
+              </button>
+              <button
+                onClick={saveCustomPackage}
+                disabled={savingCustom || creatingPkg}
+                className="flex items-center gap-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
+              >
+                {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {savingCustom ? 'Saving…' : 'Save Custom Package'}
+              </button>
+              <button
+                onClick={() => setShowCustomize(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Two-column body */}
+          <div className="flex flex-1 overflow-hidden">
+
+            {/* Left: editor */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
+
+              {/* ── 1. Title ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 pt-4 pb-3">
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
+                  <input
+                    value={customForm.title || ''}
+                    onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
+                    placeholder={active.packageTitle || 'e.g. Customized Goa Beach Package'}
+                    className="w-full text-xl font-bold text-white bg-transparent border-none outline-none placeholder:text-white/30"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 px-5 py-3">
+                  <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Clock className="w-3 h-3" />{customForm.durationDays || '?'}D / {customForm.durationNights || '?'}N
+                  </span>
+                  {customForm.starCategory && (
+                    <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <Star className="w-3 h-3" />{customForm.starCategory}
+                    </span>
+                  )}
+                  {customForm.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.travelType}</span>}
+                  {customForm.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.theme}</span>}
+                  {customForm.mood && <span className="bg-pink-50 text-pink-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.mood}</span>}
+                </div>
+              </div>
+
+              {/* ── 2. Basic Info ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
+                  <p className="text-sm font-bold text-gray-800">Basic Info</p>
+                </div>
+                <div className="p-5 grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Destination</label>
+                    <input value={customForm.destination || ''} onChange={e => setCustomForm(p => ({ ...p, destination: e.target.value }))}
+                      placeholder={active.destination}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Country</label>
+                    <input value={customForm.destinationCountry || ''} onChange={e => setCustomForm(p => ({ ...p, destinationCountry: e.target.value }))}
+                      placeholder="India"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Days</label>
+                    <input type="number" min="1" value={customForm.durationDays || ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Nights</label>
+                    <input type="number" min="0" value={customForm.durationNights || ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Min Group</label>
+                    <input type="number" min="1" value={customForm.minGroupSize || ''} onChange={e => setCustomForm(p => ({ ...p, minGroupSize: Number(e.target.value) }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Max Group</label>
+                    <input type="number" min="1" value={customForm.maxGroupSize || ''} onChange={e => setCustomForm(p => ({ ...p, maxGroupSize: Number(e.target.value) }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Seasonal Availability</label>
+                    <input value={customForm.seasonalAvailability || ''} onChange={e => setCustomForm(p => ({ ...p, seasonalAvailability: e.target.value }))}
+                      placeholder="Oct–Mar / Year Round"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 3. Package Type ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎯</span>
+                  <p className="text-sm font-bold text-gray-800">Package Type</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-2">Travel Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {TRAVEL_TYPES.map(t => (
+                        <button key={t} type="button" onClick={() => setCustomForm(p => ({ ...p, travelType: t }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.travelType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-300'}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-2">Star Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {STAR_CATEGORIES.map(s => (
+                        <button key={s} type="button" onClick={() => setCustomForm(p => ({ ...p, starCategory: s }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-2">Theme</label>
+                    <div className="flex flex-wrap gap-2">
+                      {THEMES.map(t => (
+                        <button key={t} type="button" onClick={() => setCustomForm(p => ({ ...p, theme: customForm.theme === t ? '' : t }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-2">Mood / Vibe</label>
+                    <div className="flex flex-wrap gap-2">
+                      {MOODS.map(m => (
+                        <button key={m} type="button" onClick={() => setCustomForm(p => ({ ...p, mood: customForm.mood === m ? '' : m }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-pink-300'}`}>
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 4. Description & Content ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
+                  <p className="text-sm font-bold text-gray-800">Description & Content</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Overview</label>
+                    <textarea rows={3} value={customForm.overview || ''} onChange={e => setCustomForm(p => ({ ...p, overview: e.target.value }))}
+                      placeholder="Describe this package in a few sentences…"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Highlights <span className="font-normal text-gray-400">(one per line)</span></label>
+                    <textarea rows={3}
+                      value={Array.isArray(customForm.highlights) ? customForm.highlights.join('\n') : (customForm.highlights || '')}
+                      onChange={e => setCustomForm(p => ({ ...p, highlights: e.target.value.split('\n') }))}
+                      placeholder="Sunset cruise&#10;Scuba diving&#10;Island hopping"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-green-700 block mb-1">✓ Inclusions</label>
+                      <textarea rows={4}
+                        value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : (customForm.inclusions || '')}
+                        onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n') }))}
+                        placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-red-500 block mb-1">✗ Exclusions</label>
+                      <textarea rows={4}
+                        value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : (customForm.exclusions || '')}
+                        onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n') }))}
+                        placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 5. Pricing ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm">💰</span>
+                  <p className="text-sm font-bold text-gray-800">Pricing for This Quotation</p>
+                </div>
+                <div className="p-5 flex items-start gap-5">
+                  <div className="flex-1 space-y-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Price per Person (₹)</p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-gray-400 font-semibold text-lg">₹</span>
+                      <input
+                        type="number"
+                        value={customForm.pricePerPerson || ''}
+                        onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) || undefined }))}
+                        placeholder="0"
+                        className="text-3xl font-bold text-gray-900 border-none outline-none w-40 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400">{groupSize} pax · will auto-set quoted price</p>
+                  </div>
+                  <div className="bg-amber-600 text-white rounded-2xl p-4 min-w-[160px] text-center shadow-lg shadow-amber-100">
+                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Quoted Price</p>
+                    <p className="text-2xl font-bold leading-tight">
+                      ₹{totalPrice > 0 ? totalPrice.toLocaleString('en-IN') : '—'}
+                    </p>
+                    <p className="text-[10px] opacity-60 mt-1">for {groupSize} pax</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── 6. Cover Image ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">🖼️</span>
+                  <p className="text-sm font-bold text-gray-800">Cover Image URL</p>
+                </div>
+                <div className="p-5 space-y-3">
+                  <input value={customForm.primaryImageUrl || ''} onChange={e => setCustomForm(p => ({ ...p, primaryImageUrl: e.target.value }))}
+                    placeholder="https://images.unsplash.com/…"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  {customForm.primaryImageUrl && (
+                    <div className="relative rounded-xl overflow-hidden h-36 border border-gray-200">
+                      <img src={customForm.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── 7. Master Itinerary ── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-sm">🗺️</span>
+                    <p className="text-sm font-bold text-gray-800">Master Itinerary</p>
+                    {customDayItems.length > 0 && (
+                      <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                        {customDayItems.length} day{customDayItems.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={addCustomDayItem}
+                    className="flex items-center gap-1.5 text-xs text-indigo-600 font-bold hover:text-indigo-800 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />Add New Day
+                  </button>
+                </div>
+                <div className="p-5">
+                  {customDayItems.length === 0 ? (
+                    <button
+                      onClick={addCustomDayItem}
+                      className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm hover:border-indigo-300 hover:text-indigo-500 transition-colors"
+                    >
+                      + Add your first day
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      {customDayItems.map((day, idx) => (
+                        <QuotDayCard
+                          key={day.id}
+                          day={day}
+                          idx={idx}
+                          onTitleChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, title: v } : d))}
+                          onDescChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, description: v } : d))}
+                          onAddTag={tag => { const t = tag.trim(); if (!t) return; setCustomDayItems(prev => prev.map(d => d.id === day.id && !d.tags.includes(t) ? { ...d, tags: [...d.tags, t] } : d)) }}
+                          onRemoveTag={tag => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, tags: d.tags.filter(t => t !== tag) } : d))}
+                          onRemove={() => setCustomDayItems(prev => prev.filter(d => d.id !== day.id))}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right: Live Preview */}
+            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <span className="text-xs font-bold text-gray-700">Live Preview</span>
+                <p className="text-[10px] text-gray-400 mt-0.5">for {active.customerName} · {groupSize} pax</p>
+              </div>
+              <div className="p-4">
+                <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+                  {/* Hero */}
+                  <div className="relative h-40">
+                    {customForm.primaryImageUrl ? (
+                      <img src={customForm.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center">
+                        <Package className="w-12 h-12 text-white/50" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full text-gray-800 shadow">Custom Quote</span>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <p className="text-white font-bold text-sm leading-snug line-clamp-2">
+                        {customForm.title || active.packageTitle || 'Your Package'}
+                      </p>
+                      {(customForm.destination || active.destination) && (
+                        <p className="text-white/70 text-[10px] flex items-center gap-0.5 mt-0.5">
+                          <MapPin className="w-2.5 h-2.5" />{customForm.destination || active.destination}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="p-3">
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      {[
+                        { emoji: '🏨', label: 'Stay', val: customForm.starCategory || '–' },
+                        { emoji: '✈️', label: 'Type', val: customForm.travelType || '–' },
+                        { emoji: '🌙', label: 'Nights', val: customForm.durationNights || '–' },
+                      ].map(({ emoji, label, val }) => (
+                        <div key={label} className="text-center">
+                          <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-1 text-sm">{emoji}</div>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase">{label}</p>
+                          <p className="text-[10px] font-bold text-gray-700">{String(val)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Price */}
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center mb-3">
+                      <p className="text-[10px] text-amber-500 font-semibold uppercase">Total Quoted Price</p>
+                      <p className="text-xl font-bold text-amber-700">
+                        {totalPrice > 0 ? `₹${totalPrice.toLocaleString('en-IN')}` : '—'}
+                      </p>
+                      {customForm.pricePerPerson && totalPrice > 0 && (
+                        <p className="text-[10px] text-amber-400">₹{Number(customForm.pricePerPerson).toLocaleString('en-IN')}/person × {groupSize}</p>
+                      )}
+                    </div>
+
+                    {/* Highlights */}
+                    {Array.isArray(customForm.highlights) && customForm.highlights.filter(Boolean).length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">Highlights</p>
+                        <ul className="space-y-1">
+                          {customForm.highlights.filter(Boolean).slice(0, 4).map((h, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-600">
+                              <span className="text-amber-400 mt-0.5 flex-shrink-0">✦</span>{h}
+                            </li>
+                          ))}
+                          {customForm.highlights.filter(Boolean).length > 4 && (
+                            <li className="text-[10px] text-gray-400 pl-4">+{customForm.highlights.filter(Boolean).length - 4} more…</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Inclusions preview */}
+                    {Array.isArray(customForm.inclusions) && customForm.inclusions.filter(Boolean).length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold text-green-700 mb-1">✓ Inclusions</p>
+                        <ul className="space-y-0.5">
+                          {customForm.inclusions.filter(Boolean).slice(0, 3).map((inc, i) => (
+                            <li key={i} className="text-[10px] text-gray-500 flex items-start gap-1">
+                              <span className="text-green-400 flex-shrink-0">•</span>{inc}
+                            </li>
+                          ))}
+                          {customForm.inclusions.filter(Boolean).length > 3 && (
+                            <li className="text-[10px] text-gray-400 pl-3">+{customForm.inclusions.filter(Boolean).length - 3} more…</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                    {customDayItems.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">Itinerary ({customDayItems.length} days)</p>
+                        <div className="space-y-1.5">
+                          {customDayItems.slice(0, 3).map((d, i) => (
+                            <div key={d.id} className="flex items-start gap-2">
+                              <span className="w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                                {String(i + 1).padStart(2, '0')}
+                              </span>
+                              <div>
+                                <p className="text-[10px] font-bold text-gray-800 leading-tight">{d.title}</p>
+                                {d.description && <p className="text-[10px] text-gray-400 leading-snug line-clamp-1 mt-0.5">{d.description}</p>}
+                              </div>
+                            </div>
+                          ))}
+                          {customDayItems.length > 3 && <p className="text-[10px] text-gray-400 pl-7">+{customDayItems.length - 3} more days…</p>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quotation context */}
+                <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[10px] text-gray-500 space-y-1">
+                  <p className="font-semibold text-gray-700">Quotation Context</p>
+                  <p>Customer: <span className="font-medium text-gray-800">{active.customerName}</span></p>
+                  <p>Group: <span className="font-medium text-gray-800">{active.adults}A{active.kids ? ` + ${active.kids}K` : ''}</span></p>
+                  {active.preferredDates && <p>Dates: <span className="font-medium text-gray-800">{active.preferredDates}</span></p>}
+                  <p>Agent: <span className="font-medium text-gray-800">{active.subAgentName}</span></p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )
+    })()}
 
     {/* ── Quotation PDF Modal ────────────────────────────────────────────────── */}
     {pdfQuot && (
@@ -1108,3 +1846,71 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     </>
   )
 }
+
+// ── QuotDayCard — inline day card for the customize overlay ──────────────────
+interface QuotDayCardProps {
+  day: DayItem
+  idx: number
+  onTitleChange: (v: string) => void
+  onDescChange: (v: string) => void
+  onAddTag: (tag: string) => void
+  onRemoveTag: (tag: string) => void
+  onRemove: () => void
+}
+
+function QuotDayCard({ day, idx, onTitleChange, onDescChange, onAddTag, onRemoveTag, onRemove }: QuotDayCardProps) {
+  const [tagInput, setTagInput] = useState('')
+
+  function handleTagKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      onAddTag(tagInput)
+      setTagInput('')
+    }
+  }
+
+  return (
+    <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-gray-100">
+        <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+        <span className="w-6 h-6 bg-indigo-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+        <input
+          value={day.title}
+          onChange={e => onTitleChange(e.target.value)}
+          placeholder={`Day ${idx + 1}: Title`}
+          className="flex-1 text-sm font-bold text-gray-900 bg-transparent border-none outline-none placeholder:text-gray-300"
+        />
+        <button onClick={onRemove} className="p-1 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        <textarea
+          value={day.description}
+          onChange={e => onDescChange(e.target.value)}
+          rows={2}
+          placeholder="Describe activities for this day…"
+          className="w-full text-sm text-gray-600 bg-transparent border-none outline-none resize-none placeholder:text-gray-300"
+        />
+        <div className="flex flex-wrap items-center gap-1.5">
+          {day.tags.map(tag => (
+            <span key={tag} className="flex items-center gap-1 bg-white border border-gray-200 text-gray-600 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              {tag}
+              <button onClick={() => onRemoveTag(tag)} className="text-gray-300 hover:text-red-400 ml-0.5">×</button>
+            </span>
+          ))}
+          <input
+            value={tagInput}
+            onChange={e => setTagInput(e.target.value)}
+            onKeyDown={handleTagKey}
+            placeholder="+ tag, Enter"
+            className="text-[10px] text-gray-400 bg-transparent border-none outline-none w-20 placeholder:text-gray-300"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+

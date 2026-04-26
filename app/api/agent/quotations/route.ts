@@ -50,6 +50,13 @@ export async function GET(request: Request) {
   }
 }
 
+function generatePublicId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let id = 'Q-'
+  for (let i = 0; i < 5; i++) id += chars[Math.floor(Math.random() * chars.length)]
+  return id
+}
+
 // POST /api/agent/quotations — travel agent creates a quotation request
 export async function POST(request: Request) {
   try {
@@ -71,6 +78,7 @@ export async function POST(request: Request) {
     }
 
     const quotation = {
+      publicId: generatePublicId(),
       agentId,
       agentSlug: agentSlug || '',
       subAgentId,

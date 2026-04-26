@@ -83,6 +83,7 @@ interface PackageData {
 
 interface Quotation {
   id: string
+  publicId?: string
   packageTitle: string
   destination: string
   customerName: string
@@ -805,7 +806,7 @@ export default function SubAgentDashboardPage() {
   const filteredQuots = quotations.filter(q => {
     const matchStatus = quotFilter === 'all' || q.status === quotFilter
     const qs = quotSearch.toLowerCase()
-    const matchSearch = !qs || q.customerName.toLowerCase().includes(qs) || q.packageTitle.toLowerCase().includes(qs) || q.destination.toLowerCase().includes(qs)
+    const matchSearch = !qs || q.customerName.toLowerCase().includes(qs) || q.packageTitle.toLowerCase().includes(qs) || q.destination.toLowerCase().includes(qs) || (q.publicId?.toLowerCase().includes(qs) ?? false)
     return matchStatus && matchSearch
   })
 
@@ -1364,6 +1365,12 @@ export default function SubAgentDashboardPage() {
                           </div>
                           {/* Row 2: package title */}
                           <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
+                          {/* Public ID */}
+                          {q.publicId && (
+                            <span className="inline-block text-[10px] font-mono font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded mt-0.5">
+                              {q.publicId}
+                            </span>
+                          )}
                           {/* Row 3: price/msgs */}
                           <div className="flex items-center justify-between mt-1.5">
                             {q.quotedPrice ? (
@@ -1399,11 +1406,16 @@ export default function SubAgentDashboardPage() {
                       <div className="px-5 py-4 border-b border-gray-100">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <h3 className="font-bold text-gray-900">{selQuot.customerName}</h3>
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${QUOT_STATUS[selQuot.status]?.color}`}>
                                 {QUOT_STATUS[selQuot.status]?.label}
                               </span>
+                              {selQuot.publicId && (
+                                <span className="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md">
+                                  {selQuot.publicId}
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm text-gray-600 mt-0.5">{selQuot.packageTitle} · {selQuot.destination}</p>
                             <div className="flex gap-3 mt-2">
