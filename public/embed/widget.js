@@ -17,6 +17,33 @@
     };
   }
 
+  // ── Build full-page takeover ─────────────────────────────────────────────
+  // Turns any page into the full AI planner. DMC creates /trip-planner on
+  // their site, drops this script with data-mode="fullpage", done.
+  function buildFullPage(config) {
+    if (!config.agent) return;
+    var url = BASE_URL + '/tailored-travel/' + config.agent + '?embed=1&theme=' + config.theme;
+
+    // Reset host page so the iframe can fill the entire viewport cleanly
+    document.documentElement.style.cssText = 'margin:0;padding:0;height:100%;overflow:hidden;';
+    document.body.style.cssText = 'margin:0;padding:0;height:100%;overflow:hidden;background:#f9fafb;';
+
+    // Hide any content that was already on the page (fallback text, loaders, etc.)
+    var existing = document.body.children;
+    for (var i = 0; i < existing.length; i++) {
+      existing[i].style.display = 'none';
+    }
+
+    var iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('scrolling', 'yes');
+    iframe.setAttribute('allow', 'geolocation');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:2147483647;background:#f9fafb;';
+    document.body.appendChild(iframe);
+  }
+
   // ── Build inline iframe ───────────────────────────────────────────────────
   function buildIframe(config) {
     var url = BASE_URL + '/tailored-travel/' + config.agent + '?embed=1&theme=' + config.theme;
@@ -196,6 +223,12 @@
       } else {
         buildBubble(config);
       }
+    } else if (config.mode === 'fullpage') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { buildFullPage(config); });
+      } else {
+        buildFullPage(config);
+      }
     } else {
       var wrapper = document.createElement('div');
       wrapper.style.cssText = 'width:100%;max-width:100%;overflow:hidden;';
@@ -220,6 +253,8 @@
 
       if (cfg.mode === 'bubble') {
         buildBubble(cfg);
+      } else if (cfg.mode === 'fullpage') {
+        buildFullPage(cfg);
       } else {
         this.style.cssText = 'display:block;width:' + cfg.width;
         this.appendChild(buildIframe(cfg));

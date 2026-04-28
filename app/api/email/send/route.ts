@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 
 // Generic email sender — uses nodemailer with SMTP env vars.

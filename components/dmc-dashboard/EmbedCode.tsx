@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   Check, Copy, Code2, Globe, Puzzle, ExternalLink,
-  ChevronDown, ChevronUp, LayoutTemplate, MessageSquareMore,
+  ChevronDown, ChevronUp, LayoutTemplate, MessageSquareMore, Link2, FileCode2,
 } from 'lucide-react'
 
 interface Props {
@@ -55,13 +55,16 @@ export default function EmbedCode({ agentSlug }: Props) {
   const widgetUrl  = `${BASE}/embed/widget.js`
 
   // ── Shared ───────────────────────────────────────────────────────────────
-  const [mainMode, setMainMode] = useState<'inline' | 'bubble'>('inline')
+  const [mainMode, setMainMode] = useState<'inline' | 'bubble' | 'page'>('inline')
 
   // ── Inline options ───────────────────────────────────────────────────────
   const [inlineTab, setInlineTab]     = useState<'script' | 'webcomponent' | 'iframe'>('script')
   const [height, setHeight]           = useState('720')
   const [rounded, setRounded]         = useState('16')
   const [showPreview, setShowPreview] = useState(false)
+
+  // ── Dedicated page options ───────────────────────────────────────────────
+  const [pageSlug, setPageSlug] = useState('/trip-planner')
 
   // ── Bubble options ───────────────────────────────────────────────────────
   const [bubbleTab, setBubbleTab]     = useState<'script' | 'webcomponent'>('script')
@@ -148,12 +151,38 @@ export default function EmbedCode({ agentSlug }: Props) {
       <div>
         <h2 className="text-xl font-bold text-gray-900">Embed Your Planner</h2>
         <p className="text-sm text-gray-500 mt-0.5">
-          Add your AI travel planner to any website — choose between an inline planner or a floating chat widget.
+          Share your AI planner via a direct link, embed it on your website, or add it as a floating chat widget.
         </p>
       </div>
 
+      {/* ── Shareable direct link ───────────────────────────────────────────── */}
+      <div className="bg-gradient-to-r from-primary/5 to-purple-50 border border-primary/20 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <Link2 className="w-4 h-4 text-primary" />
+          <p className="text-sm font-bold text-gray-900">Your Planner Link</p>
+          <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full">Shareable</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">
+          Share this link directly with customers — no website needed. Works on WhatsApp, email, Instagram bio, anywhere.
+        </p>
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5">
+          <Globe className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <span className="flex-1 text-sm text-gray-700 font-mono truncate">{`${BASE}/tailored-travel/${agentSlug}`}</span>
+          <CopyButton text={`${BASE}/tailored-travel/${agentSlug}`} />
+          <a
+            href={`/tailored-travel/${agentSlug}`} target="_blank"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline flex-shrink-0"
+          >
+            <ExternalLink className="w-3 h-3" />Open
+          </a>
+        </div>
+      </div>
+
       {/* ── Mode selector ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <p className="text-sm font-bold text-gray-700 mb-3">Or embed on your website</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Inline card */}
         <button
           onClick={() => setMainMode('inline')}
@@ -198,6 +227,30 @@ export default function EmbedCode({ agentSlug }: Props) {
             </p>
             <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
               A floating button in the corner of your site (like WhatsApp) — click to open the AI planner.
+            </p>
+          </div>
+        </button>
+
+        {/* Dedicated page card */}
+        <button
+          onClick={() => setMainMode('page')}
+          className={`flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all ${
+            mainMode === 'page'
+              ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+              : 'border-gray-200 bg-white hover:border-gray-300'
+          }`}
+        >
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            mainMode === 'page' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-500'
+          }`}>
+            <FileCode2 className="w-6 h-6" />
+          </div>
+          <div>
+            <p className={`text-sm font-bold ${mainMode === 'page' ? 'text-emerald-600' : 'text-gray-800'}`}>
+              Dedicated Page
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+              Host the planner at your own URL — e.g. <span className="font-mono">yourdomain.com/trip-planner</span>.
             </p>
           </div>
         </button>
@@ -519,6 +572,167 @@ export default function EmbedCode({ agentSlug }: Props) {
           </div>
         </>
       )}
+
+      {/* ══════════════ DEDICATED PAGE MODE ══════════════ */}
+      {mainMode === 'page' && (() => {
+        const fullHtmlTemplate: string =
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Trip Planner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; background: #f9fafb; }
+  </style>
+</head>
+<body>
+  <!-- Travelzada AI Planner — fullpage mode -->
+  <script
+    src="${widgetUrl}"
+    data-agent="${agentSlug}"
+    data-mode="fullpage">
+  </script>
+</body>
+</html>`
+
+        const scriptOnlyCode =
+`<!-- Add this to any existing page on your site -->
+<script
+  src="${widgetUrl}"
+  data-agent="${agentSlug}"
+  data-mode="fullpage">
+</script>`
+
+        return (
+          <>
+            {/* How it works */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+              <p className="text-sm font-bold text-emerald-800 mb-3">How this works</p>
+              <div className="flex flex-col gap-3">
+                {[
+                  ['1', 'Create a new page on your website', 'e.g. create a page called "trip-planner" in WordPress, Wix, or your HTML files'],
+                  ['2', 'Paste the code below into that page', 'The script automatically fills the entire page with the AI planner'],
+                  ['3', 'Share the URL with your customers', 'e.g. yourdomain.com/trip-planner — your branding, your domain'],
+                ].map(([num, title, desc]) => (
+                  <div key={num} className="flex gap-3">
+                    <div className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {num}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{title}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* URL preview */}
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-3">
+              <h3 className="font-semibold text-gray-900 text-sm">What your page URL will look like</h3>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex items-center bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+                  <span className="px-3 py-2 text-sm text-gray-400 border-r border-gray-200 flex-shrink-0">yourdomain.com</span>
+                  <input
+                    type="text"
+                    value={pageSlug}
+                    onChange={e => setPageSlug(e.target.value.startsWith('/') ? e.target.value : '/' + e.target.value)}
+                    className="flex-1 px-3 py-2 text-sm text-gray-800 bg-transparent focus:outline-none font-mono"
+                    placeholder="/trip-planner"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                Example: if your domain is <span className="font-mono text-gray-600">ravindranathjha.in</span> and
+                you create a page at <span className="font-mono text-gray-600">{pageSlug}</span>, the
+                full URL will be{' '}
+                <span className="font-mono text-emerald-600 font-semibold">ravindranathjha.in{pageSlug}</span>
+              </p>
+            </div>
+
+            {/* Code option 1: Full HTML file */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Option A — Full HTML File</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Best for static sites, cPanel hosting, or any plain HTML setup</p>
+                </div>
+                <CopyButton text={fullHtmlTemplate} />
+              </div>
+              <CodeBlock code={fullHtmlTemplate} />
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
+                <strong>How to use:</strong> Copy this code, save it as{' '}
+                <code className="bg-emerald-100 px-1 rounded">trip-planner.html</code> (or whatever matches your slug),
+                and upload it to your web server. The planner fills the entire page automatically.
+              </div>
+            </div>
+
+            {/* Code option 2: Script only */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">Option B — Script Tag Only</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Best for WordPress, Wix, Webflow — paste into any existing page</p>
+                </div>
+                <CopyButton text={scriptOnlyCode} />
+              </div>
+              <CodeBlock code={scriptOnlyCode} />
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+                <strong>How to use:</strong> In your page editor (WordPress block editor, Wix HTML embed block, etc.),
+                create a new blank page at <code className="bg-blue-100 px-1 rounded">{pageSlug}</code> and add
+                this script tag. The planner takes over the full page.
+              </div>
+            </div>
+
+            {/* Platform instructions */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+              <h3 className="font-semibold text-gray-900 text-sm">Platform-specific steps</h3>
+              <div className="space-y-3">
+                {[
+                  {
+                    platform: 'WordPress',
+                    color: 'bg-blue-50 border-blue-100 text-blue-800',
+                    steps: 'Pages → Add New → set URL slug to "trip-planner" → add a "Custom HTML" block → paste Option B code → Publish',
+                  },
+                  {
+                    platform: 'Wix',
+                    color: 'bg-amber-50 border-amber-100 text-amber-800',
+                    steps: 'Add Page → blank page → URL slug = "trip-planner" → Add Element → Embed Code → HTML iframe → paste Option B → Publish',
+                  },
+                  {
+                    platform: 'Webflow',
+                    color: 'bg-purple-50 border-purple-100 text-purple-800',
+                    steps: 'Pages → New Page → slug "trip-planner" → add Embed element → paste Option B → Publish',
+                  },
+                  {
+                    platform: 'Plain HTML / cPanel',
+                    color: 'bg-emerald-50 border-emerald-100 text-emerald-800',
+                    steps: 'Save Option A as trip-planner.html → upload via File Manager or FTP to your domain root → done',
+                  },
+                ].map(p => (
+                  <div key={p.platform} className={`rounded-xl p-3 border text-sm ${p.color}`}>
+                    <span className="font-bold">{p.platform}:</span>{' '}{p.steps}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm text-gray-600">
+              <p className="font-semibold text-gray-800 mb-2">What happens when a visitor opens the page</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>The entire page becomes the AI planner — no scrolling, no distractions</li>
+                <li>Your DMC name and branding are shown at the top of the planner</li>
+                <li>Visitors plan trips, submit leads — all tracked in your dashboard</li>
+                <li>The URL stays as <span className="font-mono font-semibold">yourdomain.com{pageSlug}</span> — 100% your brand</li>
+                <li>No Travelzada logo or branding visible to the visitor</li>
+              </ul>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }
