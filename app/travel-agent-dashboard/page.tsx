@@ -381,6 +381,313 @@ export default function SubAgentDashboardPage() {
     } catch { } finally { setSendingMsg(false) }
   }
 
+  // ── Standalone print window for quotation ────────────────────────────────────
+  function openQuotPrintWindow(q: Quotation) {
+    const pkg = q.customPackageData
+    const heroImage = pkg?.primaryImageUrl || ''
+    const inclusions = Array.isArray(pkg?.inclusions) ? pkg!.inclusions.filter(Boolean) : []
+    const exclusions = Array.isArray(pkg?.exclusions) ? pkg!.exclusions.filter(Boolean) : []
+    const highlights = Array.isArray(pkg?.highlights) ? pkg!.highlights.filter(Boolean) : []
+    const groupSize = q.groupSize || 1
+    const pricePerPerson = pkg?.pricePerPerson
+      || (q.quotedPrice && groupSize > 1 ? Math.round(Number(q.quotedPrice) / groupSize) : null)
+    const agentLabel = subAgentName || 'Travel Agent'
+
+    const days: { title: string; desc: string }[] = []
+    if (pkg?.dayWiseItinerary) {
+      let cur: { title: string; desc: string } | null = null
+      for (const line of pkg.dayWiseItinerary.split('\n').filter(Boolean)) {
+        if (/^day\s*\d+/i.test(line)) {
+          if (cur) days.push(cur)
+          cur = { title: line, desc: '' }
+        } else if (cur) {
+          cur.desc += (cur.desc ? '\n' : '') + line
+        }
+      }
+      if (cur) days.push(cur)
+    }
+
+    const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(q.packageTitle)} — Quotation</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff}
+@page{margin:0;size:A4}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.hero{position:relative;height:260px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover}
+.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#4338ca,#7c3aed)}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,.1) 100%)}
+.hero-top{position:absolute;top:16px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:flex-start}
+.hero-bot{position:absolute;bottom:20px;left:20px;right:20px}
+.badge{background:#fff;color:#111;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px}
+.ref{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:10px;font-family:monospace;font-weight:700;padding:4px 10px;border-radius:999px}
+.qlabel{font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.15em;margin-bottom:6px}
+.ptitle{font-size:26px;font-weight:800;color:#fff;line-height:1.2}
+.dest{font-size:13px;color:rgba(255,255,255,.75);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#4338ca}
+.sc{padding:10px 8px;text-align:center;border-left:1px solid rgba(255,255,255,.15)}.sc:first-child{border-left:none}
+.sicon{font-size:16px}.slabel{font-size:8px;color:#a5b4fc;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
+.body{padding:24px 28px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.precard{background:#f9fafb;border-radius:12px;padding:16px}
+.slbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.cname{font-size:20px;font-weight:800;color:#111;margin-bottom:10px}
+.irow{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:4px}
+.divhr{border:none;border-top:1px solid #e5e7eb;margin:8px 0}
+.pcard{border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:center}
+.pamount{font-size:32px;font-weight:800;color:#fff;line-height:1;margin-bottom:4px}
+.psub{font-size:11px;color:rgba(255,255,255,.75)}
+.pper{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+.phr{border:none;border-top:1px solid rgba(255,255,255,.2);margin:10px 0}
+.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
+.pdval{font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-top:2px}
+.sec{margin-bottom:20px}
+.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.overview{font-size:13px;color:#374151;line-height:1.6}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hpill{display:flex;align-items:flex-start;gap:8px;background:#eef2ff;border-radius:10px;padding:8px 12px}
+.hstar{color:#6366f1;font-size:13px;flex-shrink:0}
+.htext{font-size:12px;color:#374151;line-height:1.4}
+.iegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.icard{background:#f0fdf4;border-radius:12px;padding:14px}.ecard{background:#fff1f2;border-radius:12px;padding:14px}
+.ititle{font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.etitle{font-size:10px;font-weight:700;color:#be123c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.li{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.idot{width:16px;height:16px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.edot{width:16px;height:16px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.litext{font-size:12px;color:#374151;line-height:1.4}
+.dayitem{display:flex;gap:12px;margin-bottom:4px}
+.dayleft{display:flex;flex-direction:column;align-items:center}
+.daynum{width:28px;height:28px;border-radius:50%;background:#4338ca;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dayline{width:2px;background:#e0e7ff;flex:1;margin-top:4px;min-height:16px}
+.daycontent{padding-bottom:14px;flex:1}
+.daytitle{font-size:13px;font-weight:700;color:#111;line-height:1.4}
+.daydesc{font-size:11px;color:#6b7280;margin-top:3px;line-height:1.5}
+.sreq{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:20px}
+.sreqt{font-size:9px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.sreqb{font-size:12px;color:#374151}
+.terms{border-top:1px solid #f3f4f6;padding-top:16px;margin-bottom:16px}
+.termrow{display:flex;gap:6px;font-size:11px;color:#9ca3af;margin-bottom:4px}
+.footer{background:#4338ca;border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.ftname{font-size:14px;font-weight:700;color:#fff}.ftsub{font-size:10px;color:#a5b4fc;margin-top:2px}
+.ftthanks{font-size:11px;color:#a5b4fc}
+</style></head><body>
+<div class="hero">
+  ${heroImage ? `<img src="${heroImage}" alt="" />` : '<div class="hero-bg"></div>'}
+  <div class="overlay"></div>
+  <div class="hero-top">
+    <span class="badge">${esc(agentLabel)}</span>
+    <span class="ref">${esc(q.publicId || q.id.slice(-8).toUpperCase())}</span>
+  </div>
+  <div class="hero-bot">
+    <p class="qlabel">Travel Quotation</p>
+    <h1 class="ptitle">${esc(q.packageTitle)}</h1>
+    <p class="dest">📍 ${esc(q.destination)}${pkg?.destinationCountry ? ', ' + esc(pkg.destinationCountry) : ''}</p>
+  </div>
+</div>
+<div class="stats">
+  ${[
+    ['🌙','Duration', pkg?.durationNights ? `${pkg.durationNights}N / ${pkg.durationDays}D` : pkg?.durationDays ? `${pkg.durationDays} Days` : '—'],
+    ['⭐','Category', pkg?.starCategory || '—'],
+    ['✈️','Travel Type', pkg?.travelType || '—'],
+    ['👥','Travellers', `${groupSize} pax (${q.adults || groupSize}A${q.kids ? ` + ${q.kids}K` : ''})`],
+  ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
+</div>
+<div class="body">
+  <div class="grid2">
+    <div class="precard">
+      <div class="slbl">Prepared For</div>
+      <div class="cname">${esc(q.customerName)}</div>
+      ${q.customerEmail ? `<div class="irow">📧 ${esc(q.customerEmail)}</div>` : ''}
+      ${q.customerPhone ? `<div class="irow">📱 ${esc(q.customerPhone)}</div>` : ''}
+      ${q.preferredDates ? `<div class="irow">📅 ${esc(q.preferredDates)}</div>` : ''}
+      <hr class="divhr"/>
+      <div class="irow">👤 via ${esc(agentLabel)}</div>
+    </div>
+    <div class="pcard" style="background:${q.quotedPrice ? '#059669' : '#d97706'}">
+      <div class="slbl" style="color:rgba(255,255,255,.6)">${q.quotedPrice ? 'Quoted Price' : 'Price'}</div>
+      ${q.quotedPrice
+        ? `<div class="pamount">₹${Number(q.quotedPrice).toLocaleString('en-IN')}</div>
+           <div class="psub">Total for ${groupSize} traveller${groupSize !== 1 ? 's' : ''}</div>
+           ${pricePerPerson && groupSize > 1 ? `<div class="pper">₹${Number(pricePerPerson).toLocaleString('en-IN')} per person</div>` : ''}`
+        : `<div class="pamount" style="font-size:18px">To be confirmed</div>`}
+      <hr class="phr"/>
+      <div class="pdlbl">Date issued</div>
+      <div class="pdval">${dateStr}</div>
+    </div>
+  </div>
+  ${pkg?.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(pkg.overview)}</p></div>` : ''}
+  ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+  ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
+    ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
+    ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
+  </div></div>` : ''}
+  ${days.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${days.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<days.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.desc?`<div class="daydesc">${esc(d.desc).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+  ${q.specialRequests ? `<div class="sreq"><div class="sreqt">Special Requests</div><p class="sreqb">${esc(q.specialRequests)}</p></div>` : ''}
+  <div class="terms">
+    <div class="stitle">Terms &amp; Conditions</div>
+    ${['This quotation is valid for 7 days from the date of issue.','Prices are subject to availability at the time of booking.','A deposit may be required to confirm the booking.','For queries, please contact your travel agent directly.'].map(t=>`<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
+  </div>
+  <div class="footer">
+    <div><div class="ftname">${esc(agentLabel)}</div><div class="ftsub">Your trusted travel partner</div></div>
+    <div class="ftthanks">Thank you for choosing us ✈️</div>
+  </div>
+</div>
+</body></html>`
+
+    const win = window.open('', '_blank', 'width=850,height=1100')
+    if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 800)
+  }
+
+  // ── Standalone print window for package quote ─────────────────────────────────
+  function openPkgPrintWindow(pkg: AgentPackage, finalPrice: number) {
+    const inclusions = Array.isArray(pkg.inclusions) ? pkg.inclusions.filter(Boolean) : []
+    const exclusions = Array.isArray(pkg.exclusions) ? pkg.exclusions.filter(Boolean) : []
+    const highlights = Array.isArray(pkg.highlights) ? pkg.highlights.filter(Boolean) : []
+    const agentLabel = subAgentName || 'Travel Agent'
+    const heroImage = pkg.primaryImageUrl || ''
+
+    const days: { title: string; desc: string }[] = []
+    if (pkg.dayWiseItinerary) {
+      let cur: { title: string; desc: string } | null = null
+      for (const line of pkg.dayWiseItinerary.split('\n').filter(Boolean)) {
+        if (/^day\s*\d+/i.test(line)) {
+          if (cur) days.push(cur)
+          cur = { title: line, desc: '' }
+        } else if (cur) {
+          cur.desc += (cur.desc ? '\n' : '') + line
+        }
+      }
+      if (cur) days.push(cur)
+    }
+
+    const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(pkg.title)} — Package Quote</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff}
+@page{margin:0;size:A4}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.hero{position:relative;height:260px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover}
+.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#4f46e5,#9333ea)}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,.1) 100%)}
+.hero-top{position:absolute;top:16px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:flex-start}
+.hero-bot{position:absolute;bottom:20px;left:20px;right:20px}
+.badge{background:#fff;color:#111;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px}
+.qlabel{font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.15em;margin-bottom:6px}
+.ptitle{font-size:26px;font-weight:800;color:#fff;line-height:1.2}
+.dest{font-size:13px;color:rgba(255,255,255,.75);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#4f46e5}
+.sc{padding:10px 8px;text-align:center;border-left:1px solid rgba(255,255,255,.15)}.sc:first-child{border-left:none}
+.sicon{font-size:16px}.slabel{font-size:8px;color:#a5b4fc;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
+.body{padding:24px 28px}
+.pricebox{background:#4f46e5;border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.pricetag{font-size:9px;font-weight:700;color:#a5b4fc;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.pricelarge{font-size:36px;font-weight:800;color:#fff;line-height:1}
+.pricesub{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px}
+.pricedate{text-align:right}
+.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
+.pdval{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:3px}
+.sec{margin-bottom:20px}
+.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.overview{font-size:13px;color:#374151;line-height:1.6}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hpill{display:flex;align-items:flex-start;gap:8px;background:#eef2ff;border-radius:10px;padding:8px 12px}
+.hstar{color:#6366f1;font-size:13px;flex-shrink:0}
+.htext{font-size:12px;color:#374151;line-height:1.4}
+.iegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.icard{background:#f0fdf4;border-radius:12px;padding:14px}.ecard{background:#fff1f2;border-radius:12px;padding:14px}
+.ititle{font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.etitle{font-size:10px;font-weight:700;color:#be123c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.li{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.idot{width:16px;height:16px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.edot{width:16px;height:16px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.litext{font-size:12px;color:#374151;line-height:1.4}
+.dayitem{display:flex;gap:12px;margin-bottom:4px}
+.dayleft{display:flex;flex-direction:column;align-items:center}
+.daynum{width:28px;height:28px;border-radius:50%;background:#4f46e5;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dayline{width:2px;background:#e0e7ff;flex:1;margin-top:4px;min-height:16px}
+.daycontent{padding-bottom:14px;flex:1}
+.daytitle{font-size:13px;font-weight:700;color:#111;line-height:1.4}
+.daydesc{font-size:11px;color:#6b7280;margin-top:3px;line-height:1.5}
+.terms{border-top:1px solid #f3f4f6;padding-top:16px;margin-bottom:16px}
+.termrow{display:flex;gap:6px;font-size:11px;color:#9ca3af;margin-bottom:4px}
+.footer{background:#4f46e5;border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.ftname{font-size:14px;font-weight:700;color:#fff}.ftsub{font-size:10px;color:#a5b4fc;margin-top:2px}
+.ftthanks{font-size:11px;color:#a5b4fc}
+</style></head><body>
+<div class="hero">
+  ${heroImage ? `<img src="${heroImage}" alt="" />` : '<div class="hero-bg"></div>'}
+  <div class="overlay"></div>
+  <div class="hero-top"><span class="badge">${esc(agentLabel)}</span></div>
+  <div class="hero-bot">
+    <p class="qlabel">Travel Package</p>
+    <h1 class="ptitle">${esc(pkg.title)}</h1>
+    <p class="dest">📍 ${esc(pkg.destination)}${pkg.destinationCountry ? ', ' + esc(pkg.destinationCountry) : ''}</p>
+  </div>
+</div>
+<div class="stats">
+  ${[
+    ['🌙','Duration', `${pkg.durationNights}N / ${pkg.durationDays}D`],
+    ['⭐','Category', pkg.starCategory],
+    ['✈️','Travel Type', pkg.travelType],
+    ['🌿','Theme', pkg.theme || pkg.mood || '—'],
+  ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
+</div>
+<div class="body">
+  <div class="pricebox">
+    <div>
+      <div class="pricetag">Price per Person</div>
+      <div class="pricelarge">₹${finalPrice.toLocaleString('en-IN')}</div>
+      <div class="pricesub">All inclusive</div>
+    </div>
+    <div class="pricedate">
+      <div class="pdlbl">Prepared by</div>
+      <div class="pdval">${esc(agentLabel)}</div>
+      <div class="pdlbl" style="margin-top:6px">Date</div>
+      <div class="pdval">${dateStr}</div>
+    </div>
+  </div>
+  ${pkg.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(pkg.overview)}</p></div>` : ''}
+  ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+  ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
+    ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
+    ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
+  </div></div>` : ''}
+  ${days.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${days.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<days.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.desc?`<div class="daydesc">${esc(d.desc).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+  <div class="terms">
+    <div class="stitle">Terms &amp; Conditions</div>
+    ${['This quote is valid for 7 days from the date of issue.','Prices are subject to availability at the time of booking.','A deposit may be required to confirm the booking.','For queries, please contact your travel agent directly.'].map(t=>`<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
+  </div>
+  <div class="footer">
+    <div><div class="ftname">${esc(agentLabel)}</div><div class="ftsub">Your trusted travel partner</div></div>
+    <div class="ftthanks">Thank you for choosing us ✈️</div>
+  </div>
+</div>
+</body></html>`
+
+    const win = window.open('', '_blank', 'width=850,height=1100')
+    if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 800)
+  }
+
   function shareQuotationWhatsApp(q: Quotation) {
     const price = q.quotedPrice ? `₹${Number(q.quotedPrice).toLocaleString('en-IN')}` : 'To be confirmed'
     const lines = [
@@ -2848,7 +3155,7 @@ export default function SubAgentDashboardPage() {
                   <Share2 className="w-3.5 h-3.5" />WhatsApp
                 </button>
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => openQuotPrintWindow(pdfQuot)}
                   className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors"
                 >
                   <FileText className="w-3.5 h-3.5" />Print / Save PDF
@@ -3075,7 +3382,7 @@ export default function SubAgentDashboardPage() {
                   <Share2 className="w-3.5 h-3.5" />WhatsApp
                 </button>
                 <button
-                  onClick={() => window.print()}
+                  onClick={() => openPkgPrintWindow(pkgPdfPkg, pkgPdfFinalPrice)}
                   className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors"
                 >
                   <FileText className="w-3.5 h-3.5" />Print / Save PDF

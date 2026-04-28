@@ -481,6 +481,136 @@ export default function PackageManager({ agentId }: Props) {
     } as AgentPackage
   }
 
+  // ── Open standalone print window for package brochure ───────────────────────
+  function openPackagePrintWindow() {
+    const base = Number(form.pricePerPerson) || 0
+    const finalPrice = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
+    const heroImage = form.primaryImageUrl || ''
+    const inclusions = (form.inclusions || '').split('\n').filter(Boolean)
+    const exclusions = (form.exclusions || '').split('\n').filter(Boolean)
+    const highlights = (form.highlights || '').split('\n').filter(Boolean)
+
+    const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(form.title || 'Package')} — Package Brochure</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff}
+@page{margin:0;size:A4}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.hero{position:relative;height:260px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover}
+.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5)}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,.1) 100%)}
+.hero-top{position:absolute;top:16px;left:20px;right:20px}
+.hero-bot{position:absolute;bottom:20px;left:20px;right:20px}
+.badge{background:#fff;color:#111;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;display:inline-block}
+.qlabel{font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.15em;margin-bottom:6px}
+.ptitle{font-size:26px;font-weight:800;color:#fff;line-height:1.2}
+.dest{font-size:13px;color:rgba(255,255,255,.75);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#7c3aed}
+.sc{padding:10px 8px;text-align:center;border-left:1px solid rgba(255,255,255,.15)}.sc:first-child{border-left:none}
+.sicon{font-size:16px}.slabel{font-size:8px;color:#ddd6fe;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
+.body{padding:24px 28px}
+.pricebox{background:#7c3aed;border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.pricetag{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.pricelarge{font-size:36px;font-weight:800;color:#fff;line-height:1}
+.pricesub{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px}
+.pricedate{text-align:right}
+.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
+.pdval{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:3px}
+.sec{margin-bottom:20px}
+.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.overview{font-size:13px;color:#374151;line-height:1.6}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hpill{display:flex;align-items:flex-start;gap:8px;background:#ede9fe;border-radius:10px;padding:8px 12px}
+.hstar{color:#7c3aed;font-size:13px;flex-shrink:0}
+.htext{font-size:12px;color:#374151;line-height:1.4}
+.iegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.icard{background:#f0fdf4;border-radius:12px;padding:14px}.ecard{background:#fff1f2;border-radius:12px;padding:14px}
+.ititle{font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.etitle{font-size:10px;font-weight:700;color:#be123c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.li{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.idot{width:16px;height:16px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.edot{width:16px;height:16px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.litext{font-size:12px;color:#374151;line-height:1.4}
+.hoteltable{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
+.hoteltable th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#374151;border:1px solid #e5e7eb}
+.hoteltable td{padding:8px 10px;border:1px solid #e5e7eb;color:#374151}
+.hoteltable tr:nth-child(even) td{background:#fafafa}
+.dayitem{display:flex;gap:12px;margin-bottom:4px}
+.dayleft{display:flex;flex-direction:column;align-items:center}
+.daynum{width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dayline{width:2px;background:#ede9fe;flex:1;margin-top:4px;min-height:16px}
+.daycontent{padding-bottom:14px;flex:1}
+.daytitle{font-size:13px;font-weight:700;color:#111;line-height:1.4}
+.daydesc{font-size:11px;color:#6b7280;margin-top:3px;line-height:1.5}
+.terms{border-top:1px solid #f3f4f6;padding-top:16px;margin-bottom:16px}
+.termrow{display:flex;gap:6px;font-size:11px;color:#9ca3af;margin-bottom:4px}
+.footer{background:#7c3aed;border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.ftname{font-size:14px;font-weight:700;color:#fff}.ftsub{font-size:10px;color:#ddd6fe;margin-top:2px}
+.ftthanks{font-size:11px;color:#ddd6fe}
+</style></head><body>
+<div class="hero">
+  ${heroImage ? `<img src="${heroImage}" alt="" />` : '<div class="hero-bg"></div>'}
+  <div class="overlay"></div>
+  <div class="hero-top"><span class="badge">Package Brochure</span></div>
+  <div class="hero-bot">
+    <p class="qlabel">Travel Package</p>
+    <h1 class="ptitle">${esc(form.title || 'Untitled Package')}</h1>
+    <p class="dest">📍 ${esc(form.destination)}${form.destinationCountry ? ', ' + esc(form.destinationCountry) : ''}</p>
+  </div>
+</div>
+<div class="stats">
+  ${[
+    ['🌙','Duration', `${form.durationNights}N / ${form.durationDays}D`],
+    ['⭐','Category', form.starCategory || '—'],
+    ['✈️','Travel Type', form.travelType || '—'],
+    ['🌿','Theme', form.theme || form.mood || '—'],
+  ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
+</div>
+<div class="body">
+  <div class="pricebox">
+    <div>
+      <div class="pricetag">Price per Person</div>
+      <div class="pricelarge">₹${finalPrice.toLocaleString('en-IN')}</div>
+      ${markupEnabled ? `<div class="pricesub">Includes ${markupPercent}% markup</div>` : ''}
+    </div>
+    <div class="pricedate">
+      <div class="pdlbl">Published on</div>
+      <div class="pdval">${dateStr}</div>
+    </div>
+  </div>
+  ${form.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(form.overview)}</p></div>` : ''}
+  ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+  ${hotelEntries.length > 0 ? `<div class="sec"><div class="stitle">Hotels &amp; Accommodation</div><table class="hoteltable"><thead><tr><th>Destination</th><th>Hotel(s)</th><th>Meal Plan</th><th>Room Type</th></tr></thead><tbody>${hotelEntries.map((h)=>`<tr><td><strong>${esc(h.destination)}${h.nights?` (${h.nights}N)`:''}</strong></td><td>${esc(h.hotels)}</td><td>${esc(h.mealPlan)}</td><td>${esc(h.roomType)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+  ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
+    ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
+    ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
+  </div></div>` : ''}
+  ${dayItems.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${dayItems.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<dayItems.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.description?`<div class="daydesc">${esc(d.description).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+  <div class="terms">
+    <div class="stitle">Terms &amp; Conditions</div>
+    ${['This brochure is for reference only.','Prices are subject to availability at the time of booking.','A deposit may be required to confirm the booking.','Contact us for custom packages and group bookings.'].map(t=>`<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
+  </div>
+  <div class="footer">
+    <div><div class="ftname">Travelzada DMC</div><div class="ftsub">Your trusted travel partner</div></div>
+    <div class="ftthanks">Thank you for your interest ✈️</div>
+  </div>
+</div>
+</body></html>`
+
+    const win = window.open('', '_blank', 'width=850,height=1100')
+    if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 800)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -1426,19 +1556,17 @@ export default function PackageManager({ agentId }: Props) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
-                      window.print()
-                      setTimeout(() => {
-                        const base2 = Number(form.pricePerPerson) || 0
-                        const final2 = markupEnabled ? base2 * (1 + Number(markupPercent) / 100) : base2
-                        const msg = `📄 *${form.title || 'Travel Package'}* — Detailed itinerary PDF\n📍 ${form.destination} · ${form.durationDays}D/${form.durationNights}N · ₹${final2.toLocaleString('en-IN')}/person\n\nPlease find the attached PDF with complete itinerary, hotels, and pricing details.\n\n_Contact us to book!_`
-                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-                      }, 500)
+                      openPackagePrintWindow()
+                      const base2 = Number(form.pricePerPerson) || 0
+                      const final2 = markupEnabled ? base2 * (1 + Number(markupPercent) / 100) : base2
+                      const msg = `📄 *${form.title || 'Travel Package'}* — Detailed itinerary PDF\n📍 ${form.destination} · ${form.durationDays}D/${form.durationNights}N · ₹${final2.toLocaleString('en-IN')}/person\n\nPlease find the attached PDF with complete itinerary, hotels, and pricing details.\n\n_Contact us to book!_`
+                      setTimeout(() => window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'), 900)
                     }}
                     className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl"
                   >
                     📱 Print & Share on WhatsApp
                   </button>
-                  <button onClick={() => window.print()} className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50">
+                  <button onClick={() => openPackagePrintWindow()} className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50">
                     🖨️ Print / Save PDF
                   </button>
                   <button onClick={() => setShowPdfPreview(false)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">

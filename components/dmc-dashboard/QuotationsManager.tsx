@@ -448,6 +448,177 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     }
   }
 
+  // ── Open a standalone print window with the full quotation ──────────────────
+  function openPrintWindow(q: Quotation) {
+    const pkg = q.customPackageData
+    const heroImage = pkg?.primaryImageUrl || ''
+    const inclusions = Array.isArray(pkg?.inclusions) ? pkg!.inclusions.filter(Boolean) : []
+    const exclusions = Array.isArray(pkg?.exclusions) ? pkg!.exclusions.filter(Boolean) : []
+    const highlights = Array.isArray(pkg?.highlights) ? pkg!.highlights.filter(Boolean) : []
+    const groupSize = q.groupSize || 1
+    const pricePerPerson = pkg?.pricePerPerson
+      || (q.quotedPrice && groupSize > 1 ? Math.round(Number(q.quotedPrice) / groupSize) : null)
+
+    // Parse itinerary string into day objects
+    const days: { title: string; desc: string }[] = []
+    if (pkg?.dayWiseItinerary) {
+      let cur: { title: string; desc: string } | null = null
+      for (const line of pkg.dayWiseItinerary.split('\n').filter(Boolean)) {
+        if (/^day\s*\d+/i.test(line)) {
+          if (cur) days.push(cur)
+          cur = { title: line, desc: '' }
+        } else if (cur) {
+          cur.desc += (cur.desc ? '\n' : '') + line
+        }
+      }
+      if (cur) days.push(cur)
+    }
+
+    const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${esc(q.packageTitle)} — Quotation</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff}
+@page{margin:0;size:A4}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.hero{position:relative;height:260px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover}
+.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#4338ca,#7c3aed)}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,.1) 100%)}
+.hero-top{position:absolute;top:16px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:flex-start}
+.hero-bot{position:absolute;bottom:20px;left:20px;right:20px}
+.badge{background:#fff;color:#111;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px}
+.ref{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:10px;font-family:monospace;font-weight:700;padding:4px 10px;border-radius:999px}
+.qlabel{font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.15em;margin-bottom:6px}
+.ptitle{font-size:26px;font-weight:800;color:#fff;line-height:1.2}
+.dest{font-size:13px;color:rgba(255,255,255,.75);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#4338ca}
+.sc{padding:10px 8px;text-align:center;border-left:1px solid rgba(255,255,255,.15)}
+.sc:first-child{border-left:none}
+.sicon{font-size:16px}
+.slabel{font-size:8px;color:#a5b4fc;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
+.body{padding:24px 28px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.precard{background:#f9fafb;border-radius:12px;padding:16px}
+.slbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.cname{font-size:20px;font-weight:800;color:#111;margin-bottom:10px}
+.irow{display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;margin-bottom:4px}
+.divhr{border:none;border-top:1px solid #e5e7eb;margin:8px 0}
+.pcard{border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:center}
+.pamount{font-size:32px;font-weight:800;color:#fff;line-height:1;margin-bottom:4px}
+.psub{font-size:11px;color:rgba(255,255,255,.75)}
+.pper{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px}
+.phr{border:none;border-top:1px solid rgba(255,255,255,.2);margin:10px 0}
+.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
+.pdval{font-size:11px;font-weight:600;color:rgba(255,255,255,.85);margin-top:2px}
+.sec{margin-bottom:20px}
+.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.overview{font-size:13px;color:#374151;line-height:1.6}
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hpill{display:flex;align-items:flex-start;gap:8px;background:#eef2ff;border-radius:10px;padding:8px 12px}
+.hstar{color:#6366f1;font-size:13px;flex-shrink:0}
+.htext{font-size:12px;color:#374151;line-height:1.4}
+.iegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.icard{background:#f0fdf4;border-radius:12px;padding:14px}
+.ecard{background:#fff1f2;border-radius:12px;padding:14px}
+.ititle{font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.etitle{font-size:10px;font-weight:700;color:#be123c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.li{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+.idot{width:16px;height:16px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.edot{width:16px;height:16px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
+.litext{font-size:12px;color:#374151;line-height:1.4}
+.dayitem{display:flex;gap:12px;margin-bottom:4px}
+.dayleft{display:flex;flex-direction:column;align-items:center}
+.daynum{width:28px;height:28px;border-radius:50%;background:#4338ca;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dayline{width:2px;background:#e0e7ff;flex:1;margin-top:4px;min-height:16px}
+.daycontent{padding-bottom:14px;flex:1}
+.daytitle{font-size:13px;font-weight:700;color:#111;line-height:1.4}
+.daydesc{font-size:11px;color:#6b7280;margin-top:3px;line-height:1.5}
+.sreq{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:20px}
+.sreqt{font-size:9px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.sreqb{font-size:12px;color:#374151}
+.terms{border-top:1px solid #f3f4f6;padding-top:16px;margin-bottom:16px}
+.termrow{display:flex;gap:6px;font-size:11px;color:#9ca3af;margin-bottom:4px}
+.footer{background:#4338ca;border-radius:12px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.ftname{font-size:14px;font-weight:700;color:#fff}
+.ftsub{font-size:10px;color:#a5b4fc;margin-top:2px}
+.ftthanks{font-size:11px;color:#a5b4fc}
+</style></head><body>
+<div class="hero">
+  ${heroImage ? `<img src="${heroImage}" alt="" />` : '<div class="hero-bg"></div>'}
+  <div class="overlay"></div>
+  <div class="hero-top">
+    <span class="badge">${esc(agentName)}</span>
+    <span class="ref">${esc(q.publicId || q.id.slice(-8).toUpperCase())}</span>
+  </div>
+  <div class="hero-bot">
+    <p class="qlabel">Travel Quotation</p>
+    <h1 class="ptitle">${esc(q.packageTitle)}</h1>
+    <p class="dest">📍 ${esc(q.destination)}${pkg?.destinationCountry ? ', ' + esc(pkg.destinationCountry) : ''}</p>
+  </div>
+</div>
+<div class="stats">
+  ${[
+    ['🌙','Duration', pkg?.durationNights ? `${pkg.durationNights}N / ${pkg.durationDays}D` : pkg?.durationDays ? `${pkg.durationDays} Days` : '—'],
+    ['⭐','Category', pkg?.starCategory || '—'],
+    ['✈️','Travel Type', pkg?.travelType || '—'],
+    ['👥','Travellers', `${groupSize} pax (${q.adults}A${q.kids ? ` + ${q.kids}K` : ''})`],
+  ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
+</div>
+<div class="body">
+  <div class="grid2">
+    <div class="precard">
+      <div class="slbl">Prepared For</div>
+      <div class="cname">${esc(q.customerName)}</div>
+      ${q.customerEmail ? `<div class="irow">📧 ${esc(q.customerEmail)}</div>` : ''}
+      ${q.customerPhone ? `<div class="irow">📱 ${esc(q.customerPhone)}</div>` : ''}
+      ${q.preferredDates ? `<div class="irow">📅 ${esc(q.preferredDates)}</div>` : ''}
+      <hr class="divhr"/>
+      <div class="irow">👤 via ${esc(q.subAgentName || agentName)}</div>
+    </div>
+    <div class="pcard" style="background:${q.quotedPrice ? '#059669' : '#d97706'}">
+      <div class="slbl" style="color:rgba(255,255,255,.6)">${q.quotedPrice ? 'Quoted Price' : 'Price'}</div>
+      ${q.quotedPrice
+        ? `<div class="pamount">₹${Number(q.quotedPrice).toLocaleString('en-IN')}</div>
+           <div class="psub">Total for ${groupSize} traveller${groupSize !== 1 ? 's' : ''}</div>
+           ${pricePerPerson && groupSize > 1 ? `<div class="pper">₹${Number(pricePerPerson).toLocaleString('en-IN')} per person</div>` : ''}`
+        : `<div class="pamount" style="font-size:18px">To be confirmed</div>`}
+      <hr class="phr"/>
+      <div class="pdlbl">Date issued</div>
+      <div class="pdval">${dateStr}</div>
+    </div>
+  </div>
+  ${pkg?.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(pkg.overview)}</p></div>` : ''}
+  ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+  ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
+    ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
+    ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
+  </div></div>` : ''}
+  ${days.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${days.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<days.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.desc?`<div class="daydesc">${esc(d.desc).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+  ${q.specialRequests ? `<div class="sreq"><div class="sreqt">Special Requests</div><p class="sreqb">${esc(q.specialRequests)}</p></div>` : ''}
+  <div class="terms">
+    <div class="stitle">Terms &amp; Conditions</div>
+    ${['This quotation is valid for 7 days from the date of issue.','Prices are subject to availability at the time of booking.','A deposit may be required to confirm the booking.','For queries, please contact your travel agent directly.'].map(t=>`<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
+  </div>
+  <div class="footer">
+    <div><div class="ftname">${esc(agentName)}</div><div class="ftsub">Your trusted travel partner</div></div>
+    <div class="ftthanks">Thank you for choosing us ✈️</div>
+  </div>
+</div>
+</body></html>`
+
+    const win = window.open('', '_blank', 'width=850,height=1100')
+    if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => win.print(), 800)
+  }
+
   // ── WhatsApp quotation share ─────────────────────────────────────────────────
   function shareOnWhatsApp(q: Quotation) {
     const price = q.quotedPrice ? `₹${Number(q.quotedPrice).toLocaleString('en-IN')}` : 'To be confirmed'
@@ -1727,122 +1898,291 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     })()}
 
     {/* ── Quotation PDF Modal ────────────────────────────────────────────────── */}
-    {pdfQuot && (
-      <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 print:bg-white print:p-0 print:block">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden print:shadow-none print:rounded-none print:max-h-none">
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              <span className="font-bold text-gray-900">Quotation Preview</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => shareOnWhatsApp(pdfQuot)}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors"
-              >
-                <Share2 className="w-3.5 h-3.5" />WhatsApp
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5" />Print / PDF
-              </button>
-              <button onClick={() => setPdfQuot(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
+    {pdfQuot && (() => {
+      const pkg = pdfQuot.customPackageData
+      const heroImage = pkg?.primaryImageUrl || ''
+      const inclusions = Array.isArray(pkg?.inclusions) ? pkg!.inclusions.filter(Boolean) : []
+      const exclusions = Array.isArray(pkg?.exclusions) ? pkg!.exclusions.filter(Boolean) : []
+      const highlights = Array.isArray(pkg?.highlights) ? pkg!.highlights.filter(Boolean) : []
+      const itineraryLines = pkg?.dayWiseItinerary ? pkg.dayWiseItinerary.split('\n').filter(Boolean) : []
+      const groupSize = pdfQuot.groupSize || 1
+      const pricePerPerson = pkg?.pricePerPerson || (pdfQuot.quotedPrice ? Math.round(Number(pdfQuot.quotedPrice) / groupSize) : null)
 
-          {/* Printable content */}
-          <div className="flex-1 overflow-y-auto p-6 print:p-8 space-y-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Travel Quotation</h1>
-                <p className="text-sm text-gray-400 mt-0.5">Ref: {pdfQuot.id.slice(-8).toUpperCase()}</p>
+      return (
+        <div className="fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4 print:relative print:bg-white print:p-0 print:flex print:items-start print:justify-start">
+          <div className="bg-white w-full max-w-2xl flex flex-col h-[92vh] overflow-hidden rounded-3xl shadow-2xl print:shadow-none print:rounded-none print:h-auto print:max-w-none print:overflow-visible print:w-full">
+
+            {/* ── Toolbar (hidden on print) ── */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0 print:hidden bg-white">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-600" />
+                <span className="font-bold text-gray-900 text-sm">Quotation Preview</span>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-400">Date</p>
-                <p className="text-sm font-semibold text-gray-700">{new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                <p className="text-xs text-gray-400 mt-1">Prepared by</p>
-                <p className="text-sm font-semibold text-gray-700">{agentName}</p>
+              <div className="flex gap-2">
+                <button onClick={() => shareOnWhatsApp(pdfQuot)}
+                  className="flex items-center gap-1.5 text-xs font-bold bg-green-500 hover:bg-green-600 text-white px-3.5 py-1.5 rounded-xl transition-colors">
+                  <Share2 className="w-3.5 h-3.5" />WhatsApp
+                </button>
+                <button onClick={() => openPrintWindow(pdfQuot)}
+                  className="flex items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl transition-colors">
+                  <Printer className="w-3.5 h-3.5" />Print / Save PDF
+                </button>
+                <button onClick={() => setPdfQuot(null)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            <div className="h-px bg-gray-200" />
+            {/* ── Printable content ── */}
+            <div className="flex-1 min-h-0 overflow-y-auto print:overflow-visible print:flex-none">
 
-            <div className="bg-gray-50 rounded-2xl p-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Prepared For</p>
-              <p className="text-lg font-bold text-gray-900">{pdfQuot.customerName}</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-gray-500">
-                {pdfQuot.customerEmail && <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" />{pdfQuot.customerEmail}</span>}
-                {pdfQuot.customerPhone && <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" />{pdfQuot.customerPhone}</span>}
-              </div>
-            </div>
+              {/* Hero */}
+              <div className="relative" style={{ height: '220px' }}>
+                {heroImage ? (
+                  <img src={heroImage} alt={pdfQuot.packageTitle} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-indigo-700 via-purple-700 to-indigo-900" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
 
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Package Details</p>
-              <div className="border border-gray-200 rounded-2xl overflow-hidden">
-                <div className="bg-primary/5 px-5 py-4 border-b border-gray-200">
-                  <p className="font-bold text-gray-900 text-base">{pdfQuot.packageTitle}</p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3.5 h-3.5" />{pdfQuot.destination}</p>
+                {/* Top row: agency + ref */}
+                <div className="absolute top-4 left-5 right-5 flex items-center justify-between">
+                  <span className="bg-white text-gray-900 text-[11px] font-bold px-3 py-1 rounded-full shadow-sm">{agentName}</span>
+                  <span className="bg-white/15 border border-white/30 text-white text-[10px] font-mono font-bold px-2.5 py-1 rounded-full">
+                    {pdfQuot.publicId || pdfQuot.id.slice(-8).toUpperCase()}
+                  </span>
                 </div>
-                <div className="grid grid-cols-3 divide-x divide-gray-200">
-                  <div className="px-4 py-3">
-                    <p className="text-xs text-gray-400 mb-0.5">Travellers</p>
-                    <p className="font-semibold text-gray-800 text-sm">{pdfQuot.groupSize || 1} pax ({pdfQuot.adults}A{pdfQuot.kids ? `, ${pdfQuot.kids}K` : ''})</p>
+
+                {/* Bottom: package name + destination */}
+                <div className="absolute bottom-5 left-5 right-5">
+                  <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mb-1">Travel Quotation</p>
+                  <h1 className="text-2xl font-bold text-white leading-tight">{pdfQuot.packageTitle}</h1>
+                  <p className="flex items-center gap-1.5 text-white/75 text-sm mt-1">
+                    <MapPin className="w-3.5 h-3.5 flex-shrink-0" />{pdfQuot.destination}
+                    {pkg?.destinationCountry && `, ${pkg.destinationCountry}`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats strip */}
+              <div style={{ backgroundColor: '#4338ca', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
+                {[
+                  { icon: '🌙', label: 'Duration', val: pkg?.durationNights ? `${pkg.durationNights}N / ${pkg.durationDays}D` : pkg?.durationDays ? `${pkg.durationDays} Days` : '—' },
+                  { icon: '⭐', label: 'Category', val: pkg?.starCategory || '—' },
+                  { icon: '✈️', label: 'Travel Type', val: pkg?.travelType || '—' },
+                  { icon: '👥', label: 'Travellers', val: `${groupSize} pax (${pdfQuot.adults}A${pdfQuot.kids ? ` + ${pdfQuot.kids}K` : ''})` },
+                ].map(({ icon, label, val }, i) => (
+                  <div key={label} style={{ padding: '10px 12px', textAlign: 'center', borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none' }}>
+                    <span style={{ fontSize: '16px' }}>{icon}</span>
+                    <p style={{ fontSize: '9px', color: '#a5b4fc', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>{label}</p>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#fff', marginTop: '2px', lineHeight: 1.2 }}>{val}</p>
                   </div>
-                  {pdfQuot.preferredDates && (
-                    <div className="px-4 py-3">
-                      <p className="text-xs text-gray-400 mb-0.5">Travel Dates</p>
-                      <p className="font-semibold text-gray-800 text-sm">{pdfQuot.preferredDates}</p>
+                ))}
+              </div>
+
+              <div className="p-6 space-y-6 print:p-8 print:space-y-5">
+
+                {/* Customer + Price row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Prepared For */}
+                  <div className="bg-gray-50 rounded-2xl p-4">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Prepared For</p>
+                    <p className="text-lg font-bold text-gray-900">{pdfQuot.customerName}</p>
+                    <div className="mt-2 space-y-1">
+                      {pdfQuot.customerEmail && (
+                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <Mail className="w-3 h-3 flex-shrink-0" />{pdfQuot.customerEmail}
+                        </p>
+                      )}
+                      {pdfQuot.customerPhone && (
+                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <Phone className="w-3 h-3 flex-shrink-0" />{pdfQuot.customerPhone}
+                        </p>
+                      )}
+                      {pdfQuot.preferredDates && (
+                        <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <Calendar className="w-3 h-3 flex-shrink-0" />{pdfQuot.preferredDates}
+                        </p>
+                      )}
+                      <p className="flex items-center gap-1.5 text-xs text-gray-400 mt-2 pt-2 border-t border-gray-200">
+                        <User className="w-3 h-3 flex-shrink-0" />via {pdfQuot.subAgentName || agentName}
+                      </p>
                     </div>
-                  )}
-                  <div className="px-4 py-3">
-                    <p className="text-xs text-gray-400 mb-0.5">Agent</p>
-                    <p className="font-semibold text-gray-800 text-sm truncate">{pdfQuot.subAgentName || agentName}</p>
+                  </div>
+
+                  {/* Quoted price */}
+                  <div
+                    className="rounded-2xl p-4 flex flex-col justify-center"
+                    style={{ backgroundColor: pdfQuot.quotedPrice ? '#059669' : '#d97706' }}
+                  >
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
+                      {pdfQuot.quotedPrice ? 'Quoted Price' : 'Price'}
+                    </p>
+                    {pdfQuot.quotedPrice ? (
+                      <>
+                        <p style={{ fontSize: '28px', fontWeight: 800, color: '#fff', lineHeight: 1 }}>
+                          ₹{Number(pdfQuot.quotedPrice).toLocaleString('en-IN')}
+                        </p>
+                        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', marginTop: '4px' }}>
+                          Total for {groupSize} traveller{groupSize !== 1 ? 's' : ''}
+                        </p>
+                        {pricePerPerson && groupSize > 1 && (
+                          <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+                            ₹{Number(pricePerPerson).toLocaleString('en-IN')} per person
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>To be confirmed</p>
+                    )}
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+                      <p style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)' }}>Date issued</p>
+                      <p style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.85)', marginTop: '2px' }}>
+                        {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            <div className={`rounded-2xl p-5 border-2 ${pdfQuot.quotedPrice ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-              <p className={`text-xs font-bold uppercase tracking-wide mb-1 ${pdfQuot.quotedPrice ? 'text-emerald-600' : 'text-amber-600'}`}>
-                {pdfQuot.quotedPrice ? 'Quoted Price' : 'Price'}
-              </p>
-              {pdfQuot.quotedPrice ? (
-                <div>
-                  <p className="text-3xl font-bold text-emerald-700">₹{Number(pdfQuot.quotedPrice).toLocaleString('en-IN')}</p>
-                  <p className="text-xs text-emerald-500 mt-0.5">Total for {pdfQuot.groupSize || 1} traveller{(pdfQuot.groupSize || 1) !== 1 ? 's' : ''}</p>
+                {/* Overview */}
+                {pkg?.overview && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Overview</p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{pkg.overview}</p>
+                  </div>
+                )}
+
+                {/* Highlights */}
+                {highlights.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Highlights</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {highlights.map((h, i) => (
+                        <div key={i} className="flex items-start gap-2 bg-indigo-50 rounded-xl px-3 py-2">
+                          <span className="text-indigo-500 mt-0.5 text-sm flex-shrink-0">✦</span>
+                          <p className="text-xs text-gray-700 leading-snug">{h}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Inclusions / Exclusions */}
+                {(inclusions.length > 0 || exclusions.length > 0) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {inclusions.length > 0 && (
+                      <div className="bg-emerald-50 rounded-2xl p-4">
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-2.5">✓ Inclusions</p>
+                        <ul className="space-y-1.5">
+                          {inclusions.map((inc, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                              <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span className="text-white text-[8px] font-bold">✓</span>
+                              </span>
+                              {inc}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {exclusions.length > 0 && (
+                      <div className="bg-red-50 rounded-2xl p-4">
+                        <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-2.5">✗ Exclusions</p>
+                        <ul className="space-y-1.5">
+                          {exclusions.map((exc, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
+                              <span className="w-4 h-4 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <span className="text-white text-[8px] font-bold">✗</span>
+                              </span>
+                              {exc}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Day-wise itinerary */}
+                {itineraryLines.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Day-Wise Itinerary</p>
+                    <div className="space-y-2">
+                      {(() => {
+                        const days: { title: string; lines: string[] }[] = []
+                        let cur: { title: string; lines: string[] } | null = null
+                        for (const line of itineraryLines) {
+                          if (/^day\s*\d+/i.test(line)) {
+                            if (cur) days.push(cur)
+                            cur = { title: line, lines: [] }
+                          } else if (cur) {
+                            cur.lines.push(line)
+                          }
+                        }
+                        if (cur) days.push(cur)
+                        return days.length > 0 ? days.map((day, i) => (
+                          <div key={i} className="flex gap-3">
+                            <div className="flex flex-col items-center">
+                              <span className="w-7 h-7 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                                {String(i + 1).padStart(2, '0')}
+                              </span>
+                              {i < days.length - 1 && <div className="w-px flex-1 bg-indigo-100 mt-1" />}
+                            </div>
+                            <div className="pb-4 flex-1">
+                              <p className="text-sm font-bold text-gray-900 leading-snug">{day.title}</p>
+                              {day.lines.map((l, j) => (
+                                <p key={j} className="text-xs text-gray-500 mt-1 leading-relaxed">{l}</p>
+                              ))}
+                            </div>
+                          </div>
+                        )) : itineraryLines.map((line, i) => (
+                          <p key={i} className={`text-sm ${/^day\s*\d+/i.test(line) ? 'font-bold text-gray-900 mt-2' : 'text-gray-600 pl-4'}`}>{line}</p>
+                        ))
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Special requests */}
+                {pdfQuot.specialRequests && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                    <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1.5">Special Requests</p>
+                    <p className="text-sm text-gray-700">{pdfQuot.specialRequests}</p>
+                  </div>
+                )}
+
+                {/* Terms */}
+                <div className="border-t border-gray-100 pt-5">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Terms & Conditions</p>
+                  <ul className="space-y-1">
+                    {[
+                      'This quotation is valid for 7 days from the date of issue.',
+                      'Prices are subject to availability at the time of booking.',
+                      'A deposit may be required to confirm the booking.',
+                      'For queries, please contact your travel agent directly.',
+                    ].map((t, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-xs text-gray-500">
+                        <span className="text-gray-300 flex-shrink-0">•</span>{t}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              ) : (
-                <p className="text-base font-semibold text-amber-700">To be confirmed</p>
-              )}
-            </div>
 
-            {pdfQuot.specialRequests && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <p className="text-xs font-bold text-amber-600 uppercase tracking-wide mb-1">Special Requests</p>
-                <p className="text-sm text-gray-700">{pdfQuot.specialRequests}</p>
+                {/* Footer */}
+                <div style={{ backgroundColor: '#4338ca', borderRadius: '16px', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{agentName}</p>
+                    <p style={{ fontSize: '10px', color: '#a5b4fc', marginTop: '2px' }}>Your trusted travel partner</p>
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#a5b4fc' }}>Thank you for choosing us ✈️</p>
+                </div>
+
               </div>
-            )}
-
-            <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-4">
-              <p className="font-semibold text-gray-500">Terms & Conditions</p>
-              <p>• This quotation is valid for 7 days from the date of issue.</p>
-              <p>• Prices are subject to availability at the time of booking.</p>
-              <p>• A deposit may be required to confirm the booking.</p>
-              <p>• For queries, please contact us directly.</p>
-            </div>
-
-            <div className="text-center pt-2 border-t border-gray-100">
-              <p className="text-xs text-gray-400">Thank you for choosing {agentName} for your travel needs ✈️</p>
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )
+    })()}
     </>
   )
 }
