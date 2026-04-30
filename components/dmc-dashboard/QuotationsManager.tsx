@@ -159,6 +159,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const [customDayItems, setCustomDayItems] = useState<DayItem[]>([])
   const [savingCustom, setSavingCustom] = useState(false)
   const [creatingPkg, setCreatingPkg] = useState(false)
+  const originalCustomFormRef = useRef<Partial<PackageData>>({})
+  const originalCustomDayItemsRef = useRef<DayItem[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // ── View full package details ────────────────────────────────────────────────
@@ -184,13 +186,19 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   async function openCustomize(q: Quotation) {
     setShowCustomize(true)
     if (q.customPackageData) {
+      const items = parseDayItems(q.customPackageData.dayWiseItinerary || '')
       setCustomForm(q.customPackageData)
-      setCustomDayItems(parseDayItems(q.customPackageData.dayWiseItinerary || ''))
+      setCustomDayItems(items)
+      originalCustomFormRef.current = { ...q.customPackageData }
+      originalCustomDayItemsRef.current = items.map(i => ({ ...i }))
       return
     }
     if (!q.packageId) {
-      setCustomForm({ title: q.packageTitle, destination: q.destination })
+      const form = { title: q.packageTitle, destination: q.destination }
+      setCustomForm(form)
       setCustomDayItems([])
+      originalCustomFormRef.current = { ...form }
+      originalCustomDayItemsRef.current = []
       return
     }
     setLoadingPkg(true)
@@ -198,15 +206,24 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       const res = await fetch(`/api/agent/packages/${q.packageId}`)
       const data = await res.json()
       if (data.success && data.package) {
+        const items = parseDayItems(data.package.dayWiseItinerary || '')
         setCustomForm(data.package)
-        setCustomDayItems(parseDayItems(data.package.dayWiseItinerary || ''))
+        setCustomDayItems(items)
+        originalCustomFormRef.current = { ...data.package }
+        originalCustomDayItemsRef.current = items.map(i => ({ ...i }))
       } else {
-        setCustomForm({ title: q.packageTitle, destination: q.destination })
+        const form = { title: q.packageTitle, destination: q.destination }
+        setCustomForm(form)
         setCustomDayItems([])
+        originalCustomFormRef.current = { ...form }
+        originalCustomDayItemsRef.current = []
       }
     } catch {
-      setCustomForm({ title: q.packageTitle, destination: q.destination })
+      const form = { title: q.packageTitle, destination: q.destination }
+      setCustomForm(form)
       setCustomDayItems([])
+      originalCustomFormRef.current = { ...form }
+      originalCustomDayItemsRef.current = []
     }
     finally { setLoadingPkg(false) }
   }
@@ -245,37 +262,64 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       alert('Package title and destination are required.')
       return
     }
+    if (!activeId || !active) return
     setCreatingPkg(true)
     try {
       const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
-      const res = await fetch('/api/agent/packages', {
+      const merged = { ...customForm, dayWiseItinerary: dayWise }
+
+      // 1. Create the package in Package Manager
+      const pkgRes = await fetch('/api/agent/packages', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentId,
-          title: customForm.title,
-          destination: customForm.destination || '',
-          destinationCountry: customForm.destinationCountry || 'India',
-          overview: customForm.overview || '',
-          durationDays: Number(customForm.durationDays) || 0,
-          durationNights: Number(customForm.durationNights) || 0,
-          pricePerPerson: Number(customForm.pricePerPerson) || 0,
-          maxGroupSize: Number(customForm.maxGroupSize) || 20,
-          minGroupSize: Number(customForm.minGroupSize) || 1,
-          travelType: customForm.travelType || '',
-          theme: customForm.theme || '',
-          mood: customForm.mood || '',
-          starCategory: customForm.starCategory || '3-Star',
-          inclusions: Array.isArray(customForm.inclusions) ? customForm.inclusions.filter(Boolean) : [],
-          exclusions: Array.isArray(customForm.exclusions) ? customForm.exclusions.filter(Boolean) : [],
-          highlights: Array.isArray(customForm.highlights) ? customForm.highlights.filter(Boolean) : [],
+          title: merged.title,
+          destination: merged.destination || '',
+          destinationCountry: merged.destinationCountry || 'India',
+          overview: merged.overview || '',
+          durationDays: Number(merged.durationDays) || 0,
+          durationNights: Number(merged.durationNights) || 0,
+          pricePerPerson: Number(merged.pricePerPerson) || 0,
+          maxGroupSize: Number(merged.maxGroupSize) || 20,
+          minGroupSize: Number(merged.minGroupSize) || 1,
+          travelType: merged.travelType || '',
+          theme: merged.theme || '',
+          mood: merged.mood || '',
+          starCategory: merged.starCategory || '3-Star',
+          inclusions: Array.isArray(merged.inclusions) ? merged.inclusions.filter(Boolean) : [],
+          exclusions: Array.isArray(merged.exclusions) ? merged.exclusions.filter(Boolean) : [],
+          highlights: Array.isArray(merged.highlights) ? merged.highlights.filter(Boolean) : [],
           dayWiseItinerary: dayWise,
-          primaryImageUrl: customForm.primaryImageUrl || '',
-          seasonalAvailability: customForm.seasonalAvailability || 'Year Round',
+          primaryImageUrl: merged.primaryImageUrl || '',
+          seasonalAvailability: merged.seasonalAvailability || 'Year Round',
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to create package')
-      alert(`✅ Package "${customForm.title}" created in Package Manager!`)
+      const pkgData = await pkgRes.json()
+      if (!pkgRes.ok) throw new Error(pkgData.error || 'Failed to create package')
+
+      // 2. Also save the same data to the quotation so travel agent sees the update
+      const groupSize = active.groupSize || active.adults || 1
+      const newQuotedPrice = merged.pricePerPerson
+        ? Number(merged.pricePerPerson) * groupSize
+        : undefined
+      const patchBody: Record<string, any> = { customPackageData: merged }
+      if (newQuotedPrice) patchBody.quotedPrice = newQuotedPrice
+
+      await fetch(`/api/agent/quotations/${activeId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchBody),
+      })
+      setQuotations(prev => prev.map(q => q.id === activeId ? {
+        ...q,
+        customPackageData: merged as PackageData,
+        ...(newQuotedPrice ? { quotedPrice: newQuotedPrice, status: q.status === 'pending' ? 'quoted' : q.status } : {}),
+      } : q))
+
+      // Update the original snapshot so the dirty flag resets
+      originalCustomFormRef.current = { ...merged }
+      originalCustomDayItemsRef.current = customDayItems.map(i => ({ ...i }))
+
+      alert(`✅ Package "${merged.title}" created in Package Manager and saved to this quotation!`)
     } catch (err: any) {
       alert('Failed to create package: ' + err.message)
     } finally {
@@ -1442,6 +1486,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
     {showCustomize && active && (() => {
       const groupSize = active.groupSize || active.adults || 1
       const totalPrice = customForm.pricePerPerson ? Number(customForm.pricePerPerson) * groupSize : 0
+      const isFormDirty =
+        JSON.stringify(customForm) !== JSON.stringify(originalCustomFormRef.current) ||
+        JSON.stringify(customDayItems) !== JSON.stringify(originalCustomDayItemsRef.current)
       return (
         <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
 
@@ -1469,9 +1516,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
             <div className="flex items-center gap-2">
               <button
                 onClick={createNewPackage}
-                disabled={creatingPkg || savingCustom}
-                className="flex items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
-                title="Create this as a new package in Package Manager"
+                disabled={creatingPkg || savingCustom || !isFormDirty}
+                className="flex items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-lg transition-colors"
+                title={!isFormDirty ? 'Make changes first to create a new package' : 'Create this as a new package in Package Manager'}
               >
                 {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                 {creatingPkg ? 'Creating…' : 'Create New Package'}
