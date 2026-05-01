@@ -153,6 +153,106 @@ export default function PackageManager({ agentId }: Props) {
     return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
   }
 
+  // Normalize itinerary text from CSV: handles || day separator, \n literal escapes, and real newlines
+  function normalizeCsvItinerary(raw: string): string {
+    if (!raw?.trim()) return ''
+    // Format 1: Days separated by || (recommended for CSV editing)
+    // e.g. "Day 1: Arrive Mumbai||Check-in and rest||Day 2: Sightseeing||Visit Gateway of India"
+    if (raw.includes('||')) {
+      return raw.split('||').map(s => s.trim()).filter(Boolean).join('\n')
+    }
+    // Format 2: \\n literal escape sequences (e.g. from some Excel exports)
+    if (raw.includes('\\n')) {
+      return raw.replace(/\\n/g, '\n').trim()
+    }
+    // Format 3: Already has real newlines (properly quoted CSV cell) — pass through
+    return raw.trim()
+  }
+
+  // Download a ready-to-use sample CSV with realistic packages and proper day-wise itinerary
+  function downloadSampleCsv() {
+    const headers = [
+      'title', 'destination', 'destination_country', 'duration_days', 'duration_nights',
+      'price_per_person', 'travel_type', 'star_category', 'theme', 'mood',
+      'overview', 'highlights', 'inclusions', 'exclusions',
+      'day_wise_itinerary', 'seasonal_availability', 'primary_image_url',
+    ]
+
+    // Wrap in double-quotes and escape internal quotes
+    const q = (val: string) => `"${val.replace(/"/g, '""')}"`
+
+    const rows = [
+      [
+        'Andaman 6D/5N Beach Escape',
+        'Andaman & Nicobar Islands',
+        'India',
+        '6', '5',
+        '28000',
+        'Leisure',
+        '4-Star',
+        'Beach',
+        'Relaxing',
+        'Escape to paradise with pristine beaches, clear waters, and vibrant marine life in the Andaman Islands.',
+        'Scuba diving at Elephant Beach|Sunset cruise at Radhanagar Beach|Glass-bottom boat ride|Visit Cellular Jail',
+        'Return flights from Chennai|4-Star hotel accommodation (5 nights)|Daily breakfast|All transfers|Entry fees',
+        'Travel insurance|Visa fees|Lunch & dinner|Personal expenses|Alcoholic beverages',
+        // day_wise_itinerary — each Day separated by || for easy spreadsheet editing
+        'Day 1: Arrive Port Blair — Welcome to Andaman!||Arrive at Veer Savarkar Airport. Check in to hotel and freshen up. Visit Cellular Jail and attend the evening Light & Sound Show.||Day 2: Ross Island & North Bay Island||Post breakfast, take a ferry to Ross Island to explore the colonial ruins. Afternoon visit North Bay Island for snorkelling and water sports.||Day 3: Havelock Island (Radhanagar Beach)||Morning ferry to Havelock Island. Check in to resort. Spend the afternoon at Radhanagar Beach — rated one of Asias best beaches.||Day 4: Elephant Beach — Scuba & Snorkelling||Full day at Elephant Beach. Try beginner scuba diving, snorkelling, and sea walking. Relaxing bonfire evening at Havelock.||Day 5: Neil Island Day Trip||Morning speed boat to Neil Island. Visit Natural Bridge and Laxmanpur Beach. Return to Havelock by afternoon.||Day 6: Departure||Morning check-out. Transfer to Port Blair airport for your return flight. Tour ends with wonderful memories.',
+        'Oct–May',
+        '',
+      ],
+      [
+        'Bali Honeymoon 7D/6N',
+        'Bali',
+        'Indonesia',
+        '7', '6',
+        '55000',
+        'Honeymoon',
+        '5-Star',
+        'Beach',
+        'Romantic',
+        'A dreamy Bali honeymoon combining luxury villas, rice terraces, ancient temples, and private beach dinners.',
+        'Private pool villa|Sunset dinner at Jimbaran Bay|Tegallalang Rice Terrace|Uluwatu Temple sunset|Couples spa ritual',
+        'Return international flights|5-Star villa accommodation (6 nights)|Daily breakfast + 1 romantic dinner|Airport transfers|Couple spa (1 session)',
+        'Travel insurance|Visa on arrival fee|Lunch|Personal shopping|Alcoholic beverages',
+        'Day 1: Arrival in Bali — Romantic Welcome||Arrive at Ngurah Rai Airport. Private transfer to luxury pool villa. Romantic welcome with flowers and fruit basket. Rest and relax.||Day 2: Ubud & Rice Terraces||Visit iconic Tegallalang Rice Terraces. Explore Ubud Art Market. Visit Sacred Monkey Forest. Evening Kecak dance show at sunset.||Day 3: Temple Trail & Spa||Morning visit to Tanah Lot sea temple. Afternoon at Uluwatu cliffside temple. Couples Balinese spa session in the evening.||Day 4: Water Sports & Beach Day||Morning leisure at the villa. Afternoon water sports at Nusa Dua — parasailing, jet ski, banana boat. Sunset dinner at Jimbaran seafood bay.||Day 5: Nusa Penida Day Trip||Speed boat to Nusa Penida. Visit Kelingking Beach, Angel Billabong, and Broken Beach. Return by evening.||Day 6: Leisure & Shopping||Free day for shopping and spa. Visit Seminyak boutiques or relax by the villa pool. Farewell dinner at a rooftop restaurant.||Day 7: Departure||Checkout, last-minute shopping if time permits. Transfer to airport for departure flight.',
+        'Year Round',
+        '',
+      ],
+      [
+        'Rajasthan Royal Circuit 8D/7N',
+        'Rajasthan',
+        'India',
+        '8', '7',
+        '35000',
+        'Cultural',
+        '4-Star',
+        'Heritage',
+        'Exploratory',
+        'Discover the royal splendour of Rajasthan — from the Pink City of Jaipur to the Blue City of Jodhpur and the golden dunes of Jaisalmer.',
+        'Amber Fort elephant ride|Camel safari in Thar Desert|Mehrangarh Fort visit|Local cooking class in Jaipur|Desert camping under stars',
+        'AC transportation throughout|Heritage hotel stays (7 nights)|Daily breakfast|English-speaking guide|Camel safari|Entry fees',
+        'Flights|Lunch & dinner|Travel insurance|Tips & gratuities|Personal expenses',
+        'Day 1: Arrive Jaipur — The Pink City||Arrive at Jaipur Airport. Check in to heritage hotel. Explore local bazaars and taste Rajasthani snacks. Welcome dinner.||Day 2: Jaipur Sightseeing||Visit Amber Fort (elephant ride), City Palace, Jantar Mantar observatory, and Hawa Mahal. Shopping at Johari Bazaar.||Day 3: Jaipur to Pushkar||Drive to Pushkar (3 hrs). Visit the sacred Brahma Temple and colorful Pushkar Lake ghats. Explore camel fair grounds. Overnight Pushkar.||Day 4: Pushkar to Jodhpur||Morning drive to Jodhpur (3.5 hrs). Check in to Blue City hotel. Afternoon visit Mehrangarh Fort with panoramic city views.||Day 5: Jodhpur — Blue City & Umaid Bhawan||Jaswant Thada cenotaph and Clock Tower market. Drive through blue-painted old city lanes. Visit Umaid Bhawan Palace museum.||Day 6: Jodhpur to Jaisalmer||Scenic desert drive (4.5 hrs). Check in to heritage haveli. Evening sunset at Sam Sand Dunes. Camel safari and cultural performance under stars.||Day 7: Jaisalmer — Golden Fort & Havelis||Explore Jaisalmer Fort, Patwon ki Haveli, and Bada Bagh cenotaphs. Afternoon shopping — folk art, textiles, and silver jewellery.||Day 8: Departure||Check out. Transfer to airport/station. Tour concludes with memories of royal Rajasthan.',
+        'Oct–Mar',
+        '',
+      ],
+    ]
+
+    const csvLines = [headers.join(',')]
+    for (const row of rows) {
+      csvLines.push(row.map(q).join(','))
+    }
+    const csvContent = csvLines.join('\r\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'travelzada_packages_sample.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   function addDayItem() {
     const idx = dayItems.length + 1
     setDayItems(prev => [...prev, { id: crypto.randomUUID(), title: `Day ${idx}`, description: '', tags: [] }])
@@ -400,7 +500,7 @@ export default function PackageManager({ agentId }: Props) {
         const durationDays = parseInt(r['duration_days'] || r['trip_duration_days'] || r['days'] || '0') || 0
         const durationNights = parseInt(r['duration_nights'] || r['trip_duration_nights'] || r['nights'] || String(Math.max(0, durationDays - 1))) || 0
         const price = parseInt(r['price_per_person'] || r['price'] || '0') || 0
-        const dayWiseItinerary = r['day_wise_itinerary'] || r['itinerary'] || ''
+        const dayWiseItinerary = normalizeCsvItinerary(r['day_wise_itinerary'] || r['itinerary'] || '')
 
         if (!title || !destination) {
           errors.push(`Row ${rowNum}: missing title or destination`)
@@ -651,64 +751,103 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 
       {/* CSV Guide & Upload */}
       {showCsvGuide && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-5 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h3 className="font-bold text-blue-900 text-sm">Bulk Upload via CSV</h3>
+              <h3 className="font-bold text-blue-900 text-sm">📦 Bulk Upload via CSV</h3>
               <p className="text-xs text-blue-700 mt-1">
-                Upload a <code>.csv</code> file to add multiple packages at once. Required columns: <strong>title</strong>, <strong>destination</strong>.
-                For multiple inclusions/exclusions/highlights, separate values with a pipe <code>|</code>.
+                Upload a <code className="bg-blue-100 px-1 py-0.5 rounded text-blue-800 font-mono">.csv</code> file to add multiple packages at once.
+                Only <strong>title</strong> and <strong>destination</strong> are required.{' '}
+                <span className="text-blue-500 font-semibold">Download the sample CSV below to get started instantly.</span>
               </p>
             </div>
             <button onClick={() => setShowCsvGuide(false)} className="text-blue-400 hover:text-blue-700 flex-shrink-0">
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Day-wise itinerary callout */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+            <p className="text-xs font-bold text-amber-800 mb-2">📅 How to format Day-Wise Itinerary in CSV</p>
+            <p className="text-xs text-amber-700 mb-2.5">
+              Use <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono font-bold text-orange-700">||</code> (double pipe) to separate each day inside a quoted CSV cell.
+              Each day starts with <code className="bg-amber-100 px-1 rounded font-mono">Day N:</code> followed by a title, then description as the next segment:
+            </p>
+            <div className="bg-white border border-amber-200 rounded-lg p-3 font-mono text-[11px] text-gray-700 leading-relaxed overflow-x-auto whitespace-nowrap">
+              <span className="text-gray-400 select-none">&quot;</span>
+              <span className="text-purple-700 font-bold">Day 1: Arrive Mumbai</span>
+              <span className="text-gray-500">||Welcome and check-in. Visit Gateway of India.</span>
+              <span className="text-orange-500 font-bold">||</span>
+              <span className="text-purple-700 font-bold">Day 2: Elephanta Caves</span>
+              <span className="text-gray-500">||Ferry to Elephanta Island. UNESCO Heritage caves.</span>
+              <span className="text-orange-500 font-bold">||</span>
+              <span className="text-purple-700 font-bold">Day 3: Departure</span>
+              <span className="text-gray-500">||Transfer to airport. Tour ends.</span>
+              <span className="text-gray-400 select-none">&quot;</span>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] text-amber-700">
+              <span className="bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">✓ Use <code className="font-bold">||</code> to separate each day</span>
+              <span className="bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">✓ Title segment then description segment per day</span>
+              <span className="bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">✓ Wrap entire cell in double-quotes</span>
+              <span className="bg-amber-100 border border-amber-200 rounded-full px-2.5 py-0.5">✓ Also supports <code className="font-bold">\n</code> escape format</span>
+            </div>
+          </div>
+
           <div className="bg-white border border-blue-200 rounded-xl p-3 overflow-x-auto">
-            <p className="text-[11px] font-bold text-gray-500 mb-1.5">Column Reference</p>
+            <p className="text-[11px] font-bold text-gray-500 mb-1.5">📋 All Supported Columns</p>
             <table className="text-xs text-gray-700 w-full">
               <thead>
                 <tr className="text-gray-500 text-left">
                   <th className="pr-4 pb-1 font-semibold">Column</th>
                   <th className="pr-4 pb-1 font-semibold">Required</th>
-                  <th className="pb-1 font-semibold">Example</th>
+                  <th className="pb-1 font-semibold">Notes / Example</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {[
-                  ['title', 'Yes', 'Andaman 5N 6D'],
+                  ['title', 'Yes', 'Andaman 5N 6D Beach Escape'],
                   ['destination', 'Yes', 'Andaman Islands'],
                   ['destination_country', 'No', 'India'],
                   ['duration_days', 'No', '6'],
-                  ['duration_nights', 'No', '5'],
+                  ['duration_nights', 'No', '5  (auto-computed as days−1 if omitted)'],
                   ['price_per_person', 'No', '25000'],
-                  ['travel_type', 'No', 'Leisure'],
-                  ['star_category', 'No', '4-Star'],
-                  ['theme', 'No', 'Beach'],
-                  ['overview', 'No', 'A beautiful island trip…'],
-                  ['highlights', 'No', 'Scuba diving|Sunset cruise'],
-                  ['inclusions', 'No', 'Flights|Accommodation'],
-                  ['exclusions', 'No', 'Travel insurance'],
-                  ['day_wise_itinerary', 'No', 'Day 1: Arrive…\\nDay 2: Havelock…'],
-                  ['primary_image_url', 'No', 'https://…'],
-                  ['seasonal_availability', 'No', 'Oct-Mar'],
+                  ['travel_type', 'No', 'Leisure / Honeymoon / Adventure / Family / Corporate'],
+                  ['star_category', 'No', '3-Star / 4-Star / 5-Star / Luxury / Budget'],
+                  ['theme', 'No', 'Beach / Wildlife / Heritage / Adventure / Cultural'],
+                  ['mood', 'No', 'Relaxing / Romantic / Family Fun / Adventurous'],
+                  ['overview', 'No', 'Short paragraph describing the package'],
+                  ['highlights', 'No', 'Scuba diving|Sunset cruise|Glass-bottom boat  (pipe-separated)'],
+                  ['inclusions', 'No', 'Flights|Hotel accommodation|Daily breakfast  (pipe-separated)'],
+                  ['exclusions', 'No', 'Travel insurance|Visa fees  (pipe-separated)'],
+                  ['day_wise_itinerary', 'No', 'Day 1: Arrive||Check-in and rest||Day 2: Sightseeing||Museum visit  (|| separated)'],
+                  ['seasonal_availability', 'No', 'Oct–May / Year Round'],
+                  ['primary_image_url', 'No', 'https://cdn.example.com/package.jpg'],
                 ].map(([col, req, ex]) => (
                   <tr key={col}>
-                    <td className="pr-4 py-0.5 font-mono text-blue-700">{col}</td>
-                    <td className={`pr-4 py-0.5 font-semibold ${req === 'Yes' ? 'text-red-600' : 'text-gray-400'}`}>{req}</td>
-                    <td className="py-0.5 text-gray-500">{ex}</td>
+                    <td className="pr-4 py-0.5 font-mono text-blue-700 whitespace-nowrap">{col}</td>
+                    <td className={`pr-4 py-0.5 font-semibold whitespace-nowrap ${req === 'Yes' ? 'text-red-600' : 'text-gray-400'}`}>{req}</td>
+                    <td className="py-0.5 text-gray-500 text-[11px]">{ex}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <button
-            onClick={() => csvInputRef.current?.click()}
-            disabled={csvUploading}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-5 py-2 rounded-xl text-sm"
-          >
-            {csvUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</> : <><Upload className="w-4 h-4" />Choose CSV File</>}
-          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={downloadSampleCsv}
+              className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-300 hover:border-green-400 text-gray-700 hover:text-green-700 font-semibold px-4 py-2 rounded-xl text-sm transition-colors"
+            >
+              <Download className="w-4 h-4 text-green-600" /> Download Sample CSV
+            </button>
+            <button
+              onClick={() => csvInputRef.current?.click()}
+              disabled={csvUploading}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors"
+            >
+              {csvUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</> : <><Upload className="w-4 h-4" />Choose CSV File</>}
+            </button>
+            <p className="text-xs text-gray-400">Supported: .csv, UTF-8 encoded</p>
+          </div>
         </div>
       )}
 
