@@ -55,7 +55,9 @@ export interface AgentPackage {
   overview: string
   durationDays: number
   durationNights: number
-  pricePerPerson: number
+  pricePerPerson: number       // price in original currency
+  currency?: string            // e.g. 'INR', 'USD', 'EUR', 'AED'
+  priceInINR?: number          // converted price in INR (stored for consistency)
   maxGroupSize: number
   minGroupSize?: number
   travelType: string     // e.g. "Leisure", "Adventure", "Honeymoon"

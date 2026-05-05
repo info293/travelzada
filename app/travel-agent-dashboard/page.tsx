@@ -1725,29 +1725,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                               )}
                             </div>
                             <p className="text-sm text-gray-600 mt-0.5">{selQuot.packageTitle} · {selQuot.destination}</p>
-                            <div className="flex gap-3 mt-2">
-                              {selQuot.customerEmail && <a href={`mailto:${selQuot.customerEmail}`} className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"><Mail className="w-3 h-3" />Email</a>}
-                              {selQuot.customerPhone && <a href={`https://wa.me/${selQuot.customerPhone.replace(/\D/g,'')}`} target="_blank" className="text-xs text-green-600 font-semibold hover:underline flex items-center gap-1"><Phone className="w-3 h-3" />WhatsApp</a>}
+                            <div className="flex gap-2 mt-3 flex-wrap">
+                              {selQuot.customerEmail && <a href={`mailto:${selQuot.customerEmail}`} className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 font-medium px-4 py-2 rounded-xl hover:border-primary hover:text-primary transition-colors"><Mail className="w-4 h-4" />Email</a>}
+                              {selQuot.customerPhone && <a href={`https://wa.me/${selQuot.customerPhone.replace(/\D/g,'')}`} target="_blank" className="flex items-center gap-1.5 text-sm border border-green-200 bg-green-50 text-green-700 font-medium px-4 py-2 rounded-xl hover:bg-green-100 transition-colors"><Phone className="w-4 h-4" />WhatsApp</a>}
                               <button
                                 onClick={() => openPackageView(selQuot)}
-                                className="flex items-center gap-1 text-xs bg-purple-600 text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-purple-700 transition-colors"
+                                className="flex items-center gap-1.5 text-sm bg-purple-600 text-white font-semibold px-4 py-2 rounded-xl hover:bg-purple-700 transition-colors shadow-sm"
                                 title="View & edit package details"
                               >
-                                <Eye className="w-3 h-3" />View Package
+                                <Eye className="w-4 h-4" />View Package
                               </button>
                               <button
                                 onClick={() => shareQuotationWhatsApp(selQuot)}
-                                className="flex items-center gap-1 text-xs bg-green-500 text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-green-600 transition-colors"
+                                className="flex items-center gap-1.5 text-sm bg-green-500 text-white font-semibold px-4 py-2 rounded-xl hover:bg-green-600 transition-colors shadow-sm"
                                 title="Share quotation on WhatsApp"
                               >
-                                <Share2 className="w-3 h-3" />Share Quote
+                                <Share2 className="w-4 h-4" />Share Quote
                               </button>
                               <button
                                 onClick={() => setPdfQuot(selQuot)}
-                                className="flex items-center gap-1 text-xs bg-primary text-white font-semibold px-2.5 py-1 rounded-lg hover:bg-primary/90 transition-colors"
+                                className="flex items-center gap-1.5 text-sm bg-primary text-white font-semibold px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors shadow-sm"
                                 title="Generate printable quotation"
                               >
-                                <FileText className="w-3 h-3" />PDF
+                                <FileText className="w-4 h-4" />PDF
                               </button>
                             </div>
                           </div>
@@ -1765,7 +1765,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       </div>
                       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
                         {selQuot.messages.length === 0 ? (
-                          <p className="text-center text-xs text-gray-400 py-8">No messages yet. Start the conversation.</p>
+                          <div className="flex flex-col items-center justify-center h-full py-8 px-4">
+                            <div className="w-full max-w-sm bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                              <div className="bg-gradient-to-r from-primary/10 to-blue-50 px-5 py-4 border-b border-gray-100">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-xl">✈️</span>
+                                  <span className="text-xs font-semibold text-primary uppercase tracking-wide">New Quotation Request</span>
+                                </div>
+                                <h3 className="font-bold text-gray-900 text-base leading-snug">{selQuot.packageTitle}</h3>
+                                <p className="text-sm text-gray-500 mt-0.5">📍 {selQuot.destination}</p>
+                              </div>
+                              <div className="px-5 py-4 space-y-2.5">
+                                <div className="flex items-center gap-2 text-sm text-gray-700">
+                                  <span className="text-base">👤</span>
+                                  <span className="font-medium">{selQuot.customerName}</span>
+                                </div>
+                                {(selQuot.groupSize ?? 0) > 0 && (
+                                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                                    <span className="text-base">👥</span>
+                                    <span>{selQuot.groupSize} traveller{selQuot.groupSize !== 1 ? 's' : ''}</span>
+                                  </div>
+                                )}
+                                {selQuot.preferredDates && (
+                                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                                    <span className="text-base">📅</span>
+                                    <span>{selQuot.preferredDates}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100">
+                                <p className="text-xs text-gray-400 text-center">Send your first message to begin the conversation</p>
+                              </div>
+                            </div>
+                          </div>
                         ) : selQuot.messages.map(msg => {
                           // System / price / booking messages → centered pill
                           if (msg.senderRole === 'system' || msg.text.startsWith('💰') || msg.text.startsWith('✅')) {

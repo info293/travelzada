@@ -26,6 +26,9 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
 
     const router = useRouter()
 
+    // DMC mode: agentSlug is set → 2-step flow (no Step 3)
+    const isDmcMode = !!agentSlug
+
     // Centralized State for the Wizard
     const [wizardData, setWizardData] = useState({
         destinations: [] as string[],
@@ -34,7 +37,9 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
         routeItems: [] as any[], // mapped from destinations in Step 2 {destination, nights}
         groupType: 'couple',
         inclusions: ['hotels', 'flights'] as string[],
-        hotelTypes: ['4-star'] as string[],
+        hotelIncluded: false, // DMC mode: with or without hotel
+        hotelTypes: [] as string[], // DMC mode: selected star categories when hotelIncluded=true
+        groupSize: { adults: 2, children: 0, infants: 0 }, // DMC mode: group size (data only)
         passengers: {
             adults: 2,
             kids: 0,
@@ -111,8 +116,9 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
         router.push(resultsPath)
     }
 
-    // Calculate Progress Percent (Now out of 2 steps, since step 3 is the final screen)
-    const progressPercent = ((currentStep - 1) / 2) * 100
+    // DMC mode: 2 steps (progress out of 1 interval). Main mode: 3 steps (out of 2 intervals).
+    const totalSteps = isDmcMode ? 2 : 3
+    const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100
 
     return (
         <div className="w-full max-w-[90rem] mx-auto py-4 md:py-8 px-2 sm:px-4 md:px-8 flex-1 flex flex-col">
@@ -127,7 +133,9 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                             <div className="flex justify-between text-[10px] sm:text-xs font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider relative z-10">
                                 <span className={`transition-colors truncate max-w-[30%] ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
                                 <span className={`transition-colors truncate max-w-[30%] text-center ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
-                                <span className={`transition-colors truncate max-w-[40%] text-right ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
+                                {!isDmcMode && (
+                                    <span className={`transition-colors truncate max-w-[40%] text-right ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
+                                )}
                             </div>
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
                                 <div
@@ -186,18 +194,19 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                                         <Step2Nights
                                             data={wizardData}
                                             updateData={updateData}
-                                            onNext={handleNext}
+                                            onNext={isDmcMode ? handleGenerateItinerary : handleNext}
                                             onPrev={handlePrev}
                                             agentSlug={agentSlug}
+                                            isSubmitting={isDmcMode ? isSubmitting : undefined}
                                         />
                                     )}
-                                    {currentStep === 3 && (
+                                    {currentStep === 3 && !isDmcMode && (
                                         <Step3Group
                                             data={wizardData}
                                             updateData={updateData}
                                             onNext={handleGenerateItinerary}
                                             onPrev={handlePrev}
-                                            isSubmitting={isSubmitting} // Passed to Step 3 now
+                                            isSubmitting={isSubmitting}
                                         />
                                     )}
                                 </motion.div>

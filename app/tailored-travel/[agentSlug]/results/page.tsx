@@ -133,6 +133,29 @@ export default function AgentResultsPage() {
   const [isPaused, setIsPaused] = useState(false)
   const dayRefs = useRef<(HTMLDivElement | null)[]>([])
 
+  // Language selector for Travel Guide
+  const LANGUAGES = [
+    { code: 'en', label: 'English',    flag: '🇬🇧' },
+    { code: 'hi', label: 'Hindi',      flag: '🇮🇳' },
+    { code: 'ar', label: 'Arabic',     flag: '🇸🇦' },
+    { code: 'es', label: 'Spanish',    flag: '🇪🇸' },
+    { code: 'fr', label: 'French',     flag: '🇫🇷' },
+    { code: 'de', label: 'German',     flag: '🇩🇪' },
+    { code: 'zh', label: 'Chinese',    flag: '🇨🇳' },
+    { code: 'ja', label: 'Japanese',   flag: '🇯🇵' },
+    { code: 'ru', label: 'Russian',    flag: '🇷🇺' },
+    { code: 'th', label: 'Thai',       flag: '🇹🇭' },
+    { code: 'ko', label: 'Korean',     flag: '🇰🇷' },
+    { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
+  ]
+  const [selectedLang, setSelectedLang] = useState(LANGUAGES[0])
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [isSpeaking, setIsSpeaking] = useState(false)
+  const isSpeakingRef = useRef(false)   // synchronous check inside intervals
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [autoListen, setAutoListen] = useState(false)
+  const autoListenRef = useRef(false)
+
   useEffect(() => {
     if (!isLoading) return
     const interval = setInterval(() => setLoadingIdx(i => (i + 1) % cinematicTexts.length), 2500)
@@ -169,34 +192,125 @@ export default function AgentResultsPage() {
     }
   }, [agentSlug, router])
 
-  // Auto-advance days
+  // Auto-advance days — paused while audio is speaking
   useEffect(() => {
-    if (isPaused || packages.length === 0) return
+    if (isPaused || isSpeaking || packages.length === 0) return
     const days = parseDays(packages[0]?.Day_Wise_Itinerary || '')
     if (days.length === 0) return
     const interval = setInterval(() => {
+      if (isSpeakingRef.current) return  // synchronous — no React delay
       setCurrentDayIdx(prev => (prev + 1) % days.length)
     }, 6000)
     return () => clearInterval(interval)
-  }, [packages, isPaused])
+  }, [packages, isPaused, isSpeaking])
 
-  // Typewriter for speech bubble
+  // Translate + typewriter for the Travel Guide speech bubble
+  // (No auto-speak — browsers block audio not triggered by a direct user click)
   useEffect(() => {
     if (packages.length === 0) return
     const days = parseDays(packages[0]?.Day_Wise_Itinerary || '')
     if (days.length === 0) return
     const raw = days[currentDayIdx]?.lines[0] || days[currentDayIdx]?.title || ''
-    const text = raw.slice(0, 95)
-    setTypedText('')
-    setIsTyping(true)
-    let i = 0
-    const timer = setInterval(() => {
-      i++
-      setTypedText(text.slice(0, i))
-      if (i >= text.length) { setIsTyping(false); clearInterval(timer) }
-    }, 22)
-    return () => clearInterval(timer)
-  }, [currentDayIdx, packages])
+    const baseText = raw.slice(0, 120)
+
+    let cancelled = false
+    let timer: ReturnType<typeof setInterval>
+
+    // Stop any playing audio when day/language changes
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    isSpeakingRef.current = false
+    setIsSpeaking(false)
+
+    const runTypewriter = (text: string) => {
+      if (cancelled) return
+      setTypedText('')
+      setIsTyping(true)
+      let i = 0
+      timer = setInterval(() => {
+        if (cancelled) { clearInterval(timer); return }
+        i++
+        setTypedText(text.slice(0, i))
+        if (i >= text.length) {
+          setIsTyping(false)
+          clearInterval(timer)
+          if (autoListenRef.current && !isSpeakingRef.current) doSpeak(text)
+        }
+      }, 55)
+    }
+
+    if (selectedLang.code === 'en') {
+      runTypewriter(baseText)
+    } else {
+      setIsTranslating(true)
+      setTypedText('')
+      fetch('/api/ai-planner/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: baseText, targetLanguage: selectedLang.code, targetLanguageName: selectedLang.label }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (cancelled) return
+          setIsTranslating(false)
+          runTypewriter(data.translated || baseText)
+        })
+        .catch(() => {
+          if (!cancelled) { setIsTranslating(false); runTypewriter(baseText) }
+        })
+    }
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [currentDayIdx, packages, selectedLang])
+
+  // Core speak — can be called from user click OR auto-listen (after page audio is unlocked)
+  const doSpeak = async (text: string) => {
+    if (!text || isSpeakingRef.current) return
+    isSpeakingRef.current = true
+    setIsSpeaking(true)
+    try {
+      const res = await fetch('/api/ai-planner/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) { isSpeakingRef.current = false; setIsSpeaking(false); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audioRef.current = audio
+      await audio.play()
+      audio.onended = () => { URL.revokeObjectURL(url); isSpeakingRef.current = false; setIsSpeaking(false) }
+      audio.onerror  = () => { isSpeakingRef.current = false; setIsSpeaking(false) }
+    } catch { isSpeakingRef.current = false; setIsSpeaking(false) }
+  }
+
+  // Stop current audio
+  const stopSpeak = () => {
+    isSpeakingRef.current = false
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+    setIsSpeaking(false)
+  }
+
+  // Manual listen/stop button
+  const handleSpeak = () => {
+    if (isSpeaking) { stopSpeak(); return }
+    doSpeak(typedText)
+  }
+
+  // Toggle auto-listen — first click is the browser user-gesture that unlocks audio
+  const toggleAutoListen = () => {
+    const next = !autoListenRef.current
+    autoListenRef.current = next
+    setAutoListen(next)
+    if (!next) {
+      stopSpeak()
+    } else if (typedText && !isSpeakingRef.current) {
+      doSpeak(typedText)  // immediately speak current text on enable
+    }
+  }
 
   // Scroll active day into view
   useEffect(() => {
@@ -311,6 +425,13 @@ export default function AgentResultsPage() {
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
   const mapItinerary = days.map(d => {
+    // Prefer the overnight/stay city so the route follows where you sleep, not day-trip destinations
+    const allText = [d.title, ...d.lines].join(' ')
+    const overnightMatch = allText.match(/overnight[:\s]+([A-Za-z][a-zA-Z\s]+?)(?:\.|,|$)/i)
+    if (overnightMatch) {
+      return { title: overnightMatch[1].trim(), day: `Day ${d.number}` }
+    }
+    // Fall back: first city-like word after stripping "Day N:"
     const loc = d.title.replace(/^day\s*\d+[:\s-]*/i, '').split(/,|\band\b/i)[0].trim()
     return { title: loc || bestPkg.Destination_Name, day: `Day ${d.number}` }
   })
@@ -487,40 +608,122 @@ export default function AgentResultsPage() {
             )}
           </div>
 
-          {/* Character + speech bubble */}
-          <div className="flex-shrink-0 px-3 py-3 flex flex-col items-center bg-gradient-to-b from-violet-50/80 to-transparent">
+          {/* Character + speech bubble + language picker */}
+          <div className="flex-shrink-0 px-3 pt-3 pb-4 flex flex-col items-center bg-gradient-to-b from-violet-50/80 to-transparent border-b border-purple-50">
             {days.length > 0 ? (
               <>
+                {/* Speech bubble */}
                 <AnimatePresence mode="wait">
                   <motion.div key={currentDayIdx}
                     initial={{ opacity: 0, y: -6, scale: 0.97 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.97 }}
                     transition={{ duration: 0.3 }}
-                    className="relative w-full max-w-[220px]"
+                    className="relative w-full"
                   >
-                    {/* Speech bubble */}
-                    <div className="bg-white border-2 border-purple-200 rounded-2xl rounded-bl-sm px-3 py-2.5 shadow-md">
-                      <p className="text-[10px] font-bold text-purple-500 mb-0.5">Your Guide Says…</p>
-                      <p className="text-[11px] text-gray-700 leading-relaxed min-h-[38px]">
-                        {typedText || '…'}
-                        {isTyping && <span className="text-purple-400 animate-pulse">|</span>}
+                    <div className="bg-white border-2 border-purple-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-md">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Your Guide Says…</p>
+                        {/* Audio controls */}
+                        <div className="flex items-center gap-1">
+                          {/* Auto-listen toggle — click once to enable; first click unlocks browser audio */}
+                          <button
+                            onClick={toggleAutoListen}
+                            title={autoListen ? 'Auto-listen on — click to disable' : 'Enable auto-listen (plays each day automatically)'}
+                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                              autoListen
+                                ? 'bg-purple-600 text-white shadow-md'
+                                : 'bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100'
+                            }`}
+                          >
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                            </svg>
+                            {autoListen ? 'Auto ON' : 'Auto'}
+                          </button>
+                          {/* Speaking indicator / stop */}
+                          {isSpeaking && (
+                            <button onClick={stopSpeak}
+                              title="Stop audio"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-600 text-white shadow-md">
+                              <span className="flex items-end gap-px h-3">
+                                {[2, 4, 3].map((h, i) => (
+                                  <span key={i} className="w-0.5 bg-white rounded-full animate-bounce"
+                                    style={{ height: `${h * 3}px`, animationDelay: `${i * 0.1}s` }} />
+                                ))}
+                              </span>
+                              Stop
+                            </button>
+                          )}
+                          {/* Manual play (only when auto-listen is off and not speaking) */}
+                          {!autoListen && !isSpeaking && (
+                            <button onClick={handleSpeak}
+                              disabled={isTranslating || isTyping || !typedText}
+                              title="Listen"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                              ▶ Listen
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed min-h-[40px]">
+                        {isTranslating ? (
+                          <span className="flex items-center gap-1.5 text-purple-400">
+                            <svg className="animate-spin w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                            </svg>
+                            Translating to {selectedLang.label}…
+                          </span>
+                        ) : (
+                          <>{typedText || '…'}{isTyping && <span className="text-purple-400 animate-pulse font-thin">|</span>}</>
+                        )}
                       </p>
                     </div>
-                    {/* Bubble tail */}
-                    <div className="absolute -bottom-2 left-7 w-3.5 h-3.5 bg-white border-r-2 border-b-2 border-purple-200 rotate-45" />
+                    <div className="absolute -bottom-2 left-8 w-3.5 h-3.5 bg-white border-r-2 border-b-2 border-purple-200 rotate-45" />
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Floating character */}
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-                  className="mt-3"
-                >
-                  <TravelGuide />
-                </motion.div>
-                <span className="text-[9px] font-bold text-purple-400 uppercase tracking-widest mt-1">Travel Guide</span>
+                {/* Guide character */}
+                <div className="flex items-center gap-3 mt-4">
+                  <motion.div
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <TravelGuide />
+                  </motion.div>
+                  <div>
+                    <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Travel Guide</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5">Speaking in <span className="font-semibold text-purple-400">{selectedLang.flag} {selectedLang.label}</span></p>
+                  </div>
+                </div>
+
+                {/* Language picker grid */}
+                <div className="mt-3 w-full">
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+                    </svg>
+                    Choose Language
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {LANGUAGES.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => setSelectedLang(lang)}
+                        title={lang.label}
+                        className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-150 select-none ${
+                          selectedLang.code === lang.code
+                            ? 'bg-purple-600 text-white shadow-md shadow-purple-200 scale-105'
+                            : 'bg-white border border-gray-100 text-gray-600 hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700'
+                        }`}
+                      >
+                        <span className="text-sm leading-none">{lang.flag}</span>
+                        <span className="hidden sm:inline">{lang.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </>
             ) : (
               <div className="text-center py-4">

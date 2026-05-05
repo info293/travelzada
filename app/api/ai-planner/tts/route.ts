@@ -28,10 +28,11 @@ export async function POST(request: Request) {
         const truncatedText = text.slice(0, 4096)
 
         const mp3 = await openai.audio.speech.create({
-            model: 'tts-1',
-            voice: 'alloy', // Natural, friendly voice
+            model: 'tts-1-hd',   // higher quality, supports 50+ languages automatically
+            voice: 'nova',        // warm, clear voice — works well across languages
             input: truncatedText,
             response_format: 'mp3',
+            speed: 0.85,          // slightly slower for clarity
         })
 
         // Get audio buffer

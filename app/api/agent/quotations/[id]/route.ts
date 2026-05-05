@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { collection, addDoc, doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore'
 import { v4 as uuidv4 } from 'uuid'
+import { sendMail, buildMessageToAgentEmail, buildMessageToDmcEmail } from '@/lib/mailer'
 
 async function writeNotification(payload: {
   agentId: string
@@ -72,7 +73,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         updatedAt: serverTimestamp(),
       })
 
-      // Notify DMC when a travel agent sends a message
+      const preview = text.length > 200 ? text.slice(0, 197) + '…' : text
+      const quotTitle = quotData.packageTitle || quotData.destination || 'Quotation'
+      const customerName = quotData.customerName || ''
+      const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'
+
+      // ── Travel Agent → notify DMC via in-app + email ─────────────────────
       if (senderRole !== 'dmc' && quotData.agentId) {
         await writeNotification({
           agentId: quotData.agentId,
@@ -80,10 +86,54 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           subAgentName: senderName || 'Travel Agent',
           type: 'quotation_message',
           referenceId: params.id,
-          referenceTitle: quotData.packageTitle || quotData.destination || 'Quotation',
-          customerName: quotData.customerName || '',
-          preview: text.length > 100 ? text.slice(0, 97) + '…' : text,
+          referenceTitle: quotTitle,
+          customerName,
+          preview,
         })
+
+        // Look up DMC email from users collection (fire-and-forget)
+        ;(async () => {
+          try {
+            const dmcSnap = await getDoc(doc(db, 'users', quotData.agentId))
+            const dmcEmail = dmcSnap.data()?.email as string | undefined
+            const dmcName  = (dmcSnap.data()?.displayName || dmcSnap.data()?.contactName || 'there') as string
+            if (dmcEmail) {
+              const mail = buildMessageToDmcEmail({
+                dmcContactName: dmcName,
+                senderName: senderName || 'Travel Agent',
+                quotationTitle: quotTitle,
+                customerName,
+                messagePreview: preview,
+                dashboardUrl: `${APP_URL}/dmc-dashboard`,
+              })
+              mail.to = dmcEmail
+              await sendMail(mail)
+            }
+          } catch { /* never block the response */ }
+        })()
+      }
+
+      // ── DMC → notify Travel Agent via email ───────────────────────────────
+      if (senderRole === 'dmc' && quotData.subAgentId) {
+        ;(async () => {
+          try {
+            const agentSnap = await getDoc(doc(db, 'users', quotData.subAgentId))
+            const agentEmail = agentSnap.data()?.email as string | undefined
+            const agentName  = (agentSnap.data()?.displayName || agentSnap.data()?.name || 'there') as string
+            if (agentEmail) {
+              const mail = buildMessageToAgentEmail({
+                agentName,
+                senderName: senderName || 'Your DMC',
+                quotationTitle: quotTitle,
+                customerName,
+                messagePreview: preview,
+                dashboardUrl: `${APP_URL}/travel-agent-dashboard`,
+              })
+              mail.to = agentEmail
+              await sendMail(mail)
+            }
+          } catch { /* never block the response */ }
+        })()
       }
 
       return NextResponse.json({ success: true, message })

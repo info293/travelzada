@@ -890,51 +890,51 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 <div className="flex gap-2 flex-shrink-0 flex-wrap">
                   {active.customerEmail && (
                     <a href={`mailto:${active.customerEmail}`}
-                      className="flex items-center gap-1 text-xs border border-gray-200 bg-white text-gray-600 px-2.5 py-1.5 rounded-lg hover:border-primary hover:text-primary transition-colors">
-                      <Mail className="w-3 h-3" />Email
+                      className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-xl hover:border-primary hover:text-primary transition-colors font-medium">
+                      <Mail className="w-4 h-4" />Email
                     </a>
                   )}
                   {active.customerPhone && (
                     <a href={`https://wa.me/${active.customerPhone.replace(/\D/g, '')}`} target="_blank"
-                      className="flex items-center gap-1 text-xs border border-green-200 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg hover:bg-green-100 transition-colors">
+                      className="flex items-center gap-1.5 text-sm border border-green-200 bg-green-50 text-green-700 px-4 py-2 rounded-xl hover:bg-green-100 transition-colors font-medium">
                       WhatsApp
                     </a>
                   )}
                   <button
                     onClick={() => shareOnWhatsApp(active)}
-                    className="flex items-center gap-1 text-xs border border-green-300 bg-green-500 text-white px-2.5 py-1.5 rounded-lg hover:bg-green-600 transition-colors font-semibold"
+                    className="flex items-center gap-1.5 text-sm border border-green-300 bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600 transition-colors font-semibold shadow-sm"
                     title="Share quotation via WhatsApp"
                   >
-                    <Share2 className="w-3 h-3" />Share Quote
+                    <Share2 className="w-4 h-4" />Share Quote
                   </button>
                   <button
                     onClick={() => setPdfQuot(active)}
-                    className="flex items-center gap-1 text-xs border border-primary bg-primary text-white px-2.5 py-1.5 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+                    className="flex items-center gap-1.5 text-sm border border-primary bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors font-semibold shadow-sm"
                     title="Generate printable quotation"
                   >
-                    <FileText className="w-3 h-3" />PDF
+                    <FileText className="w-4 h-4" />PDF
                   </button>
                   <button
                     onClick={() => fetchAndViewPackage(active)}
                     disabled={loadingPkg}
-                    className="flex items-center gap-1 text-xs border border-indigo-200 bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors"
+                    className="flex items-center gap-1.5 text-sm border border-indigo-200 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors font-medium"
                     title="View full package details"
                   >
-                    {loadingPkg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                    {loadingPkg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                     {active.customPackageData ? 'View Custom' : 'View Package'}
                   </button>
                   {!isClosed && (
                     <button
                       onClick={() => openCustomize(active)}
-                      className="flex items-center gap-1 text-xs border border-amber-200 bg-amber-50 text-amber-700 px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
+                      className="flex items-center gap-1.5 text-sm border border-amber-200 bg-amber-50 text-amber-700 px-4 py-2 rounded-xl hover:bg-amber-100 transition-colors font-medium"
                       title="Customize package for this quote only"
                     >
-                      <FileEdit className="w-3 h-3" />
+                      <FileEdit className="w-4 h-4" />
                       {active.customPackageData ? 'Edit Custom' : 'Customize Package'}
                     </button>
                   )}
                   {active.customPackageData && (
-                    <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-full self-center">
+                    <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full self-center">
                       Customized
                     </span>
                   )}
@@ -996,10 +996,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   {!isClosed && ['in_discussion', 'accepted', 'rejected'].map(s => (
                     <button key={s} disabled={active.status === s}
                       onClick={() => updateStatus(s)}
-                      className={`text-xs font-semibold px-2.5 py-1.5 rounded-xl border transition-colors disabled:opacity-50 ${
+                      className={`text-sm font-semibold px-4 py-2 rounded-xl border transition-colors disabled:opacity-60 ${
                         active.status === s
-                          ? `${STATUS_CONFIG[s]?.color || ''} border-transparent`
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                          ? `${STATUS_CONFIG[s]?.color || ''} border-transparent shadow-sm`
+                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
                       }`}>
                       {STATUS_CONFIG[s]?.label}
                     </button>
@@ -1010,19 +1010,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     <button
                       onClick={convertToBooking}
                       disabled={converting}
-                      className="flex items-center gap-1.5 text-xs font-bold bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-xl transition-colors ml-1"
+                      className="flex items-center gap-2 text-sm font-bold bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm ml-1"
                     >
                       {converting
-                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Converting…</>
-                        : <><BookCheck className="w-3.5 h-3.5" />Mark as Booked</>
+                        ? <><Loader2 className="w-4 h-4 animate-spin" />Converting…</>
+                        : <><BookCheck className="w-4 h-4" />Mark as Booked</>
                       }
                     </button>
                   )}
 
                   {/* Booked badge */}
                   {active.status === 'converted' && (
-                    <span className="flex items-center gap-1.5 text-xs font-bold bg-purple-100 text-purple-700 px-3.5 py-1.5 rounded-xl">
-                      <BookCheck className="w-3.5 h-3.5" />Booked ✓
+                    <span className="flex items-center gap-2 text-sm font-bold bg-purple-100 text-purple-700 px-5 py-2 rounded-xl">
+                      <BookCheck className="w-4 h-4" />Booked ✓
                     </span>
                   )}
                 </div>
@@ -1039,8 +1039,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               )}
 
               {active.messages.length === 0 ? (
-                <div className="text-center py-8 text-sm text-gray-400">
-                  No messages yet. Start the conversation below.
+                <div className="flex flex-col items-center gap-4 py-6">
+                  {/* Auto welcome card — visual only, not saved to DB */}
+                  <div className="w-full max-w-md bg-gradient-to-br from-primary/5 to-blue-50 border border-primary/15 rounded-2xl p-4 shadow-sm">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-base">✈️</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Travelzada</p>
+                        <p className="text-[10px] text-gray-400">New Enquiry · Automated</p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mb-3">
+                      New booking enquiry received! 🎉
+                    </p>
+                    <div className="space-y-1.5 bg-white/70 rounded-xl p-3 text-xs text-gray-600 mb-3">
+                      <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Customer:</span><span>{active.customerName}</span></div>
+                      <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Package:</span><span>{active.packageTitle}</span></div>
+                      <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Destination:</span><span>{active.destination}</span></div>
+                      <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Group Size:</span><span>{active.groupSize} traveller{active.groupSize !== 1 ? 's' : ''}</span></div>
+                      {active.preferredDates && <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Dates:</span><span>{active.preferredDates}</span></div>}
+                    </div>
+                    <p className="text-xs text-gray-500">Reply below to start the conversation and provide a quotation.</p>
+                  </div>
+                  <p className="text-xs text-gray-400">No messages yet — send the first message!</p>
                 </div>
               ) : (
                 active.messages.map(msg => {

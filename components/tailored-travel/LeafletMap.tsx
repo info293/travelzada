@@ -187,88 +187,99 @@ function AirplaneMarker({ routePath }: { routePath: [number, number][] }) {
     return <Marker ref={markerRef} position={routePath[0]} icon={airplaneIcon} zIndexOffset={1000} />
 }
 
-// Premium Animated Car Marker — luxury card style with glow
+// Animated Taxi Marker — proper yellow cab with checkerboard stripe
 function CarMarker({ routePath }: { routePath: [number, number][] }) {
     const markerRef = useRef<L.Marker>(null)
 
     const carIcon = useMemo(() => {
         return L.divIcon({
-            className: 'car-marker-container',
+            className: 'taxi-marker-container',
             html: `
             <style>
-              @keyframes car-glow-pulse {
-                0%,100% { box-shadow: 0 0 0 0 rgba(255,138,61,0.5), 0 6px 20px rgba(0,0,0,0.25); }
-                50%      { box-shadow: 0 0 0 8px rgba(255,138,61,0), 0 6px 20px rgba(0,0,0,0.25); }
+              @keyframes taxi-glow {
+                0%,100% { filter: drop-shadow(0 0 5px rgba(251,191,36,0.7)) drop-shadow(0 3px 8px rgba(0,0,0,0.35)); }
+                50%      { filter: drop-shadow(0 0 10px rgba(251,191,36,1))   drop-shadow(0 3px 8px rgba(0,0,0,0.35)); }
               }
-              @keyframes car-shadow-breathe {
-                0%,100% { transform: scaleX(1); opacity: 0.25; }
-                50%      { transform: scaleX(0.8); opacity: 0.15; }
+              @keyframes taxi-shadow {
+                0%,100% { transform: scaleX(1); opacity: 0.3; }
+                50%      { transform: scaleX(0.82); opacity: 0.18; }
               }
             </style>
-            <div class="car-ik-inner" style="
+            <div class="taxi-inner" style="
                 position: relative;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 transition: transform 0.12s linear;
             ">
-              <!-- Card -->
-              <div style="
-                  width: 52px; height: 44px;
-                  background: linear-gradient(145deg, #ffffff, #f8f8f8);
-                  border-radius: 14px;
-                  border: 2px solid rgba(255,138,61,0.4);
-                  display: flex; align-items: center; justify-content: center;
-                  animation: car-glow-pulse 2s ease-in-out infinite;
-                  position: relative;
-                  overflow: hidden;
-              ">
-                <!-- Subtle inner gradient overlay -->
-                <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,138,61,0.08) 0%,transparent 60%);border-radius:12px;"></div>
-                <!-- Luxury car SVG (top-view) -->
-                <svg viewBox="0 0 64 40" style="width:42px;height:28px;" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Car body -->
-                  <rect x="4" y="14" width="56" height="16" rx="7" fill="#ff8a3d"/>
-                  <!-- Cabin roof -->
-                  <rect x="16" y="7" width="30" height="15" rx="6" fill="#ff8a3d"/>
-                  <!-- Windshield front -->
-                  <path d="M44 8 Q52 10 53 18 L44 18 Z" fill="rgba(255,255,255,0.35)" rx="2"/>
-                  <!-- Windshield rear -->
-                  <path d="M18 8 Q10 10 10 18 L18 18 Z" fill="rgba(255,255,255,0.25)" rx="2"/>
-                  <!-- Roof glass -->
-                  <rect x="19" y="9" width="24" height="10" rx="4" fill="rgba(255,255,255,0.22)"/>
-                  <!-- Side windows -->
-                  <rect x="20" y="10" width="10" height="8" rx="3" fill="rgba(255,255,255,0.18)"/>
-                  <rect x="33" y="10" width="10" height="8" rx="3" fill="rgba(255,255,255,0.18)"/>
-                  <!-- Front headlights -->
-                  <ellipse cx="57" cy="19" rx="3" ry="2.2" fill="#fde68a"/>
-                  <ellipse cx="57" cy="25" rx="3" ry="2.2" fill="#fde68a"/>
-                  <!-- Rear tail lights -->
-                  <ellipse cx="7" cy="19" rx="3" ry="2.2" fill="#fca5a5"/>
-                  <ellipse cx="7" cy="25" rx="3" ry="2.2" fill="#fca5a5"/>
-                  <!-- Wheels -->
-                  <ellipse cx="16" cy="30" rx="5.5" ry="4" fill="#1f2937"/>
-                  <ellipse cx="16" cy="30" rx="3" ry="2.5" fill="#6b7280"/>
-                  <ellipse cx="48" cy="30" rx="5.5" ry="4" fill="#1f2937"/>
-                  <ellipse cx="48" cy="30" rx="3" ry="2.5" fill="#6b7280"/>
-                  <ellipse cx="16" cy="14" rx="5.5" ry="4" fill="#1f2937"/>
-                  <ellipse cx="16" cy="14" rx="3" ry="2.5" fill="#6b7280"/>
-                  <ellipse cx="48" cy="14" rx="5.5" ry="4" fill="#1f2937"/>
-                  <ellipse cx="48" cy="14" rx="3" ry="2.5" fill="#6b7280"/>
-                </svg>
-              </div>
+              <svg viewBox="0 0 48 88" style="width:30px;height:55px;animation:taxi-glow 2s ease-in-out infinite;" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Car body (yellow) -->
+                <rect x="3" y="14" width="42" height="62" rx="9" fill="#FBBF24"/>
+                <!-- Front bumper -->
+                <rect x="7" y="11" width="34" height="7" rx="3.5" fill="#D97706"/>
+                <!-- Rear bumper -->
+                <rect x="7" y="74" width="34" height="6" rx="3" fill="#D97706"/>
+                <!-- Front windshield -->
+                <rect x="9" y="18" width="30" height="14" rx="4" fill="#BAE6FD" opacity="0.85"/>
+                <!-- Windshield glare -->
+                <rect x="11" y="20" width="10" height="5" rx="2" fill="white" opacity="0.35"/>
+                <!-- Cabin roof (darker yellow) -->
+                <rect x="8" y="33" width="32" height="24" rx="3" fill="#D97706"/>
+                <!-- TAXI sign (black with yellow text) -->
+                <rect x="11" y="35" width="26" height="10" rx="2.5" fill="#111827"/>
+                <text x="24" y="43.5" text-anchor="middle" fill="#FBBF24" font-size="7.5" font-weight="900" font-family="Arial,sans-serif" letter-spacing="1">TAXI</text>
+                <!-- Left side window -->
+                <rect x="9" y="46" width="12" height="9" rx="2" fill="#BAE6FD" opacity="0.6"/>
+                <!-- Right side window -->
+                <rect x="27" y="46" width="12" height="9" rx="2" fill="#BAE6FD" opacity="0.6"/>
+                <!-- Rear window -->
+                <rect x="9" y="59" width="30" height="13" rx="4" fill="#BAE6FD" opacity="0.7"/>
+                <!-- Rear window glare -->
+                <rect x="11" y="61" width="8" height="4" rx="2" fill="white" opacity="0.25"/>
+                <!-- Checkerboard stripe — left -->
+                <rect x="3"  y="56" width="4" height="4" fill="#111827"/>
+                <rect x="7"  y="56" width="4" height="4" fill="#FBBF24"/>
+                <rect x="11" y="56" width="4" height="4" fill="#111827"/>
+                <!-- Checkerboard stripe — right -->
+                <rect x="41" y="56" width="4" height="4" fill="#111827"/>
+                <rect x="37" y="56" width="4" height="4" fill="#FBBF24"/>
+                <rect x="33" y="56" width="4" height="4" fill="#111827"/>
+                <!-- Front headlights (warm white) -->
+                <rect x="3"  y="13" width="10" height="6" rx="3" fill="#FEF9C3"/>
+                <rect x="35" y="13" width="10" height="6" rx="3" fill="#FEF9C3"/>
+                <!-- Headlight inner glow -->
+                <rect x="5"  y="15" width="6" height="3" rx="1.5" fill="white" opacity="0.7"/>
+                <rect x="37" y="15" width="6" height="3" rx="1.5" fill="white" opacity="0.7"/>
+                <!-- Tail lights (red) -->
+                <rect x="3"  y="74" width="10" height="5" rx="2.5" fill="#EF4444"/>
+                <rect x="35" y="74" width="10" height="5" rx="2.5" fill="#EF4444"/>
+                <!-- Tail light glow -->
+                <rect x="5"  y="75" width="6" height="3" rx="1.5" fill="#FCA5A5" opacity="0.6"/>
+                <rect x="37" y="75" width="6" height="3" rx="1.5" fill="#FCA5A5" opacity="0.6"/>
+                <!-- Wheels (front) -->
+                <rect x="0"  y="22" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <rect x="41" y="22" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <!-- Wheels (rear) -->
+                <rect x="0"  y="58" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <rect x="41" y="58" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <!-- Wheel rims -->
+                <rect x="1"  y="24" width="5" height="10" rx="2.5" fill="#374151"/>
+                <rect x="42" y="24" width="5" height="10" rx="2.5" fill="#374151"/>
+                <rect x="1"  y="60" width="5" height="10" rx="2.5" fill="#374151"/>
+                <rect x="42" y="60" width="5" height="10" rx="2.5" fill="#374151"/>
+              </svg>
               <!-- Ground shadow -->
               <div style="
-                  width:36px; height:6px;
-                  background: rgba(0,0,0,0.18);
+                  width:28px; height:5px;
+                  background: rgba(0,0,0,0.22);
                   border-radius:50%;
-                  margin-top:2px;
-                  filter: blur(3px);
-                  animation: car-shadow-breathe 2s ease-in-out infinite;
+                  margin-top:-1px;
+                  filter: blur(4px);
+                  animation: taxi-shadow 2s ease-in-out infinite;
               "></div>
             </div>`,
-            iconSize: [52, 56],
-            iconAnchor: [26, 56],
+            iconSize: [30, 62],
+            iconAnchor: [15, 62],
         })
     }, [])
 
@@ -318,7 +329,7 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
 
                 markerRef.current.setLatLng([lat, lng]);
 
-                const innerEl = markerRef.current.getElement()?.querySelector('.car-ik-inner') as HTMLElement;
+                const innerEl = markerRef.current.getElement()?.querySelector('.taxi-inner') as HTMLElement;
                 if (innerEl) innerEl.style.transform = `rotate(${angle}deg)`;
             }
 
@@ -329,7 +340,7 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
         return () => cancelAnimationFrame(animationFrameId);
     }, [stableRoutePathStr])
 
-    if (routePath.length < 2) return null;
+    if (routePath.length === 0) return null;
 
     return <Marker ref={markerRef} position={routePath[0]} icon={carIcon} zIndexOffset={1000} />
 }
@@ -506,18 +517,31 @@ export default function LeafletMap({
         }
     }
 
-    // Ground car route: used on the results page (currentStep=4)
-    // Starts at the main destination then visits each itinerary day location in order
+    // Taxi route (step 4): use the same spread positions as the day markers,
+    // so the taxi always has a full multi-stop path even in single-city trips.
     const carRoute: [number, number][] = [];
     if (currentStep === 4 && validItineraryPoints.length >= 1) {
-        if (mainDestPos) carRoute.push(mainDestPos);
-        validItineraryPoints.forEach(pt => {
-            const last = carRoute[carRoute.length - 1];
-            // Skip duplicate coords
-            if (!last || Math.abs(last[0] - pt.pos[0]) > 0.0001 || Math.abs(last[1] - pt.pos[1]) > 0.0001) {
-                carRoute.push(pt.pos);
+        const rg: Record<string, number[]> = {}
+        validItineraryPoints.forEach((pt, i) => {
+            const k = `${Math.round(pt.pos[0] * 80)},${Math.round(pt.pos[1] * 80)}`
+            if (!rg[k]) rg[k] = []
+            rg[k].push(i)
+        })
+        validItineraryPoints.forEach((pt, idx) => {
+            const k = `${Math.round(pt.pos[0] * 80)},${Math.round(pt.pos[1] * 80)}`
+            const grp = rg[k]
+            const rank = grp.indexOf(idx)
+            if (grp.length > 1) {
+                const angle = (rank * (360 / grp.length) - 90) * (Math.PI / 180)
+                const r = 0.009
+                carRoute.push([
+                    pt.pos[0] + Math.sin(angle) * r,
+                    pt.pos[1] + Math.cos(angle) * r / Math.cos(pt.pos[0] * Math.PI / 180),
+                ])
+            } else {
+                carRoute.push(pt.pos)
             }
-        });
+        })
     }
 
     // Determine all bounds and focus zoom
@@ -539,9 +563,29 @@ export default function LeafletMap({
         if (mainDestPos) allPositions.push(mainDestPos);
         focusZoom = 11; // Wide enough to see hotel districts spread across the city
     } else {
-        if (mainDestPos) allPositions.push(mainDestPos);
-        validItineraryPoints.forEach(pt => allPositions.push(pt.pos));
-        focusZoom = 13;
+        // Step 4 (results): use spread positions so all day markers are in view
+        const posGroups4: Record<string, number[]> = {}
+        validItineraryPoints.forEach((pt, i) => {
+            const key = `${Math.round(pt.pos[0] * 80)},${Math.round(pt.pos[1] * 80)}`
+            if (!posGroups4[key]) posGroups4[key] = []
+            posGroups4[key].push(i)
+        })
+        validItineraryPoints.forEach((pt, index) => {
+            const key = `${Math.round(pt.pos[0] * 80)},${Math.round(pt.pos[1] * 80)}`
+            const group = posGroups4[key]
+            const rank = group.indexOf(index)
+            if (group.length > 1) {
+                const angle = (rank * (360 / group.length) - 90) * (Math.PI / 180)
+                const radius = 0.009
+                allPositions.push([
+                    pt.pos[0] + Math.sin(angle) * radius,
+                    pt.pos[1] + Math.cos(angle) * radius / Math.cos(pt.pos[0] * Math.PI / 180),
+                ])
+            } else {
+                allPositions.push(pt.pos)
+            }
+        })
+        focusZoom = 12;
     }
 
     // Step 3: Filter REAL packages from Firebase by the user's selected hotel tier(s)
@@ -762,25 +806,50 @@ export default function LeafletMap({
                     );
                 })}
 
-                {/* Itinerary Points (Standard view) */}
-                {currentStep !== 2 && currentStep !== 3 && validItineraryPoints.map((item, index) => {
-                    const dayNum = item.day ? String(item.day).replace(/[^0-9]/g, '') || `${index + 1}` : `${index + 1}`
-                    return (
-                        <Marker key={`itinerary-${index}`} position={item.pos} icon={createNumberedIcon(dayNum)}>
-                            <Popup className="custom-popup" closeButton={false}>
-                                <div className="tooltip-card p-2 text-center">
-                                    <div className="font-bold text-gray-900">{item.title}</div>
-                                    {item.day && <div className="text-xs text-primary font-bold mt-2">{item.day}</div>}
-                                </div>
-                            </Popup>
-                        </Marker>
-                    )
-                })}
+                {/* Itinerary Points (Standard view) — spread duplicates radially so all days are visible */}
+                {currentStep !== 2 && currentStep !== 3 && (() => {
+                    // Group indices by rounded position key so we can spread stacked markers
+                    const posGroups: Record<string, number[]> = {}
+                    validItineraryPoints.forEach((item, i) => {
+                        const key = `${Math.round(item.pos[0] * 80)},${Math.round(item.pos[1] * 80)}`
+                        if (!posGroups[key]) posGroups[key] = []
+                        posGroups[key].push(i)
+                    })
+
+                    return validItineraryPoints.map((item, index) => {
+                        const key = `${Math.round(item.pos[0] * 80)},${Math.round(item.pos[1] * 80)}`
+                        const group = posGroups[key]
+                        const rank = group.indexOf(index)
+
+                        // Spread duplicate markers in a circle (~800m radius)
+                        let pos: [number, number] = item.pos
+                        if (group.length > 1) {
+                            const angle = (rank * (360 / group.length) - 90) * (Math.PI / 180)
+                            const radius = 0.009
+                            pos = [
+                                item.pos[0] + Math.sin(angle) * radius,
+                                item.pos[1] + Math.cos(angle) * radius / Math.cos(item.pos[0] * Math.PI / 180),
+                            ]
+                        }
+
+                        const dayNum = item.day ? String(item.day).replace(/[^0-9]/g, '') || `${index + 1}` : `${index + 1}`
+                        return (
+                            <Marker key={`itinerary-${index}`} position={pos} icon={createNumberedIcon(dayNum)}>
+                                <Popup className="custom-popup" closeButton={false}>
+                                    <div className="tooltip-card p-2 text-center">
+                                        <div className="font-bold text-gray-900">{item.title}</div>
+                                        {item.day && <div className="text-xs text-primary font-bold mt-2">{item.day}</div>}
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        )
+                    })
+                })()}
 
                 {flightPath.length > 1 && <AirplaneMarker routePath={flightPath as [number, number][]} />}
 
                 {/* Results page (step 4): premium double-stroke road + animated car */}
-                {currentStep === 4 && carRoute.length > 1 && (
+                {currentStep === 4 && carRoute.length >= 1 && (
                     <>
                         {/* Soft glow underlay */}
                         <Polyline
@@ -794,7 +863,7 @@ export default function LeafletMap({
                         />
                     </>
                 )}
-                {currentStep === 4 && carRoute.length > 1 && (
+                {currentStep === 4 && carRoute.length >= 1 && (
                     <CarMarker routePath={carRoute} />
                 )}
             </MapContainer>

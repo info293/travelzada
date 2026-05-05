@@ -4,9 +4,43 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
 import { AgentPackage, HotelEntry } from '@/lib/types/agent'
 
+// Module-level cache so repeated currency switches in the same session don't re-fetch
+// TTL: 30 minutes
+const RATE_CACHE: Record<string, { rate: number; updatedAt: string; cachedAt: number }> = {}
+const CACHE_TTL_MS = 30 * 60 * 1000
+
+async function fetchINRRate(fromCurrency: string): Promise<{ rate: number; updatedAt: string }> {
+  const cached = RATE_CACHE[fromCurrency]
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return { rate: cached.rate, updatedAt: cached.updatedAt }
+  }
+  // open.er-api.com: free, no API key, updated hourly
+  const res = await fetch(`https://open.er-api.com/v6/latest/${fromCurrency}`)
+  if (!res.ok) throw new Error(`Rate fetch failed: ${res.status}`)
+  const data = await res.json()
+  if (data.result !== 'success') throw new Error('Rate API error')
+  const rate: number = data.rates['INR'] ?? 1
+  const updatedAt: string = data.time_last_update_utc ?? new Date().toUTCString()
+  RATE_CACHE[fromCurrency] = { rate, updatedAt, cachedAt: Date.now() }
+  return { rate, updatedAt }
+}
+
 interface Props {
   agentId: string
 }
+
+const CURRENCIES = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+]
 
 const EMPTY_FORM = {
   title: '',
@@ -16,12 +50,13 @@ const EMPTY_FORM = {
   durationDays: '',
   durationNights: '',
   pricePerPerson: '',
+  currency: 'INR',
   maxGroupSize: '20',
   minGroupSize: '1',
   travelType: 'Leisure',
   theme: '',
   mood: '',
-  starCategory: '3-Star',
+  starCategory: '',
   inclusions: '',
   exclusions: '',
   highlights: '',
@@ -32,11 +67,36 @@ const EMPTY_FORM = {
 
 const MEAL_PLANS = ['Breakfast', 'Half Board', 'Full Board', 'All Inclusive', 'Room Only']
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
-const STAR_CATEGORIES = ['3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
+const STAR_CATEGORIES = ['', '3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
 
-interface CsvResult { success: number; failed: number; errors: string[] }
+// Sets used for CSV validation
+const VALID_CURRENCY_CODES = new Set(CURRENCIES.map(c => c.code))
+const VALID_TRAVEL_TYPE_SET = new Set([...TRAVEL_TYPES, 'Cultural'])
+const CSV_KNOWN_COLS = new Set([
+  'title', 'destination', 'destination_country', 'duration_days', 'duration_nights',
+  'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
+  'overview', 'highlights', 'inclusions', 'exclusions', 'day_wise_itinerary',
+  'seasonal_availability', 'primary_image_url', 'max_group_size', 'min_group_size',
+  // common aliases accepted by the parser
+  'package_title', 'name', 'package_name', 'tour_name',
+  'dest', 'location', 'place', 'country',
+  'price', 'cost', 'rate', 'amount',
+  'days', 'nights', 'trip_duration_days', 'trip_duration_nights', 'total_days', 'total_nights',
+  'description', 'details', 'itinerary', 'day_plan', 'schedule',
+  'image_url', 'image', 'photo_url', 'cover_image',
+])
+
+interface CsvValidationIssue {
+  row: number | null   // null = file-level (header / encoding problem)
+  field: string
+  found: string
+  message: string
+  fix: string
+  severity: 'error' | 'warning'
+}
+interface CsvResult { success: number; failed: number; total: number; issues: CsvValidationIssue[] }
 
 interface DayItem {
   id: string
@@ -110,10 +170,17 @@ export default function PackageManager({ agentId }: Props) {
   const [csvResult, setCsvResult] = useState<CsvResult | null>(null)
   const [showCsvGuide, setShowCsvGuide] = useState(false)
 
+  // Currency / exchange rate state
+  const [exchangeRate, setExchangeRate] = useState<number>(1)
+  const [rateLoading, setRateLoading] = useState(false)
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string>('')
+  const [rateError, setRateError] = useState(false)
+
   // List filters
   const [pkgSearch, setPkgSearch] = useState('')
   const [pkgStatusFilter, setPkgStatusFilter] = useState<'all' | 'active' | 'paused'>('all')
   const [pkgDestFilter, setPkgDestFilter] = useState('all')
+  const [pkgHotelFilter, setPkgHotelFilter] = useState<'all' | 'with' | 'without'>('all')
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -129,6 +196,28 @@ export default function PackageManager({ agentId }: Props) {
   }, [agentId])
 
   useEffect(() => { fetchPackages() }, [fetchPackages])
+
+  // Fetch live INR exchange rate whenever currency changes
+  useEffect(() => {
+    if (form.currency === 'INR') {
+      setExchangeRate(1)
+      setRateUpdatedAt('')
+      setRateError(false)
+      return
+    }
+    setRateLoading(true)
+    setRateError(false)
+    fetchINRRate(form.currency)
+      .then(({ rate, updatedAt }) => {
+        setExchangeRate(rate)
+        setRateUpdatedAt(updatedAt)
+      })
+      .catch(() => {
+        setExchangeRate(1)
+        setRateError(true)
+      })
+      .finally(() => setRateLoading(false))
+  }, [form.currency])
 
   function parseDayItems(text: string): DayItem[] {
     if (!text?.trim()) return []
@@ -173,7 +262,7 @@ export default function PackageManager({ agentId }: Props) {
   function downloadSampleCsv() {
     const headers = [
       'title', 'destination', 'destination_country', 'duration_days', 'duration_nights',
-      'price_per_person', 'travel_type', 'star_category', 'theme', 'mood',
+      'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
       'overview', 'highlights', 'inclusions', 'exclusions',
       'day_wise_itinerary', 'seasonal_availability', 'primary_image_url',
     ]
@@ -188,6 +277,7 @@ export default function PackageManager({ agentId }: Props) {
         'India',
         '6', '5',
         '28000',
+        'INR',
         'Leisure',
         '4-Star',
         'Beach',
@@ -206,7 +296,8 @@ export default function PackageManager({ agentId }: Props) {
         'Bali',
         'Indonesia',
         '7', '6',
-        '55000',
+        '650',
+        'USD',
         'Honeymoon',
         '5-Star',
         'Beach',
@@ -225,6 +316,7 @@ export default function PackageManager({ agentId }: Props) {
         'India',
         '8', '7',
         '35000',
+        'INR',
         'Cultural',
         '4-Star',
         'Heritage',
@@ -355,6 +447,7 @@ export default function PackageManager({ agentId }: Props) {
       durationDays: String(pkg.durationDays),
       durationNights: String(pkg.durationNights),
       pricePerPerson: String(pkg.pricePerPerson),
+      currency: (pkg as any).currency || 'INR',
       maxGroupSize: String(pkg.maxGroupSize),
       minGroupSize: String(pkg.minGroupSize || 1),
       travelType: pkg.travelType,
@@ -416,6 +509,8 @@ export default function PackageManager({ agentId }: Props) {
         durationDays: Number(form.durationDays),
         durationNights: Number(form.durationNights),
         pricePerPerson: Number(form.pricePerPerson),
+        currency: form.currency || 'INR',
+        priceInINR: Math.round(Number(form.pricePerPerson) * exchangeRate),
         maxGroupSize: Number(form.maxGroupSize) || 20,
         minGroupSize: Number(form.minGroupSize) || 1,
         travelType: form.travelType,
@@ -484,71 +579,218 @@ export default function PackageManager({ agentId }: Props) {
     e.target.value = ''
     setCsvUploading(true)
     setCsvResult(null)
+
+    const issues: CsvValidationIssue[] = []
+
+    const bail = (field: string, found: string, message: string, fix: string) => {
+      setCsvResult({ success: 0, failed: 0, total: 0, issues: [{ row: null, field, found, message, fix, severity: 'error' }] })
+    }
+
     try {
+      // File size guard
+      if (file.size > 5 * 1024 * 1024) {
+        bail('file size', `${(file.size / 1024 / 1024).toFixed(1)} MB`, 'File exceeds 5 MB limit.', 'Split your CSV into multiple files with fewer rows.')
+        return
+      }
+
       const text = await file.text()
       const rows = parseCsv(text)
-      if (rows.length === 0) { setCsvResult({ success: 0, failed: 0, errors: ['CSV has no data rows.'] }); return }
 
+      if (rows.length === 0) {
+        bail('file content', file.name, 'CSV has no data rows after the header.', 'Make sure the file has at least one data row below the header. Check it is UTF-8 encoded and not blank.')
+        return
+      }
+
+      // ── Header validation ──────────────────────────────────────────────
+      const foundCols = Object.keys(rows[0])
+
+      const hasTitle = foundCols.some(c => ['title', 'package_title', 'name', 'package_name', 'tour_name'].includes(c))
+      const hasDest  = foundCols.some(c => ['destination', 'dest', 'location', 'place'].includes(c))
+
+      if (!hasTitle) {
+        issues.push({
+          row: null, field: 'header → title', found: foundCols.slice(0, 6).join(', '),
+          message: 'Required column "title" is missing from your CSV headers.',
+          fix: 'Add a column named title (the package name). Accepted alternatives: package_title, name.',
+          severity: 'error',
+        })
+      }
+      if (!hasDest) {
+        issues.push({
+          row: null, field: 'header → destination', found: foundCols.slice(0, 6).join(', '),
+          message: 'Required column "destination" is missing from your CSV headers.',
+          fix: 'Add a column named destination (travel location, e.g. "Andaman Islands"). Accepted alternatives: dest, location, place.',
+          severity: 'error',
+        })
+      }
+
+      const unknownCols = foundCols.filter(c => !CSV_KNOWN_COLS.has(c))
+      if (unknownCols.length > 0) {
+        issues.push({
+          row: null, field: `unrecognized column${unknownCols.length > 1 ? 's' : ''}`,
+          found: unknownCols.join(', '),
+          message: `These columns are not recognized and will be ignored: ${unknownCols.join(', ')}`,
+          fix: `Check for typos. Known columns: title, destination, duration_days, duration_nights, price_per_person, currency, travel_type, star_category, theme, mood, overview, highlights, inclusions, exclusions, day_wise_itinerary, seasonal_availability, primary_image_url.`,
+          severity: 'warning',
+        })
+      }
+
+      // Stop if required headers are absent — no point validating rows
+      if (!hasTitle || !hasDest) {
+        setCsvResult({ success: 0, failed: rows.length, total: rows.length, issues })
+        return
+      }
+
+      // ── Row-by-row validation + upload ────────────────────────────────
       let success = 0
-      const errors: string[] = []
+      let failed = 0
 
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i]
-        const rowNum = i + 2 // +1 for header, +1 for 1-indexed
-        const title = r['title'] || r['package_title'] || r['name'] || ''
-        const destination = r['destination'] || ''
-        const durationDays = parseInt(r['duration_days'] || r['trip_duration_days'] || r['days'] || '0') || 0
-        const durationNights = parseInt(r['duration_nights'] || r['trip_duration_nights'] || r['nights'] || String(Math.max(0, durationDays - 1))) || 0
-        const price = parseInt(r['price_per_person'] || r['price'] || '0') || 0
-        const dayWiseItinerary = normalizeCsvItinerary(r['day_wise_itinerary'] || r['itinerary'] || '')
+        const rowNum = i + 2 // +1 for header row, +1 for 1-based display
+        const rowIssues: CsvValidationIssue[] = []
 
-        if (!title || !destination) {
-          errors.push(`Row ${rowNum}: missing title or destination`)
-          continue
+        const title       = (r['title'] || r['package_title'] || r['name'] || r['package_name'] || r['tour_name'] || '').trim()
+        const destination = (r['destination'] || r['dest'] || r['location'] || r['place'] || '').trim()
+
+        // Required fields
+        if (!title) rowIssues.push({ row: rowNum, field: 'title', found: '(empty)', severity: 'error',
+          message: 'Package title is empty.',
+          fix: 'Fill the "title" column with a package name, e.g. "Andaman 6D/5N Beach Escape".' })
+
+        if (!destination) rowIssues.push({ row: rowNum, field: 'destination', found: '(empty)', severity: 'error',
+          message: 'Destination is empty.',
+          fix: 'Fill the "destination" column with a city or region, e.g. "Andaman Islands" or "Bali".' })
+
+        // Price
+        const rawPrice = (r['price_per_person'] || r['price'] || r['cost'] || r['rate'] || r['amount'] || '').trim()
+        let price = 0
+        if (rawPrice) {
+          const cleaned = rawPrice.replace(/[₹$€£,\s]/g, '')
+          if (!/^\d+(\.\d+)?$/.test(cleaned)) {
+            rowIssues.push({ row: rowNum, field: 'price_per_person', found: rawPrice, severity: 'error',
+              message: `"${rawPrice}" is not a valid number.`,
+              fix: 'Use digits only — no currency symbols, commas, or spaces. Write 25000, not ₹25,000.' })
+          } else {
+            price = Math.round(parseFloat(cleaned))
+            if (price === 0) rowIssues.push({ row: rowNum, field: 'price_per_person', found: rawPrice, severity: 'warning',
+              message: 'Price is 0 — is that intentional?',
+              fix: 'Enter a positive price like 25000, or leave the column blank if pricing is TBD.' })
+          }
         }
 
+        // Currency
+        const rawCurrency = (r['currency'] || '').trim()
+        const currency = rawCurrency.toUpperCase() || 'INR'
+        if (rawCurrency && !VALID_CURRENCY_CODES.has(currency)) {
+          rowIssues.push({ row: rowNum, field: 'currency', found: rawCurrency, severity: 'error',
+            message: `"${rawCurrency}" is not a supported currency code.`,
+            fix: `Use a 3-letter code: ${[...VALID_CURRENCY_CODES].join(', ')}.` })
+        }
+
+        // Duration days
+        const rawDays = (r['duration_days'] || r['days'] || r['trip_duration_days'] || r['total_days'] || '').trim()
+        let durationDays = 0
+        if (rawDays) {
+          if (!/^\d+$/.test(rawDays)) {
+            rowIssues.push({ row: rowNum, field: 'duration_days', found: rawDays, severity: 'warning',
+              message: `"${rawDays}" is not a valid number of days.`,
+              fix: 'Enter a plain integer like 6.' })
+          } else {
+            durationDays = parseInt(rawDays)
+          }
+        }
+
+        // Duration nights
+        const rawNights = (r['duration_nights'] || r['nights'] || r['trip_duration_nights'] || r['total_nights'] || '').trim()
+        let durationNights = rawNights ? (parseInt(rawNights) || 0) : Math.max(0, durationDays - 1)
+        if (rawNights && !/^\d+$/.test(rawNights)) {
+          rowIssues.push({ row: rowNum, field: 'duration_nights', found: rawNights, severity: 'warning',
+            message: `"${rawNights}" is not a valid number of nights.`,
+            fix: 'Enter a plain integer like 5. Or leave blank — it auto-computes as days − 1.' })
+          durationNights = Math.max(0, durationDays - 1)
+        }
+
+        // Travel type
+        const rawTravelType = (r['travel_type'] || '').trim()
+        if (rawTravelType && !VALID_TRAVEL_TYPE_SET.has(rawTravelType)) {
+          rowIssues.push({ row: rowNum, field: 'travel_type', found: rawTravelType, severity: 'warning',
+            message: `"${rawTravelType}" is not a recognized travel type — will default to "Leisure".`,
+            fix: `Use one of: ${[...VALID_TRAVEL_TYPE_SET].join(', ')}.` })
+        }
+
+        // Image URL
+        const imageUrl = (r['primary_image_url'] || r['image_url'] || r['image'] || r['photo_url'] || r['cover_image'] || '').trim()
+        if (imageUrl && !imageUrl.startsWith('http')) {
+          rowIssues.push({ row: rowNum, field: 'primary_image_url', found: imageUrl, severity: 'warning',
+            message: 'Image URL does not start with http — it may not load.',
+            fix: 'Provide a full URL starting with https://, e.g. https://cdn.example.com/img.jpg. Leave blank if you don\'t have one.' })
+        }
+
+        issues.push(...rowIssues)
+
+        // Skip row if it has any hard errors
+        if (rowIssues.some(iss => iss.severity === 'error')) { failed++; continue }
+
+        // ── Upload ────────────────────────────────────────────────────
         try {
+          let priceInINR = price
+          if (currency !== 'INR' && price > 0) {
+            try { const { rate } = await fetchINRRate(currency); priceInINR = Math.round(price * rate) }
+            catch { /* fallback to raw price */ }
+          }
+
           const payload = {
             agentId,
             title,
             destination,
-            destinationCountry: r['destination_country'] || r['country'] || 'India',
-            overview: r['overview'] || r['description'] || '',
+            destinationCountry: (r['destination_country'] || r['country'] || 'India').trim(),
+            overview: (r['overview'] || r['description'] || r['details'] || '').trim(),
             durationDays,
             durationNights,
             pricePerPerson: price,
+            currency,
+            priceInINR,
             maxGroupSize: parseInt(r['max_group_size'] || '20') || 20,
             minGroupSize: parseInt(r['min_group_size'] || '1') || 1,
-            travelType: r['travel_type'] || 'Leisure',
+            travelType: VALID_TRAVEL_TYPE_SET.has(rawTravelType) ? rawTravelType : 'Leisure',
             theme: r['theme'] || '',
             mood: r['mood'] || '',
-            starCategory: r['star_category'] || '3-Star',
+            starCategory: r['star_category'] || '',
             inclusions: (r['inclusions'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
             exclusions: (r['exclusions'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
             highlights: (r['highlights'] || '').split('|').map((s: string) => s.trim()).filter(Boolean),
-            dayWiseItinerary,
-            primaryImageUrl: r['primary_image_url'] || r['image_url'] || '',
+            dayWiseItinerary: normalizeCsvItinerary(r['day_wise_itinerary'] || r['itinerary'] || r['day_plan'] || r['schedule'] || ''),
+            primaryImageUrl: imageUrl.startsWith('http') ? imageUrl : '',
             seasonalAvailability: r['seasonal_availability'] || 'Year Round',
           }
+
           const res = await fetch('/api/agent/packages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
           })
-          if (res.ok) success++
-          else {
+          if (res.ok) {
+            success++
+          } else {
             const d = await res.json()
-            errors.push(`Row ${rowNum}: ${d.error || 'upload failed'}`)
+            issues.push({ row: rowNum, field: 'server', found: '', severity: 'error',
+              message: `Server rejected row: ${d.error || 'unknown error'}.`,
+              fix: 'Check your account is active and all required fields are filled. If the error persists, contact support.' })
+            failed++
           }
         } catch {
-          errors.push(`Row ${rowNum}: network error`)
+          issues.push({ row: rowNum, field: 'network', found: '', severity: 'error',
+            message: 'Network error — server could not be reached.',
+            fix: 'Check your internet connection and try uploading again.' })
+          failed++
         }
       }
 
-      setCsvResult({ success, failed: errors.length, errors })
+      setCsvResult({ success, failed, total: rows.length, issues })
       if (success > 0) fetchPackages()
     } catch (err: any) {
-      setCsvResult({ success: 0, failed: 0, errors: [err.message || 'Failed to parse CSV'] })
+      setCsvResult({ success: 0, failed: 0, total: 0, issues: [{ row: null, field: 'file', found: file.name, severity: 'error',
+        message: `Could not read file: ${err.message || 'unknown error'}.`,
+        fix: 'Make sure the file is a valid UTF-8 encoded CSV. Try saving it from Excel or Google Sheets as "CSV UTF-8".' }] })
     } finally {
       setCsvUploading(false)
     }
@@ -811,8 +1053,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   ['duration_days', 'No', '6'],
                   ['duration_nights', 'No', '5  (auto-computed as days−1 if omitted)'],
                   ['price_per_person', 'No', '25000'],
+                  ['currency', 'No', 'INR (default) / USD / EUR / GBP / AED / SGD / AUD — auto-converted to INR'],
                   ['travel_type', 'No', 'Leisure / Honeymoon / Adventure / Family / Corporate'],
-                  ['star_category', 'No', '3-Star / 4-Star / 5-Star / Luxury / Budget'],
+                  ['star_category', 'No', '3-Star / 4-Star / 5-Star / Luxury / Budget / leave blank for no hotel'],
                   ['theme', 'No', 'Beach / Wildlife / Heritage / Adventure / Cultural'],
                   ['mood', 'No', 'Relaxing / Romantic / Family Fun / Adventurous'],
                   ['overview', 'No', 'Short paragraph describing the package'],
@@ -852,25 +1095,106 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
       )}
 
       {/* CSV upload result */}
-      {csvResult && (
-        <div className={`rounded-2xl border p-4 ${csvResult.failed === 0 ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-          <div className="flex items-center gap-2 mb-2">
-            {csvResult.failed === 0
-              ? <CheckCircle className="w-4 h-4 text-green-600" />
-              : <AlertCircle className="w-4 h-4 text-amber-600" />}
-            <span className="font-bold text-sm text-gray-900">
-              {csvResult.success} package{csvResult.success !== 1 ? 's' : ''} imported
-              {csvResult.failed > 0 ? `, ${csvResult.failed} failed` : ' successfully'}
-            </span>
-            <button onClick={() => setCsvResult(null)} className="ml-auto text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+      {csvResult && (() => {
+        const errors   = csvResult.issues.filter(i => i.severity === 'error')
+        const warnings = csvResult.issues.filter(i => i.severity === 'warning')
+        const fileIssues = csvResult.issues.filter(i => i.row === null)
+        const rowIssues  = csvResult.issues.filter(i => i.row !== null)
+        const allOk = csvResult.failed === 0 && errors.length === 0
+        return (
+          <div className={`rounded-2xl border overflow-hidden ${allOk ? 'border-green-200' : errors.length > 0 ? 'border-red-200' : 'border-amber-200'}`}>
+            {/* Summary bar */}
+            <div className={`px-4 py-3 flex items-center gap-3 flex-wrap ${allOk ? 'bg-green-50' : errors.length > 0 ? 'bg-red-50' : 'bg-amber-50'}`}>
+              {allOk
+                ? <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                : <AlertCircle className={`w-4 h-4 flex-shrink-0 ${errors.length > 0 ? 'text-red-500' : 'text-amber-500'}`} />}
+              <div className="flex gap-3 flex-wrap text-sm font-semibold">
+                {csvResult.success > 0 && (
+                  <span className="text-green-700">✓ {csvResult.success} imported</span>
+                )}
+                {csvResult.failed > 0 && (
+                  <span className="text-red-600">✗ {csvResult.failed} failed</span>
+                )}
+                {warnings.length > 0 && (
+                  <span className="text-amber-600">⚠ {warnings.length} warning{warnings.length !== 1 ? 's' : ''}</span>
+                )}
+                {csvResult.success === 0 && csvResult.failed === 0 && errors.length === 0 && (
+                  <span className="text-gray-500">No rows processed</span>
+                )}
+              </div>
+              <button onClick={() => setCsvResult(null)} className="ml-auto text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Issue cards */}
+            {csvResult.issues.length > 0 && (
+              <div className="divide-y divide-gray-100 bg-white max-h-[420px] overflow-y-auto">
+                {/* File-level issues first */}
+                {fileIssues.map((iss, idx) => (
+                  <div key={`f-${idx}`} className={`px-4 py-3 ${iss.severity === 'error' ? 'bg-red-50/60' : 'bg-amber-50/60'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${iss.severity === 'error' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {iss.severity === 'error' ? '✗ ERROR' : '⚠ WARNING'}
+                      </span>
+                      <span className="text-xs font-mono text-gray-500">{iss.field}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mb-0.5">{iss.message}</p>
+                    {iss.found && (
+                      <p className="text-xs text-gray-500 mb-1">
+                        Found: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-700">{iss.found}</code>
+                      </p>
+                    )}
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 mt-1">
+                      <span className="font-bold">How to fix: </span>{iss.fix}
+                    </p>
+                  </div>
+                ))}
+
+                {/* Row-level errors */}
+                {rowIssues.filter(i => i.severity === 'error').map((iss, idx) => (
+                  <div key={`e-${idx}`} className="px-4 py-3 bg-red-50/40">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">✗ ERROR</span>
+                      <span className="text-xs font-bold text-gray-600">Row {iss.row}</span>
+                      <span className="text-xs font-mono text-gray-400">· {iss.field}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mb-0.5">{iss.message}</p>
+                    {iss.found && (
+                      <p className="text-xs text-gray-500 mb-1">
+                        Found: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-700">{iss.found}</code>
+                      </p>
+                    )}
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-1.5 mt-1">
+                      <span className="font-bold">How to fix: </span>{iss.fix}
+                    </p>
+                  </div>
+                ))}
+
+                {/* Row-level warnings */}
+                {rowIssues.filter(i => i.severity === 'warning').map((iss, idx) => (
+                  <div key={`w-${idx}`} className="px-4 py-3 bg-amber-50/40">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚠ WARNING</span>
+                      <span className="text-xs font-bold text-gray-600">Row {iss.row}</span>
+                      <span className="text-xs font-mono text-gray-400">· {iss.field}</span>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mb-0.5">{iss.message}</p>
+                    {iss.found && (
+                      <p className="text-xs text-gray-500 mb-1">
+                        Found: <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-700">{iss.found}</code>
+                      </p>
+                    )}
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mt-1">
+                      <span className="font-bold">Note: </span>{iss.fix}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {csvResult.errors.length > 0 && (
-            <ul className="text-xs text-amber-800 space-y-0.5 ml-6 list-disc">
-              {csvResult.errors.map((e, i) => <li key={i}>{e}</li>)}
-            </ul>
-          )}
-        </div>
-      )}
+        )
+      })()}
 
       {/* Package list */}
       {packages.length === 0 ? (
@@ -884,17 +1208,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         </div>
       ) : (() => {
         const destOptions = ['all', ...Array.from(new Set(packages.map(p => p.destination).filter(Boolean)))]
+        const WITH_HOTEL_CATS = new Set(['3-Star', '4-Star', '5-Star', 'Luxury'])
         const filteredPackages = packages.filter(pkg => {
           const q = pkgSearch.toLowerCase()
           const matchSearch = !q || pkg.title.toLowerCase().includes(q) || pkg.destination.toLowerCase().includes(q) || (pkg.travelType || '').toLowerCase().includes(q)
           const matchStatus = pkgStatusFilter === 'all' || (pkgStatusFilter === 'active' ? pkg.isActive : !pkg.isActive)
           const matchDest = pkgDestFilter === 'all' || pkg.destination === pkgDestFilter
-          return matchSearch && matchStatus && matchDest
+          const matchHotel = pkgHotelFilter === 'all' || (pkgHotelFilter === 'with' ? WITH_HOTEL_CATS.has(pkg.starCategory || '') : !WITH_HOTEL_CATS.has(pkg.starCategory || ''))
+          return matchSearch && matchStatus && matchDest && matchHotel
         })
         return (
         <>
-          {/* Filter bar */}
-          <div className="flex flex-wrap items-center gap-2.5 mb-3">
+          {/* Filter bar — row 1: search + status */}
+          <div className="flex flex-wrap items-center gap-2.5 mb-2">
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -912,12 +1238,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 </button>
               ))}
             </div>
+          </div>
+          {/* Filter bar — row 2: destination + hotel filter + count */}
+          <div className="flex flex-wrap items-center gap-2.5 mb-3">
             {destOptions.length > 2 && (
               <select value={pkgDestFilter} onChange={e => setPkgDestFilter(e.target.value)}
                 className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-200 bg-white">
                 {destOptions.map(d => <option key={d} value={d}>{d === 'all' ? 'All Destinations' : d}</option>)}
               </select>
             )}
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+              <span className="text-xs text-gray-500 font-semibold mr-0.5">Hotel:</span>
+              {(['all', 'with', 'without'] as const).map(h => (
+                <button key={h} onClick={() => setPkgHotelFilter(h)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${pkgHotelFilter === h ? 'bg-amber-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {h === 'all' ? 'All' : h === 'with' ? '🏨 With Hotel' : '🏕️ Without Hotel'}
+                </button>
+              ))}
+            </div>
             <span className="text-xs text-gray-400 ml-auto">{filteredPackages.length} of {packages.length}</span>
           </div>
 
@@ -925,7 +1264,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
             <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
               <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
               <p className="text-gray-500 text-sm">No packages match your filters</p>
-              <button onClick={() => { setPkgSearch(''); setPkgStatusFilter('all'); setPkgDestFilter('all') }}
+              <button onClick={() => { setPkgSearch(''); setPkgStatusFilter('all'); setPkgDestFilter('all'); setPkgHotelFilter('all') }}
                 className="mt-2 text-purple-600 text-xs font-semibold hover:underline">Clear filters</button>
             </div>
           ) : (
@@ -946,7 +1285,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{pkg.title}</p>
                 <p className="text-sm text-gray-500">
-                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory} · ₹{pkg.pricePerPerson.toLocaleString()}/person
+                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · ₹{pkg.pricePerPerson.toLocaleString()}/person
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -977,8 +1316,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
       {/* Two-panel package editor */}
       {showForm && (() => {
         const basePrice = Number(form.pricePerPerson) || 0
+        const baseINR = basePrice * exchangeRate
         const markup = markupEnabled ? (Number(markupPercent) || 0) : 0
-        const finalPrice = basePrice * (1 + markup / 100)
+        const finalPrice = baseINR * (1 + markup / 100)
+        const currencyMeta = CURRENCIES.find(c => c.code === form.currency) || CURRENCIES[0]
         return (
         <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-50 flex flex-col bg-[#f4f5f9]">
 
@@ -1045,7 +1386,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     <Clock className="w-3 h-3" />{form.durationDays || '?'}D / {form.durationNights || '?'}N
                   </span>
                   <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                    <Star className="w-3 h-3" />{form.starCategory}
+                    <Star className="w-3 h-3" />{form.starCategory || 'None'}
                   </span>
                   {form.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.travelType}</span>}
                   {form.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.theme}</span>}
@@ -1113,7 +1454,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       {STAR_CATEGORIES.map(s => (
                         <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
                           className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}
-                        >{s}</button>
+                        >{s === '' ? 'None' : s}</button>
                       ))}
                     </div>
                   </div>
@@ -1212,18 +1553,64 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 <div className="flex items-start gap-4">
                   <div className="flex-1 space-y-3">
                     <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Net Cost (per person)</p>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-gray-400 font-semibold text-lg">₹</span>
-                        <input
-                          name="pricePerPerson"
-                          type="number"
-                          value={form.pricePerPerson}
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Net Cost (per person)</p>
+                      {/* Currency selector + price input */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                          name="currency"
+                          value={form.currency}
                           onChange={handleChange}
-                          className="text-3xl font-bold text-gray-900 border-none outline-none w-40 bg-transparent"
-                          placeholder="0"
-                        />
+                          className="text-sm font-bold border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer"
+                        >
+                          {CURRENCIES.map(c => (
+                            <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-gray-400 font-bold text-xl">{currencyMeta.symbol}</span>
+                          <input
+                            name="pricePerPerson"
+                            type="number"
+                            value={form.pricePerPerson}
+                            onChange={handleChange}
+                            className="text-3xl font-bold text-gray-900 border-none outline-none w-36 bg-transparent"
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
+                      {/* Live INR conversion — only shown for non-INR currencies */}
+                      {form.currency !== 'INR' && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          {rateLoading ? (
+                            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Fetching live rate from open.er-api.com…
+                            </span>
+                          ) : rateError ? (
+                            <span className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+                              ⚠️ Could not fetch rate — check connection. Using 1:1 fallback.
+                            </span>
+                          ) : basePrice > 0 ? (
+                            <>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 inline-flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                                ≈ ₹{baseINR.toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR
+                                <span className="text-emerald-500 font-medium">·</span>
+                                <span className="font-normal text-emerald-500">1 {form.currency} = ₹{exchangeRate.toLocaleString('en-IN', { maximumFractionDigits: 4 })}</span>
+                              </span>
+                              {rateUpdatedAt && (
+                                <span className="text-[10px] text-gray-400 pl-1">
+                                  Rate last updated: {new Date(rateUpdatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 pl-1">
+                              {exchangeRate > 1 ? `1 ${form.currency} = ₹${exchangeRate.toLocaleString('en-IN', { maximumFractionDigits: 4 })}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
                       <div className="flex-1">
@@ -1247,13 +1634,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     </div>
                   </div>
                   <div className="bg-purple-600 text-white rounded-2xl p-4 min-w-[160px] flex-shrink-0 text-center shadow-lg shadow-purple-200">
-                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-2">Final Quotation Price</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-1">Final Quotation Price</p>
+                    <p className="text-[9px] opacity-50 mb-2">(in INR)</p>
                     <p className="text-2xl font-bold leading-tight">
                       ₹{finalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] opacity-60 mt-1.5">
                       {markupEnabled ? `Includes ${markup}% markup` : 'No markup applied'}
                     </p>
+                    {form.currency !== 'INR' && basePrice > 0 && !rateLoading && (
+                      <p className="text-[9px] opacity-50 mt-1">{currencyMeta.symbol}{basePrice.toLocaleString()} × {exchangeRate.toFixed(2)}</p>
+                    )}
                   </div>
                 </div>
               </div>

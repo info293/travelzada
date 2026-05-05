@@ -1,18 +1,63 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore'
 
-// Initialize Anthropic (Claude)
 const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     : null
 
+const openai = process.env.OPENAI_API_KEY
+    ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    : null
+
+async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
+    // Try Claude first
+    if (anthropic) {
+        try {
+            console.log('[AI Planner] 🤖 Using Claude (Anthropic) for package matching...')
+            const res = await anthropic.messages.create({
+                model: 'claude-sonnet-4-5-20250929',
+                max_tokens: 1024,
+                system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+                temperature: 0.1,
+            })
+            const text = (res.content.find(b => b.type === 'text') as any)?.text?.trim() || '[]'
+            console.log('[AI Planner] ✅ Claude responded successfully.')
+            return text
+        } catch (err: any) {
+            console.warn('[AI Planner] ⚠️  Claude failed:', err?.message || err)
+            console.log('[AI Planner] 🔄 Falling back to OpenAI (ChatGPT)...')
+        }
+    }
+
+    // Fallback to OpenAI
+    if (openai) {
+        console.log('[AI Planner] 🤖 Using OpenAI (ChatGPT) for package matching...')
+        const res = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 1024,
+            temperature: 0.1,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ],
+        })
+        const text = res.choices[0]?.message?.content?.trim() || '[]'
+        console.log('[AI Planner] ✅ OpenAI responded successfully.')
+        return text
+    }
+
+    throw new Error('No AI provider is configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.')
+}
+
 export async function POST(request: Request) {
-    if (!anthropic) {
+    if (!anthropic && !openai) {
         return NextResponse.json(
-            { error: 'Anthropic API key is not configured.' },
+            { error: 'No AI provider configured.' },
             { status: 500 }
         )
     }
@@ -175,20 +220,11 @@ ${JSON.stringify(allPackages, null, 2)}
 
 Return the top matches in the requested JSON format.`
 
-        console.log('[AI Planner] Determining best packages using Claude Sonnet...')
+        console.log('[AI Planner] Determining best packages using AI...')
 
-        const claudeResponse = await anthropic.messages.create({
-            model: 'claude-sonnet-4-5-20250929',
-            max_tokens: 1024,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userPrompt }],
-            temperature: 0.1,
-        })
+        const responseText = await callAI(systemPrompt, userPrompt)
 
-        const textContent = claudeResponse.content.find(block => block.type === 'text') as any
-        const responseText = textContent?.text?.trim() || '[]'
-
-        console.log('\n[AI Planner] Raw Claude Response:')
+        console.log('\n[AI Planner] Raw AI Response:')
         console.log(responseText)
 
         let matchedPackageIds: any[] = []
@@ -197,7 +233,7 @@ Return the top matches in the requested JSON format.`
             matchedPackageIds = JSON.parse(cleanJson)
             console.log(`[AI Planner] Parsed ${matchedPackageIds.length} recommendations.`)
         } catch (e) {
-            console.error("Failed to parse Claude JSON response:", responseText)
+            console.error("Failed to parse AI JSON response:", responseText)
             return NextResponse.json(
                 { error: 'AI failed to return valid matches.' },
                 { status: 500 }

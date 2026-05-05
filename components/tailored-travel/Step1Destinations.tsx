@@ -14,6 +14,12 @@ const OPTIONS_EXPERIENCE = [
     { id: 'relax', label: 'Relax', icon: '🏖️' }
 ]
 
+const HOTEL_STAR_OPTIONS = [
+    { id: '3-star', label: '3-Star', desc: 'Comfortable & Budget-Friendly', icon: '⭐⭐⭐' },
+    { id: '4-star', label: '4-Star', desc: 'Premium Amenities', icon: '⭐⭐⭐⭐' },
+    { id: '5-star', label: '5-Star', desc: 'Ultimate Luxury', icon: '⭐⭐⭐⭐⭐' },
+]
+
 interface DestinationOption {
     name: string   // what gets saved to wizard data (e.g. "Kerala")
     label: string  // what the user sees in dropdown (e.g. "Kerala, India")
@@ -39,6 +45,8 @@ export default function Step1Destinations({
     onNext: () => void,
     agentSlug?: string,
 }) {
+    const isDmcMode = !!agentSlug
+
     const [currentDestination, setCurrentDestination] = useState('')
     const [showDropdown, setShowDropdown] = useState(false)
     const [highlightedIndex, setHighlightedIndex] = useState(-1)
@@ -158,6 +166,23 @@ export default function Step1Destinations({
         updateData({ experiences: Array.from(current) })
     }
 
+    const toggleHotelStar = (id: string) => {
+        const current = new Set(data.hotelTypes as string[])
+        if (current.has(id)) {
+            current.delete(id)
+        } else {
+            current.add(id)
+        }
+        updateData({ hotelTypes: Array.from(current) })
+    }
+
+    const setHotelIncluded = (value: boolean) => {
+        updateData({
+            hotelIncluded: value,
+            hotelTypes: value ? (data.hotelTypes.length > 0 ? data.hotelTypes : ['4-star']) : [],
+        })
+    }
+
     // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
@@ -193,174 +218,258 @@ export default function Step1Destinations({
 
     return (
         <div className="animate-fade-in-up">
-            <div className="text-center mb-6 sm:mb-10">
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-gray-900 mb-2 sm:mb-4 tracking-tight drop-shadow-sm">
+            <div className="text-center mb-8">
+                <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
                     Where would you like to go?
                 </h2>
-                <p className="text-sm sm:text-lg text-gray-700 font-medium px-2">Tell us your dream destinations and when you want to travel.</p>
+                <p className="text-sm sm:text-lg text-gray-500 font-medium px-2">
+                    Tell us your dream destinations and when you want to travel.
+                </p>
             </div>
 
-            <div className="space-y-5 sm:space-y-6 max-w-4xl mx-auto bg-white/70 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
+            <div className="max-w-2xl mx-auto space-y-3">
 
-                {/* Destinations Input */}
-                <div className="space-y-4">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
-                        Destinations
-                    </label>
+                {/* ── Section 1: Destination ── */}
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-visible">
+                    <div className="px-5 pt-5 pb-5">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">1</span>
+                            Destination
+                        </p>
 
-                    <div className="flex flex-wrap gap-2.5 mb-3">
+                        {/* Selected destination chip */}
                         {data.destinations.map((dest: string, idx: number) => (
                             <div
                                 key={idx}
-                                className="flex items-center gap-2 bg-gradient-to-r from-primary to-[#ff8a3d] text-white px-5 py-3 rounded-2xl font-bold shadow-md shadow-primary/20 text-base"
+                                className="inline-flex items-center gap-2.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white pl-4 pr-3 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/25 text-sm mb-4"
                             >
-                                <svg className="w-5 h-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                <svg className="w-4 h-4 opacity-80 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
                                 <span>{dest}</span>
                                 <button
                                     onClick={() => handleRemoveDestination(idx)}
-                                    className="w-5 h-5 bg-black/20 rounded-full hover:bg-black/40 flex items-center justify-center transition-colors shrink-0 ml-1"
+                                    className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/40 flex items-center justify-center transition-colors flex-shrink-0"
                                 >
-                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
                                 </button>
                             </div>
                         ))}
-                    </div>
 
-                    {data.destinations.length === 0 && (
-                        <div className="relative">
-                            {/* Input row */}
-                            <div className="relative flex items-center group">
-                                <div className="absolute left-4 opacity-40 text-gray-500 group-focus-within:opacity-100 group-focus-within:text-primary transition-colors">
-                                    {isLoading ? (
-                                        <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                    )}
+                        {/* Search input */}
+                        {data.destinations.length === 0 && (
+                            <div className="relative">
+                                <div className="relative flex items-center group">
+                                    <div className="absolute left-4 text-gray-400 group-focus-within:text-primary transition-colors">
+                                        {isLoading ? (
+                                            <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        ) : (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={currentDestination}
+                                        onChange={(e) => { setCurrentDestination(e.target.value); setShowDropdown(true); setHighlightedIndex(-1) }}
+                                        onFocus={() => setShowDropdown(true)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={isLoading ? 'Loading destinations…' : 'Search destinations…'}
+                                        disabled={isLoading}
+                                        autoComplete="off"
+                                        className="w-full pl-12 pr-24 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/30 focus:ring-4 focus:ring-primary/8 transition-all text-base font-medium outline-none text-gray-900 placeholder-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    />
+                                    <button
+                                        onClick={() => handleAddDestination()}
+                                        disabled={!currentDestination.trim() || !isValidDestination(currentDestination)}
+                                        className="absolute right-2 px-4 py-2 bg-gray-900 text-white rounded-xl font-bold disabled:opacity-0 disabled:pointer-events-none hover:bg-gray-700 transition-all text-sm"
+                                    >
+                                        Add
+                                    </button>
                                 </div>
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={currentDestination}
-                                    onChange={(e) => {
-                                        setCurrentDestination(e.target.value)
-                                        setShowDropdown(true)
-                                        setHighlightedIndex(-1)
-                                    }}
-                                    onFocus={() => setShowDropdown(true)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={isLoading ? 'Loading destinations...' : 'e.g. Goa, India'}
-                                    disabled={isLoading}
-                                    autoComplete="off"
-                                    className="w-full pl-11 pr-24 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all text-sm sm:text-base font-medium outline-none text-gray-900 placeholder-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
-                                />
+
+                                {currentDestination.trim().length > 0 && !isValidDestination(currentDestination) && filteredDestinations.length === 0 && (
+                                    <p className="mt-2 text-xs text-amber-500 font-medium pl-1">
+                                        {agentSlug ? '⚠️ Not available in this agent\'s packages.' : '⚠️ No packages found for this destination yet.'}
+                                    </p>
+                                )}
+
+                                {agentSlug && !isLoading && allDestinations.length === 0 && (
+                                    <p className="mt-3 text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-xl">
+                                        No packages available yet. Please contact the agent directly.
+                                    </p>
+                                )}
+
+                                {showDropdown && !isLoading && filteredDestinations.length > 0 && (
+                                    <div ref={dropdownRef} className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl overflow-hidden">
+                                        <ul className="max-h-52 overflow-y-auto py-1.5">
+                                            {filteredDestinations.map((dest, idx) => (
+                                                <li
+                                                    key={dest.name}
+                                                    onMouseDown={(e) => { e.preventDefault(); handleAddDestination(dest) }}
+                                                    onMouseEnter={() => setHighlightedIndex(idx)}
+                                                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium transition-colors ${
+                                                        highlightedIndex === idx ? 'bg-primary/8 text-primary' : 'text-gray-700 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                                        <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                        </svg>
+                                                    </span>
+                                                    {dest.label}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Section 2: Travel Date ── */}
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-5 py-5">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
+                            <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">2</span>
+                            When are you traveling?
+                        </p>
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="date"
+                                min={new Date().toISOString().split('T')[0]}
+                                value={(!['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(data.dateRange) && data.dateRange) ? data.dateRange : ''}
+                                onChange={(e) => updateData({ dateRange: e.target.value })}
+                                onClick={(e) => { try { (e.target as HTMLInputElement).showPicker?.() } catch {} }}
+                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/30 focus:ring-4 focus:ring-primary/8 transition-all font-semibold text-gray-900 outline-none cursor-pointer"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── Section 3: Hotel Preference (DMC only) ── */}
+                {isDmcMode && (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-5 py-5">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
+                                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">3</span>
+                                Hotel Preference
+                            </p>
+
+                            {/* Segmented control */}
+                            <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-gray-100 rounded-2xl mb-4">
                                 <button
-                                    onClick={() => handleAddDestination()}
-                                    disabled={!currentDestination.trim() || !isValidDestination(currentDestination)}
-                                    className="absolute right-2 px-5 py-2 bg-black text-white rounded-xl font-bold disabled:opacity-0 disabled:pointer-events-none hover:bg-gray-800 transition-all shadow-md text-sm tracking-wide"
+                                    onClick={() => setHotelIncluded(false)}
+                                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                                        !data.hotelIncluded
+                                            ? 'bg-white shadow-sm text-gray-900 scale-[1.01]'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
                                 >
-                                    ADD
+                                    <span className="text-lg">🏕️</span>
+                                    Without Hotel
+                                </button>
+                                <button
+                                    onClick={() => setHotelIncluded(true)}
+                                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                                        data.hotelIncluded
+                                            ? 'bg-gray-900 shadow-md text-white scale-[1.01]'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    <span className="text-lg">🏨</span>
+                                    With Hotel
                                 </button>
                             </div>
 
-                            {/* Invalid input hint */}
-                            {currentDestination.trim().length > 0 && !isValidDestination(currentDestination) && filteredDestinations.length === 0 && (
-                                <p className="mt-2 text-xs text-amber-500 font-medium pl-1">
-                                    {agentSlug
-                                        ? '⚠️ This destination is not available in this agent\'s packages. Please choose from the list.'
-                                        : '⚠️ We don\'t have packages for this destination yet. Please choose from the suggestions.'}
-                                </p>
-                            )}
-
-                            {/* Agent mode: no packages at all */}
-                            {agentSlug && !isLoading && allDestinations.length === 0 && (
-                                <p className="mt-3 text-sm text-gray-500 text-center py-4 bg-gray-50 rounded-xl">
-                                    No packages available yet. Please contact the agent directly.
-                                </p>
-                            )}
-
-                            {/* Dropdown */}
-                            {showDropdown && !isLoading && filteredDestinations.length > 0 && (
-                                <div
-                                    ref={dropdownRef}
-                                    className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden"
-                                >
-                                    <ul className="max-h-56 overflow-y-auto py-1.5">
-                                        {filteredDestinations.map((dest, idx) => (
-                                            <li
-                                                key={dest.name}
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault()
-                                                    handleAddDestination(dest)
-                                                }}
-                                                onMouseEnter={() => setHighlightedIndex(idx)}
-                                                className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm font-medium transition-colors ${highlightedIndex === idx
-                                                    ? 'bg-primary/10 text-primary'
-                                                    : 'text-gray-700 hover:bg-gray-50'
+                            {/* Star category tiles */}
+                            {data.hotelIncluded && (
+                                <div>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.12em] mb-3">Select Star Category</p>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {HOTEL_STAR_OPTIONS.map((opt) => {
+                                            const isSelected = (data.hotelTypes as string[]).includes(opt.id)
+                                            const starCount = opt.id === '3-star' ? 3 : opt.id === '4-star' ? 4 : 5
+                                            return (
+                                                <button
+                                                    key={opt.id}
+                                                    onClick={() => toggleHotelStar(opt.id)}
+                                                    className={`relative flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 transition-all duration-200 select-none ${
+                                                        isSelected
+                                                            ? 'bg-gradient-to-br from-primary/10 to-[#ff8a3d]/10 border-primary shadow-lg shadow-primary/15 scale-[1.04]'
+                                                            : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.02]'
                                                     }`}
-                                            >
-                                                <svg className="w-4 h-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                </svg>
-                                                <span>{dest.label}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                                >
+                                                    {isSelected && (
+                                                        <span className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm">
+                                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        </span>
+                                                    )}
+                                                    <div className="flex gap-0.5">
+                                                        {Array.from({ length: starCount }).map((_, i) => (
+                                                            <svg key={i} className={`w-4 h-4 transition-colors ${isSelected ? 'text-amber-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                            </svg>
+                                                        ))}
+                                                    </div>
+                                                    <span className={`text-sm font-black tracking-tight ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>{opt.label}</span>
+                                                    <span className={`text-[10px] font-semibold text-center leading-tight ${isSelected ? 'text-primary' : 'text-gray-400'}`}>{opt.desc}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    )}
-                </div>
-
-                {/* Date Selection */}
-                <div className="space-y-4 pt-6 border-t border-gray-200">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
-                        When are you traveling?
-                    </label>
-                    <div className="relative max-w-sm">
-                        <input
-                            type="date"
-                            min={new Date().toISOString().split('T')[0]}
-                            value={(!['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(data.dateRange) && data.dateRange) ? data.dateRange : ''}
-                            onChange={(e) => updateData({ dateRange: e.target.value })}
-                            onClick={(e) => {
-                                try {
-                                    (e.target as HTMLInputElement).showPicker?.();
-                                } catch (err) {
-                                    // Silent catch for browsers that restrict programmatic showPicker without specific gestures
-                                }
-                            }}
-                            className="w-full px-5 py-3 bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/10 transition-all font-bold text-gray-900 outline-none shadow-sm cursor-pointer"
-                        />
                     </div>
-                </div>
+                )}
 
-                {/* Experience / Vibe Selection */}
-                <div className="space-y-4 pt-6 border-t border-gray-100">
-                    <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest">
-                        Choose your vibe
-                    </label>
-                    <div className="flex flex-wrap gap-2 sm:gap-2.5">
-                        {OPTIONS_EXPERIENCE.map((exp) => {
-                            const isSelected = data.experiences.includes(exp.id)
-                            return (
-                                <button
-                                    key={exp.id}
-                                    onClick={() => toggleExperience(exp.id)}
-                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full border-2 text-xs sm:text-sm font-medium transition-all duration-300 focus:outline-none ${isSelected
-                                        ? 'bg-gray-900 border-gray-900 text-white shadow-[0_4px_15px_rgba(0,0,0,0.15)] scale-105'
-                                        : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200 hover:text-gray-900 shadow-sm'
-                                        }`}
-                                >
-                                    <span className={`text-sm sm:text-base ${isSelected ? 'grayscale-0 drop-shadow-sm' : 'grayscale opacity-60'}`}>{exp.icon}</span>
-                                    {exp.label}
-                                </button>
-                            )
-                        })}
+                {/* ── Section 3 (main site): Vibe / Experiences ── */}
+                {!isDmcMode && (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-5 py-5">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
+                                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">3</span>
+                                Choose your vibe
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {OPTIONS_EXPERIENCE.map((exp) => {
+                                    const isSelected = data.experiences.includes(exp.id)
+                                    return (
+                                        <button
+                                            key={exp.id}
+                                            onClick={() => toggleExperience(exp.id)}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all duration-200 select-none ${
+                                                isSelected
+                                                    ? 'bg-gray-900 border-gray-900 text-white shadow-md scale-[1.03]'
+                                                    : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-100'
+                                            }`}
+                                        >
+                                            <span className={`text-base ${isSelected ? '' : 'grayscale opacity-60'}`}>{exp.icon}</span>
+                                            {exp.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
 
             </div>
 
@@ -368,9 +477,9 @@ export default function Step1Destinations({
                 <button
                     onClick={onNext}
                     disabled={data.destinations.length === 0}
-                    className="px-10 py-4 bg-gray-900 text-white rounded-full font-medium text-lg shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
+                    className="px-10 py-3.5 bg-gray-900 text-white rounded-full font-bold text-base shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                 >
-                    Customize Route →
+                    {isDmcMode ? 'Next →' : 'Customize Route →'}
                 </button>
             </div>
 
