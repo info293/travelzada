@@ -360,10 +360,11 @@ export default function AgentResultsPage() {
     )
   }
 
-  const AgentStrip = () => agentInfo ? (
+  const AgentStrip = ({ pkg }: { pkg?: MatchedPackage }) => agentInfo ? (
     <div className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-30 flex-shrink-0">
-      <div className="px-5 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+      <div className="px-5 py-2 flex items-center gap-3">
+        {/* DMC logo + name */}
+        <div className="flex items-center gap-2.5 flex-shrink-0">
           {agentInfo.logoUrl
             ? <img src={agentInfo.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-100" />
             : <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">{agentInfo.companyName.charAt(0)}</div>}
@@ -372,8 +373,37 @@ export default function AgentResultsPage() {
             <p className="text-[10px] text-gray-400">Powered by Travelzada AI</p>
           </div>
         </div>
+
+        {/* Action buttons — visible only when a package is matched */}
+        {pkg && (
+          <div className="flex items-center gap-2 ml-4">
+            <div className="w-px h-6 bg-gray-200" />
+            <button
+              onClick={() => { const msg = buildWhatsAppMsg(pkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
+              title="Share on WhatsApp"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <Send className="w-3 h-3" /> Share
+            </button>
+            <button
+              onClick={() => setShowPdf(true)}
+              title="View / Print PDF"
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <FileText className="w-3 h-3" /> PDF
+            </button>
+            <button
+              onClick={() => { setSelectedPackage(pkg); setShowBookingForm(true) }}
+              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors"
+            >
+              Request Package
+            </button>
+          </div>
+        )}
+
+        {/* Change preferences — pushed to the right */}
         <Link href={`/tailored-travel/${agentSlug}`}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-purple-600 font-medium transition-colors">
+          className="ml-auto flex items-center gap-1.5 text-xs text-gray-500 hover:text-purple-600 font-medium transition-colors flex-shrink-0">
           <ArrowLeft className="w-3.5 h-3.5" />Change preferences
         </Link>
       </div>
@@ -438,7 +468,7 @@ export default function AgentResultsPage() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
-      <AgentStrip />
+      <AgentStrip pkg={bestPkg} />
 
       <div className="flex flex-1 overflow-hidden min-h-0 p-3 gap-3">
 
