@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { motion } from 'framer-motion'
 import {
@@ -222,7 +222,17 @@ export default function SubAgentDashboardPage() {
   const router = useRouter()
   const { currentUser, isSubAgent, subAgentName, parentAgentId, parentAgentSlug, loading: authLoading, logout } = useAuth()
 
-  const [tab, setTab] = useState<Tab>('home')
+  const pathname = usePathname()
+  const urlSegment = pathname.split('/').at(-1)
+  const TA_VALID_TABS: Tab[] = ['planner','home','bookings','packages','quotations','quote_history','customers','stats','activity']
+  const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'home'
+  const [aiActive, setAiActive] = useState(false)
+  const tab: Tab = aiActive ? 'ai' : urlTab
+  const setTab = (t: Tab) => {
+    if (t === 'ai') { setAiActive(true); return }
+    setAiActive(false)
+    router.push(`/travel-agent-dashboard/${t}`)
+  }
   const [bookings, setBookings] = useState<Booking[]>([])
   const [sessions, setSessions] = useState<SessionEvent[]>([])
   const [quotations, setQuotations] = useState<Quotation[]>([])
@@ -310,6 +320,8 @@ export default function SubAgentDashboardPage() {
       else if (!isSubAgent) router.push('/')
     }
   }, [authLoading, currentUser, isSubAgent, router])
+
+  useEffect(() => { setAiActive(false) }, [pathname])
 
   // Fetch everything in parallel
   const fetchAll = useCallback(async () => {

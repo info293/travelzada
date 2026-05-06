@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore'
@@ -40,7 +40,11 @@ export default function AgentDashboardPage() {
   const { currentUser, isAgent, isSubAgent, agentSlug, agentStatus, loading: authLoading, logout } = useAuth()
 
   const [agentData, setAgentData] = useState<Agent | null>(null)
-  const [tab, setTab] = useState<Tab>('home')
+  const pathname = usePathname()
+  const urlSegment = pathname.split('/').at(-1)
+  const DMC_VALID_TABS: Tab[] = ['home','packages','bookings','analytics','customers','team','quotations','quotation_history','crm','embed','settings']
+  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'home'
+  const setTab = (t: Tab) => router.push(`/dmc-dashboard/${t}`)
   const [copied, setCopied] = useState(false)
   const [agentLoading, setAgentLoading] = useState(true)
   const [newBookingCount, setNewBookingCount] = useState(0)
