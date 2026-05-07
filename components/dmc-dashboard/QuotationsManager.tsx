@@ -165,6 +165,21 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const originalCustomDayItemsRef = useRef<DayItem[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // ── Open PDF modal with resolved package data ────────────────────────────────
+  async function openPdfForQuotation(q: Quotation) {
+    if (q.customPackageData) { setPdfQuot(q); return }
+    if (!q.packageId) { setPdfQuot(q); return }
+    try {
+      const res = await fetch(`/api/agent/packages/${q.packageId}`)
+      const data = await res.json()
+      if (data.success && data.package) {
+        setPdfQuot({ ...q, customPackageData: data.package })
+      } else {
+        setPdfQuot(q)
+      }
+    } catch { setPdfQuot(q) }
+  }
+
   // â”€â”€ View full package details â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function fetchAndViewPackage(q: Quotation) {
     // If quotation has customPackageData already, show that; otherwise fetch real package
@@ -777,7 +792,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                     <Share2 className="w-4 h-4" />Share Quote
                   </button>
                   <button
-                    onClick={() => setPdfQuot(active)}
+                    onClick={() => openPdfForQuotation(active)}
                     className="flex items-center gap-1.5 text-sm border border-primary bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors font-semibold shadow-sm"
                     title="Generate printable quotation"
                   >

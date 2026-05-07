@@ -93,19 +93,19 @@ export default function PackagePdfModal({
         </div>
 
         {/* PDF Content */}
-        <div className="p-8 space-y-6 print:p-6">
+        <div className="p-10 space-y-7 print:p-8">
 
           {/* Header */}
-          <div className="flex items-start justify-between border-b border-gray-200 pb-5">
+          <div className="flex items-start justify-between border-b border-gray-200 pb-6">
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Travel Package</p>
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-              <p className="text-gray-500 text-sm mt-1">
+              <p className="text-gray-500 text-sm mt-1.5">
                 📍 {destination}{destinationCountry ? `, ${destinationCountry}` : ''}
               </p>
-              {refId && <p className="text-xs text-gray-400 mt-1">Ref: {refId}</p>}
+              {refId && <p className="text-xs text-gray-400 mt-1.5">Ref: {refId}</p>}
             </div>
-            <div className="text-right ml-6 flex-shrink-0">
+            <div className="text-right ml-8 flex-shrink-0">
               <p className="text-[10px] font-bold text-gray-400 uppercase">{priceLabel}</p>
               {quotedPriceTotal ? (
                 <>
@@ -143,11 +143,11 @@ export default function PackagePdfModal({
 
           {/* Customer info — shown only for quotations */}
           {customerName && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">Prepared For</p>
+            <div className="grid grid-cols-2 gap-5">
+              <div className="bg-gray-50 rounded-2xl p-5">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Prepared For</p>
                 <p className="text-lg font-bold text-gray-900">{customerName}</p>
-                <div className="mt-2 space-y-1">
+                <div className="mt-3 space-y-1.5">
                   {customerEmail && <p className="text-xs text-gray-500">✉️ {customerEmail}</p>}
                   {customerPhone && <p className="text-xs text-gray-500">📞 {customerPhone}</p>}
                   {preferredDates && <p className="text-xs text-gray-500">📅 {preferredDates}</p>}
@@ -158,13 +158,13 @@ export default function PackagePdfModal({
                   )}
                 </div>
               </div>
-              <div className="bg-indigo-600 rounded-2xl p-4 flex flex-col justify-center">
-                <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-1.5">Prepared By</p>
+              <div className="bg-indigo-600 rounded-2xl p-5 flex flex-col justify-center">
+                <p className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-2">Prepared By</p>
                 <p className="text-base font-bold text-white">{brandName}</p>
                 <p className="text-xs text-indigo-300 mt-1">Your trusted travel partner</p>
-                <div className="mt-3 pt-3 border-t border-indigo-500">
+                <div className="mt-4 pt-4 border-t border-indigo-500">
                   <p className="text-[9px] text-indigo-300">Date issued</p>
-                  <p className="text-xs font-semibold text-indigo-100 mt-0.5">
+                  <p className="text-xs font-semibold text-indigo-100 mt-1">
                     {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
                 </div>
@@ -182,13 +182,13 @@ export default function PackagePdfModal({
 
           {/* Inclusions / Exclusions */}
           {(inclusions.length > 0 || exclusions.length > 0) && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-5">
               {inclusions.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-bold text-green-700 mb-1.5">✓ Inclusions</h3>
-                  <ul className="space-y-1">
+                  <h3 className="text-sm font-bold text-green-700 mb-2">✓ Inclusions</h3>
+                  <ul className="space-y-2">
                     {inclusions.map((inc, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                      <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
                         <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>{inc}
                       </li>
                     ))}
@@ -197,10 +197,10 @@ export default function PackagePdfModal({
               )}
               {exclusions.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-bold text-red-600 mb-1.5">✗ Exclusions</h3>
-                  <ul className="space-y-1">
+                  <h3 className="text-sm font-bold text-red-600 mb-2">✗ Exclusions</h3>
+                  <ul className="space-y-2">
                     {exclusions.map((exc, i) => (
-                      <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                      <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
                         <span className="text-red-400 mt-0.5 flex-shrink-0">•</span>{exc}
                       </li>
                     ))}
@@ -213,10 +213,10 @@ export default function PackagePdfModal({
           {/* Highlights */}
           {highlights.length > 0 && (
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-1.5">✨ Highlights</h3>
-              <ul className="space-y-1">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">✨ Highlights</h3>
+              <ul className="space-y-2">
                 {highlights.map((h, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                  <li key={i} className="flex items-start gap-2 text-xs text-gray-700">
                     <span className="text-purple-500 mt-0.5 flex-shrink-0">✦</span>{h}
                   </li>
                 ))}
@@ -227,23 +227,23 @@ export default function PackagePdfModal({
           {/* Day-wise itinerary */}
           {(days.length > 0 || itineraryLines.length > 0) && (
             <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-2">📅 Day-Wise Itinerary</h3>
+              <h3 className="text-sm font-bold text-gray-900 mb-3">📅 Day-Wise Itinerary</h3>
               {days.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {days.map((d, i) => (
-                    <div key={i} className="flex gap-3">
-                      <span className="w-7 h-7 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div key={i} className="flex gap-3.5">
+                      <span className="w-8 h-8 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
                         {String(i + 1).padStart(2, '0')}
                       </span>
                       <div>
                         <p className="text-sm font-bold text-gray-900">{d.title}</p>
-                        {d.desc && <p className="text-xs text-gray-600 leading-relaxed mt-0.5">{d.desc}</p>}
+                        {d.desc && <p className="text-xs text-gray-600 leading-relaxed mt-1">{d.desc}</p>}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {itineraryLines.map((line, i) => (
                     <p key={i} className={`text-sm ${/^day\s*\d+/i.test(line) ? 'font-bold text-gray-900' : 'text-gray-600 pl-4'}`}>
                       {line}
@@ -256,23 +256,23 @@ export default function PackagePdfModal({
 
           {/* Special requests */}
           {specialRequests && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1.5">Special Requests</p>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Special Requests</p>
               <p className="text-sm text-gray-700">{specialRequests}</p>
             </div>
           )}
 
           {/* Terms */}
-          <div className="border-t border-gray-100 pt-4">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Terms &amp; Conditions</p>
-            <ul className="space-y-1">
+          <div className="border-t border-gray-100 pt-5">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Terms &amp; Conditions</p>
+            <ul className="space-y-2">
               {[
                 'This quotation is valid for 7 days from the date of issue.',
                 'Prices are subject to availability at the time of booking.',
                 'A deposit may be required to confirm the booking.',
                 'For queries, please contact your travel agent directly.',
               ].map((t, i) => (
-                <li key={i} className="flex items-start gap-1.5 text-xs text-gray-500">
+                <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
                   <span className="text-gray-300 flex-shrink-0">•</span>{t}
                 </li>
               ))}
@@ -280,7 +280,7 @@ export default function PackagePdfModal({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 pt-4 text-center">
+          <div className="border-t border-gray-200 pt-5 text-center">
             <p className="text-xs text-gray-400">
               {brandName} · This is a preliminary quotation subject to availability
             </p>
