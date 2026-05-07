@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import dynamic from 'next/dynamic'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
@@ -10,18 +9,8 @@ import {
   Users, Star, Clock, CheckCircle, MapPin, Package,
   FileText, Printer, ChevronLeft, ChevronRight, Pause, Play,
 } from 'lucide-react'
+import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 
-const LeafletMap = dynamic(() => import('@/components/tailored-travel/LeafletMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-        <p className="text-sm text-gray-400">Loading map…</p>
-      </div>
-    </div>
-  ),
-})
 
 interface MatchedPackage {
   id: string
@@ -361,7 +350,7 @@ export default function AgentResultsPage() {
   }
 
   const AgentStrip = ({ pkg }: { pkg?: MatchedPackage }) => agentInfo ? (
-    <div className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-30 flex-shrink-0">
+    <div className="bg-white border-b border-gray-100 shadow-sm relative z-50 flex-shrink-0">
       <div className="px-5 py-2 flex items-center gap-3">
         {/* DMC logo + name */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
@@ -454,26 +443,14 @@ export default function AgentResultsPage() {
     : Array.isArray(bestPkg.Inclusions) ? bestPkg.Inclusions : []
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
-  const mapItinerary = days.map(d => {
-    // Prefer the overnight/stay city so the route follows where you sleep, not day-trip destinations
-    const allText = [d.title, ...d.lines].join(' ')
-    const overnightMatch = allText.match(/overnight[:\s]+([A-Za-z][a-zA-Z\s]+?)(?:\.|,|$)/i)
-    if (overnightMatch) {
-      return { title: overnightMatch[1].trim(), day: `Day ${d.number}` }
-    }
-    // Fall back: first city-like word after stripping "Day N:"
-    const loc = d.title.replace(/^day\s*\d+[:\s-]*/i, '').split(/,|\band\b/i)[0].trim()
-    return { title: loc || bestPkg.Destination_Name, day: `Day ${d.number}` }
-  })
-
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
       <AgentStrip pkg={bestPkg} />
 
       <div className="flex flex-1 overflow-hidden min-h-0 p-3 gap-3">
 
-        {/* ── LEFT 30%: Package details ──────────────────────────────────── */}
-        <div className="w-[30%] flex-shrink-0 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm">
+        {/* ── Package details ──────────────────────────────────── */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm">
 
           {/* Hero image */}
           <div className="relative h-44 flex-shrink-0">
@@ -812,15 +789,6 @@ export default function AgentResultsPage() {
           </div>
         </div>
 
-        {/* ── RIGHT 40%: Map ──────────────────────────────────────────────── */}
-        <div className="flex-1 relative overflow-hidden min-w-0 rounded-2xl shadow-sm">
-          <LeafletMap
-            mainDestination={wizardData?.destinations?.[0] || bestPkg.Destination_Name}
-            itinerary={mapItinerary}
-            currentStep={4}
-            userOrigin={null}
-          />
-        </div>
       </div>
 
       {/* ── Booking modal ────────────────────────────────────────────────── */}
@@ -839,102 +807,25 @@ export default function AgentResultsPage() {
 
       {/* ── PDF Modal ────────────────────────────────────────────────────── */}
       {showPdf && (
-        <div className="fixed inset-0 z-[90] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowPdf(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-purple-600" />
-                <span className="font-bold text-gray-900 text-sm">Package Details</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors">
-                  <Send className="w-3.5 h-3.5" />WhatsApp
-                </button>
-                <button onClick={() => window.print()}
-                  className="flex items-center gap-1.5 text-xs font-semibold bg-purple-600 text-white px-3 py-1.5 rounded-xl hover:bg-purple-700 transition-colors">
-                  <Printer className="w-3.5 h-3.5" />Print PDF
-                </button>
-                <button onClick={() => setShowPdf(false)} className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {bestPkg.Primary_Image_URL && (
-                <div className="relative h-44 rounded-2xl overflow-hidden">
-                  <img src={bestPkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-3 left-4">
-                    <p className="text-white font-bold text-lg">{title}</p>
-                    <p className="text-white/80 text-sm flex items-center gap-1"><MapPin className="w-3 h-3" />{bestPkg.Destination_Name}</p>
-                  </div>
-                </div>
-              )}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: 'Duration', value: `${bestPkg.Duration_Days}D/${bestPkg.Duration_Nights}N` },
-                  { label: 'Category', value: bestPkg.Star_Category || '—' },
-                  { label: 'Type', value: bestPkg.Travel_Type || '—' },
-                  { label: 'Match', value: `${bestPkg.matchScore}%` },
-                ].map(s => (
-                  <div key={s.label} className="bg-gray-50 rounded-xl p-2.5 text-center border border-gray-100">
-                    <p className="text-[9px] text-gray-400 uppercase tracking-wide">{s.label}</p>
-                    <p className="font-bold text-gray-900 text-xs mt-0.5">{s.value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl p-4 border-2 border-purple-200 bg-purple-50">
-                <p className="text-xs font-bold text-purple-500 uppercase tracking-wide mb-1">Price</p>
-                <p className="text-3xl font-bold text-purple-700">₹{bestPkg.Price_Min_INR.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-purple-400">per person (starting from)</p>
-              </div>
-              {bestPkg.matchReason && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
-                  <p className="text-xs font-bold text-indigo-600 mb-1">Why it matches you</p>
-                  <p className="text-sm text-indigo-800 leading-relaxed">{bestPkg.matchReason}</p>
-                </div>
-              )}
-              {bestPkg.Overview && (
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Overview</p>
-                  <p className="text-sm text-gray-700 leading-relaxed">{bestPkg.Overview}</p>
-                </div>
-              )}
-              {inclusions.length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Inclusions</p>
-                  <ul className="space-y-1.5">
-                    {inclusions.map((inc: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                        <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />{inc}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {bestPkg.Day_Wise_Itinerary && (
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Day-wise Itinerary</p>
-                  <div className="space-y-1.5">
-                    {String(bestPkg.Day_Wise_Itinerary).split('\n').filter(Boolean).map((line, i) => (
-                      <div key={i} className={`text-sm ${/^day\s*\d+/i.test(line) ? 'font-semibold text-gray-900 mt-3 first:mt-0' : 'text-gray-600 pl-4'}`}>{line}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-4">
-                <p className="font-semibold text-gray-500">Terms & Conditions</p>
-                <p>• Prices subject to availability at time of booking.</p>
-                <p>• Final price confirmed on booking.</p>
-              </div>
-              <div className="text-center pt-2 border-t border-gray-100">
-                <p className="text-xs text-gray-400">Powered by Travelzada AI ✈️</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PackagePdfModal
+          title={title}
+          destination={bestPkg.Destination_Name}
+          durationDays={bestPkg.Duration_Days}
+          durationNights={bestPkg.Duration_Nights}
+          starCategory={bestPkg.Star_Category}
+          travelType={bestPkg.Travel_Type}
+          pricePerPerson={bestPkg.Price_Min_INR}
+          overview={bestPkg.Overview}
+          inclusions={inclusions}
+          dayWiseItinerary={bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined}
+          brandName={agentInfo?.companyName || 'Travel Agent'}
+          onClose={() => setShowPdf(false)}
+          onWhatsApp={() => {
+            const msg = buildWhatsAppMsg(bestPkg)
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+          }}
+          onPrint={() => window.print()}
+        />
       )}
     </div>
   )
