@@ -90,11 +90,6 @@ export default function AgentBrandedWizard({ agent }: Props) {
     }
   }
 
-  const handleContinueAsGuest = () => {
-    setGateVisible(false)
-    trackEvent({ agentSlug: agent.agentSlug, sessionId, action: 'visit' })
-  }
-
   return (
     <main className={`min-h-screen flex flex-col relative overflow-x-hidden bg-gray-50 ${!isEmbed ? 'pt-16 md:pt-24' : ''}`}>
       {/* Background */}
@@ -113,7 +108,6 @@ export default function AgentBrandedWizard({ agent }: Props) {
         <AgentLoginGate
           agentSlug={agent.agentSlug}
           agentName={agent.companyName}
-          onContinueAsGuest={handleContinueAsGuest}
           onLoginSuccess={handleLoginSuccess}
         />
       )}

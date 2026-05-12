@@ -10,11 +10,13 @@ import {
   FileText, Printer, ChevronLeft, ChevronRight, Pause, Play,
 } from 'lucide-react'
 import PackagePdfModal from '@/components/pdf/PackagePdfModal'
+import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
 
 
 interface MatchedPackage {
   id: string
   Destination_Name: string
+  Destination_Country?: string
   Duration_Nights: number
   Duration_Days: number
   Price_Min_INR: number
@@ -26,6 +28,9 @@ interface MatchedPackage {
   Overview?: string
   Day_Wise_Itinerary?: string
   Inclusions?: string | string[]
+  Exclusions?: string | string[]
+  Highlights?: string[]
+  Hotels?: any[]
   agentPackageTitle?: string
   agentSlug?: string
   source?: string
@@ -363,32 +368,6 @@ export default function AgentResultsPage() {
           </div>
         </div>
 
-        {/* Action buttons — visible only when a package is matched */}
-        {pkg && (
-          <div className="flex items-center gap-2 ml-4">
-            <div className="w-px h-6 bg-gray-200" />
-            <button
-              onClick={() => { const msg = buildWhatsAppMsg(pkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
-              title="Share on WhatsApp"
-              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <Send className="w-3 h-3" /> Share
-            </button>
-            <button
-              onClick={() => setShowPdf(true)}
-              title="View / Print PDF"
-              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <FileText className="w-3 h-3" /> PDF
-            </button>
-            <button
-              onClick={() => { setSelectedPackage(pkg); setShowBookingForm(true) }}
-              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors"
-            >
-              Request Package
-            </button>
-          </div>
-        )}
 
         {/* Change preferences — pushed to the right */}
         <Link href={`/tailored-travel/${agentSlug}`}
@@ -441,6 +420,13 @@ export default function AgentResultsPage() {
   const inclusions = typeof bestPkg.Inclusions === 'string'
     ? bestPkg.Inclusions.split(',').map((s: string) => s.trim()).filter(Boolean)
     : Array.isArray(bestPkg.Inclusions) ? bestPkg.Inclusions : []
+  const exclusions = typeof bestPkg.Exclusions === 'string'
+    ? bestPkg.Exclusions.split(',').map((s: string) => s.trim()).filter(Boolean)
+    : Array.isArray(bestPkg.Exclusions) ? bestPkg.Exclusions : []
+  const highlights = Array.isArray(bestPkg.Highlights) ? bestPkg.Highlights : []
+  const pdfAdults = wizardData?.passengers?.adults || 1
+  const pdfKids = wizardData?.passengers?.kids || 0
+  const pdfGroupSize = pdfAdults + pdfKids
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
   return (
@@ -532,19 +518,21 @@ export default function AgentResultsPage() {
           <div className="flex-shrink-0 px-3 py-2.5 border-t border-gray-100 bg-white flex gap-2">
             <button
               onClick={() => { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
-              className="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
               title="Share on WhatsApp"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5" /> Share
             </button>
-            <button onClick={() => setShowPdf(true)}
-              className="flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
-              title="Download PDF">
-              <FileText className="w-3.5 h-3.5" />
+            <button
+              onClick={() => setShowPdf(true)}
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
+              title="View / Print PDF"
+            >
+              <FileText className="w-3.5 h-3.5" /> PDF
             </button>
             <button
               onClick={() => { setSelectedPackage(bestPkg); setShowBookingForm(true) }}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 rounded-xl transition-colors text-xs">
+              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors">
               Request Package
             </button>
           </div>
@@ -810,13 +798,19 @@ export default function AgentResultsPage() {
         <PackagePdfModal
           title={title}
           destination={bestPkg.Destination_Name}
+          destinationCountry={bestPkg.Destination_Country}
           durationDays={bestPkg.Duration_Days}
           durationNights={bestPkg.Duration_Nights}
           starCategory={bestPkg.Star_Category}
           travelType={bestPkg.Travel_Type}
           pricePerPerson={bestPkg.Price_Min_INR}
+          groupSize={pdfGroupSize}
+          adults={pdfAdults}
+          kids={pdfKids || undefined}
           overview={bestPkg.Overview}
           inclusions={inclusions}
+          exclusions={exclusions}
+          highlights={highlights}
           dayWiseItinerary={bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined}
           brandName={agentInfo?.companyName || 'Travel Agent'}
           onClose={() => setShowPdf(false)}
@@ -824,7 +818,27 @@ export default function AgentResultsPage() {
             const msg = buildWhatsAppMsg(bestPkg)
             window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
           }}
-          onPrint={() => window.print()}
+          onPrint={() => openPackagePdfWindow({
+            title,
+            destination: bestPkg.Destination_Name,
+            destinationCountry: bestPkg.Destination_Country,
+            heroImage: bestPkg.Primary_Image_URL,
+            durationDays: bestPkg.Duration_Days,
+            durationNights: bestPkg.Duration_Nights,
+            starCategory: bestPkg.Star_Category,
+            travelType: bestPkg.Travel_Type,
+            pricePerPerson: bestPkg.Price_Min_INR,
+            groupSize: pdfGroupSize,
+            adults: pdfAdults,
+            kids: pdfKids || undefined,
+            overview: bestPkg.Overview,
+            inclusions,
+            exclusions,
+            highlights,
+            dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
+            brandName: agentInfo?.companyName || 'Travel Agent',
+            termsVariant: 'brochure',
+          })}
         />
       )}
     </div>
@@ -966,8 +980,8 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
       </div>
       <div className="px-6 pb-6">
         <button type="submit" disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-          {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</> : <><Send className="w-4 h-4" />Send Quotation Request</>}
+          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-2 rounded-xl text-xs transition-colors">
+          {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Sending…</> : <><Send className="w-3.5 h-3.5" />Request Package</>}
         </button>
       </div>
     </form>
