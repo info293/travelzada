@@ -4,9 +4,8 @@ import { useState } from 'react'
 import Step1Destinations from './Step1Destinations'
 import Step2Nights from './Step2Nights'
 import Step3Group from './Step3Group'
-import { v4 as uuidv4 } from 'uuid'
-import { db } from '@/lib/firebase'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import StepDmc1Destination from './StepDmc1Destination'
+import StepDmc2Cities from './StepDmc2Cities'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import WizardSidePanel from './WizardSidePanel'
@@ -18,6 +17,10 @@ interface TailoredItineraryWizardProps {
     isEmbed?: boolean
 }
 
+// DMC mode: 2 steps. Main mode: 3 steps.
+const DMC_STEPS = ['Your Journey', 'Package Details']
+const MAIN_STEPS = ['Start', 'Route', 'Group & Stay']
+
 export default function TailoredItineraryWizard({ agentSlug, subAgentId, sessionId, isEmbed }: TailoredItineraryWizardProps = {}) {
     const [currentStep, setCurrentStep] = useState(1)
     const [direction, setDirection] = useState(0)
@@ -26,30 +29,29 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
 
     const router = useRouter()
 
-    // DMC mode: agentSlug is set → 2-step flow (no Step 3)
     const isDmcMode = !!agentSlug
 
-    // Centralized State for the Wizard
     const [wizardData, setWizardData] = useState({
         destinations: [] as string[],
         dateRange: 'Flexible',
         experiences: [] as string[],
-        routeItems: [] as any[], // mapped from destinations in Step 2 {destination, nights}
+        routeItems: [] as any[],
         groupType: 'couple',
         inclusions: ['hotels', 'flights'] as string[],
-        hotelIncluded: false, // DMC mode: with or without hotel
-        hotelTypes: [] as string[], // DMC mode: selected star categories when hotelIncluded=true
-        groupSize: { adults: 2, children: 0, infants: 0 }, // DMC mode: group size (data only)
-        passengers: {
-            adults: 2,
-            kids: 0,
-            rooms: 1
-        },
+        hotelIncluded: null as boolean | null,
+        hotelTypes: [] as string[],
+        groupSize: { adults: 2, children: 0, infants: 0 },
+        passengers: { adults: 2, kids: 0, rooms: 1 },
         userOrigin: null as [number, number] | null,
-        destinationPackages: [] as any[]
+        destinationPackages: [] as any[],
+        // DMC-specific fields
+        includedCities: [] as string[],
+        availableCities: [] as string[],
+        availableNights: [] as { nights: number; label: string }[],
+        pickupCity: '',
+        dropCity: '',
     })
 
-    // Detect User Location on mount
     useState(() => {
         if (typeof window !== 'undefined' && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -59,9 +61,7 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                         userOrigin: [position.coords.latitude, position.coords.longitude]
                     }))
                 },
-                (error) => {
-                    console.log("Geolocation ignored or failed, using default origin.")
-                }
+                () => { /* geolocation ignored */ }
             )
         }
     })
@@ -69,7 +69,6 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
     const updateData = (newData: Partial<typeof wizardData>) => {
         setWizardData(prev => ({ ...prev, ...newData }))
     }
-
 
     const handleNext = () => {
         setDirection(1)
@@ -81,11 +80,9 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
         setCurrentStep(prev => prev - 1)
     }
 
-    // Redirects to the AI Results Page
     const handleGenerateItinerary = () => {
         setIsSubmitting(true)
 
-        // Save preferences to session storage for the results page to pick up
         if (typeof window !== 'undefined') {
             const dataToSave: Record<string, any> = { ...wizardData }
             if (agentSlug) dataToSave.agentSlug = agentSlug
@@ -94,7 +91,6 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
             sessionStorage.setItem('tailored_wizard_data', JSON.stringify(dataToSave))
         }
 
-        // Track itinerary_generated event
         if (agentSlug && sessionId) {
             fetch('/api/agent/track', {
                 method: 'POST',
@@ -116,32 +112,37 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
         router.push(resultsPath)
     }
 
-    // DMC mode: 2 steps (progress out of 1 interval). Main mode: 3 steps (out of 2 intervals).
-    const totalSteps = isDmcMode ? 2 : 3
+    const stepLabels = isDmcMode ? DMC_STEPS : MAIN_STEPS
+    const totalSteps = stepLabels.length
     const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100
 
     return (
-        <div className="w-full max-w-[90rem] mx-auto py-4 md:py-8 px-2 sm:px-4 md:px-8 flex-1 flex flex-col">
-            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 flex-1 w-full relative z-10 transition-all duration-500 min-h-[500px] lg:min-h-[700px]">
+        <div className="w-full max-w-[90rem] mx-auto py-2 md:py-4 px-2 sm:px-4 md:px-8 flex-1 flex flex-col">
+            <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 flex-1 w-full relative z-10 transition-all duration-500 min-h-[400px] lg:min-h-[500px]">
 
                 {/* LEFT COLUMN: WIZARD FORM */}
                 <div className="w-full lg:w-[55%] flex flex-col relative z-20">
-                    <div className="bg-white/90 sm:bg-white/80 backdrop-blur-3xl border border-gray-200/50 shadow-2xl shadow-gray-200/50 rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 lg:p-8 text-gray-900 flex-1 flex flex-col relative overflow-hidden">
+                    <div className="bg-white/90 sm:bg-white/80 backdrop-blur-3xl border border-gray-200/50 shadow-2xl shadow-gray-200/50 rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-5 lg:p-6 text-gray-900 flex-1 flex flex-col relative overflow-hidden">
 
-                        {/* Progress Bar Container */}
-                        <div className="mb-8 sm:mb-12 max-w-3xl mx-auto w-full px-2 sm:px-4 md:px-0 mt-2 sm:mt-6 relative z-10">
+                        {/* Progress Bar */}
+                        <div className="mb-5 sm:mb-7 max-w-3xl mx-auto w-full px-2 sm:px-4 md:px-0 mt-1 sm:mt-3 relative z-10">
                             <div className="flex justify-between text-[10px] sm:text-xs font-medium text-gray-400 mb-2 sm:mb-3 uppercase tracking-wider relative z-10">
-                                <span className={`transition-colors truncate max-w-[30%] ${currentStep >= 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Start</span>
-                                <span className={`transition-colors truncate max-w-[30%] text-center ${currentStep >= 2 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Route</span>
-                                {!isDmcMode && (
-                                    <span className={`transition-colors truncate max-w-[40%] text-right ${currentStep >= 3 ? 'text-gray-900 drop-shadow-sm' : ''}`}>Group & Stay</span>
-                                )}
+                                {stepLabels.map((label, idx) => (
+                                    <span
+                                        key={label}
+                                        className={`transition-colors truncate ${
+                                            idx === stepLabels.length - 1 ? 'text-right' : idx > 0 ? 'text-center' : ''
+                                        } ${currentStep >= idx + 1 ? 'text-gray-900 drop-shadow-sm' : ''}`}
+                                    >
+                                        {label}
+                                    </span>
+                                ))}
                             </div>
                             <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative shadow-inner">
                                 <div
                                     className="absolute top-0 left-0 h-full bg-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.5)] transition-all duration-700 ease-out"
                                     style={{ width: `${progressPercent}%` }}
-                                ></div>
+                                />
                             </div>
                         </div>
 
@@ -151,38 +152,47 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                             </div>
                         )}
 
-                        {/* Step Rendering with Framer Motion */}
-                        <div className="px-1 sm:px-4 relative overflow-hidden min-h-[400px] sm:min-h-[600px]">
+                        {/* Step Rendering */}
+                        <div className="px-1 sm:px-2 relative overflow-hidden min-h-[300px] sm:min-h-[420px]">
                             <AnimatePresence mode="wait" custom={direction} initial={false}>
                                 <motion.div
                                     key={currentStep}
                                     custom={direction}
                                     variants={{
-                                        enter: (dir: number) => ({
-                                            x: dir > 0 ? 800 : -800,
-                                            opacity: 0
-                                        }),
-                                        center: {
-                                            zIndex: 1,
-                                            x: 0,
-                                            opacity: 1
-                                        },
-                                        exit: (dir: number) => ({
-                                            zIndex: 0,
-                                            x: dir < 0 ? 800 : -800,
-                                            opacity: 0
-                                        })
+                                        enter: (dir: number) => ({ x: dir > 0 ? 800 : -800, opacity: 0 }),
+                                        center: { zIndex: 1, x: 0, opacity: 1 },
+                                        exit: (dir: number) => ({ zIndex: 0, x: dir < 0 ? 800 : -800, opacity: 0 }),
                                     }}
                                     initial="enter"
                                     animate="center"
                                     exit="exit"
                                     transition={{
-                                        x: { type: "spring", stiffness: 300, damping: 30 },
-                                        opacity: { duration: 0.2 }
+                                        x: { type: 'spring', stiffness: 300, damping: 30 },
+                                        opacity: { duration: 0.2 },
                                     }}
                                     className="w-full"
                                 >
-                                    {currentStep === 1 && (
+                                    {/* ── DMC MODE: 2 steps ── */}
+                                    {isDmcMode && currentStep === 1 && (
+                                        <StepDmc1Destination
+                                            data={wizardData}
+                                            updateData={updateData}
+                                            onNext={handleNext}
+                                            agentSlug={agentSlug!}
+                                        />
+                                    )}
+                                    {isDmcMode && currentStep === 2 && (
+                                        <StepDmc2Cities
+                                            data={wizardData}
+                                            updateData={updateData}
+                                            onNext={handleGenerateItinerary}
+                                            onPrev={handlePrev}
+                                            isSubmitting={isSubmitting}
+                                        />
+                                    )}
+
+                                    {/* ── MAIN SITE: 3 steps ── */}
+                                    {!isDmcMode && currentStep === 1 && (
                                         <Step1Destinations
                                             data={wizardData}
                                             updateData={updateData}
@@ -190,17 +200,16 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
                                             agentSlug={agentSlug}
                                         />
                                     )}
-                                    {currentStep === 2 && (
+                                    {!isDmcMode && currentStep === 2 && (
                                         <Step2Nights
                                             data={wizardData}
                                             updateData={updateData}
-                                            onNext={isDmcMode ? handleGenerateItinerary : handleNext}
+                                            onNext={handleNext}
                                             onPrev={handlePrev}
                                             agentSlug={agentSlug}
-                                            isSubmitting={isDmcMode ? isSubmitting : undefined}
                                         />
                                     )}
-                                    {currentStep === 3 && !isDmcMode && (
+                                    {!isDmcMode && currentStep === 3 && (
                                         <Step3Group
                                             data={wizardData}
                                             updateData={updateData}

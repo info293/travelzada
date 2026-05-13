@@ -69,12 +69,26 @@ const userLocationIcon = L.divIcon({
 function MapBounds({ positions, focusZoom = 6 }: { positions: [number, number][], focusZoom?: number }) {
     const map = useMap()
 
-    // Fix for Leaflet tile rendering issues when resizing or rendering in mobile flexbox containers
+    // Fix for Leaflet black-screen bug: invalidate at several delays AND watch container resize
     useEffect(() => {
-        const timeout = setTimeout(() => {
-            map.invalidateSize()
-        }, 400)
-        return () => clearTimeout(timeout)
+        // Fire immediately and at increasing intervals so tiles always repaint
+        const t1 = setTimeout(() => map.invalidateSize(), 0)
+        const t2 = setTimeout(() => map.invalidateSize(), 150)
+        const t3 = setTimeout(() => map.invalidateSize(), 400)
+        const t4 = setTimeout(() => map.invalidateSize(), 800)
+
+        // Also watch the container for any CSS-driven resize (flex, height changes)
+        const container = map.getContainer()
+        let ro: ResizeObserver | null = null
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => map.invalidateSize())
+            ro.observe(container)
+        }
+
+        return () => {
+            clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4)
+            ro?.disconnect()
+        }
     }, [map])
 
     // Stabilize positions to prevent map bounce on every render
@@ -451,9 +465,10 @@ export default function LeafletMap({
                 if (item.title && !newCoords[item.title]) placesToGeocode.add(item.title);
             });
 
-            // Add package locations to geocode
+            // Add package locations to geocode (support both agent & main package field names)
             packages.forEach(pkg => {
-                if (pkg.location && !newCoords[pkg.location]) placesToGeocode.add(pkg.location);
+                const loc = pkg.destination || pkg.location
+                if (loc && !newCoords[loc]) placesToGeocode.add(loc)
             });
 
             if (placesToGeocode.size === 0) {
@@ -554,11 +569,18 @@ export default function LeafletMap({
         focusZoom = 5; // Macro view for the start
     } else if (currentStep === 2) {
         if (mainDestPos) allPositions.push(mainDestPos);
-        // Focus on packages near the main destination
-        packages.forEach(pkg => {
-            if (pkg.location && coordinates[pkg.location]) allPositions.push(coordinates[pkg.location]);
-        });
-        focusZoom = 11; // Slightly zoom out more to see the distribution of packages
+        // Include jittered marker positions (mirrors rendering logic) for correct bounds
+        packages.forEach((pkg, idx) => {
+            const locKey = pkg.destination || pkg.location
+            const pos = locKey ? coordinates[locKey] : null
+            if (!pos) return
+            const angle = (idx * (360 / Math.max(packages.length, 1))) * (Math.PI / 180)
+            const radius = 0.025
+            const jLat = Math.sin(angle) * radius
+            const jLng = Math.cos(angle) * radius / Math.cos(pos[0] * Math.PI / 180)
+            allPositions.push([pos[0] + jLat, pos[1] + jLng])
+        })
+        focusZoom = 10;
     } else if (currentStep === 3) {
         if (mainDestPos) allPositions.push(mainDestPos);
         focusZoom = 11; // Wide enough to see hotel districts spread across the city
@@ -603,7 +625,7 @@ export default function LeafletMap({
             const cat = normalise(pkg.starCategory || '');
             return hotelTypes.some(ht => cat.includes(ht.replace('-star', '')) || cat === ht);
         }).filter(pkg => {
-            const key = (pkg.location || '').trim().toLowerCase();
+            const key = (pkg.destination || pkg.location || '').trim().toLowerCase();
             if (!key || seenLocations.has(key)) return false;
             seenLocations.add(key);
             return true;
@@ -650,7 +672,7 @@ export default function LeafletMap({
             <MapContainer
                 center={[20, 0]}
                 zoom={2}
-                style={{ height: '100%', width: '100%', background: '#111827' }}
+                style={{ height: '100%', width: '100%', background: '#e5e7eb' }}
                 zoomControl={true}
                 attributionControl={false}
                 scrollWheelZoom={true}
@@ -686,59 +708,68 @@ export default function LeafletMap({
 
                 {/* Step 2: Show Packages with High-End Radial Distribution */}
                 {currentStep === 2 && packages.map((pkg, idx) => {
-                    const basePos = pkg.location ? coordinates[pkg.location] : null;
-                    if (!basePos) return null;
+                    // Support both agent packages (destination, primaryImageUrl) and main packages (location, image)
+                    const locKey = pkg.destination || pkg.location
+                    const basePos = locKey ? coordinates[locKey] : null
+                    if (!basePos) return null
 
-                    // Fancy Radial Distribution: Spread markers in a circle if they share the same base location
-                    const angle = (idx * (360 / Math.max(packages.length, 1))) * (Math.PI / 180);
-                    const radius = 0.025; 
-                    const jitterLat = Math.sin(angle) * radius;
-                    const jitterLng = Math.cos(angle) * radius / Math.cos(basePos[0] * Math.PI / 180);
-                    const pos: [number, number] = [basePos[0] + jitterLat, basePos[1] + jitterLng];
+                    const imgUrl = pkg.primaryImageUrl || pkg.image || ''
+                    const title = pkg.title || pkg.agentPackageTitle || pkg.name || pkg.destination || ''
+                    const starCat = pkg.starCategory || ''
+                    const nights = pkg.durationNights || pkg.Duration_Nights || ''
+                    const price = pkg.pricePerPerson || pkg.Price_Min_INR || 0
+
+                    // Radial spread so markers don't overlap when same destination
+                    const angle = (idx * (360 / Math.max(packages.length, 1))) * (Math.PI / 180)
+                    const radius = 0.025
+                    const jitterLat = Math.sin(angle) * radius
+                    const jitterLng = Math.cos(angle) * radius / Math.cos(basePos[0] * Math.PI / 180)
+                    const pos: [number, number] = [basePos[0] + jitterLat, basePos[1] + jitterLng]
 
                     return (
-                        <Marker 
-                            key={`pkg-${idx}`} 
-                            position={pos} 
-                            icon={createPackageIcon(pkg.image)}
+                        <Marker
+                            key={`pkg-${idx}`}
+                            position={pos}
+                            icon={createPackageIcon(imgUrl)}
                             riseOnHover={true}
                             zIndexOffset={100}
                         >
-                            <Popup className="custom-popup" maxWidth={280}>
-                                <div className="group/pop p-0 overflow-hidden rounded-xl bg-white shadow-2xl">
-                                    <div className="relative w-full h-32 overflow-hidden">
-                                        <img src={pkg.image} className="w-full h-full object-cover transition-transform duration-700 group-hover/pop:scale-110" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&auto=format' }} />
-                                        <div className="absolute top-2 right-2 bg-primary/90 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full border border-white/30 shadow-lg">
-                                            LIVE DEAL
-                                        </div>
+                            <Popup className="custom-popup" maxWidth={260}>
+                                <div className="p-0 overflow-hidden rounded-xl bg-white shadow-2xl" style={{ minWidth: 220 }}>
+                                    <div className="relative w-full h-28 overflow-hidden bg-gray-100">
+                                        {imgUrl
+                                            ? <img src={imgUrl} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                            : <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🏔️</div>
+                                        }
+                                        {starCat && starCat.toLowerCase() !== 'none' && (
+                                            <div className="absolute top-2 right-2 bg-primary/90 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow">
+                                                {starCat}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="p-3.5">
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                            <div className="flex -space-x-1">
-                                                {[1, 2, 3, 4, 5].map(s => (
-                                                    <svg key={s} xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                                                ))}
-                                            </div>
-                                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Premium Selection</span>
-                                        </div>
-                                        <h4 className="font-bold text-gray-900 leading-tight text-sm mb-3 group-hover/pop:text-primary transition-colors cursor-pointer">{pkg.name}</h4>
-                                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
-                                            <div className="flex items-center gap-2 text-gray-500">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                                                <span className="text-[11px] font-semibold">{pkg.location}</span>
-                                            </div>
-                                            <button className="text-[11px] font-black text-primary hover:text-primary/80 transition-colors">EXPLORE →</button>
+                                    <div className="p-3">
+                                        <h4 className="font-bold text-gray-900 text-sm leading-tight line-clamp-2 mb-2">{title}</h4>
+                                        <div className="flex items-center justify-between">
+                                            {nights ? (
+                                                <span className="text-[11px] text-gray-500 font-semibold">🌙 {nights} nights</span>
+                                            ) : (
+                                                <span className="text-[11px] text-gray-400">{locKey}</span>
+                                            )}
+                                            {price > 0 && (
+                                                <span className="text-[11px] font-black text-primary">₹{Number(price).toLocaleString('en-IN')}</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </Popup>
                         </Marker>
-                    );
+                    )
                 })}
 
                 {/* Step 3: Real Packages filtered by Hotel Tier */}
                 {currentStep === 3 && hotelDistrictMarkers.map((pkg: any, idx: number) => {
-                    const basePos = pkg.location ? coordinates[pkg.location] : null;
+                    const locKey = pkg.destination || pkg.location
+                    const basePos = locKey ? coordinates[locKey] : null
                     if (!basePos) return null;
 
                     // Radial spread so markers at the same base location don't overlap
@@ -756,18 +787,18 @@ export default function LeafletMap({
                         <Marker
                             key={`hotel-real-${idx}`}
                             position={pos}
-                            icon={createRealHotelIcon(pkg.image, tier)}
+                            icon={createRealHotelIcon(pkg.primaryImageUrl || pkg.image || '', tier)}
                             riseOnHover={true}
                             zIndexOffset={200}
                         >
                             <Popup className="custom-popup" maxWidth={280}>
                                 <div className="p-0 overflow-hidden rounded-xl bg-white shadow-2xl">
                                     {/* Package image header */}
-                                    <div className="relative w-full h-32 overflow-hidden">
+                                    <div className="relative w-full h-32 overflow-hidden bg-gray-100">
                                         <img
-                                            src={pkg.image}
+                                            src={pkg.primaryImageUrl || pkg.image || ''}
                                             className="w-full h-full object-cover"
-                                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=200&fit=crop&auto=format' }}
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                                         />
                                         {/* Star tier badge */}
                                         <div className="absolute top-2 right-2 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-lg border border-white/30" style={{ background: tierColor }}>
@@ -777,12 +808,12 @@ export default function LeafletMap({
                                     <div className="p-3.5">
                                         {/* Package name */}
                                         <h4 className="font-black text-gray-900 text-sm leading-tight mb-1">
-                                            {pkg.packageTitle || pkg.name}
+                                            {pkg.title || pkg.packageTitle || pkg.name || pkg.destination}
                                         </h4>
                                         {/* Location */}
                                         <div className="flex items-center gap-1.5 text-gray-400 mb-3">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                                            <span className="text-[11px] font-semibold">{pkg.location}</span>
+                                            <span className="text-[11px] font-semibold">{pkg.destination || pkg.location}</span>
                                         </div>
                                         {/* Duration if available */}
                                         {pkg.duration && (

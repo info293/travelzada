@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
-import { AgentPackage, HotelEntry } from '@/lib/types/agent'
+import { AgentPackage, HotelEntry, VehicleEntry } from '@/lib/types/agent'
 
 // Module-level cache so repeated currency switches in the same session don't re-fetch
 // TTL: 30 minutes
@@ -70,6 +70,7 @@ const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate'
 const STAR_CATEGORIES = ['', '3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
+const VEHICLE_TYPES = ['Sedan', 'SUV', 'Innova Crysta', 'Tempo Traveller (12 Seater)', 'Tempo Traveller (16 Seater)', 'Mini Bus (20 Seater)', 'Bus (40+ Seater)', 'Luxury Car', 'Hatchback', 'Van', 'Auto Rickshaw']
 
 // Sets used for CSV validation
 const VALID_CURRENCY_CODES = new Set(CURRENCIES.map(c => c.code))
@@ -86,6 +87,8 @@ const CSV_KNOWN_COLS = new Set([
   'days', 'nights', 'trip_duration_days', 'trip_duration_nights', 'total_days', 'total_nights',
   'description', 'details', 'itinerary', 'day_plan', 'schedule',
   'image_url', 'image', 'photo_url', 'cover_image',
+  'hotels', 'hotel', 'accommodation',
+  'vehicles', 'vehicle', 'transfers', 'transport',
 ])
 
 interface CsvValidationIssue {
@@ -141,6 +144,38 @@ function splitCsvRow(line: string): string[] {
   return result
 }
 
+// Parse hotels column: "Dest;Nights;Hotel Name;Meal Plan;Room Type||..."
+function parseCsvHotels(raw: string): HotelEntry[] {
+  if (!raw.trim()) return []
+  return raw.split('||').map(s => s.trim()).filter(Boolean).map(entry => {
+    const parts = entry.split(';').map(p => p.trim())
+    return {
+      id: crypto.randomUUID(),
+      destination: parts[0] || '',
+      nights: parseInt(parts[1] || '1') || 1,
+      hotels: parts[2] || '',
+      mealPlan: MEAL_PLANS.includes(parts[3] || '') ? parts[3] : 'Breakfast',
+      roomType: parts[4] || '',
+    }
+  }).filter(h => h.destination && h.hotels)
+}
+
+// Parse vehicles column: "Type;Seats;Route;Days;Notes||..."
+function parseCsvVehicles(raw: string): VehicleEntry[] {
+  if (!raw.trim()) return []
+  return raw.split('||').map(s => s.trim()).filter(Boolean).map(entry => {
+    const parts = entry.split(';').map(p => p.trim())
+    return {
+      id: crypto.randomUUID(),
+      vehicleType: parts[0] || '',
+      seats: parseInt(parts[1] || '4') || 4,
+      route: parts[2] || '',
+      days: parseInt(parts[3] || '1') || 1,
+      notes: parts[4] || '',
+    }
+  }).filter(v => v.vehicleType)
+}
+
 export default function PackageManager({ agentId }: Props) {
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
@@ -155,6 +190,7 @@ export default function PackageManager({ agentId }: Props) {
   // Day-wise itinerary items
   const [dayItems, setDayItems] = useState<DayItem[]>([])
   const [hotelEntries, setHotelEntries] = useState<HotelEntry[]>([])
+  const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>([])
   const [markupEnabled, setMarkupEnabled] = useState(false)
   const [markupPercent, setMarkupPercent] = useState('15')
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -164,11 +200,17 @@ export default function PackageManager({ agentId }: Props) {
   const imgInputRef = useRef<HTMLInputElement>(null)
   const [imgUploading, setImgUploading] = useState(false)
 
-  // CSV state
+  // CSV state — main package bulk import
   const csvInputRef = useRef<HTMLInputElement>(null)
   const [csvUploading, setCsvUploading] = useState(false)
   const [csvResult, setCsvResult] = useState<CsvResult | null>(null)
   const [showCsvGuide, setShowCsvGuide] = useState(false)
+
+  // CSV state — hotel/vehicle in-form imports
+  const hotelCsvInputRef = useRef<HTMLInputElement>(null)
+  const vehicleCsvInputRef = useRef<HTMLInputElement>(null)
+  const [hotelCsvMsg, setHotelCsvMsg] = useState('')
+  const [vehicleCsvMsg, setVehicleCsvMsg] = useState('')
 
   // Currency / exchange rate state
   const [exchangeRate, setExchangeRate] = useState<number>(1)
@@ -265,6 +307,7 @@ export default function PackageManager({ agentId }: Props) {
       'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
       'overview', 'highlights', 'inclusions', 'exclusions',
       'day_wise_itinerary', 'seasonal_availability', 'primary_image_url',
+      'hotels', 'vehicles',
     ]
 
     // Wrap in double-quotes and escape internal quotes
@@ -290,6 +333,10 @@ export default function PackageManager({ agentId }: Props) {
         'Day 1: Arrive Port Blair — Welcome to Andaman!||Arrive at Veer Savarkar Airport. Check in to hotel and freshen up. Visit Cellular Jail and attend the evening Light & Sound Show.||Day 2: Ross Island & North Bay Island||Post breakfast, take a ferry to Ross Island to explore the colonial ruins. Afternoon visit North Bay Island for snorkelling and water sports.||Day 3: Havelock Island (Radhanagar Beach)||Morning ferry to Havelock Island. Check in to resort. Spend the afternoon at Radhanagar Beach — rated one of Asias best beaches.||Day 4: Elephant Beach — Scuba & Snorkelling||Full day at Elephant Beach. Try beginner scuba diving, snorkelling, and sea walking. Relaxing bonfire evening at Havelock.||Day 5: Neil Island Day Trip||Morning speed boat to Neil Island. Visit Natural Bridge and Laxmanpur Beach. Return to Havelock by afternoon.||Day 6: Departure||Morning check-out. Transfer to Port Blair airport for your return flight. Tour ends with wonderful memories.',
         'Oct–May',
         '',
+        // hotels: Destination;Nights;Hotel Name;Meal Plan;Room Type  — use || for multiple
+        'Port Blair;1;Sinclairs Bayview;Breakfast;Standard Room||Havelock;4;Symphony Palms Beach Resort;Breakfast;Sea-facing Cottage',
+        // vehicles: Type;Seats;Route;Days;Notes  — use || for multiple
+        'Innova Crysta;7;Airport & port transfers;6;AC with driver',
       ],
       [
         'Bali Honeymoon 7D/6N',
@@ -309,6 +356,8 @@ export default function PackageManager({ agentId }: Props) {
         'Day 1: Arrival in Bali — Romantic Welcome||Arrive at Ngurah Rai Airport. Private transfer to luxury pool villa. Romantic welcome with flowers and fruit basket. Rest and relax.||Day 2: Ubud & Rice Terraces||Visit iconic Tegallalang Rice Terraces. Explore Ubud Art Market. Visit Sacred Monkey Forest. Evening Kecak dance show at sunset.||Day 3: Temple Trail & Spa||Morning visit to Tanah Lot sea temple. Afternoon at Uluwatu cliffside temple. Couples Balinese spa session in the evening.||Day 4: Water Sports & Beach Day||Morning leisure at the villa. Afternoon water sports at Nusa Dua — parasailing, jet ski, banana boat. Sunset dinner at Jimbaran seafood bay.||Day 5: Nusa Penida Day Trip||Speed boat to Nusa Penida. Visit Kelingking Beach, Angel Billabong, and Broken Beach. Return by evening.||Day 6: Leisure & Shopping||Free day for shopping and spa. Visit Seminyak boutiques or relax by the villa pool. Farewell dinner at a rooftop restaurant.||Day 7: Departure||Checkout, last-minute shopping if time permits. Transfer to airport for departure flight.',
         'Year Round',
         '',
+        'Seminyak;2;W Bali — Seminyak;Breakfast;Retreat Pool Suite||Ubud;4;Alaya Resort Ubud;Half Board;Private Pool Villa',
+        'Luxury Car;4;Airport & villa transfers;7;Private AC with driver||SUV;4;Nusa Penida day trip;1;Shared AC',
       ],
       [
         'Rajasthan Royal Circuit 8D/7N',
@@ -328,6 +377,8 @@ export default function PackageManager({ agentId }: Props) {
         'Day 1: Arrive Jaipur — The Pink City||Arrive at Jaipur Airport. Check in to heritage hotel. Explore local bazaars and taste Rajasthani snacks. Welcome dinner.||Day 2: Jaipur Sightseeing||Visit Amber Fort (elephant ride), City Palace, Jantar Mantar observatory, and Hawa Mahal. Shopping at Johari Bazaar.||Day 3: Jaipur to Pushkar||Drive to Pushkar (3 hrs). Visit the sacred Brahma Temple and colorful Pushkar Lake ghats. Explore camel fair grounds. Overnight Pushkar.||Day 4: Pushkar to Jodhpur||Morning drive to Jodhpur (3.5 hrs). Check in to Blue City hotel. Afternoon visit Mehrangarh Fort with panoramic city views.||Day 5: Jodhpur — Blue City & Umaid Bhawan||Jaswant Thada cenotaph and Clock Tower market. Drive through blue-painted old city lanes. Visit Umaid Bhawan Palace museum.||Day 6: Jodhpur to Jaisalmer||Scenic desert drive (4.5 hrs). Check in to heritage haveli. Evening sunset at Sam Sand Dunes. Camel safari and cultural performance under stars.||Day 7: Jaisalmer — Golden Fort & Havelis||Explore Jaisalmer Fort, Patwon ki Haveli, and Bada Bagh cenotaphs. Afternoon shopping — folk art, textiles, and silver jewellery.||Day 8: Departure||Check out. Transfer to airport/station. Tour concludes with memories of royal Rajasthan.',
         'Oct–Mar',
         '',
+        'Jaipur;2;Rambagh Palace;Breakfast;Deluxe Room||Jodhpur;2;Umaid Bhawan Heritage Wing;Breakfast;Maharaja Suite||Jaisalmer;3;Suryagarh Jaisalmer;Half Board;Desert View Room',
+        'Innova Crysta;7;All intercity & sightseeing transfers;8;AC with English-speaking driver',
       ],
     ]
 
@@ -380,6 +431,90 @@ export default function PackageManager({ agentId }: Props) {
     setHotelEntries(prev => prev.filter(h => h.id !== id))
   }
 
+  function handleHotelCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setHotelCsvMsg('')
+    file.text().then(text => {
+      const rows = parseCsv(text)
+      if (rows.length === 0) { setHotelCsvMsg('No data rows found in CSV.'); return }
+      const added: HotelEntry[] = []
+      for (const r of rows) {
+        const dest  = (r['destination'] || r['dest'] || r['city'] || '').trim()
+        const hotel = (r['hotel_name'] || r['hotel'] || r['hotels'] || r['name'] || '').trim()
+        if (!dest || !hotel) continue
+        const nights    = parseInt(r['nights'] || r['night'] || '1') || 1
+        const mealPlan  = MEAL_PLANS.includes(r['meal_plan'] || r['meal'] || '') ? (r['meal_plan'] || r['meal']) : 'Breakfast'
+        const roomType  = (r['room_type'] || r['room'] || r['roomtype'] || '').trim()
+        added.push({ id: crypto.randomUUID(), destination: dest, nights, hotels: hotel, mealPlan, roomType })
+      }
+      if (added.length === 0) { setHotelCsvMsg('No valid hotel rows found. Check destination and hotel_name columns.'); return }
+      setHotelEntries(prev => [...prev, ...added])
+      setHotelCsvMsg(`✓ ${added.length} hotel${added.length > 1 ? 's' : ''} imported.`)
+    }).catch(() => setHotelCsvMsg('Failed to read file.'))
+  }
+
+  function downloadSampleHotelCsv() {
+    const csv = [
+      'destination,nights,hotel_name,meal_plan,room_type',
+      '"Kuta Beach",2,"Fairfield by Marriott\nOr: The Sakala Resort",Breakfast,"Deluxe Room"',
+      '"Ubud",3,"Alaya Resort Ubud",Half Board,"Pool Villa"',
+    ].join('\r\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    a.download = 'sample_hotels.csv'
+    a.click()
+  }
+
+  function addVehicleEntry() {
+    setVehicleEntries(prev => [...prev, { id: crypto.randomUUID(), vehicleType: 'Innova Crysta', seats: 7, route: '', days: 1, notes: '' }])
+  }
+
+  function updateVehicleEntry(id: string, field: keyof VehicleEntry, value: string | number) {
+    setVehicleEntries(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v))
+  }
+
+  function removeVehicleEntry(id: string) {
+    setVehicleEntries(prev => prev.filter(v => v.id !== id))
+  }
+
+  function handleVehicleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setVehicleCsvMsg('')
+    file.text().then(text => {
+      const rows = parseCsv(text)
+      if (rows.length === 0) { setVehicleCsvMsg('No data rows found in CSV.'); return }
+      const added: VehicleEntry[] = []
+      for (const r of rows) {
+        const vType = (r['vehicle_type'] || r['vehicle'] || r['type'] || '').trim()
+        if (!vType) continue
+        const seats = parseInt(r['seats'] || r['capacity'] || r['pax'] || '4') || 4
+        const route = (r['route'] || r['transfer'] || r['transfers'] || r['destination'] || '').trim()
+        const days  = parseInt(r['days'] || r['day'] || '1') || 1
+        const notes = (r['notes'] || r['remarks'] || r['note'] || '').trim()
+        added.push({ id: crypto.randomUUID(), vehicleType: vType, seats, route, days, notes })
+      }
+      if (added.length === 0) { setVehicleCsvMsg('No valid vehicle rows found. Check vehicle_type column.'); return }
+      setVehicleEntries(prev => [...prev, ...added])
+      setVehicleCsvMsg(`✓ ${added.length} vehicle${added.length > 1 ? 's' : ''} imported.`)
+    }).catch(() => setVehicleCsvMsg('Failed to read file.'))
+  }
+
+  function downloadSampleVehicleCsv() {
+    const csv = [
+      'vehicle_type,seats,route,days,notes',
+      '"Innova Crysta",7,"Airport pickup & drop",1,"AC vehicle with driver"',
+      '"Tempo Traveller (12 Seater)",12,"All sightseeing transfers",5,"AC, comfortable seats"',
+    ].join('\r\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    a.download = 'sample_vehicles.csv'
+    a.click()
+  }
+
   function sharePackageOnWhatsApp() {
     const base = Number(form.pricePerPerson) || 0
     const final = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
@@ -402,6 +537,14 @@ export default function PackageManager({ agentId }: Props) {
         lines.push(`  📍 *${h.destination}${h.nights ? ` (${h.nights}N)` : ''}*`)
         lines.push(`     ${h.hotels.split('\n')[0]}`)
         lines.push(`     ${h.mealPlan} · ${h.roomType.split('\n')[0]}`)
+      })
+      lines.push('')
+    }
+    if (vehicleEntries.length > 0) {
+      lines.push('🚗 *Vehicles & Transfers*')
+      vehicleEntries.forEach(v => {
+        lines.push(`  🚙 *${v.vehicleType}${v.seats ? ` (${v.seats} seats)` : ''}*${v.route ? ` — ${v.route}` : ''}${v.days > 1 ? ` · ${v.days} days` : ''}`)
+        if (v.notes) lines.push(`     ${v.notes}`)
       })
       lines.push('')
     }
@@ -431,6 +574,9 @@ export default function PackageManager({ agentId }: Props) {
     setEditingId(null)
     setDayItems([])
     setHotelEntries([])
+    setVehicleEntries([])
+    setHotelCsvMsg('')
+    setVehicleCsvMsg('')
     setMarkupEnabled(false)
     setMarkupPercent('15')
     setDetailsOpen(true)
@@ -463,6 +609,9 @@ export default function PackageManager({ agentId }: Props) {
     })
     setDayItems(parseDayItems(pkg.dayWiseItinerary || ''))
     setHotelEntries(Array.isArray(pkg.hotels) ? pkg.hotels : [])
+    setVehicleEntries(Array.isArray(pkg.vehicles) ? pkg.vehicles : [])
+    setHotelCsvMsg('')
+    setVehicleCsvMsg('')
     setMarkupEnabled(false)
     setMarkupPercent('15')
     setDetailsOpen(true)
@@ -522,6 +671,7 @@ export default function PackageManager({ agentId }: Props) {
         highlights: form.highlights.split('\n').filter(Boolean),
         dayWiseItinerary: dayItems.length > 0 ? serializeDayItems(dayItems) : form.dayWiseItinerary,
         hotels: hotelEntries,
+        vehicles: vehicleEntries,
         primaryImageUrl: form.primaryImageUrl,
         seasonalAvailability: form.seasonalAvailability,
         markupPercent: markupEnabled ? Number(markupPercent) : 0,
@@ -763,6 +913,8 @@ export default function PackageManager({ agentId }: Props) {
             dayWiseItinerary: normalizeCsvItinerary(r['day_wise_itinerary'] || r['itinerary'] || r['day_plan'] || r['schedule'] || ''),
             primaryImageUrl: imageUrl.startsWith('http') ? imageUrl : '',
             seasonalAvailability: r['seasonal_availability'] || 'Year Round',
+            hotels: parseCsvHotels(r['hotels'] || r['hotel'] || r['accommodation'] || ''),
+            vehicles: parseCsvVehicles(r['vehicles'] || r['vehicle'] || r['transfers'] || r['transport'] || ''),
           }
 
           const res = await fetch('/api/agent/packages', {
@@ -817,6 +969,8 @@ export default function PackageManager({ agentId }: Props) {
       exclusions: form.exclusions.split('\n').filter(Boolean),
       highlights: form.highlights.split('\n').filter(Boolean),
       dayWiseItinerary: form.dayWiseItinerary,
+      hotels: hotelEntries,
+      vehicles: vehicleEntries,
       primaryImageUrl: form.primaryImageUrl,
       seasonalAvailability: form.seasonalAvailability,
       isActive: true,
@@ -883,6 +1037,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .hoteltable th{background:#f3f4f6;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#374151;border:1px solid #e5e7eb}
 .hoteltable td{padding:8px 10px;border:1px solid #e5e7eb;color:#374151}
 .hoteltable tr:nth-child(even) td{background:#fafafa}
+.vehicletable{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px}
+.vehicletable th{background:#eff6ff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#1d4ed8;border:1px solid #dbeafe}
+.vehicletable td{padding:8px 10px;border:1px solid #dbeafe;color:#374151}
+.vehicletable tr:nth-child(even) td{background:#f0f9ff}
 .dayitem{display:flex;gap:12px;margin-bottom:4px}
 .dayleft{display:flex;flex-direction:column;align-items:center}
 .daynum{width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -929,6 +1087,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
   ${form.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(form.overview)}</p></div>` : ''}
   ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
   ${hotelEntries.length > 0 ? `<div class="sec"><div class="stitle">Hotels &amp; Accommodation</div><table class="hoteltable"><thead><tr><th>Destination</th><th>Hotel(s)</th><th>Meal Plan</th><th>Room Type</th></tr></thead><tbody>${hotelEntries.map((h)=>`<tr><td><strong>${esc(h.destination)}${h.nights?` (${h.nights}N)`:''}</strong></td><td>${esc(h.hotels)}</td><td>${esc(h.mealPlan)}</td><td>${esc(h.roomType)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+  ${vehicleEntries.length > 0 ? `<div class="sec"><div class="stitle">Vehicles &amp; Transfers</div><table class="vehicletable"><thead><tr><th>Vehicle Type</th><th>Seats</th><th>Route / Transfers</th><th>Days</th><th>Notes</th></tr></thead><tbody>${vehicleEntries.map((v)=>`<tr><td><strong>${esc(v.vehicleType)}</strong></td><td>${v.seats}</td><td>${esc(v.route)}</td><td>${v.days}</td><td>${esc(v.notes)}</td></tr>`).join('')}</tbody></table></div>` : ''}
   ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
     ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
     ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
@@ -1035,6 +1194,58 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
             </div>
           </div>
 
+          {/* Hotels & Vehicles callout */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5">
+            <p className="text-xs font-bold text-emerald-800 mb-2">🏨🚗 How to format Hotels & Vehicles in CSV</p>
+            <p className="text-xs text-emerald-700 mb-2.5">
+              Use <code className="bg-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold text-emerald-800">;</code> to separate fields within one entry, and{' '}
+              <code className="bg-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold text-emerald-800">||</code> to add multiple hotels or vehicles in one cell:
+            </p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">hotels column</p>
+                <div className="bg-white border border-emerald-200 rounded-lg p-2.5 font-mono text-[11px] text-gray-700 overflow-x-auto whitespace-nowrap">
+                  <span className="text-gray-400">&quot;</span>
+                  <span className="text-emerald-700 font-bold">Kuta</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">2</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Fairfield by Marriott</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Breakfast</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Deluxe Room</span>
+                  <span className="text-orange-500 font-bold">||</span>
+                  <span className="text-emerald-700 font-bold">Ubud</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">3</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Alaya Resort</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Half Board</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Pool Villa</span>
+                  <span className="text-gray-400">&quot;</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-blue-600 uppercase mb-1">vehicles column</p>
+                <div className="bg-white border border-blue-200 rounded-lg p-2.5 font-mono text-[11px] text-gray-700 overflow-x-auto whitespace-nowrap">
+                  <span className="text-gray-400">&quot;</span>
+                  <span className="text-blue-700 font-bold">Innova Crysta</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">7</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">Airport transfers</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">1</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">AC with driver</span>
+                  <span className="text-orange-500 font-bold">||</span>
+                  <span className="text-blue-700 font-bold">Tempo Traveller (12 Seater)</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">12</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">All sightseeing</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">5</span><span className="text-orange-500 font-bold">;</span>
+                  <span className="text-gray-600">AC comfortable</span>
+                  <span className="text-gray-400">&quot;</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] text-emerald-700">
+              <span className="bg-emerald-100 border border-emerald-200 rounded-full px-2.5 py-0.5">✓ Fields: Destination ; Nights ; Hotel Name ; Meal Plan ; Room Type</span>
+              <span className="bg-blue-100 border border-blue-200 rounded-full px-2.5 py-0.5 text-blue-700">✓ Vehicle fields: Type ; Seats ; Route ; Days ; Notes</span>
+              <span className="bg-emerald-100 border border-emerald-200 rounded-full px-2.5 py-0.5">✓ Use <code className="font-bold">||</code> between multiple entries</span>
+            </div>
+          </div>
+
           <div className="bg-white border border-blue-200 rounded-xl p-3 overflow-x-auto">
             <p className="text-[11px] font-bold text-gray-500 mb-1.5">📋 All Supported Columns</p>
             <table className="text-xs text-gray-700 w-full">
@@ -1065,6 +1276,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   ['day_wise_itinerary', 'No', 'Day 1: Arrive||Check-in and rest||Day 2: Sightseeing||Museum visit  (|| separated)'],
                   ['seasonal_availability', 'No', 'Oct–May / Year Round'],
                   ['primary_image_url', 'No', 'https://cdn.example.com/package.jpg'],
+                  ['hotels', 'No', 'Dest;Nights;Hotel Name;Meal Plan;Room Type  — use || to add multiple hotels'],
+                  ['vehicles', 'No', 'Vehicle Type;Seats;Route;Days;Notes  — use || to add multiple vehicles'],
                 ].map(([col, req, ex]) => (
                   <tr key={col}>
                     <td className="pr-4 py-0.5 font-mono text-blue-700 whitespace-nowrap">{col}</td>
@@ -1651,20 +1864,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 
               {/* Hotels & Accommodation */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <input ref={hotelCsvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleHotelCsvImport} />
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center text-base">🏨</div>
                     <h3 className="font-bold text-gray-900 text-sm">Hotels & Accommodation</h3>
                   </div>
-                  <button onClick={addHotelEntry} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
-                    <Plus className="w-3.5 h-3.5" /> Add Hotel
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={downloadSampleHotelCsv} className="text-[10px] text-gray-400 hover:text-gray-600 underline">Sample CSV</button>
+                    <button onClick={() => hotelCsvInputRef.current?.click()} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg">
+                      <Upload className="w-3 h-3" /> Import CSV
+                    </button>
+                    <button onClick={addHotelEntry} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                      <Plus className="w-3.5 h-3.5" /> Add Hotel
+                    </button>
+                  </div>
                 </div>
+                {hotelCsvMsg && (
+                  <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${hotelCsvMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{hotelCsvMsg}</p>
+                )}
 
                 {hotelEntries.length === 0 ? (
                   <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
                     <p className="text-sm text-gray-400">No hotels added yet</p>
-                    <button onClick={addHotelEntry} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add first hotel</button>
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button onClick={addHotelEntry} className="text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add manually</button>
+                      <span className="text-gray-300">|</span>
+                      <button onClick={() => hotelCsvInputRef.current?.click()} className="text-xs text-emerald-600 font-semibold hover:text-emerald-800">↑ Import from CSV</button>
+                    </div>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -1728,6 +1955,112 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                             </td>
                             <td className="py-2">
                               <button onClick={() => removeHotelEntry(h.id)} className="p-1 text-gray-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Vehicles & Transfers */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <input ref={vehicleCsvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleVehicleCsvImport} />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-base">🚗</div>
+                    <h3 className="font-bold text-gray-900 text-sm">Vehicles & Transfers</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={downloadSampleVehicleCsv} className="text-[10px] text-gray-400 hover:text-gray-600 underline">Sample CSV</button>
+                    <button onClick={() => vehicleCsvInputRef.current?.click()} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg">
+                      <Upload className="w-3 h-3" /> Import CSV
+                    </button>
+                    <button onClick={addVehicleEntry} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                      <Plus className="w-3.5 h-3.5" /> Add Vehicle
+                    </button>
+                  </div>
+                </div>
+                {vehicleCsvMsg && (
+                  <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${vehicleCsvMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{vehicleCsvMsg}</p>
+                )}
+
+                {vehicleEntries.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No vehicles added yet</p>
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button onClick={addVehicleEntry} className="text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add manually</button>
+                      <span className="text-gray-300">|</span>
+                      <button onClick={() => vehicleCsvInputRef.current?.click()} className="text-xs text-emerald-600 font-semibold hover:text-emerald-800">↑ Import from CSV</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Vehicle Type</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-14">Seats</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Route / Transfers</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-12">Days</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Notes</th>
+                          <th className="pb-2 w-6" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {vehicleEntries.map(v => (
+                          <tr key={v.id} className="group">
+                            <td className="py-2 pr-3">
+                              <select
+                                value={v.vehicleType}
+                                onChange={e => updateVehicleEntry(v.id, 'vehicleType', e.target.value)}
+                                className="w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              >
+                                {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
+                                {!VEHICLE_TYPES.includes(v.vehicleType) && v.vehicleType && (
+                                  <option value={v.vehicleType}>{v.vehicleType}</option>
+                                )}
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                type="number"
+                                min="1"
+                                value={v.seats}
+                                onChange={e => updateVehicleEntry(v.id, 'seats', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                value={v.route}
+                                onChange={e => updateVehicleEntry(v.id, 'route', e.target.value)}
+                                placeholder="Airport transfers, all sightseeing"
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                type="number"
+                                min="1"
+                                value={v.days}
+                                onChange={e => updateVehicleEntry(v.id, 'days', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                value={v.notes}
+                                onChange={e => updateVehicleEntry(v.id, 'notes', e.target.value)}
+                                placeholder="AC vehicle, with driver"
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400"
+                              />
+                            </td>
+                            <td className="py-2">
+                              <button onClick={() => removeVehicleEntry(v.id)} className="p-1 text-gray-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
                                 <X className="w-3.5 h-3.5" />
                               </button>
                             </td>

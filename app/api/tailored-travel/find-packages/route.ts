@@ -13,6 +13,79 @@ const openai = process.env.OPENAI_API_KEY
     ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     : null
 
+// ── DMC server-side helpers ──────────────────────────────────────────────────
+
+function pkgHasHotel(starCategory: string): boolean {
+    const star = (starCategory || '').trim().toLowerCase()
+    return !!star && star !== 'none'
+}
+
+function applyDmcFilters(packages: any[], wizardData: any): any[] {
+    let pkgs = [...packages]
+
+    const includedCities: string[] = wizardData.includedCities || []
+    const hotelIncluded: boolean | null = wizardData.hotelIncluded ?? null
+    const hotelTypes: string[] = wizardData.hotelTypes || []
+    const selectedNights: number = wizardData.routeItems?.[0]?.nights || 0
+    const pickupCity: string = wizardData.pickupCity || ''
+
+    // 1. City filter — itinerary must mention at least one selected city
+    if (includedCities.length > 0) {
+        pkgs = pkgs.filter(pkg => {
+            const itin = (pkg.Day_Wise_Itinerary || '').toLowerCase()
+            return includedCities.some((c: string) => itin.includes(c.toLowerCase()))
+        })
+        console.log(`[AI Planner] After city filter (${includedCities.join(', ')}): ${pkgs.length} packages`)
+    }
+
+    // 2. Hotel filter — use Star_Category field (same as StepDmc2Cities logic)
+    if (hotelIncluded === false) {
+        pkgs = pkgs.filter(pkg => !pkgHasHotel(pkg.Star_Category))
+        console.log(`[AI Planner] After "without hotel" filter: ${pkgs.length} packages`)
+    } else if (hotelIncluded === true) {
+        pkgs = pkgs.filter(pkg => pkgHasHotel(pkg.Star_Category))
+        if (hotelTypes.length > 0) {
+            pkgs = pkgs.filter(pkg => {
+                const star = (pkg.Star_Category || '').toLowerCase()
+                return hotelTypes.some((t: string) => star === t.toLowerCase())
+            })
+            console.log(`[AI Planner] After star category filter (${hotelTypes.join(', ')}): ${pkgs.length} packages`)
+        } else {
+            console.log(`[AI Planner] After "with hotel" filter: ${pkgs.length} packages`)
+        }
+    }
+
+    // 3. Duration filter — exact match first, then ±1 fallback
+    if (selectedNights > 0) {
+        const exact = pkgs.filter(pkg => Number(pkg.Duration_Nights) === selectedNights)
+        if (exact.length > 0) {
+            pkgs = exact
+            console.log(`[AI Planner] After exact nights filter (${selectedNights}N): ${pkgs.length} packages`)
+        } else {
+            const near = pkgs.filter(pkg => Math.abs(Number(pkg.Duration_Nights) - selectedNights) <= 1)
+            if (near.length > 0) {
+                pkgs = near
+                console.log(`[AI Planner] After ±1 nights fallback (${selectedNights}N): ${pkgs.length} packages`)
+            }
+        }
+    }
+
+    // 4. Pickup city — soft filter (only applied if it narrows results)
+    if (pickupCity) {
+        const pickupFiltered = pkgs.filter(pkg =>
+            (pkg.Day_Wise_Itinerary || '').toLowerCase().includes(pickupCity.toLowerCase())
+        )
+        if (pickupFiltered.length > 0) {
+            pkgs = pickupFiltered
+            console.log(`[AI Planner] After pickup city filter (${pickupCity}): ${pkgs.length} packages`)
+        }
+    }
+
+    return pkgs
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
     // Try Claude first
     if (anthropic) {
@@ -20,7 +93,7 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
             console.log('[AI Planner] 🤖 Using Claude (Anthropic) for package matching...')
             const res = await anthropic.messages.create({
                 model: 'claude-sonnet-4-5-20250929',
-                max_tokens: 1024,
+                max_tokens: 2048,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: userPrompt }],
                 temperature: 0.1,
@@ -155,6 +228,17 @@ export async function POST(request: Request) {
 
             console.log(`[AI Planner] Found ${allPackages.length} matching agent packages.`)
 
+            // Apply DMC wizard filters server-side (cities, hotel, nights, pickup)
+            if (allPackages.length > 0) {
+                const filtered = applyDmcFilters(allPackages, wizardData)
+                if (filtered.length > 0) {
+                    allPackages = filtered
+                    console.log(`[AI Planner] After DMC pre-filters: ${allPackages.length} packages will be sent to AI.`)
+                } else {
+                    console.log('[AI Planner] DMC pre-filters returned 0 results — keeping all packages as fallback.')
+                }
+            }
+
             // Fallback to main packages only if agent explicitly allows it
             if (allPackages.length === 0 && agentData.fallbackToTravelzada === true) {
                 console.log('[AI Planner] No agent packages matched. Falling back to Travelzada main packages.')
@@ -176,7 +260,64 @@ export async function POST(request: Request) {
         }
 
         // Build Claude prompts
-        const systemPrompt = `You are a luxury travel curator AI for Travelzada.
+        const isDmcMode = !!agentSlug
+        const totalNights = wizardData.routeItems?.reduce((acc: number, item: any) => acc + (item.nights || 0), 0) || 0
+
+        // DMC-specific filter context
+        const includedCities: string[] = wizardData.includedCities || []
+        const hotelIncluded: boolean | null = wizardData.hotelIncluded ?? null
+        const hotelTypes: string[] = wizardData.hotelTypes || []
+        const pickupCity: string = wizardData.pickupCity || ''
+        const dropCity: string = wizardData.dropCity || ''
+        const groupSize = wizardData.groupSize || {}
+
+        const hotelLabel = hotelIncluded === true
+            ? `With Hotel — ${hotelTypes.length > 0 ? hotelTypes.join(', ') : 'any star category'}`
+            : hotelIncluded === false
+                ? 'Without Hotel (no star category / land only)'
+                : 'Not specified'
+
+        const dmcRequirements = isDmcMode ? `
+Cities Required in Itinerary: ${includedCities.length > 0 ? includedCities.join(', ') : 'Any'}
+Hotel Preference: ${hotelLabel}
+Pickup City: ${pickupCity || 'Not specified'}
+Drop City: ${dropCity || 'Not specified'}
+Group Size: ${groupSize.adults || 2} Adults, ${groupSize.children || 0} Children, ${groupSize.infants || 0} Infants` : ''
+
+        const systemPrompt = isDmcMode
+            ? `You are a travel package matcher for a DMC (tour operator) AI planner.
+The packages provided have ALREADY been pre-filtered on the server to match the user's hard requirements (cities, hotel type, nights).
+Your job is to rank these pre-filtered packages and return the top 3 best matches in strict JSON format.
+
+SCORING RULES (start at 100 for each package):
+1. Duration Match (CRITICAL): Requested duration is a hard preference.
+   - Exact nights match: 0 deduction.
+   - ±1 night difference: Deduct 5 points.
+   - More than 1 night off: Deduct 25 points.
+2. Hotel / Star Category (HIGH): Must align with the stated hotel preference.
+   - Perfect star category match: 0 deduction.
+   - Same hotel tier (with/without) but different star: Deduct 10 points.
+   - Wrong hotel tier (with vs without): Deduct 30 points.
+3. Cities Covered (HIGH): Package itinerary should cover the requested cities.
+   - All cities present: 0 deduction.
+   - Missing some cities: Deduct 5–15 points.
+4. Pickup/Drop alignment (MEDIUM): If pickup/drop city specified, package should start/end there.
+   - Matches: 0 deduction. Doesn't match: Deduct 5 points.
+5. Group suitability, mood, vibe (LOW): Deduct 2–5 points for mismatches.
+
+INSTRUCTIONS:
+- Rank packages by matchScore descending, return top 3.
+- Write a clear 1-2 sentence matchReason mentioning star category, nights, and cities covered.
+- Return ONLY a raw JSON array — no markdown, no code blocks.
+- Format:
+[
+  {
+    "id": "package_id_here",
+    "matchScore": 95,
+    "matchReason": "Exact match: 7 nights, 4-star hotels, covering Jaipur, Jodhpur and Jaisalmer."
+  }
+]`
+            : `You are a luxury travel curator AI for Travelzada.
 Your job is to evaluate a list of available travel packages against a user's highly specific "Tailored Travel" preferences, and return the top 3 best matching packages in strict JSON format.
 
 EVALUATION CRITERIA SCORING SYSTEM (Start with Base Score: 100 for each package):
@@ -206,18 +347,42 @@ INSTRUCTIONS:
   }
 ]`
 
-        const totalNights = wizardData.routeItems?.reduce((acc: number, item: any) => acc + (item.nights || 0), 0) || 0;
+        const userPrompt = isDmcMode
+            ? `
+=== USER REQUIREMENTS (DMC WIZARD SELECTIONS) ===
+Destination: ${wizardData.destinations.join(', ')}
+Travel Date: ${wizardData.dateRange || 'Flexible'}
+Requested Duration: ${totalNights > 0 ? totalNights + ' Nights (EXACT MATCH PREFERRED)' : 'Flexible'}${dmcRequirements}
 
-        const userPrompt = `
+=== PRE-FILTERED PACKAGES (${allPackages.length} packages matching hard criteria) ===
+${JSON.stringify(allPackages.map(p => ({
+    id: p.id,
+    title: p.agentPackageTitle || p.Destination_Name,
+    nights: p.Duration_Nights,
+    days: p.Duration_Days,
+    star_category: p.Star_Category,
+    travel_type: p.Travel_Type,
+    mood: p.Mood,
+    price_per_person: p.Price_Min_INR,
+    overview: p.Overview || '',
+    inclusions: p.Inclusions || '',
+    exclusions: p.Exclusions || '',
+    highlights: p.Highlights || [],
+    hotels: p.Hotels || [],
+    day_wise_itinerary: p.Day_Wise_Itinerary || '',
+})), null, 2)}
+
+Rank these packages and return the top 3 best matches.`
+            : `
 === USER PREFERENCES ===
 Destinations: ${wizardData.destinations.join(', ')}
 Date Range: ${wizardData.dateRange}
 Requested Duration: ${totalNights > 0 ? totalNights + ' Nights' : 'Flexible'}
-Vibe/Experiences: ${wizardData.experiences.join(', ')}
-Group Type: ${wizardData.groupType}
-Hotel Preference: ${wizardData.hotelTypes.join(', ')}
-Travelers: ${wizardData.passengers.adults} Adults, ${wizardData.passengers.kids} Kids
-Rooms Required: ${wizardData.passengers.rooms}
+Vibe/Experiences: ${(wizardData.experiences || []).join(', ')}
+Group Type: ${wizardData.groupType || 'couple'}
+Hotel Preference: ${(wizardData.hotelTypes || []).join(', ')}
+Travelers: ${wizardData.passengers?.adults || 2} Adults, ${wizardData.passengers?.kids || 0} Kids
+Rooms Required: ${wizardData.passengers?.rooms || 1}
 
 === AVAILABLE PACKAGES IN DATABASE ===
 ${JSON.stringify(allPackages, null, 2)}

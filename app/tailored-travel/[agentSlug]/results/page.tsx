@@ -332,22 +332,24 @@ export default function AgentResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
-        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center gap-7">
           {agentInfo && (
-            <div className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-sm">
+            <div className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-full px-4 py-2 shadow-md shadow-gray-100">
               {agentInfo.logoUrl
                 ? <img src={agentInfo.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
-                : <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs">{agentInfo.companyName.charAt(0)}</div>}
-              <span className="text-sm font-medium text-gray-700">{agentInfo.companyName}</span>
+                : <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs">{agentInfo.companyName.charAt(0)}</div>}
+              <span className="text-sm font-semibold text-gray-700">{agentInfo.companyName}</span>
               <span className="text-xs text-gray-400">· Powered by Travelzada AI</span>
             </div>
           )}
-          <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
-            className="w-12 h-12 border-4 border-purple-100 border-t-purple-600 rounded-full" />
+          <div className="relative flex items-center justify-center">
+            <div className="absolute w-16 h-16 rounded-full bg-primary/10 animate-ping" />
+            <div className="w-12 h-12 rounded-full border-4 border-gray-100 border-t-primary animate-spin" />
+          </div>
           <AnimatePresence mode="wait">
             <motion.p key={loadingIdx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              className="text-gray-500 text-base">{cinematicTexts[loadingIdx]}</motion.p>
+              className="text-gray-500 text-sm font-medium tracking-wide">{cinematicTexts[loadingIdx]}</motion.p>
           </AnimatePresence>
         </div>
       </div>
@@ -355,24 +357,20 @@ export default function AgentResultsPage() {
   }
 
   const AgentStrip = ({ pkg }: { pkg?: MatchedPackage }) => agentInfo ? (
-    <div className="bg-white border-b border-gray-100 shadow-sm relative z-50 flex-shrink-0">
-      <div className="px-5 py-2 flex items-center gap-3">
-        {/* DMC logo + name */}
+    <div className="bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm relative z-50 flex-shrink-0">
+      <div className="px-4 py-2.5 flex items-center gap-3">
         <div className="flex items-center gap-2.5 flex-shrink-0">
           {agentInfo.logoUrl
-            ? <img src={agentInfo.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-100" />
-            : <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-sm">{agentInfo.companyName.charAt(0)}</div>}
+            ? <img src={agentInfo.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-100 shadow-sm" />
+            : <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm">{agentInfo.companyName.charAt(0)}</div>}
           <div>
-            <p className="text-sm font-semibold text-gray-900 leading-tight">{agentInfo.companyName}</p>
-            <p className="text-[10px] text-gray-400">Powered by Travelzada AI</p>
+            <p className="text-sm font-bold text-gray-900 leading-tight">{agentInfo.companyName}</p>
+            <p className="text-[10px] text-gray-400 font-medium">Powered by Travelzada AI</p>
           </div>
         </div>
-
-
-        {/* Change preferences — pushed to the right */}
         <Link href={`/tailored-travel/${agentSlug}`}
-          className="ml-auto flex items-center gap-1.5 text-xs text-gray-500 hover:text-purple-600 font-medium transition-colors flex-shrink-0">
-          <ArrowLeft className="w-3.5 h-3.5" />Change preferences
+          className="ml-auto flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary font-semibold transition-colors flex-shrink-0 bg-gray-50 hover:bg-primary/5 px-3 py-1.5 rounded-full border border-gray-100 hover:border-primary/20">
+          <ArrowLeft className="w-3 h-3" /> Change preferences
         </Link>
       </div>
     </div>
@@ -383,9 +381,12 @@ export default function AgentResultsPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <AgentStrip />
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <p className="text-red-600 mb-4 text-sm">{error}</p>
+          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4">
+            <X className="w-6 h-6 text-red-400" />
+          </div>
+          <p className="text-red-600 mb-4 text-sm font-medium">{error}</p>
           <button onClick={() => router.push(`/tailored-travel/${agentSlug}${isEmbed ? '?embed=1' : ''}`)}
-            className="flex items-center gap-2 text-purple-600 font-semibold hover:underline text-sm">
+            className="flex items-center gap-2 text-primary font-semibold hover:underline text-sm">
             <ArrowLeft className="w-4 h-4" /> Try again
           </button>
         </div>
@@ -398,15 +399,15 @@ export default function AgentResultsPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <AgentStrip />
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-          <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
-            <Package className="w-7 h-7 text-purple-400" />
+          <div className="w-16 h-16 bg-primary/8 rounded-full flex items-center justify-center mb-4">
+            <Package className="w-7 h-7 text-primary/50" />
           </div>
           <h2 className="text-lg font-bold text-gray-900 mb-2">No matching packages found</h2>
           <p className="text-sm text-gray-500 mb-6">
-            {agentInfo?.companyName} hasn't added packages for your selected destinations yet.
+            {agentInfo?.companyName} hasn&apos;t added packages for your selected destinations yet.
           </p>
           <button onClick={() => router.push(`/tailored-travel/${agentSlug}${isEmbed ? '?embed=1' : ''}`)}
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors">
+            className="flex items-center gap-2 bg-gradient-to-r from-primary to-[#ff8a3d] text-white font-bold px-5 py-2.5 rounded-xl text-sm shadow-lg shadow-primary/25 transition-all hover:scale-105">
             <ArrowLeft className="w-4 h-4" /> Change destination
           </button>
         </div>
@@ -430,184 +431,220 @@ export default function AgentResultsPage() {
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-100">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-100/80">
       <AgentStrip pkg={bestPkg} />
 
       <div className="flex flex-1 overflow-hidden min-h-0 p-3 gap-3">
 
-        {/* ── Package details ──────────────────────────────────── */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm">
+        {/* ── LEFT: Package details ── */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100/80 min-w-0">
 
-          {/* Hero image */}
-          <div className="relative h-44 flex-shrink-0">
+          {/* Hero — taller, price in overlay */}
+          <div className="relative h-60 flex-shrink-0">
             {bestPkg.Primary_Image_URL
               ? <img src={bestPkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-gradient-to-br from-purple-200 to-indigo-300 flex items-center justify-center"><MapPin className="w-10 h-10 text-white/50" /></div>}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/10 to-transparent" />
-            <div className="absolute top-3 left-3 bg-purple-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow">
-              Best Match
+              : <div className="w-full h-full bg-gradient-to-br from-primary/20 to-[#ff8a3d]/20 flex items-center justify-center"><MapPin className="w-12 h-12 text-primary/30" /></div>}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+
+            {/* Top badges */}
+            <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
+              <div className="flex items-center gap-1.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg shadow-primary/30">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                Best Match
+              </div>
+              <div className="bg-white/95 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg">
+                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                <span className="text-sm font-black text-gray-900">{bestPkg.matchScore}%</span>
+              </div>
             </div>
-            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
-              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span className="text-xs font-bold text-gray-900">{bestPkg.matchScore}%</span>
-            </div>
-            <div className="absolute bottom-3 left-3 right-3">
-              <p className="text-white font-bold text-base leading-tight drop-shadow line-clamp-2">{title}</p>
-              <p className="text-white/70 text-[11px] mt-0.5 flex items-center gap-1">
-                <MapPin className="w-2.5 h-2.5" />{bestPkg.Destination_Name}
-              </p>
+
+            {/* Bottom: title + price */}
+            <div className="absolute bottom-0 left-0 right-0 px-4 pt-8 pb-4">
+              <p className="text-white font-black text-xl leading-tight drop-shadow-sm mb-2 line-clamp-2">{title}</p>
+              <div className="flex items-end justify-between gap-2">
+                <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
+                  <span className="flex items-center gap-1 text-white/80 text-xs font-semibold">
+                    <MapPin className="w-3 h-3" />{bestPkg.Destination_Name}
+                  </span>
+                  <span className="flex items-center gap-1 text-white/70 text-xs">
+                    <Clock className="w-3 h-3" />{bestPkg.Duration_Nights}N {bestPkg.Duration_Days}D
+                  </span>
+                  {bestPkg.Star_Category && bestPkg.Star_Category.toLowerCase() !== 'none' && (
+                    <span className="text-white/80 text-xs font-semibold bg-white/15 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                      {bestPkg.Star_Category}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-white font-black text-2xl leading-none">₹{bestPkg.Price_Min_INR.toLocaleString('en-IN')}</p>
+                  <p className="text-white/60 text-[10px] font-medium">per person</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Price + tags */}
-          <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2 flex-shrink-0">
-            <div className="flex flex-wrap gap-1">
-              <span className="flex items-center gap-1 text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
-                <Clock className="w-2.5 h-2.5" />{bestPkg.Duration_Nights}N {bestPkg.Duration_Days}D
-              </span>
-              {bestPkg.Star_Category && (
-                <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">{bestPkg.Star_Category}</span>
-              )}
-              {bestPkg.Travel_Type && (
-                <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-full">{bestPkg.Travel_Type}</span>
-              )}
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-lg font-bold text-purple-700">₹{bestPkg.Price_Min_INR.toLocaleString('en-IN')}</p>
-              <p className="text-[9px] text-gray-400">per person</p>
-            </div>
-          </div>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
 
-          {/* Scrollable details */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {/* Why it matches */}
             {bestPkg.matchReason && (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
-                <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-wide mb-1">Why it matches</p>
-                <p className="text-[11px] text-indigo-800 leading-relaxed">{bestPkg.matchReason}</p>
+              <div className="bg-gradient-to-br from-primary/5 to-[#ff8a3d]/5 border border-primary/15 rounded-2xl px-4 py-3.5">
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  Why it matches
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed">{bestPkg.matchReason}</p>
               </div>
             )}
 
+            {/* Overview */}
             {bestPkg.Overview && (
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Overview</p>
-                <p className="text-[11px] text-gray-600 leading-relaxed">{bestPkg.Overview}</p>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Overview</p>
+                <p className="text-xs text-gray-600 leading-relaxed">{bestPkg.Overview}</p>
               </div>
             )}
 
+            {/* Inclusions */}
             {inclusions.length > 0 && (
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-1">Inclusions</p>
-                <ul className="space-y-1">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Inclusions</p>
+                <div className="space-y-1.5">
                   {inclusions.map((inc: string, i: number) => (
-                    <li key={i} className="flex items-start gap-1.5 text-[11px] text-gray-700">
-                      <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0 mt-0.5" />{inc}
-                    </li>
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle className="w-2.5 h-2.5 text-green-600" />
+                      </div>
+                      <span className="text-xs text-gray-700 leading-relaxed">{inc}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
-            <div className="text-[10px] text-gray-400 space-y-0.5 border-t border-gray-100 pt-2">
-              <p className="font-semibold text-gray-500">Terms & Conditions</p>
-              <p>• Prices subject to availability at booking.</p>
-              <p>• Final price confirmed on booking.</p>
+            {/* Exclusions */}
+            {exclusions.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Exclusions</p>
+                <div className="space-y-1.5">
+                  {exclusions.map((exc: string, i: number) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="w-4 h-4 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <X className="w-2.5 h-2.5 text-red-400" />
+                      </div>
+                      <span className="text-xs text-gray-500 leading-relaxed">{exc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Highlights */}
+            {highlights.length > 0 && (
+              <div>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Highlights</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {highlights.map((h: string, i: number) => (
+                    <span key={i} className="flex items-center gap-1 text-[11px] text-primary font-semibold bg-primary/5 border border-primary/10 px-2.5 py-1 rounded-full">
+                      <svg className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      {h}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-[10px] text-gray-400 space-y-0.5 border-t border-gray-100 pt-3">
+              <p className="font-bold text-gray-500">Terms & Conditions</p>
+              <p>• Prices subject to availability at time of booking.</p>
+              <p>• Final price confirmed on booking confirmation.</p>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex-shrink-0 px-3 py-2.5 border-t border-gray-100 bg-white flex gap-2">
+          {/* Action bar */}
+          <div className="flex-shrink-0 px-4 py-3 border-t border-gray-100 bg-white/95 flex gap-2">
             <button
               onClick={() => { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
-              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
-              title="Share on WhatsApp"
+              className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-sm shadow-green-200 flex-shrink-0"
             >
               <Send className="w-3.5 h-3.5" /> Share
             </button>
             <button
               onClick={() => setShowPdf(true)}
-              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
-              title="View / Print PDF"
+              className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-colors flex-shrink-0"
             >
               <FileText className="w-3.5 h-3.5" /> PDF
             </button>
             <button
               onClick={() => { setSelectedPackage(bestPkg); setShowBookingForm(true) }}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors">
-              Request Package
+              className="flex-1 bg-gradient-to-r from-primary to-[#ff8a3d] text-white text-xs font-black py-2.5 rounded-xl shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.01] transition-all"
+            >
+              Request Package →
             </button>
           </div>
         </div>
 
-        {/* ── MIDDLE 30%: Day narrator ────────────────────────────────────── */}
-        <div className="w-[30%] flex-shrink-0 flex flex-col overflow-hidden bg-gradient-to-b from-violet-50/60 to-white rounded-2xl shadow-sm">
+        {/* ── RIGHT: Day narrator ── */}
+        <div className="w-[30%] flex-shrink-0 flex flex-col overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100/80">
 
-          {/* Header: controls + progress */}
-          <div className="flex-shrink-0 px-3 pt-2.5 pb-2 border-b border-gray-100 bg-white/80 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-1.5">
+          {/* Header */}
+          <div className="flex-shrink-0 px-3 pt-3 pb-2.5 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Journey Timeline</p>
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Journey Timeline</p>
                 <p className="text-xs font-bold text-gray-900">
                   {days.length > 0 ? `Day ${currentDayIdx + 1} of ${days.length}` : 'No itinerary'}
                 </p>
               </div>
               {days.length > 0 && (
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setCurrentDayIdx(p => Math.max(0, p - 1))}
-                    disabled={currentDayIdx === 0}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-                  >
+                  <button onClick={() => setCurrentDayIdx(p => Math.max(0, p - 1))} disabled={currentDayIdx === 0}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                     <ChevronLeft className="w-3.5 h-3.5 text-gray-600" />
                   </button>
-                  <button
-                    onClick={() => setIsPaused(p => !p)}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-purple-100 hover:bg-purple-200 transition-colors"
-                  >
-                    {isPaused
-                      ? <Play className="w-3 h-3 text-purple-700" />
-                      : <Pause className="w-3 h-3 text-purple-700" />}
+                  <button onClick={() => setIsPaused(p => !p)}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
+                    {isPaused ? <Play className="w-3 h-3 text-primary" /> : <Pause className="w-3 h-3 text-primary" />}
                   </button>
-                  <button
-                    onClick={() => setCurrentDayIdx(p => Math.min(days.length - 1, p + 1))}
-                    disabled={currentDayIdx === days.length - 1}
-                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors"
-                  >
+                  <button onClick={() => setCurrentDayIdx(p => Math.min(days.length - 1, p + 1))} disabled={currentDayIdx === days.length - 1}
+                    className="w-6 h-6 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                     <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                   </button>
                 </div>
               )}
             </div>
-
-            {/* Auto-advance progress bar */}
             {days.length > 0 && (
-              <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                <motion.div
-                  key={isPaused ? 'paused' : currentDayIdx}
-                  className="h-full bg-purple-500 rounded-full origin-left"
-                  initial={{ scaleX: 0 }}
-                  animate={{ scaleX: isPaused ? undefined : 1 }}
-                  transition={{ duration: 6, ease: 'linear' }}
-                />
-              </div>
-            )}
-
-            {/* Day dots */}
-            {days.length > 0 && (
-              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                {days.map((_, i) => (
-                  <button key={i} onClick={() => setCurrentDayIdx(i)}
-                    className={`rounded-full transition-all duration-300 ${i === currentDayIdx ? 'w-5 h-2 bg-purple-600' : 'w-2 h-2 bg-gray-200 hover:bg-purple-300'}`}
+              <>
+                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    key={isPaused ? 'paused' : currentDayIdx}
+                    className="h-full bg-gradient-to-r from-primary to-[#ff8a3d] rounded-full origin-left"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: isPaused ? undefined : 1 }}
+                    transition={{ duration: 6, ease: 'linear' }}
                   />
-                ))}
-              </div>
+                </div>
+                <div className="flex items-center gap-1 mt-2 flex-wrap">
+                  {days.map((_, i) => (
+                    <button key={i} onClick={() => setCurrentDayIdx(i)}
+                      className={`rounded-full transition-all duration-300 ${i === currentDayIdx ? 'w-5 h-2 bg-primary' : 'w-2 h-2 bg-gray-200 hover:bg-primary/40'}`}
+                    />
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Character + speech bubble + language picker */}
-          <div className="flex-shrink-0 px-3 pt-3 pb-4 flex flex-col items-center bg-gradient-to-b from-violet-50/80 to-transparent border-b border-purple-50">
+          {/* Guide + speech bubble */}
+          <div className="flex-shrink-0 px-3 pt-3 pb-3 flex flex-col items-center bg-gradient-to-b from-gray-50/60 to-transparent border-b border-gray-100">
             {days.length > 0 ? (
               <>
-                {/* Speech bubble */}
                 <AnimatePresence mode="wait">
                   <motion.div key={currentDayIdx}
                     initial={{ opacity: 0, y: -6, scale: 0.97 }}
@@ -616,103 +653,76 @@ export default function AgentResultsPage() {
                     transition={{ duration: 0.3 }}
                     className="relative w-full"
                   >
-                    <div className="bg-white border-2 border-purple-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-md">
+                    <div className="bg-white border-2 border-primary/20 rounded-2xl rounded-bl-sm px-3.5 py-2.5 shadow-md shadow-primary/5">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Your Guide Says…</p>
-                        {/* Audio controls */}
+                        <p className="text-[9px] font-black text-primary uppercase tracking-widest">Your Guide Says…</p>
                         <div className="flex items-center gap-1">
-                          {/* Auto-listen toggle — click once to enable; first click unlocks browser audio */}
-                          <button
-                            onClick={toggleAutoListen}
-                            title={autoListen ? 'Auto-listen on — click to disable' : 'Enable auto-listen (plays each day automatically)'}
-                            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                              autoListen
-                                ? 'bg-purple-600 text-white shadow-md'
-                                : 'bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100'
-                            }`}
-                          >
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                          <button onClick={toggleAutoListen}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
+                              autoListen ? 'bg-primary text-white shadow-sm' : 'bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10'
+                            }`}>
+                            <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
                             </svg>
-                            {autoListen ? 'Auto ON' : 'Auto'}
+                            {autoListen ? 'ON' : 'Auto'}
                           </button>
-                          {/* Speaking indicator / stop */}
                           {isSpeaking && (
                             <button onClick={stopSpeak}
-                              title="Stop audio"
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-600 text-white shadow-md">
-                              <span className="flex items-end gap-px h-3">
+                              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-white">
+                              <span className="flex items-end gap-px h-2.5">
                                 {[2, 4, 3].map((h, i) => (
                                   <span key={i} className="w-0.5 bg-white rounded-full animate-bounce"
                                     style={{ height: `${h * 3}px`, animationDelay: `${i * 0.1}s` }} />
                                 ))}
                               </span>
-                              Stop
                             </button>
                           )}
-                          {/* Manual play (only when auto-listen is off and not speaking) */}
                           {!autoListen && !isSpeaking && (
-                            <button onClick={handleSpeak}
-                              disabled={isTranslating || isTyping || !typedText}
-                              title="Listen"
-                              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                              ▶ Listen
+                            <button onClick={handleSpeak} disabled={isTranslating || isTyping || !typedText}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                              ▶
                             </button>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-gray-700 leading-relaxed min-h-[40px]">
+                      <p className="text-xs text-gray-700 leading-relaxed min-h-[36px]">
                         {isTranslating ? (
-                          <span className="flex items-center gap-1.5 text-purple-400">
+                          <span className="flex items-center gap-1.5 text-primary/50">
                             <svg className="animate-spin w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                             </svg>
-                            Translating to {selectedLang.label}…
+                            Translating…
                           </span>
                         ) : (
-                          <>{typedText || '…'}{isTyping && <span className="text-purple-400 animate-pulse font-thin">|</span>}</>
+                          <>{typedText || '…'}{isTyping && <span className="text-primary animate-pulse font-thin">|</span>}</>
                         )}
                       </p>
                     </div>
-                    <div className="absolute -bottom-2 left-8 w-3.5 h-3.5 bg-white border-r-2 border-b-2 border-purple-200 rotate-45" />
+                    <div className="absolute -bottom-2 left-8 w-3.5 h-3.5 bg-white border-r-2 border-b-2 border-primary/20 rotate-45" />
                   </motion.div>
                 </AnimatePresence>
 
-                {/* Guide character */}
-                <div className="flex items-center gap-3 mt-4">
-                  <motion.div
-                    animate={{ y: [0, -5, 0] }}
-                    transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-                  >
+                <div className="flex items-center gap-3 mt-4 self-start px-1">
+                  <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}>
                     <TravelGuide />
                   </motion.div>
                   <div>
-                    <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Travel Guide</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">Speaking in <span className="font-semibold text-purple-400">{selectedLang.flag} {selectedLang.label}</span></p>
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest">Travel Guide</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5">Speaking in <span className="font-semibold text-gray-600">{selectedLang.flag} {selectedLang.label}</span></p>
                   </div>
                 </div>
 
-                {/* Language picker grid */}
                 <div className="mt-3 w-full">
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2 flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
-                    </svg>
-                    Choose Language
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Language</p>
+                  <div className="flex flex-wrap gap-1">
                     {LANGUAGES.map(lang => (
-                      <button
-                        key={lang.code}
-                        onClick={() => setSelectedLang(lang)}
-                        title={lang.label}
-                        className={`flex items-center gap-1 px-2 py-1.5 rounded-xl text-[10px] font-semibold transition-all duration-150 select-none ${
+                      <button key={lang.code} onClick={() => setSelectedLang(lang)} title={lang.label}
+                        className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-semibold transition-all select-none ${
                           selectedLang.code === lang.code
-                            ? 'bg-purple-600 text-white shadow-md shadow-purple-200 scale-105'
-                            : 'bg-white border border-gray-100 text-gray-600 hover:border-purple-200 hover:bg-purple-50 hover:text-purple-700'
-                        }`}
-                      >
+                            ? 'bg-primary text-white shadow-sm scale-105'
+                            : 'bg-white border border-gray-100 text-gray-500 hover:border-primary/20 hover:bg-primary/5 hover:text-primary'
+                        }`}>
                         <span className="text-sm leading-none">{lang.flag}</span>
                         <span className="hidden sm:inline">{lang.label}</span>
                       </button>
@@ -731,39 +741,32 @@ export default function AgentResultsPage() {
           </div>
 
           {/* Scrollable day cards */}
-          <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 pt-2 space-y-1.5 min-h-0">
             {days.map((day, i) => (
-              <div
-                key={i}
+              <div key={i}
                 ref={el => { dayRefs.current[i] = el }}
                 onClick={() => { setCurrentDayIdx(i); setIsPaused(true) }}
                 className={`rounded-xl border cursor-pointer transition-all duration-300 ${
                   i === currentDayIdx
-                    ? 'bg-purple-50 border-purple-200 shadow-sm'
-                    : 'bg-white border-gray-100 hover:border-purple-100 hover:shadow-sm'
+                    ? 'bg-gradient-to-br from-primary/5 to-[#ff8a3d]/5 border-primary/20 shadow-sm'
+                    : 'bg-white border-gray-100 hover:border-primary/10 hover:shadow-sm'
                 }`}
               >
                 <div className="px-3 py-2.5 flex items-start gap-2.5">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 transition-colors ${
-                    i === currentDayIdx ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500'
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-0.5 transition-all ${
+                    i === currentDayIdx ? 'bg-gradient-to-br from-primary to-[#ff8a3d] text-white shadow-sm shadow-primary/30' : 'bg-gray-100 text-gray-500'
                   }`}>
                     {day.number}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[11px] font-bold leading-snug ${i === currentDayIdx ? 'text-purple-900' : 'text-gray-700'}`}>
+                    <p className={`text-[11px] font-bold leading-snug ${i === currentDayIdx ? 'text-gray-900' : 'text-gray-600'}`}>
                       {day.title}
                     </p>
                     {i === currentDayIdx && day.lines.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        transition={{ duration: 0.25 }}
-                        className="mt-1.5 space-y-1 overflow-hidden"
-                      >
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.25 }}
+                        className="mt-1.5 space-y-1 overflow-hidden">
                         {day.lines.map((line, j) => (
-                          <p key={j} className="text-[10px] text-purple-700/70 leading-relaxed pl-2 border-l-2 border-purple-200">
-                            {line}
-                          </p>
+                          <p key={j} className="text-[10px] text-primary/60 leading-relaxed pl-2 border-l-2 border-primary/20">{line}</p>
                         ))}
                       </motion.div>
                     )}
@@ -925,7 +928,7 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
       <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle className="w-7 h-7 text-green-600" /></div>
       <h3 className="text-lg font-bold text-gray-900 mb-2">Quotation Request Sent!</h3>
       <p className="text-sm text-gray-500 mb-6">Your quotation request has been sent to the DMC. Track it in your <strong>Quotations</strong> tab.</p>
-      <button onClick={onClose} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
+      <button onClick={onClose} className="bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
     </div>
   )
 
@@ -935,7 +938,7 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-gray-900">Request Quotation</h3>
-            <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Goes to Quotations tab</span>
+            <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">Goes to Quotations tab</span>
           </div>
           <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · ₹{pkg.Price_Min_INR.toLocaleString('en-IN')}/person</p>
         </div>
@@ -951,7 +954,7 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input name="customerName" value={form.customerName} onChange={handleChange} required placeholder="Your customer's full name"
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
           </div>
         </div>
         <div>
@@ -959,18 +962,18 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input name="preferredDates" value={form.preferredDates} onChange={handleChange} placeholder="e.g. December 2025, Flexible"
-              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
           </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Special Notes</label>
           <textarea name="specialRequests" value={form.specialRequests} onChange={handleChange} rows={3}
             placeholder="Dietary needs, occasion, budget…"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
         </div>
-        <div className="bg-purple-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-purple-100">
-          <Users className="w-4 h-4 text-purple-500 flex-shrink-0" />
-          <p className="text-xs text-purple-800">
+        <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center gap-3 border border-primary/10">
+          <Users className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="text-xs text-gray-700">
             {wizardData?.passengers?.adults || 1} adult{(wizardData?.passengers?.adults || 1) !== 1 ? 's' : ''}
             {wizardData?.passengers?.kids ? `, ${wizardData.passengers.kids} kid${wizardData.passengers.kids !== 1 ? 's' : ''}` : ''}
             {' · '}{wizardData?.passengers?.rooms || 1} room{(wizardData?.passengers?.rooms || 1) !== 1 ? 's' : ''}
@@ -980,7 +983,7 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
       </div>
       <div className="px-6 pb-6">
         <button type="submit" disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-2 rounded-xl text-xs transition-colors">
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 disabled:opacity-60 text-white font-semibold py-2 rounded-xl text-xs transition-colors">
           {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />Sending…</> : <><Send className="w-3.5 h-3.5" />Request Package</>}
         </button>
       </div>
@@ -1043,7 +1046,7 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
       <h3 className="text-lg font-bold text-gray-900 mb-2">Booking Request Sent!</h3>
       <p className="text-sm text-gray-500 mb-1">Your request for <strong>{pkg.agentPackageTitle || pkg.Destination_Name}</strong> has been received.</p>
       <p className="text-sm text-gray-500 mb-6"><strong>{agentInfo.companyName}</strong> will contact you at <strong>{form.customerEmail}</strong> shortly.</p>
-      <button onClick={onClose} className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
+      <button onClick={onClose} className="bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
     </div>
   )
 
@@ -1063,7 +1066,7 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input name="customerName" value={form.customerName} onChange={handleChange} required placeholder="Your full name"
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -1072,7 +1075,7 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input type="email" name="customerEmail" value={form.customerEmail} onChange={handleChange} required placeholder="you@email.com"
-                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
             </div>
           </div>
           <div>
@@ -1080,7 +1083,7 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input name="customerPhone" value={form.customerPhone} onChange={handleChange} placeholder="+91 98765..."
-                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
             </div>
           </div>
         </div>
@@ -1089,18 +1092,18 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input name="preferredDates" value={form.preferredDates} onChange={handleChange} placeholder="e.g. December 2025, Flexible"
-              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
           </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Special Requests</label>
           <textarea name="specialRequests" value={form.specialRequests} onChange={handleChange} rows={2}
             placeholder="Dietary needs, accessibility, or special occasions…"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent" />
+            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
         </div>
-        <div className="bg-purple-50 rounded-xl px-4 py-3 flex items-center gap-3 border border-purple-100">
-          <Users className="w-4 h-4 text-purple-500 flex-shrink-0" />
-          <p className="text-xs text-purple-800">
+        <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center gap-3 border border-primary/10">
+          <Users className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="text-xs text-gray-700">
             {wizardData?.passengers?.adults || 1} adult{(wizardData?.passengers?.adults || 1) !== 1 ? 's' : ''}
             {wizardData?.passengers?.kids ? `, ${wizardData.passengers.kids} kid${wizardData.passengers.kids !== 1 ? 's' : ''}` : ''}
             {' · '}{wizardData?.passengers?.rooms || 1} room{(wizardData?.passengers?.rooms || 1) !== 1 ? 's' : ''}
@@ -1110,7 +1113,7 @@ function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId,
       </div>
       <div className="px-6 pb-6">
         <button type="submit" disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
           {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending request…</> : <><Send className="w-4 h-4" />Send Booking Request</>}
         </button>
         <p className="text-xs text-center text-gray-400 mt-2">{agentInfo.companyName} will contact you to confirm details.</p>

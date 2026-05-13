@@ -44,6 +44,15 @@ export interface HotelEntry {
   roomType: string
 }
 
+export interface VehicleEntry {
+  id: string
+  vehicleType: string  // e.g. Sedan, SUV, Innova Crysta, Tempo Traveller, Bus
+  seats: number
+  route: string        // e.g. "Airport transfers", "All sightseeing"
+  days: number
+  notes: string        // e.g. "AC vehicle with driver"
+}
+
 export interface AgentPackage {
   id: string
   agentId: string
@@ -69,6 +78,7 @@ export interface AgentPackage {
   highlights: string[]
   dayWiseItinerary: string
   hotels?: HotelEntry[]
+  vehicles?: VehicleEntry[]
   primaryImageUrl?: string
   imageUrls?: string[]
   // Availability
