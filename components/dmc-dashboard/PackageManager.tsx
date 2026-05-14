@@ -1086,7 +1086,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
 .body{padding:24px 28px}
 .sec{margin-bottom:20px}
-.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.stitle{font-size:10px;font-weight:800;color:#1f2937;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;border-bottom:2px solid #ede9fe;padding-bottom:5px}
 .pricebox{background:#7c3aed;border-radius:12px;padding:20px 24px;margin-bottom:20px}
 .price-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
 .pricetag{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}

@@ -74,6 +74,8 @@ export async function POST(request: Request) {
       highlights: packageData.highlights || [],
       dayWiseItinerary: packageData.dayWiseItinerary || '',
       hotels: packageData.hotels || [],
+      vehicles: packageData.vehicles || [],
+      perks: packageData.perks || [],
       primaryImageUrl: packageData.primaryImageUrl || '',
       imageUrls: packageData.imageUrls || [],
       seasonalAvailability: packageData.seasonalAvailability || 'Year Round',
