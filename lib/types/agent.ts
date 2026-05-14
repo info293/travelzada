@@ -69,6 +69,9 @@ export interface AgentPackage {
   priceInINR?: number          // converted price in INR (stored for consistency)
   maxGroupSize: number
   minGroupSize?: number
+  adults?: number
+  children?: number
+  infants?: number
   travelType: string     // e.g. "Leisure", "Adventure", "Honeymoon"
   theme: string          // e.g. "Beach", "Wildlife", "Cultural"
   mood: string           // e.g. "Relaxing", "Adventurous"
@@ -79,6 +82,7 @@ export interface AgentPackage {
   dayWiseItinerary: string
   hotels?: HotelEntry[]
   vehicles?: VehicleEntry[]
+  perks?: string[]
   primaryImageUrl?: string
   imageUrls?: string[]
   // Availability

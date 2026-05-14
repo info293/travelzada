@@ -53,6 +53,9 @@ const EMPTY_FORM = {
   currency: 'INR',
   maxGroupSize: '20',
   minGroupSize: '1',
+  adults: '2',
+  children: '0',
+  infants: '0',
   travelType: 'Leisure',
   theme: '',
   mood: '',
@@ -71,6 +74,27 @@ const STAR_CATEGORIES = ['', '3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', '
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Innova Crysta', 'Tempo Traveller (12 Seater)', 'Tempo Traveller (16 Seater)', 'Mini Bus (20 Seater)', 'Bus (40+ Seater)', 'Luxury Car', 'Hatchback', 'Van', 'Auto Rickshaw']
+
+const PRESET_PERKS = [
+  { label: 'Free Airport Transfer', emoji: '🚗' },
+  { label: 'Complimentary Breakfast', emoji: '🍳' },
+  { label: 'All Meals Included', emoji: '🍽️' },
+  { label: 'Free WiFi', emoji: '📶' },
+  { label: 'Travel Insurance', emoji: '🛡️' },
+  { label: 'Entry Tickets Included', emoji: '🎟️' },
+  { label: 'English-Speaking Guide', emoji: '🎯' },
+  { label: 'Sightseeing Included', emoji: '🚌' },
+  { label: 'Free Cancellation', emoji: '🔄' },
+  { label: 'Welcome Drink', emoji: '🍾' },
+  { label: 'Water Sports Included', emoji: '🏄' },
+  { label: 'Wildlife Safari Included', emoji: '🦁' },
+  { label: 'Complimentary Spa', emoji: '💆' },
+  { label: 'Pool Access', emoji: '🏊' },
+  { label: 'Early Check-in / Late Checkout', emoji: '🏨' },
+  { label: 'Porter Service', emoji: '🎒' },
+  { label: 'Ferry / Cruise Included', emoji: '🚢' },
+  { label: 'Professional Photography', emoji: '📸' },
+]
 
 // Sets used for CSV validation
 const VALID_CURRENCY_CODES = new Set(CURRENCIES.map(c => c.code))
@@ -191,6 +215,8 @@ export default function PackageManager({ agentId }: Props) {
   const [dayItems, setDayItems] = useState<DayItem[]>([])
   const [hotelEntries, setHotelEntries] = useState<HotelEntry[]>([])
   const [vehicleEntries, setVehicleEntries] = useState<VehicleEntry[]>([])
+  const [perks, setPerks] = useState<string[]>([])
+  const [perkInput, setPerkInput] = useState('')
   const [markupEnabled, setMarkupEnabled] = useState(false)
   const [markupPercent, setMarkupPercent] = useState('15')
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -515,6 +541,21 @@ export default function PackageManager({ agentId }: Props) {
     a.click()
   }
 
+  function togglePerk(label: string) {
+    setPerks(prev => prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label])
+  }
+
+  function addCustomPerk() {
+    const t = perkInput.trim()
+    if (!t || perks.includes(t)) { setPerkInput(''); return }
+    setPerks(prev => [...prev, t])
+    setPerkInput('')
+  }
+
+  function removePerk(label: string) {
+    setPerks(prev => prev.filter(p => p !== label))
+  }
+
   function sharePackageOnWhatsApp() {
     const base = Number(form.pricePerPerson) || 0
     const final = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
@@ -522,6 +563,7 @@ export default function PackageManager({ agentId }: Props) {
       `🌍 *${form.title || 'Travel Package'}*`,
       `📍 ${form.destination}${form.destinationCountry ? ', ' + form.destinationCountry : ''}`,
       `🗓️ ${form.durationDays}D / ${form.durationNights}N  |  ⭐ ${form.starCategory}  |  🎒 ${form.travelType}`,
+      `👥 ${form.adults || 0} Adult${Number(form.adults) !== 1 ? 's' : ''}${Number(form.children) > 0 ? ` · ${form.children} Child${Number(form.children) !== 1 ? 'ren' : ''}` : ''}${Number(form.infants) > 0 ? ` · ${form.infants} Infant${Number(form.infants) !== 1 ? 's' : ''}` : ''}`,
       `💰 *₹${final.toLocaleString('en-IN')} per person*`,
       '',
     ]
@@ -529,6 +571,14 @@ export default function PackageManager({ agentId }: Props) {
     if (form.highlights) {
       lines.push('✨ *Highlights*')
       form.highlights.split('\n').filter(Boolean).forEach(h => lines.push(`  • ${h}`))
+      lines.push('')
+    }
+    if (perks.length > 0) {
+      lines.push('🎁 *Package Perks*')
+      perks.forEach(p => {
+        const preset = PRESET_PERKS.find(x => x.label === p)
+        lines.push(`  ${preset ? preset.emoji : '✓'} ${p}`)
+      })
       lines.push('')
     }
     if (hotelEntries.length > 0) {
@@ -575,6 +625,8 @@ export default function PackageManager({ agentId }: Props) {
     setDayItems([])
     setHotelEntries([])
     setVehicleEntries([])
+    setPerks([])
+    setPerkInput('')
     setHotelCsvMsg('')
     setVehicleCsvMsg('')
     setMarkupEnabled(false)
@@ -596,6 +648,9 @@ export default function PackageManager({ agentId }: Props) {
       currency: (pkg as any).currency || 'INR',
       maxGroupSize: String(pkg.maxGroupSize),
       minGroupSize: String(pkg.minGroupSize || 1),
+      adults: String(pkg.adults ?? 2),
+      children: String(pkg.children ?? 0),
+      infants: String(pkg.infants ?? 0),
       travelType: pkg.travelType,
       theme: pkg.theme,
       mood: pkg.mood,
@@ -610,6 +665,8 @@ export default function PackageManager({ agentId }: Props) {
     setDayItems(parseDayItems(pkg.dayWiseItinerary || ''))
     setHotelEntries(Array.isArray(pkg.hotels) ? pkg.hotels : [])
     setVehicleEntries(Array.isArray(pkg.vehicles) ? pkg.vehicles : [])
+    setPerks(Array.isArray(pkg.perks) ? pkg.perks : [])
+    setPerkInput('')
     setHotelCsvMsg('')
     setVehicleCsvMsg('')
     setMarkupEnabled(false)
@@ -662,6 +719,9 @@ export default function PackageManager({ agentId }: Props) {
         priceInINR: Math.round(Number(form.pricePerPerson) * exchangeRate),
         maxGroupSize: Number(form.maxGroupSize) || 20,
         minGroupSize: Number(form.minGroupSize) || 1,
+        adults: Number(form.adults) || 0,
+        children: Number(form.children) || 0,
+        infants: Number(form.infants) || 0,
         travelType: form.travelType,
         theme: form.theme,
         mood: form.mood,
@@ -672,6 +732,7 @@ export default function PackageManager({ agentId }: Props) {
         dayWiseItinerary: dayItems.length > 0 ? serializeDayItems(dayItems) : form.dayWiseItinerary,
         hotels: hotelEntries,
         vehicles: vehicleEntries,
+        perks,
         primaryImageUrl: form.primaryImageUrl,
         seasonalAvailability: form.seasonalAvailability,
         markupPercent: markupEnabled ? Number(markupPercent) : 0,
@@ -961,6 +1022,9 @@ export default function PackageManager({ agentId }: Props) {
       pricePerPerson: Number(form.pricePerPerson) || 0,
       maxGroupSize: Number(form.maxGroupSize) || 20,
       minGroupSize: Number(form.minGroupSize) || 1,
+      adults: Number(form.adults) || 0,
+      children: Number(form.children) || 0,
+      infants: Number(form.infants) || 0,
       travelType: form.travelType,
       theme: form.theme,
       mood: form.mood,
@@ -971,6 +1035,7 @@ export default function PackageManager({ agentId }: Props) {
       dayWiseItinerary: form.dayWiseItinerary,
       hotels: hotelEntries,
       vehicles: vehicleEntries,
+      perks,
       primaryImageUrl: form.primaryImageUrl,
       seasonalAvailability: form.seasonalAvailability,
       isActive: true,
@@ -1041,6 +1106,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .vehicletable th{background:#eff6ff;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#1d4ed8;border:1px solid #dbeafe}
 .vehicletable td{padding:8px 10px;border:1px solid #dbeafe;color:#374151}
 .vehicletable tr:nth-child(even) td{background:#f0f9ff}
+.perksgrid{display:flex;flex-wrap:wrap;gap:6px}
+.perk{background:#fdf4ff;border:1px solid #e9d5ff;border-radius:999px;padding:5px 12px;font-size:11px;color:#7c3aed;font-weight:600;display:flex;align-items:center;gap:5px}
 .dayitem{display:flex;gap:12px;margin-bottom:4px}
 .dayleft{display:flex;flex-direction:column;align-items:center}
 .daynum{width:28px;height:28px;border-radius:50%;background:#7c3aed;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -1069,7 +1136,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
     ['🌙','Duration', `${form.durationNights}N / ${form.durationDays}D`],
     ['⭐','Category', form.starCategory || '—'],
     ['✈️','Travel Type', form.travelType || '—'],
-    ['🌿','Theme', form.theme || form.mood || '—'],
+    ['👥','Travellers', `${form.adults||0}A · ${form.children||0}C · ${form.infants||0}I`],
   ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
 </div>
 <div class="body">
@@ -1086,6 +1153,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
   </div>
   ${form.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(form.overview)}</p></div>` : ''}
   ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+  ${perks.length > 0 ? `<div class="sec"><div class="stitle">Package Perks</div><div class="perksgrid">${perks.map(p=>{const pr=PRESET_PERKS.find(x=>x.label===p);return `<span class="perk">${pr?pr.emoji:'✓'} ${esc(p)}</span>`}).join('')}</div></div>` : ''}
   ${hotelEntries.length > 0 ? `<div class="sec"><div class="stitle">Hotels &amp; Accommodation</div><table class="hoteltable"><thead><tr><th>Destination</th><th>Hotel(s)</th><th>Meal Plan</th><th>Room Type</th></tr></thead><tbody>${hotelEntries.map((h)=>`<tr><td><strong>${esc(h.destination)}${h.nights?` (${h.nights}N)`:''}</strong></td><td>${esc(h.hotels)}</td><td>${esc(h.mealPlan)}</td><td>${esc(h.roomType)}</td></tr>`).join('')}</tbody></table></div>` : ''}
   ${vehicleEntries.length > 0 ? `<div class="sec"><div class="stitle">Vehicles &amp; Transfers</div><table class="vehicletable"><thead><tr><th>Vehicle Type</th><th>Seats</th><th>Route / Transfers</th><th>Days</th><th>Notes</th></tr></thead><tbody>${vehicleEntries.map((v)=>`<tr><td><strong>${esc(v.vehicleType)}</strong></td><td>${v.seats}</td><td>${esc(v.route)}</td><td>${v.days}</td><td>${esc(v.notes)}</td></tr>`).join('')}</tbody></table></div>` : ''}
   ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
@@ -1499,7 +1567,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 <p className="font-semibold text-gray-900 truncate">{pkg.title}</p>
                 <p className="text-sm text-gray-500">
                   {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · ₹{pkg.pricePerPerson.toLocaleString()}/person
+                  {((pkg.adults ?? 0) + (pkg.children ?? 0) + (pkg.infants ?? 0)) > 0 && (
+                    <span className="ml-1">
+                      · 👥 {pkg.adults ?? 0}A{(pkg.children ?? 0) > 0 ? ` ${pkg.children}C` : ''}{(pkg.infants ?? 0) > 0 ? ` ${pkg.infants}I` : ''}
+                    </span>
+                  )}
                 </p>
+                {Array.isArray(pkg.perks) && pkg.perks.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {pkg.perks.slice(0, 4).map(p => {
+                      const preset = PRESET_PERKS.find(x => x.label === p)
+                      return (
+                        <span key={p} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded-full">
+                          {preset ? preset.emoji : '✓'} {p}
+                        </span>
+                      )
+                    })}
+                    {pkg.perks.length > 4 && (
+                      <span className="text-[10px] font-semibold text-gray-400 px-2 py-0.5">+{pkg.perks.length - 4} more</span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -1637,6 +1725,49 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     <label className="label">Max Group</label>
                     <input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" />
                   </div>
+
+                  {/* Travellers breakdown */}
+                  <div className="col-span-2">
+                    <label className="label mb-3">No. of Persons Travelling</label>
+                    <div className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100">
+                      {([
+                        { name: 'adults',   label: 'Adults',   sub: 'Age 12+',    min: 1 },
+                        { name: 'children', label: 'Children', sub: 'Age 2–11',   min: 0 },
+                        { name: 'infants',  label: 'Infants',  sub: 'Under 2',    min: 0 },
+                      ] as const).map(({ name, label, sub, min }) => (
+                        <div key={name} className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{label}</p>
+                            <p className="text-xs text-gray-400">{sub}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setForm(p => ({ ...p, [name]: String(Math.max(min, (Number(p[name]) || 0) - 1)) }))}
+                              className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-600 hover:border-purple-400 hover:text-purple-600 flex items-center justify-center font-bold text-lg transition-colors"
+                            >−</button>
+                            <span className="w-6 text-center text-base font-bold text-gray-900">{form[name] || 0}</span>
+                            <button
+                              type="button"
+                              onClick={() => setForm(p => ({ ...p, [name]: String((Number(p[name]) || 0) + 1) }))}
+                              className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-600 hover:border-purple-400 hover:text-purple-600 flex items-center justify-center font-bold text-lg transition-colors"
+                            >+</button>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Room suggestion hint */}
+                      {Number(form.adults) > 0 && (
+                        <div className="px-4 py-2.5 bg-white flex items-center gap-2 text-xs text-gray-400">
+                          <span>🏠</span>
+                          <span>
+                            <strong className="text-gray-600">{Math.ceil(Number(form.adults) / 2)} room{Math.ceil(Number(form.adults) / 2) !== 1 ? 's' : ''} suggested</strong>
+                            {` · based on ${form.adults} adult${Number(form.adults) !== 1 ? 's' : ''}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="col-span-2">
                     <label className="label">Seasonal Availability</label>
                     <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" />
@@ -1754,6 +1885,84 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities" className="input resize-none text-sm" />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* ── Perks ────────────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎁</span>
+                  <p className="text-sm font-bold text-gray-800">Package Perks</p>
+                  {perks.length > 0 && (
+                    <span className="ml-auto text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{perks.length} selected</span>
+                  )}
+                </div>
+                <div className="p-5 space-y-4">
+                  {/* Preset grid */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick-add common perks</p>
+                    <div className="flex flex-wrap gap-2">
+                      {PRESET_PERKS.map(p => {
+                        const active = perks.includes(p.label)
+                        return (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => togglePerk(p.label)}
+                            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                              active
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50'
+                            }`}
+                          >
+                            <span>{p.emoji}</span> {p.label}
+                            {active && <span className="text-purple-200 font-bold">✓</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom perk input */}
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add custom perk</p>
+                    <div className="flex gap-2">
+                      <input
+                        value={perkInput}
+                        onChange={e => setPerkInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomPerk() } }}
+                        placeholder="e.g. Helicopter transfer included"
+                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomPerk}
+                        className="text-sm font-semibold px-4 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Selected perks with remove */}
+                  {perks.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Selected perks</p>
+                      <div className="flex flex-wrap gap-2">
+                        {perks.map(p => {
+                          const preset = PRESET_PERKS.find(x => x.label === p)
+                          return (
+                            <span key={p} className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-semibold px-3 py-1.5 rounded-full">
+                              {preset ? preset.emoji : '✓'} {p}
+                              <button type="button" onClick={() => removePerk(p)} className="text-purple-400 hover:text-red-500 transition-colors ml-0.5">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
