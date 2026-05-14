@@ -396,7 +396,7 @@ export default function AgentDashboardPage() {
                     onTabChange={(t) => setTab(t as Tab)}
                   />
                 )}
-                {tab === 'packages' && <PackageManager agentId={currentUser.uid} />}
+                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} />}
                 {tab === 'bookings' && (
                   <BookingInbox agentId={currentUser.uid} />
                 )}

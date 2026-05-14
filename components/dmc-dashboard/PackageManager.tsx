@@ -27,6 +27,7 @@ async function fetchINRRate(fromCurrency: string): Promise<{ rate: number; updat
 
 interface Props {
   agentId: string
+  companyName?: string
 }
 
 const CURRENCIES = [
@@ -200,7 +201,7 @@ function parseCsvVehicles(raw: string): VehicleEntry[] {
   }).filter(v => v.vehicleType)
 }
 
-export default function PackageManager({ agentId }: Props) {
+export default function PackageManager({ agentId, companyName = 'DMC Partner' }: Props) {
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -1050,9 +1051,17 @@ export default function PackageManager({ agentId }: Props) {
     const inclusions = (form.inclusions || '').split('\n').filter(Boolean)
     const exclusions = (form.exclusions || '').split('\n').filter(Boolean)
     const highlights = (form.highlights || '').split('\n').filter(Boolean)
+    const adultsCount = Number(form.adults) || 0
+    const childrenCount = Number(form.children) || 0
+    const infantsCount = Number(form.infants) || 0
+    const totalPax = adultsCount + childrenCount + infantsCount
 
     const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    const currencySymbolMap: Record<string, string> = { INR:'₹', USD:'$', EUR:'€', GBP:'£', AED:'AED ', SGD:'S$', AUD:'A$', CAD:'C$', THB:'฿', MYR:'RM ' }
+    const sym = currencySymbolMap[form.currency] ?? `${form.currency} `
+    const fmt = (n: number) => `${sym}${n.toLocaleString('en-IN')}`
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>${esc(form.title || 'Package')} — Package Brochure</title>
@@ -1076,16 +1085,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 .sicon{font-size:16px}.slabel{font-size:8px;color:#ddd6fe;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
 .sval{font-size:11px;font-weight:700;color:#fff;margin-top:2px;line-height:1.3}
 .body{padding:24px 28px}
-.pricebox{background:#7c3aed;border-radius:12px;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
-.pricetag{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
-.pricelarge{font-size:36px;font-weight:800;color:#fff;line-height:1}
-.pricesub{font-size:12px;color:rgba(255,255,255,.7);margin-top:4px}
-.pricedate{text-align:right}
-.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
-.pdval{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:3px}
 .sec{margin-bottom:20px}
 .stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
+.pricebox{background:#7c3aed;border-radius:12px;padding:20px 24px;margin-bottom:20px}
+.price-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.pricetag{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.pricelarge{font-size:36px;font-weight:800;color:#fff;line-height:1}
+.pricesub{font-size:11px;color:rgba(255,255,255,.65);margin-top:4px}
+.priceright{text-align:right}
+.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
+.pdval{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:3px}
+.price-details{display:flex;gap:0;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18)}
+.pdetail{flex:1;padding:0 12px;border-left:1px solid rgba(255,255,255,.15)}.pdetail:first-child{padding-left:0;border-left:none}
+.pdetail-lbl{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.05em}
+.pdetail-val{font-size:14px;font-weight:800;color:#fff;margin-top:3px}
 .overview{font-size:13px;color:#374151;line-height:1.6}
+.typegrid{display:flex;flex-wrap:wrap;gap:8px}
+.typepill{background:#ede9fe;border-radius:999px;padding:5px 14px;font-size:12px;color:#7c3aed;font-weight:600;display:inline-flex;align-items:center;gap:5px}
+.typepill-lbl{font-size:9px;color:#9333ea;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
 .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .hpill{display:flex;align-items:flex-start;gap:8px;background:#ede9fe;border-radius:10px;padding:8px 12px}
 .hstar{color:#7c3aed;font-size:13px;flex-shrink:0}
@@ -1133,40 +1150,75 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
 </div>
 <div class="stats">
   ${[
-    ['🌙','Duration', `${form.durationNights}N / ${form.durationDays}D`],
-    ['⭐','Category', form.starCategory || '—'],
-    ['✈️','Travel Type', form.travelType || '—'],
-    ['👥','Travellers', `${form.adults||0}A · ${form.children||0}C · ${form.infants||0}I`],
+    ['🌙', 'Duration', form.durationNights && form.durationDays ? `${form.durationNights}N / ${form.durationDays}D` : form.durationDays ? `${form.durationDays} Days` : '—'],
+    ['⭐', 'Category', form.starCategory || '—'],
+    ['✈️', 'Travel Type', form.travelType || '—'],
+    ['📅', 'Availability', form.seasonalAvailability || 'Year Round'],
   ].map(([icon,label,val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
 </div>
 <div class="body">
+
+  <!-- Pricing Configuration -->
   <div class="pricebox">
-    <div>
-      <div class="pricetag">Price per Person</div>
-      <div class="pricelarge">₹${finalPrice.toLocaleString('en-IN')}</div>
-      ${markupEnabled ? `<div class="pricesub">Includes ${markupPercent}% markup</div>` : ''}
+    <div class="price-top">
+      <div>
+        <div class="pricetag">Pricing Configuration</div>
+        <div class="pricelarge">${finalPrice > 0 ? fmt(finalPrice) : 'To be confirmed'}</div>
+        <div class="pricesub">Per person${form.currency !== 'INR' ? ` · ${esc(form.currency)}` : ''}</div>
+        ${markupEnabled && base > 0 ? `<div class="pricesub" style="margin-top:2px">Base: ${fmt(base)} + ${markupPercent}% markup</div>` : ''}
+      </div>
+      <div class="priceright">
+        <div class="pdlbl">Published on</div>
+        <div class="pdval">${dateStr}</div>
+        ${(form.minGroupSize || form.maxGroupSize) ? `<div class="pdlbl" style="margin-top:8px">Group Size</div><div class="pdval">${form.minGroupSize || 1} – ${form.maxGroupSize || '—'} pax</div>` : ''}
+      </div>
     </div>
-    <div class="pricedate">
-      <div class="pdlbl">Published on</div>
-      <div class="pdval">${dateStr}</div>
-    </div>
+    ${totalPax > 0 ? `
+    <div class="price-details">
+      ${adultsCount > 0 ? `<div class="pdetail"><div class="pdetail-lbl">👤 Adults</div><div class="pdetail-val">${adultsCount}</div></div>` : ''}
+      ${childrenCount > 0 ? `<div class="pdetail"><div class="pdetail-lbl">👦 Children</div><div class="pdetail-val">${childrenCount}</div></div>` : ''}
+      ${infantsCount > 0 ? `<div class="pdetail"><div class="pdetail-lbl">👶 Infants</div><div class="pdetail-val">${infantsCount}</div></div>` : ''}
+      <div class="pdetail"><div class="pdetail-lbl">👥 Total Pax</div><div class="pdetail-val">${totalPax}</div></div>
+    </div>` : ''}
   </div>
+
+  <!-- Overview -->
   ${form.overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(form.overview)}</p></div>` : ''}
+
+  <!-- Package Type & Theme -->
+  ${(form.travelType || form.theme || form.mood) ? `<div class="sec"><div class="stitle">Package Type &amp; Theme</div><div class="typegrid">
+    ${form.travelType ? `<span class="typepill"><span class="typepill-lbl">Type</span>${esc(form.travelType)}</span>` : ''}
+    ${form.theme ? `<span class="typepill"><span class="typepill-lbl">Theme</span>${esc(form.theme)}</span>` : ''}
+    ${form.mood ? `<span class="typepill"><span class="typepill-lbl">Mood</span>${esc(form.mood)}</span>` : ''}
+  </div></div>` : ''}
+
+  <!-- Highlights -->
   ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h=>`<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
+
+  <!-- Package Perks -->
   ${perks.length > 0 ? `<div class="sec"><div class="stitle">Package Perks</div><div class="perksgrid">${perks.map(p=>{const pr=PRESET_PERKS.find(x=>x.label===p);return `<span class="perk">${pr?pr.emoji:'✓'} ${esc(p)}</span>`}).join('')}</div></div>` : ''}
+
+  <!-- Hotels & Accommodation -->
   ${hotelEntries.length > 0 ? `<div class="sec"><div class="stitle">Hotels &amp; Accommodation</div><table class="hoteltable"><thead><tr><th>Destination</th><th>Hotel(s)</th><th>Meal Plan</th><th>Room Type</th></tr></thead><tbody>${hotelEntries.map((h)=>`<tr><td><strong>${esc(h.destination)}${h.nights?` (${h.nights}N)`:''}</strong></td><td>${esc(h.hotels)}</td><td>${esc(h.mealPlan)}</td><td>${esc(h.roomType)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+
+  <!-- Vehicles & Transfers -->
   ${vehicleEntries.length > 0 ? `<div class="sec"><div class="stitle">Vehicles &amp; Transfers</div><table class="vehicletable"><thead><tr><th>Vehicle Type</th><th>Seats</th><th>Route / Transfers</th><th>Days</th><th>Notes</th></tr></thead><tbody>${vehicleEntries.map((v)=>`<tr><td><strong>${esc(v.vehicleType)}</strong></td><td>${v.seats}</td><td>${esc(v.route)}</td><td>${v.days}</td><td>${esc(v.notes)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+
+  <!-- Master Itinerary -->
+  ${dayItems.length ? `<div class="sec"><div class="stitle">Master Itinerary</div>${dayItems.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<dayItems.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.description?`<div class="daydesc">${esc(d.description).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+
+  <!-- Inclusions & Exclusions -->
   ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
     ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i=>`<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
     ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e=>`<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
   </div></div>` : ''}
-  ${dayItems.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${dayItems.map((d,i)=>`<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i+1).padStart(2,'0')}</div>${i<dayItems.length-1?'<div class="dayline"></div>':''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.description?`<div class="daydesc">${esc(d.description).replace(/\n/g,'<br>')}</div>`:''}</div></div>`).join('')}</div>` : ''}
+
   <div class="terms">
     <div class="stitle">Terms &amp; Conditions</div>
     ${['This brochure is for reference only.','Prices are subject to availability at the time of booking.','A deposit may be required to confirm the booking.','Contact us for custom packages and group bookings.'].map(t=>`<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
   </div>
   <div class="footer">
-    <div><div class="ftname">Travelzada DMC</div><div class="ftsub">Your trusted travel partner</div></div>
+    <div><div class="ftname">${esc(companyName)}</div><div class="ftsub">Your trusted travel partner</div></div>
     <div class="ftthanks">Thank you for your interest ✈️</div>
   </div>
 </div>
@@ -2410,45 +2462,70 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
           </div>
 
           {/* Bottom action bar */}
-          <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-100 shadow-[0_-2px_8px_rgba(0,0,0,0.06)] flex-shrink-0">
+          <div className="flex items-center justify-between px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-3">
+
+            {/* Left — secondary actions */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="group flex flex-col items-center gap-0.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? 'Saving…' : 'Save as Draft'}
+                <div className="flex items-center gap-1.5 text-gray-700 text-xs font-bold">
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  {saving ? 'Saving…' : 'Save Draft'}
+                </div>
+                <span className="text-[10px] text-gray-400">Keep editing later</span>
               </button>
+
               <button
-                onClick={() => setPreviewPkg(formAsPackage())}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+                onClick={() => setShowPdfPreview(true)}
+                className="group flex flex-col items-center gap-0.5 border border-gray-200 hover:border-purple-300 hover:bg-purple-50 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
               >
-                <Download className="w-4 h-4" /> Download PDF
+                <div className="flex items-center gap-1.5 text-gray-700 group-hover:text-purple-700 text-xs font-bold">
+                  <Download className="w-3.5 h-3.5" /> PDF Preview
+                </div>
+                <span className="text-[10px] text-gray-400 group-hover:text-purple-400">Print or save as PDF</span>
               </button>
             </div>
+
+            {/* Divider */}
+            <div className="h-10 w-px bg-gray-100 hidden sm:block" />
+
+            {/* Right — share + publish */}
             <div className="flex items-center gap-2">
               <button
                 onClick={sharePackageOnWhatsApp}
-                className="flex items-center gap-2 text-sm font-bold text-white bg-green-500 hover:bg-green-600 px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-green-200"
-                title="Send full package details as formatted text"
+                className="group flex flex-col items-center gap-0.5 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl transition-colors shadow-sm shadow-green-200 min-w-[90px]"
               >
-                <span>📱</span> WA Text
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  <span>📱</span> WhatsApp Text
+                </div>
+                <span className="text-[10px] text-green-100">Send as formatted text</span>
               </button>
+
               <button
                 onClick={sharePackageAsPdfWA}
-                className="flex items-center gap-2 text-sm font-bold text-green-700 bg-green-100 hover:bg-green-200 border border-green-300 px-4 py-2.5 rounded-xl transition-colors"
-                title="Generate PDF then share on WhatsApp"
+                className="group flex flex-col items-center gap-0.5 bg-green-50 hover:bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
               >
-                <span>📄</span> WA PDF
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  <span>📄</span> WhatsApp PDF
+                </div>
+                <span className="text-[10px] text-green-600">Preview PDF &amp; share</span>
               </button>
+
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 px-5 py-2.5 rounded-xl transition-colors shadow-sm shadow-blue-200"
+                className="flex flex-col items-center gap-0.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm shadow-purple-200 min-w-[110px]"
               >
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {editingId ? 'Update Package' : 'Publish Package'}
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {editingId ? 'Update Package' : 'Publish Package'}
+                </div>
+                <span className="text-[10px] text-purple-200">
+                  {editingId ? 'Save all changes' : 'Go live on your page'}
+                </span>
               </button>
             </div>
           </div>
@@ -2616,182 +2693,294 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
       {showPdfPreview && (() => {
         const base = Number(form.pricePerPerson) || 0
         const final = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
+        const inclList = (form.inclusions || '').split('\n').filter(Boolean)
+        const exclList = (form.exclusions || '').split('\n').filter(Boolean)
+        const highlightList = (form.highlights || '').split('\n').filter(Boolean)
+        const currSymMap: Record<string,string> = { INR:'₹', USD:'$', EUR:'€', GBP:'£', AED:'AED ', SGD:'S$', AUD:'A$', CAD:'C$', THB:'฿', MYR:'RM ' }
+        const sym = currSymMap[form.currency] ?? `${form.currency} `
+        const fmtPrice = (n: number) => `${sym}${n.toLocaleString('en-IN')}`
         return (
-          <div className="fixed inset-0 z-[70] bg-black/60 flex items-start justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:block">
-            <div className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl print:shadow-none print:rounded-none print:max-w-full">
-              {/* Modal controls — hidden on print */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden">
-                <div>
-                  <h3 className="font-bold text-gray-900">Package PDF Preview</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Print or save as PDF, then share via WhatsApp</p>
+          <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:block">
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[92vh] print:shadow-none print:rounded-none print:max-w-full print:max-h-none">
+
+              {/* ── Top bar ── */}
+              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 flex-shrink-0 print:hidden">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <span className="text-base">📄</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">Package PDF Preview</p>
+                    <p className="text-[11px] text-gray-400">Print or save as PDF</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => {
                       openPackagePrintWindow()
-                      const base2 = Number(form.pricePerPerson) || 0
-                      const final2 = markupEnabled ? base2 * (1 + Number(markupPercent) / 100) : base2
-                      const msg = `📄 *${form.title || 'Travel Package'}* — Detailed itinerary PDF\n📍 ${form.destination} · ${form.durationDays}D/${form.durationNights}N · ₹${final2.toLocaleString('en-IN')}/person\n\nPlease find the attached PDF with complete itinerary, hotels, and pricing details.\n\n_Contact us to book!_`
+                      const msg = `📄 *${form.title || 'Travel Package'}* — Detailed itinerary PDF\n📍 ${form.destination} · ${form.durationDays}D/${form.durationNights}N · ${fmtPrice(final)}/person\n\nPlease find the attached PDF with complete itinerary, hotels, and pricing details.\n\n_Contact us to book!_`
                       setTimeout(() => window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank'), 900)
                     }}
-                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-xl"
+                    className="flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-colors shadow-sm shadow-green-200"
                   >
-                    📱 Print & Share on WhatsApp
+                    <span>📱</span> Print &amp; Share on WhatsApp
                   </button>
-                  <button onClick={() => openPackagePrintWindow()} className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50">
-                    🖨️ Print / Save PDF
+                  <button
+                    onClick={() => openPackagePrintWindow()}
+                    className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-xs font-semibold px-3.5 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+                  >
+                    <span>🖨️</span> Print / Save PDF
                   </button>
-                  <button onClick={() => setShowPdfPreview(false)} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
-                    <X className="w-5 h-5" />
+                  <button onClick={() => setShowPdfPreview(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* PDF Content */}
-              <div className="p-8 space-y-6 print:p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between border-b border-gray-200 pb-5">
-                  <div>
-                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Travel Package</p>
-                    <h1 className="text-2xl font-bold text-gray-900">{form.title || 'Untitled Package'}</h1>
-                    <p className="text-gray-500 text-sm mt-1">
-                      📍 {form.destination}{form.destinationCountry ? `, ${form.destinationCountry}` : ''}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Price per Person</p>
-                    <p className="text-3xl font-bold text-purple-600">₹{final.toLocaleString('en-IN')}</p>
-                    {markupEnabled && <p className="text-xs text-gray-400">Includes {markupPercent}% markup</p>}
+              {/* ── Scrollable content ── */}
+              <div className="overflow-y-auto flex-1 print:overflow-visible">
+
+                {/* Hero */}
+                <div className="relative h-40 flex-shrink-0 overflow-hidden">
+                  {form.primaryImageUrl
+                    ? <img src={form.primaryImageUrl} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full bg-gradient-to-br from-violet-600 to-indigo-600" />
+                  }
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                  <div className="absolute bottom-4 left-5 right-5">
+                    <p className="text-[9px] font-bold text-white/50 uppercase tracking-widest mb-1">Travel Package</p>
+                    <h1 className="text-xl font-extrabold text-white leading-tight">{form.title || 'Untitled Package'}</h1>
+                    <p className="text-xs text-white/70 mt-1">📍 {form.destination}{form.destinationCountry ? `, ${form.destinationCountry}` : ''}</p>
                   </div>
                 </div>
 
-                {/* Meta pills */}
-                <div className="flex flex-wrap gap-2">
+                {/* Stats strip */}
+                <div className="grid grid-cols-4 bg-purple-600 divide-x divide-purple-500">
                   {[
-                    `🗓️ ${form.durationDays}D / ${form.durationNights}N`,
-                    `⭐ ${form.starCategory}`,
-                    `🎒 ${form.travelType}`,
-                    form.theme && `🌿 ${form.theme}`,
-                    form.mood && `✨ ${form.mood}`,
-                    form.seasonalAvailability && `📅 ${form.seasonalAvailability}`,
-                  ].filter(Boolean).map((tag, i) => (
-                    <span key={i} className="bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1 rounded-full">{tag as string}</span>
+                    ['🌙', 'Duration', form.durationNights && form.durationDays ? `${form.durationNights}N / ${form.durationDays}D` : form.durationDays ? `${form.durationDays}D` : '—'],
+                    ['⭐', 'Category', form.starCategory || '—'],
+                    ['✈️', 'Travel Type', form.travelType || '—'],
+                    ['📅', 'Availability', form.seasonalAvailability || 'Year Round'],
+                  ].map(([icon, label, val]) => (
+                    <div key={label} className="py-2.5 text-center px-2">
+                      <div className="text-base">{icon}</div>
+                      <div className="text-[8px] text-purple-200 uppercase tracking-wide mt-0.5">{label}</div>
+                      <div className="text-[11px] font-bold text-white mt-0.5 leading-tight">{val}</div>
+                    </div>
                   ))}
                 </div>
 
-                {/* Overview */}
-                {form.overview && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-1.5">Overview</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{form.overview}</p>
-                  </div>
-                )}
+                <div className="p-5 space-y-5">
 
-                {/* Hotels table */}
-                {hotelEntries.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-2">🏨 Hotels & Accommodation</h3>
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="bg-amber-50 border border-amber-100">
-                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Destination</th>
-                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Hotel(s)</th>
-                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Meal Plan</th>
-                          <th className="text-left text-xs font-bold text-gray-700 px-3 py-2 border border-amber-100">Room Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {hotelEntries.map((h, i) => (
-                          <tr key={h.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-3 py-2 border border-gray-100 font-semibold text-gray-800 whitespace-nowrap">
-                              {h.destination}{h.nights ? ` (${h.nights}N)` : ''}
-                            </td>
-                            <td className="px-3 py-2 border border-gray-100 text-gray-700">{h.hotels}</td>
-                            <td className="px-3 py-2 border border-gray-100 text-gray-600 whitespace-nowrap">{h.mealPlan}</td>
-                            <td className="px-3 py-2 border border-gray-100 text-gray-600">{h.roomType}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Inclusions / Exclusions */}
-                {(form.inclusions || form.exclusions) && (
-                  <div className="grid grid-cols-2 gap-4">
-                    {form.inclusions && (
+                  {/* Pricing Configuration */}
+                  <div className="bg-purple-600 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h3 className="text-sm font-bold text-green-700 mb-1.5">✓ Inclusions</h3>
-                        <ul className="space-y-1">
-                          {form.inclusions.split('\n').filter(Boolean).map((inc, i) => (
-                            <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
-                              <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>{inc}
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-[9px] font-bold text-purple-200 uppercase tracking-widest mb-1">Pricing Configuration</p>
+                        <p className="text-3xl font-extrabold text-white leading-none">{final > 0 ? fmtPrice(final) : 'TBC'}</p>
+                        <p className="text-xs text-purple-200 mt-1">Per person{form.currency !== 'INR' ? ` · ${form.currency}` : ''}</p>
+                        {markupEnabled && base > 0 && (
+                          <p className="text-[11px] text-purple-300 mt-0.5">Base {fmtPrice(base)} + {markupPercent}% markup</p>
+                        )}
                       </div>
-                    )}
-                    {form.exclusions && (
-                      <div>
-                        <h3 className="text-sm font-bold text-red-600 mb-1.5">✗ Exclusions</h3>
-                        <ul className="space-y-1">
-                          {form.exclusions.split('\n').filter(Boolean).map((exc, i) => (
-                            <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
-                              <span className="text-red-400 mt-0.5 flex-shrink-0">•</span>{exc}
-                            </li>
-                          ))}
-                        </ul>
+                      <div className="text-right">
+                        <p className="text-[9px] text-purple-300 uppercase tracking-wide">Group Size</p>
+                        <p className="text-sm font-bold text-white mt-0.5">{form.minGroupSize || 1} – {form.maxGroupSize || '—'} pax</p>
+                        {(Number(form.adults) > 0 || Number(form.children) > 0 || Number(form.infants) > 0) && (
+                          <p className="text-[11px] text-purple-200 mt-1">
+                            {Number(form.adults) > 0 && `${form.adults}A`}
+                            {Number(form.children) > 0 && ` · ${form.children}C`}
+                            {Number(form.infants) > 0 && ` · ${form.infants}I`}
+                          </p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Highlights */}
-                {form.highlights && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-1.5">✨ Highlights</h3>
-                    <ul className="space-y-1">
-                      {form.highlights.split('\n').filter(Boolean).map((h, i) => (
-                        <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
-                          <span className="text-purple-500 mt-0.5 flex-shrink-0">✦</span>{h}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Day-wise itinerary */}
-                {dayItems.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 mb-2">📅 Day-Wise Itinerary</h3>
-                    <div className="space-y-3">
-                      {dayItems.map((d, i) => (
-                        <div key={d.id} className="flex gap-3">
-                          <span className="w-7 h-7 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                            {String(i + 1).padStart(2, '0')}
-                          </span>
-                          <div>
-                            <p className="text-sm font-bold text-gray-900">{d.title}</p>
-                            {d.description && <p className="text-xs text-gray-600 leading-relaxed mt-0.5">{d.description}</p>}
-                            {d.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {d.tags.map(t => (
-                                  <span key={t} className="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full">{t}</span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
-                )}
 
-                {/* Footer */}
-                <div className="border-t border-gray-200 pt-4 text-center">
-                  <p className="text-xs text-gray-400">Powered by Travelzada · This is a preliminary quotation subject to availability</p>
+                  {/* Overview */}
+                  {form.overview && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Overview</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">{form.overview}</p>
+                    </div>
+                  )}
+
+                  {/* Package Type & Theme */}
+                  {(form.travelType || form.theme || form.mood) && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Package Type &amp; Theme</p>
+                      <div className="flex flex-wrap gap-2">
+                        {form.travelType && <span className="bg-purple-50 border border-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full"><span className="text-purple-400 mr-1 text-[9px] uppercase font-bold">Type</span>{form.travelType}</span>}
+                        {form.theme && <span className="bg-purple-50 border border-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full"><span className="text-purple-400 mr-1 text-[9px] uppercase font-bold">Theme</span>{form.theme}</span>}
+                        {form.mood && <span className="bg-purple-50 border border-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full"><span className="text-purple-400 mr-1 text-[9px] uppercase font-bold">Mood</span>{form.mood}</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Highlights */}
+                  {highlightList.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Highlights</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {highlightList.map((h, i) => (
+                          <div key={i} className="flex items-start gap-2 bg-violet-50 rounded-lg px-3 py-2">
+                            <span className="text-purple-500 text-xs mt-0.5 flex-shrink-0">✦</span>
+                            <span className="text-xs text-gray-700 leading-snug">{h}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Package Perks */}
+                  {perks.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Package Perks</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {perks.map(p => {
+                          const pr = PRESET_PERKS.find(x => x.label === p)
+                          return (
+                            <span key={p} className="bg-fuchsia-50 border border-fuchsia-100 text-fuchsia-700 text-xs font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
+                              {pr ? pr.emoji : '✓'} {p}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Hotels */}
+                  {hotelEntries.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hotels &amp; Accommodation</p>
+                      <div className="rounded-xl overflow-hidden border border-gray-100">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100">
+                              <th className="text-left font-bold text-gray-600 px-3 py-2">Destination</th>
+                              <th className="text-left font-bold text-gray-600 px-3 py-2">Hotel(s)</th>
+                              <th className="text-left font-bold text-gray-600 px-3 py-2">Meal Plan</th>
+                              <th className="text-left font-bold text-gray-600 px-3 py-2">Room</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {hotelEntries.map((h, i) => (
+                              <tr key={h.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                                <td className="px-3 py-2 font-semibold text-gray-800">{h.destination}{h.nights ? ` (${h.nights}N)` : ''}</td>
+                                <td className="px-3 py-2 text-gray-700">{h.hotels}</td>
+                                <td className="px-3 py-2 text-gray-600">{h.mealPlan}</td>
+                                <td className="px-3 py-2 text-gray-600">{h.roomType}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Vehicles */}
+                  {vehicleEntries.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Vehicles &amp; Transfers</p>
+                      <div className="rounded-xl overflow-hidden border border-blue-100">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-blue-50 border-b border-blue-100">
+                              <th className="text-left font-bold text-blue-700 px-3 py-2">Vehicle</th>
+                              <th className="text-left font-bold text-blue-700 px-3 py-2">Seats</th>
+                              <th className="text-left font-bold text-blue-700 px-3 py-2">Route</th>
+                              <th className="text-left font-bold text-blue-700 px-3 py-2">Days</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-blue-50">
+                            {vehicleEntries.map((v, i) => (
+                              <tr key={v.id} className={i % 2 === 0 ? 'bg-white' : 'bg-blue-50/30'}>
+                                <td className="px-3 py-2 font-semibold text-gray-800">{v.vehicleType}</td>
+                                <td className="px-3 py-2 text-gray-600">{v.seats}</td>
+                                <td className="px-3 py-2 text-gray-700">{v.route}</td>
+                                <td className="px-3 py-2 text-gray-600">{v.days}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Master Itinerary */}
+                  {dayItems.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Master Itinerary</p>
+                      <div className="space-y-0">
+                        {dayItems.map((d, i) => (
+                          <div key={d.id} className="flex gap-3">
+                            <div className="flex flex-col items-center flex-shrink-0">
+                              <span className="w-7 h-7 bg-purple-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center">
+                                {String(i + 1).padStart(2, '0')}
+                              </span>
+                              {i < dayItems.length - 1 && <div className="w-0.5 bg-purple-100 flex-1 my-1 min-h-[12px]" />}
+                            </div>
+                            <div className="pb-3 flex-1">
+                              <p className="text-sm font-bold text-gray-900 leading-snug">{d.title}</p>
+                              {d.description && <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{d.description}</p>}
+                              {d.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {d.tags.map(t => <span key={t} className="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full">{t}</span>)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inclusions / Exclusions */}
+                  {(inclList.length > 0 || exclList.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {inclList.length > 0 && (
+                        <div className="bg-green-50 rounded-xl p-3.5">
+                          <p className="text-[10px] font-bold text-green-700 uppercase tracking-wide mb-2">✓ Inclusions</p>
+                          <ul className="space-y-1.5">
+                            {inclList.map((inc, i) => (
+                              <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                                <span className="w-4 h-4 bg-green-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 mt-0.5">✓</span>
+                                {inc}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {exclList.length > 0 && (
+                        <div className="bg-red-50 rounded-xl p-3.5">
+                          <p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-2">✗ Exclusions</p>
+                          <ul className="space-y-1.5">
+                            {exclList.map((exc, i) => (
+                              <li key={i} className="flex items-start gap-1.5 text-xs text-gray-700">
+                                <span className="w-4 h-4 bg-red-400 text-white rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 mt-0.5">✗</span>
+                                {exc}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                 </div>
               </div>
+
+              {/* ── Bottom bar ── */}
+              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between flex-shrink-0 print:hidden">
+                <p className="text-[11px] text-gray-400">This is a preview of how the PDF will look when printed.</p>
+                <button
+                  onClick={() => setShowPdfPreview(false)}
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+
             </div>
           </div>
         )
