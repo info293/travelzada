@@ -94,7 +94,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   quoted:        { label: 'Quoted',        color: 'bg-amber-100 text-amber-700',  icon: IndianRupee },
   accepted:      { label: 'Accepted',      color: 'bg-green-100 text-green-700',  icon: CheckCircle },
   rejected:      { label: 'Rejected',      color: 'bg-red-100 text-red-700',      icon: XCircle },
-  converted:     { label: 'Booked âœ“',      color: 'bg-purple-100 text-purple-700', icon: BookCheck },
+  converted:     { label: 'Booked',         color: 'bg-purple-100 text-purple-700', icon: BookCheck },
 }
 
 function formatTime(iso: string) {
@@ -161,6 +161,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const [customDayItems, setCustomDayItems] = useState<DayItem[]>([])
   const [savingCustom, setSavingCustom] = useState(false)
   const [creatingPkg, setCreatingPkg] = useState(false)
+  const [chatPanelOpen, setChatPanelOpen] = useState(false)
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false)
   const originalCustomFormRef = useRef<Partial<PackageData>>({})
   const originalCustomDayItemsRef = useRef<DayItem[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -624,320 +626,451 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
 
   return (
     <>
-    <div className="flex gap-5 h-[calc(100vh-160px)] min-h-[600px]">
+    <div className="flex gap-4 h-[calc(100vh-160px)] min-h-[600px]">
 
-      {/* â”€â”€ LEFT â€” quotation list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="w-80 flex-shrink-0 flex flex-col">
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Quotations</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {hasActiveFilters ? `${filtered.length} of ${quotations.length}` : `${quotations.length} total`}
-            </p>
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}
-              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-            >
-              <X className="w-3 h-3" />Clear
-            </button>
-          )}
-        </div>
+      {/* PROPOSALS TABLE */}
+      <div className="flex-1 flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden min-w-0">
 
-        {/* Search */}
-        <div className="relative mb-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search customer, package, destinationâ€¦"
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-        </div>
-
-        {/* Date filter pills */}
-        <div className="flex gap-1 mb-2">
-          {(['all', 'today', '7d', '30d'] as const).map(d => (
-            <button key={d} onClick={() => setFilterDate(d)}
-              className={`flex-1 py-1 rounded-lg text-[11px] font-semibold transition-colors ${filterDate === d ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-              {d === 'all' ? 'All time' : d === 'today' ? 'Today' : d === '7d' ? '7 days' : '30 days'}
-            </button>
-          ))}
-        </div>
-
-        {/* Sub-agent + Destination dropdowns */}
-        <div className="grid grid-cols-2 gap-1.5 mb-2">
-          <div className="relative">
-            <select value={filterSubAgent} onChange={e => setFilterSubAgent(e.target.value)}
-              className="w-full appearance-none text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700 truncate">
-              <option value="all">All agents</option>
-              {subAgentOptions.map(sa => <option key={sa} value={sa}>{sa}</option>)}
-            </select>
-            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-          </div>
-          <div className="relative">
-            <select value={filterDest} onChange={e => setFilterDest(e.target.value)}
-              className="w-full appearance-none text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 pr-6 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700 truncate">
-              <option value="all">All destinations</option>
-              {destOptions.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
-          </div>
-        </div>
-
-        {/* Status filters */}
-        <div className="flex gap-1.5 flex-wrap mb-3">
-          <button onClick={() => setFilterStatus('all')}
-            className={`px-2.5 py-1 rounded-full text-xs font-semibold ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
-            All ({quotations.length})
-          </button>
-          {Object.keys(STATUS_CONFIG).map(s => (countByStatus[s] || 0) > 0 ? (
-            <button key={s} onClick={() => setFilterStatus(s)}
-              className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${filterStatus === s ? 'bg-primary text-white' : STATUS_CONFIG[s].color}`}>
-              {STATUS_CONFIG[s].label} ({countByStatus[s]})
-            </button>
-          ) : null)}
-        </div>
-
-        {/* Cards */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {filtered.length === 0 ? (
-            <div className="text-center py-12 text-sm text-gray-400">No quotations found</div>
-          ) : filtered.map(q => {
-            const cfg = STATUS_CONFIG[q.status] || STATUS_CONFIG.pending
-            const isConverted = q.status === 'converted'
-            return (
-              <button key={q.id}
-                onClick={() => { setActiveId(q.id); setEditingPrice(false); setPriceInput(String(q.quotedPrice || '')) }}
-                className={`w-full text-left p-3.5 rounded-2xl border transition-all ${
-                  activeId === q.id ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{q.customerName}</p>
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-1 ${cfg.color}`}>{cfg.label}</span>
-                </div>
-                <p className="text-xs text-gray-500 truncate">{q.packageTitle}</p>
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-xs text-gray-400 truncate">via {q.subAgentName || 'Agent'}</span>
-                  {q.quotedPrice ? (
-                    <span className={`text-xs font-bold ${isConverted ? 'text-purple-700' : 'text-emerald-700'}`}>
-                      â‚¹{Number(q.quotedPrice).toLocaleString('en-IN')}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">{formatDate(q.createdAt)}</span>
-                  )}
-                </div>
-                {q.publicId && (
-                  <div className="mt-1.5">
-                    <span className="text-[10px] font-mono font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                      {q.publicId}
-                    </span>
-                  </div>
-                )}
+        {/* Filter bar */}
+        <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Proposals</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {hasActiveFilters ? `${filtered.length} of ${quotations.length}` : `${quotations.length} total`}
+              </p>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <X className="w-3 h-3" />Clear
               </button>
-            )
-          })}
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search customer, package, destination..."
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            </div>
+
+            <div className="flex gap-1">
+              {(['all', 'today', '7d', '30d'] as const).map(d => (
+                <button key={d} onClick={() => setFilterDate(d)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${filterDate === d ? 'bg-primary text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                  {d === 'all' ? 'All' : d === 'today' ? 'Today' : d === '7d' ? '7d' : '30d'}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <select value={filterSubAgent} onChange={e => setFilterSubAgent(e.target.value)}
+                className="appearance-none text-xs border border-gray-200 rounded-xl px-3 py-2 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700">
+                <option value="all">All agents</option>
+                {subAgentOptions.map(sa => <option key={sa} value={sa}>{sa}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+
+            <div className="relative">
+              <select value={filterDest} onChange={e => setFilterDest(e.target.value)}
+                className="appearance-none text-xs border border-gray-200 rounded-xl px-3 py-2 pr-7 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white text-gray-700">
+                <option value="all">All destinations</option>
+                {destOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 flex-wrap mt-2.5">
+            <button onClick={() => setFilterStatus('all')}
+              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
+              All ({quotations.length})
+            </button>
+            {Object.keys(STATUS_CONFIG).map(s => (countByStatus[s] || 0) > 0 ? (
+              <button key={s} onClick={() => setFilterStatus(s)}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${filterStatus === s ? 'bg-primary text-white' : STATUS_CONFIG[s].color}`}>
+                {STATUS_CONFIG[s].label} ({countByStatus[s]})
+              </button>
+            ) : null)}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="flex-1 overflow-y-auto overflow-x-auto">
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 text-sm text-gray-400">No proposals found</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-gray-50 border-b border-gray-200 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Proposal #</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Customer</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Created At</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Proposal Name</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">From</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Travel Date</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Price Quoted</th>
+                  <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(q => {
+                  const cfg = STATUS_CONFIG[q.status] || STATUS_CONFIG.pending
+                  const isSelected = activeId === q.id
+                  return (
+                    <tr
+                      key={q.id}
+                      onClick={() => { setActiveId(q.id); setEditingPrice(false); setPriceInput(String(q.quotedPrice || '')) }}
+                      className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-gray-50 border-l-2 border-l-transparent'}`}
+                    >
+                      <td className="px-4 py-3.5">
+                        <span className="text-xs font-mono font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                          {q.publicId || q.id.slice(0, 8)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-gray-900">{q.customerName}</p>
+                        {q.customerEmail && <p className="text-xs text-gray-400 truncate max-w-[160px]">{q.customerEmail}</p>}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-xs text-gray-600">{formatDate(q.createdAt)}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-medium text-gray-800 leading-snug">{q.packageTitle}</p>
+                        <p className="text-xs text-gray-400">{q.destination}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm text-gray-600">{q.subAgentName || '-'}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm text-gray-700">{q.preferredDates || '-'}</p>
+                        <p className="text-xs text-gray-400">
+                          {q.groupSize} pax{q.adults ? ` · ${q.adults}A` : ''}{q.kids ? ` ${q.kids}K` : ''}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        {q.quotedPrice
+                          ? <span className="text-sm font-bold text-emerald-700">&#8377;{Number(q.quotedPrice).toLocaleString('en-IN')}</span>
+                          : <span className="text-gray-400">-</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${cfg.color}`}>
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2 justify-end whitespace-nowrap">
+                          <button
+                            onClick={() => {
+                              setActiveId(q.id)
+                              setEditingPrice(false)
+                              setPriceInput(String(q.quotedPrice || ''))
+                              setChatPanelOpen(true)
+                              setDetailPanelOpen(false)
+                            }}
+                            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                              isSelected && chatPanelOpen
+                                ? 'bg-primary text-white shadow-sm'
+                                : 'bg-primary/10 text-primary hover:bg-primary/20'
+                            }`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            Chat
+                            {q.messages.length > 0 && (
+                              <span className={`text-[10px] font-bold px-1 rounded-full ${isSelected && chatPanelOpen ? 'bg-white/30 text-white' : 'bg-primary/20 text-primary'}`}>
+                                {q.messages.length}
+                              </span>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveId(q.id)
+                              setEditingPrice(false)
+                              setPriceInput(String(q.quotedPrice || ''))
+                              setDetailPanelOpen(true)
+                              setChatPanelOpen(false)
+                            }}
+                            className="text-xs font-semibold text-primary hover:text-primary/70 hover:underline transition-colors"
+                          >
+                            View Proposal
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
-      {/* â”€â”€ RIGHT â€” detail + chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex-1 flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        {!active ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-            <MessageSquare className="w-10 h-10 mb-3" />
-            <p className="font-medium">Select a quotation to view details and messages</p>
+      {/* CHAT PANEL - 20% width */}
+      {chatPanelOpen && active && (
+        <div className="w-[20%] min-w-[240px] max-w-[340px] flex-shrink-0 flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden">
+
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 text-sm truncate">{active.customerName}</p>
+              <p className="text-xs text-gray-400 truncate">{active.packageTitle}</p>
+              <span className={`mt-1 inline-block text-[10px] px-2 py-0.5 rounded-full font-semibold ${STATUS_CONFIG[active.status]?.color || ''}`}>
+                {STATUS_CONFIG[active.status]?.label}
+              </span>
+            </div>
+            <button
+              onClick={() => { setChatPanelOpen(false); setActiveId(null) }}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0 mt-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        ) : (
-          <>
-            {/* â”€â”€ Header â”€â”€ */}
-            <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex-shrink-0">
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-gray-900">{active.customerName}</h3>
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${STATUS_CONFIG[active.status]?.color || ''}`}>
-                      {STATUS_CONFIG[active.status]?.label}
-                    </span>
-                    {active.publicId && (
-                      <span className="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md flex-shrink-0">
-                        {active.publicId}
+
+          <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5">
+            {active.messages.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <MessageSquare className="w-8 h-8 text-gray-200" />
+                <p className="text-xs text-gray-400">No messages yet</p>
+                <p className="text-[10px] text-gray-300">Send the first message below</p>
+              </div>
+            ) : (
+              active.messages.map(msg => {
+                if (msg.senderRole === 'system' || msg.text.startsWith('💰') || msg.text.startsWith('✅')) {
+                  return (
+                    <div key={msg.id} className="flex justify-center">
+                      <span className="bg-gray-100 text-gray-500 text-[10px] px-2.5 py-1 rounded-full text-center leading-relaxed max-w-full">
+                        {msg.text}
                       </span>
-                    )}
+                    </div>
+                  )
+                }
+                const isDmc = msg.senderRole === 'dmc'
+                return (
+                  <div key={msg.id} className={`flex gap-2 ${isDmc ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${isDmc ? 'bg-primary text-white' : 'bg-gray-200 text-gray-600'}`}>
+                      {msg.senderName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    <div className={`max-w-[80%] flex flex-col ${isDmc ? 'items-end' : 'items-start'}`}>
+                      <div className={`px-2.5 py-2 rounded-xl text-xs leading-relaxed ${isDmc ? 'bg-primary text-white rounded-tr-sm' : 'bg-gray-100 text-gray-900 rounded-tl-sm'}`}>
+                        {msg.text}
+                      </div>
+                      <p className="text-[9px] text-gray-400 mt-0.5 px-0.5">
+                        {msg.senderName} · {formatTime(msg.timestamp)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-500">
-                    <span className="flex items-center gap-1"><Package className="w-3 h-3" />{active.packageTitle}</span>
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{active.destination}</span>
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" />{active.groupSize} pax</span>
-                    {active.preferredDates && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{active.preferredDates}</span>}
-                    <span className="flex items-center gap-1"><User className="w-3 h-3" />via {active.subAgentName}</span>
+                )
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {!isClosed ? (
+            <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
+              <div className="flex gap-1.5">
+                <textarea
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
+                  rows={2}
+                  placeholder="Message... (Enter to send)"
+                  className="flex-1 px-2.5 py-2 border border-gray-200 rounded-xl text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={sending || !messageText.trim()}
+                  className="px-2.5 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 self-end flex-shrink-0"
+                >
+                  {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="px-3 py-2.5 border-t border-gray-100 text-center text-[10px] text-gray-400 flex-shrink-0">
+              {active.status === 'converted' ? 'Converted to booking' : 'Rejected'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* VIEW PROPOSAL - Full-Screen Overlay */}
+    {detailPanelOpen && active && (
+      <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+
+        <div className="flex items-center justify-between bg-white border-b border-gray-100 px-5 py-3 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            <button
+              onClick={() => setDetailPanelOpen(false)}
+              className="flex items-center gap-1.5 text-gray-500 hover:text-primary hover:bg-primary/5 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+              Back
+            </button>
+            <div className="h-4 w-px bg-gray-200" />
+            <h3 className="font-bold text-gray-900 truncate">{active.customerName}</h3>
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${STATUS_CONFIG[active.status]?.color || ''}`}>
+              {STATUS_CONFIG[active.status]?.label}
+            </span>
+            {active.publicId && (
+              <span className="text-[10px] font-mono font-bold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md flex-shrink-0">
+                {active.publicId}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 flex-shrink-0 flex-wrap">
+            {active.customerEmail && (
+              <a href={`mailto:${active.customerEmail}`}
+                className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 px-3 py-1.5 rounded-xl hover:border-primary hover:text-primary transition-colors font-medium">
+                <Mail className="w-4 h-4" />Email
+              </a>
+            )}
+            {active.customerPhone && (
+              <a href={`https://wa.me/${active.customerPhone.replace(/\D/g, '')}`} target="_blank"
+                className="flex items-center gap-1.5 text-sm border border-green-200 bg-green-50 text-green-700 px-3 py-1.5 rounded-xl hover:bg-green-100 transition-colors font-medium">
+                WhatsApp
+              </a>
+            )}
+            <button onClick={() => shareOnWhatsApp(active)}
+              className="flex items-center gap-1.5 text-sm border border-green-300 bg-green-500 text-white px-3 py-1.5 rounded-xl hover:bg-green-600 transition-colors font-semibold shadow-sm">
+              <Share2 className="w-4 h-4" />Share Quote
+            </button>
+            <button onClick={() => openPdfForQuotation(active)}
+              className="flex items-center gap-1.5 text-sm border border-primary bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors font-semibold shadow-sm">
+              <FileText className="w-4 h-4" />PDF
+            </button>
+            <button onClick={() => fetchAndViewPackage(active)} disabled={loadingPkg}
+              className="flex items-center gap-1.5 text-sm border border-indigo-200 bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-colors font-medium">
+              {loadingPkg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+              {active.customPackageData ? 'View Custom' : 'View Package'}
+            </button>
+            {!isClosed && (
+              <button onClick={() => openCustomize(active)}
+                className="flex items-center gap-1.5 text-sm border border-amber-200 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-xl hover:bg-amber-100 transition-colors font-medium">
+                <FileEdit className="w-4 h-4" />
+                {active.customPackageData ? 'Edit Custom' : 'Customize'}
+              </button>
+            )}
+            {active.customPackageData && (
+              <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full self-center">Customized</span>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-b border-gray-100 bg-white flex-shrink-0">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              {active.quotedPrice && !editingPrice ? (
+                <div className="flex items-center gap-2">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 flex items-center gap-2">
+                    <IndianRupee className="w-4 h-4 text-emerald-600" />
+                    <span className="text-lg font-bold text-emerald-700">{Number(active.quotedPrice).toLocaleString('en-IN')}</span>
+                    <span className="text-xs text-emerald-600 font-medium">quoted</span>
                   </div>
-                </div>
-                <div className="flex gap-2 flex-shrink-0 flex-wrap">
-                  {active.customerEmail && (
-                    <a href={`mailto:${active.customerEmail}`}
-                      className="flex items-center gap-1.5 text-sm border border-gray-200 bg-white text-gray-600 px-4 py-2 rounded-xl hover:border-primary hover:text-primary transition-colors font-medium">
-                      <Mail className="w-4 h-4" />Email
-                    </a>
-                  )}
-                  {active.customerPhone && (
-                    <a href={`https://wa.me/${active.customerPhone.replace(/\D/g, '')}`} target="_blank"
-                      className="flex items-center gap-1.5 text-sm border border-green-200 bg-green-50 text-green-700 px-4 py-2 rounded-xl hover:bg-green-100 transition-colors font-medium">
-                      WhatsApp
-                    </a>
-                  )}
-                  <button
-                    onClick={() => shareOnWhatsApp(active)}
-                    className="flex items-center gap-1.5 text-sm border border-green-300 bg-green-500 text-white px-4 py-2 rounded-xl hover:bg-green-600 transition-colors font-semibold shadow-sm"
-                    title="Share quotation via WhatsApp"
-                  >
-                    <Share2 className="w-4 h-4" />Share Quote
-                  </button>
-                  <button
-                    onClick={() => openPdfForQuotation(active)}
-                    className="flex items-center gap-1.5 text-sm border border-primary bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary/90 transition-colors font-semibold shadow-sm"
-                    title="Generate printable quotation"
-                  >
-                    <FileText className="w-4 h-4" />PDF
-                  </button>
-                  <button
-                    onClick={() => fetchAndViewPackage(active)}
-                    disabled={loadingPkg}
-                    className="flex items-center gap-1.5 text-sm border border-indigo-200 bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-colors font-medium"
-                    title="View full package details"
-                  >
-                    {loadingPkg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                    {active.customPackageData ? 'View Custom' : 'View Package'}
-                  </button>
                   {!isClosed && (
-                    <button
-                      onClick={() => openCustomize(active)}
-                      className="flex items-center gap-1.5 text-sm border border-amber-200 bg-amber-50 text-amber-700 px-4 py-2 rounded-xl hover:bg-amber-100 transition-colors font-medium"
-                      title="Customize package for this quote only"
-                    >
-                      <FileEdit className="w-4 h-4" />
-                      {active.customPackageData ? 'Edit Custom' : 'Customize Package'}
+                    <button onClick={() => { setEditingPrice(true); setPriceInput(String(active.quotedPrice || '')) }}
+                      className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors">
+                      <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  {active.customPackageData && (
-                    <span className="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1.5 rounded-full self-center">
-                      Customized
-                    </span>
-                  )}
                 </div>
-              </div>
+              ) : !isClosed ? (
+                <div className="flex items-center gap-2">
+                  {editingPrice && (
+                    <button onClick={() => setEditingPrice(false)} className="p-1 text-gray-400 hover:text-gray-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">
+                    {editingPrice ? 'Update price' : 'Set quote price'}
+                  </label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                    <input type="number" value={priceInput} onChange={e => setPriceInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') savePrice() }}
+                      placeholder="e.g. 58000"
+                      className="pl-7 pr-3 py-1.5 w-32 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                  </div>
+                  <button onClick={savePrice} disabled={savingPrice || !priceInput}
+                    className="text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap">
+                    {savingPrice ? 'Saving...' : editingPrice ? 'Update' : 'Set & Notify'}
+                  </button>
+                </div>
+              ) : null}
             </div>
-
-            {/* â”€â”€ Controls row (price + status + book button) â”€â”€ */}
-            <div className="px-5 py-3 border-b border-gray-100 bg-white flex-shrink-0">
-              <div className="flex items-center gap-4 flex-wrap">
-
-                {/* â”€â”€ Quoted price block â”€â”€ */}
-                <div className="flex items-center gap-3">
-                  {active.quotedPrice && !editingPrice ? (
-                    // Price is set â€” show it prominently
-                    <div className="flex items-center gap-2">
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 flex items-center gap-2">
-                        <IndianRupee className="w-4 h-4 text-emerald-600" />
-                        <span className="text-lg font-bold text-emerald-700">
-                          {Number(active.quotedPrice).toLocaleString('en-IN')}
-                        </span>
-                        <span className="text-xs text-emerald-600 font-medium">quoted</span>
-                      </div>
-                      {!isClosed && (
-                        <button onClick={() => { setEditingPrice(true); setPriceInput(String(active.quotedPrice || '')) }}
-                          className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" title="Edit price">
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ) : !isClosed ? (
-                    // No price yet OR editing â€” show input
-                    <div className="flex items-center gap-2">
-                      {editingPrice && (
-                        <button onClick={() => setEditingPrice(false)} className="p-1 text-gray-400 hover:text-gray-600">
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <label className="text-xs font-semibold text-gray-500 whitespace-nowrap">
-                        {editingPrice ? 'Update price (â‚¹)' : 'Set quote price (â‚¹)'}
-                      </label>
-                      <div className="relative">
-                        <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                        <input type="number" value={priceInput} onChange={e => setPriceInput(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') savePrice() }}
-                          placeholder="e.g. 58000"
-                          className="pl-7 pr-3 py-1.5 w-32 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </div>
-                      <button onClick={savePrice} disabled={savingPrice || !priceInput}
-                        className="text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-xl hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap">
-                        {savingPrice ? 'Savingâ€¦' : editingPrice ? 'Update' : 'Set & Notify'}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* â”€â”€ Status buttons + Convert to Booking â”€â”€ */}
-                <div className="flex items-center gap-2 ml-auto flex-wrap">
-                  {!isClosed && ['in_discussion', 'accepted', 'rejected'].map(s => (
-                    <button key={s} disabled={active.status === s}
-                      onClick={() => updateStatus(s)}
-                      className={`text-sm font-semibold px-4 py-2 rounded-xl border transition-colors disabled:opacity-60 ${
-                        active.status === s
-                          ? `${STATUS_CONFIG[s]?.color || ''} border-transparent shadow-sm`
-                          : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
-                      }`}>
-                      {STATUS_CONFIG[s]?.label}
-                    </button>
-                  ))}
-
-                  {/* â”€â”€ Convert to Booking button â”€â”€ */}
-                  {active.status !== 'converted' && active.status !== 'rejected' && (
-                    <button
-                      onClick={convertToBooking}
-                      disabled={converting}
-                      className="flex items-center gap-2 text-sm font-bold bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm ml-1"
-                    >
-                      {converting
-                        ? <><Loader2 className="w-4 h-4 animate-spin" />Convertingâ€¦</>
-                        : <><BookCheck className="w-4 h-4" />Mark as Booked</>
-                      }
-                    </button>
-                  )}
-
-                  {/* Booked badge */}
-                  {active.status === 'converted' && (
-                    <span className="flex items-center gap-2 text-sm font-bold bg-purple-100 text-purple-700 px-5 py-2 rounded-xl">
-                      <BookCheck className="w-4 h-4" />Booked âœ“
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* â”€â”€ Messages â”€â”€ */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              {active.specialRequests && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm text-amber-800">
-                  <p className="text-xs font-semibold mb-1">Customer Notes / Special Requests</p>
-                  {active.specialRequests}
-                </div>
+            <div className="flex items-center gap-2 ml-auto flex-wrap">
+              {!isClosed && ['in_discussion', 'accepted', 'rejected'].map(s => (
+                <button key={s} disabled={active.status === s} onClick={() => updateStatus(s)}
+                  className={`text-sm font-semibold px-4 py-2 rounded-xl border transition-colors disabled:opacity-60 ${
+                    active.status === s ? `${STATUS_CONFIG[s]?.color || ''} border-transparent shadow-sm` : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                  }`}>
+                  {STATUS_CONFIG[s]?.label}
+                </button>
+              ))}
+              {active.status !== 'converted' && active.status !== 'rejected' && (
+                <button onClick={convertToBooking} disabled={converting}
+                  className="flex items-center gap-2 text-sm font-bold bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm ml-1">
+                  {converting ? <><Loader2 className="w-4 h-4 animate-spin" />Converting...</> : <><BookCheck className="w-4 h-4" />Mark as Booked</>}
+                </button>
               )}
+              {active.status === 'converted' && (
+                <span className="flex items-center gap-2 text-sm font-bold bg-purple-100 text-purple-700 px-5 py-2 rounded-xl">
+                  <BookCheck className="w-4 h-4" />Booked
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
+        <div className="flex flex-1 overflow-hidden">
+
+          <div className="w-72 flex-shrink-0 border-r border-gray-200 bg-white overflow-y-auto p-5 space-y-4">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Customer</p>
+              <div className="space-y-1 text-sm text-gray-700">
+                <p className="font-semibold">{active.customerName}</p>
+                {active.customerEmail && <p className="text-xs text-gray-500">{active.customerEmail}</p>}
+                {active.customerPhone && <p className="text-xs text-gray-500">{active.customerPhone}</p>}
+              </div>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Trip Details</p>
+              <div className="space-y-1.5 text-sm text-gray-700">
+                <div className="flex items-center gap-2"><Package className="w-3.5 h-3.5 text-gray-400" /><span>{active.packageTitle}</span></div>
+                <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-gray-400" /><span>{active.destination}</span></div>
+                <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5 text-gray-400" /><span>{active.groupSize} pax{active.adults ? ` (${active.adults}A${active.kids ? ` ${active.kids}K` : ''})` : ''}</span></div>
+                {active.preferredDates && <div className="flex items-center gap-2"><Calendar className="w-3.5 h-3.5 text-gray-400" /><span>{active.preferredDates}</span></div>}
+                <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-gray-400" /><span>via {active.subAgentName}</span></div>
+              </div>
+            </div>
+            {active.specialRequests && (
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Special Requests</p>
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3 leading-relaxed">{active.specialRequests}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 flex flex-col overflow-hidden bg-[#f4f5f9]">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
               {active.messages.length === 0 ? (
-                <div className="flex flex-col items-center gap-4 py-6">
-                  {/* Auto welcome card â€” visual only, not saved to DB */}
+                <div className="flex flex-col items-center gap-4 py-8">
                   <div className="w-full max-w-md bg-gradient-to-br from-primary/5 to-blue-50 border border-primary/15 rounded-2xl p-4 shadow-sm">
                     <div className="flex items-center gap-2.5 mb-3">
                       <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-base">âœˆï¸</span>
+                        <span className="text-white text-base">&#9992;</span>
                       </div>
                       <div>
                         <p className="text-sm font-bold text-gray-900">Travelzada</p>
-                        <p className="text-[10px] text-gray-400">New Enquiry Â· Automated</p>
+                        <p className="text-[10px] text-gray-400">New Enquiry · Automated</p>
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-gray-800 mb-3">
-                      New booking enquiry received! ðŸŽ‰
-                    </p>
+                    <p className="text-sm font-semibold text-gray-800 mb-3">New booking enquiry received!</p>
                     <div className="space-y-1.5 bg-white/70 rounded-xl p-3 text-xs text-gray-600 mb-3">
                       <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Customer:</span><span>{active.customerName}</span></div>
                       <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Package:</span><span>{active.packageTitle}</span></div>
@@ -945,18 +1078,16 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                       <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Group Size:</span><span>{active.groupSize} traveller{active.groupSize !== 1 ? 's' : ''}</span></div>
                       {active.preferredDates && <div className="flex gap-2"><span className="font-semibold text-gray-800 w-24 shrink-0">Dates:</span><span>{active.preferredDates}</span></div>}
                     </div>
-                    <p className="text-xs text-gray-500">Reply below to start the conversation and provide a quotation.</p>
+                    <p className="text-xs text-gray-500">Reply below to start the conversation.</p>
                   </div>
-                  <p className="text-xs text-gray-400">No messages yet â€” send the first message!</p>
                 </div>
               ) : (
                 active.messages.map(msg => {
-                  // System / price-update messages
-                  if (msg.senderRole === 'system' || msg.text.startsWith('ðŸ’°') || msg.text.startsWith('âœ…')) {
+                  if (msg.senderRole === 'system' || msg.text.startsWith('💰') || msg.text.startsWith('✅')) {
                     return (
                       <div key={msg.id} className="flex justify-center">
-                        <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-full">
-                          {msg.text} Â· {formatTime(msg.timestamp)}
+                        <span className="bg-white text-gray-500 text-xs px-3 py-1.5 rounded-full border border-gray-200">
+                          {msg.text} · {formatTime(msg.timestamp)}
                         </span>
                       </div>
                     )
@@ -968,12 +1099,10 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                         {msg.senderName?.charAt(0)?.toUpperCase() || '?'}
                       </div>
                       <div className={`max-w-[72%] flex flex-col ${isDmc ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${isDmc ? 'bg-primary text-white rounded-tr-sm' : 'bg-gray-100 text-gray-900 rounded-tl-sm'}`}>
+                        <div className={`px-3.5 py-2.5 rounded-2xl text-sm ${isDmc ? 'bg-primary text-white rounded-tr-sm' : 'bg-white text-gray-900 rounded-tl-sm shadow-sm border border-gray-100'}`}>
                           {msg.text}
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1 px-1">
-                          {msg.senderName} Â· {formatTime(msg.timestamp)}
-                        </p>
+                        <p className="text-[10px] text-gray-400 mt-1 px-1">{msg.senderName} · {formatTime(msg.timestamp)}</p>
                       </div>
                     </div>
                   )
@@ -982,13 +1111,12 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
               <div ref={messagesEndRef} />
             </div>
 
-            {/* â”€â”€ Message input â”€â”€ */}
             {!isClosed ? (
-              <div className="px-5 py-4 border-t border-gray-100 flex-shrink-0">
+              <div className="px-6 py-4 border-t border-gray-200 bg-white flex-shrink-0">
                 <div className="flex gap-2">
                   <textarea value={messageText} onChange={e => setMessageText(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() } }}
-                    rows={2} placeholder="Type a messageâ€¦ (Enter to send, Shift+Enter for new line)"
+                    rows={2} placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
                     className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   <button onClick={sendMessage} disabled={sending || !messageText.trim()}
                     className="px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 disabled:opacity-50 flex items-center gap-1.5 self-end">
@@ -998,16 +1126,14 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                 </div>
               </div>
             ) : (
-              <div className="px-5 py-3 border-t border-gray-100 text-center text-xs text-gray-400 flex-shrink-0">
-                {active.status === 'converted'
-                  ? 'âœ… This quotation has been converted to a booking.'
-                  : 'âŒ This quotation has been rejected.'}
+              <div className="px-6 py-3 border-t border-gray-200 bg-white text-center text-xs text-gray-400 flex-shrink-0">
+                {active.status === 'converted' ? 'This quotation has been converted to a booking.' : 'This quotation has been rejected.'}
               </div>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </div>
-    </div>
+    )}
 
     {/* â”€â”€ Package View Full-Screen Overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
     {viewPkg && active && (() => {
