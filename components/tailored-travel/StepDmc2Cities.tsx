@@ -3,12 +3,9 @@
 import { useMemo, useEffect } from 'react'
 
 const HOTEL_STAR_OPTIONS = [
-  { id: '3-star',   label: '3-Star',   desc: 'Comfortable',   stars: 3 },
-  { id: '4-star',   label: '4-Star',   desc: 'Premium',       stars: 4 },
-  { id: '5-star',   label: '5-Star',   desc: 'Luxury',        stars: 5 },
-  { id: 'luxury',   label: 'Luxury',   desc: 'Ultra Luxury',  stars: 5 },
-  { id: 'budget',   label: 'Budget',   desc: 'Value Stay',    stars: 1 },
-  { id: 'homestay', label: 'Homestay', desc: 'Local Charm',   stars: 0 },
+  { id: '3-star', label: '3-Star', desc: 'Comfortable', stars: 3 },
+  { id: '4-star', label: '4-Star', desc: 'Premium',     stars: 4 },
+  { id: '5-star', label: '5-Star', desc: 'Luxury',      stars: 5 },
 ]
 
 function packageHasHotel(pkg: any): boolean {
@@ -253,7 +250,7 @@ export default function StepDmc2Cities({
                 onClick={() => setHotelIncluded(true)}
                 className={`relative flex flex-col items-center gap-1.5 py-3 px-3 rounded-2xl border-2 transition-all duration-200 select-none text-left ${
                   hotelIncluded === true
-                    ? 'bg-gradient-to-br from-primary/8 to-[#ff8a3d]/8 border-primary shadow-md shadow-primary/15 scale-[1.02]'
+                    ? 'bg-primary/8 border-primary shadow-md shadow-primary/15 scale-[1.02]'
                     : 'bg-gray-50 border-gray-100 hover:border-gray-200 hover:bg-gray-100'
                 }`}
               >
@@ -289,7 +286,7 @@ export default function StepDmc2Cities({
                         onClick={() => toggleHotelStar(opt.id)}
                         className={`flex items-center gap-2 pl-2.5 pr-3.5 py-2 rounded-xl border-2 transition-all duration-200 select-none ${
                           isSelected
-                            ? 'bg-gradient-to-r from-primary/10 to-[#ff8a3d]/10 border-primary shadow-sm scale-[1.03]'
+                            ? 'bg-primary/10 border-primary shadow-sm scale-[1.03]'
                             : 'bg-gray-50 border-gray-100 hover:border-primary/20 hover:bg-primary/5'
                         }`}
                       >
@@ -359,7 +356,7 @@ export default function StepDmc2Cities({
                       onClick={() => selectNights(opt.nights)}
                       className={`relative flex flex-col items-center justify-center w-20 h-20 rounded-2xl border-2 transition-all duration-200 group select-none ${
                         isSelected
-                          ? 'bg-gradient-to-br from-primary to-[#ff8a3d] border-transparent shadow-xl shadow-primary/30 scale-[1.06]'
+                          ? 'bg-primary border-transparent shadow-xl shadow-primary/30 scale-[1.06]'
                           : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
                       }`}
                     >
@@ -468,7 +465,7 @@ export default function StepDmc2Cities({
         <button
           onClick={onNext}
           disabled={!canSubmit || isSubmitting}
-          className="group flex items-center gap-2.5 px-10 py-3 bg-gradient-to-r from-primary to-[#ff8a3d] text-white rounded-full font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className="group flex items-center gap-2.5 px-10 py-3 bg-primary text-white rounded-full font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <>

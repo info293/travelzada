@@ -71,7 +71,7 @@ const EMPTY_FORM = {
 
 const MEAL_PLANS = ['Breakfast', 'Half Board', 'Full Board', 'All Inclusive', 'Room Only']
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
-const STAR_CATEGORIES = ['', '3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
+const STAR_CATEGORIES = ['', '3-Star', '4-Star', '5-Star']
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
 const VEHICLE_TYPES = ['Sedan', 'SUV', 'Innova Crysta', 'Tempo Traveller (12 Seater)', 'Tempo Traveller (16 Seater)', 'Mini Bus (20 Seater)', 'Bus (40+ Seater)', 'Luxury Car', 'Hatchback', 'Van', 'Auto Rickshaw']
@@ -1386,7 +1386,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   ['price_per_person', 'No', '25000'],
                   ['currency', 'No', 'INR (default) / USD / EUR / GBP / AED / SGD / AUD — auto-converted to INR'],
                   ['travel_type', 'No', 'Leisure / Honeymoon / Adventure / Family / Corporate'],
-                  ['star_category', 'No', '3-Star / 4-Star / 5-Star / Luxury / Budget / leave blank for no hotel'],
+                  ['star_category', 'No', '3-Star / 4-Star / 5-Star / leave blank for no hotel'],
                   ['theme', 'No', 'Beach / Wildlife / Heritage / Adventure / Cultural'],
                   ['mood', 'No', 'Relaxing / Romantic / Family Fun / Adventurous'],
                   ['overview', 'No', 'Short paragraph describing the package'],
@@ -1541,7 +1541,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         </div>
       ) : (() => {
         const destOptions = ['all', ...Array.from(new Set(packages.map(p => p.destination).filter(Boolean)))]
-        const WITH_HOTEL_CATS = new Set(['3-Star', '4-Star', '5-Star', 'Luxury'])
+        const WITH_HOTEL_CATS = new Set(['3-Star', '4-Star', '5-Star'])
         const filteredPackages = packages.filter(pkg => {
           const q = pkgSearch.toLowerCase()
           const matchSearch = !q || pkg.title.toLowerCase().includes(q) || pkg.destination.toLowerCase().includes(q) || (pkg.travelType || '').toLowerCase().includes(q)

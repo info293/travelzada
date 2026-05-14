@@ -285,7 +285,7 @@ export default function StepDmc1Destination({
             {isDestSelected ? (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="inline-flex items-center gap-2.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white pl-4 pr-3 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/25 text-sm w-fit">
+                  <div className="inline-flex items-center gap-2.5 bg-primary text-white pl-4 pr-3 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/25 text-sm w-fit">
                     <svg className="w-4 h-4 opacity-80 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -437,7 +437,7 @@ export default function StepDmc1Destination({
                           onClick={() => toggleCity(city)}
                           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border-2 text-sm font-semibold transition-all duration-200 select-none ${
                             isSelected
-                              ? 'bg-gradient-to-r from-primary to-[#ff8a3d] border-transparent text-white shadow-md shadow-primary/20 scale-[1.03]'
+                              ? 'bg-primary border-transparent text-white shadow-md shadow-primary/20 scale-[1.03]'
                               : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-primary/20 hover:bg-primary/5 hover:text-primary'
                           }`}
                         >
@@ -495,7 +495,7 @@ export default function StepDmc1Destination({
                     pickupIsSet ? 'bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-200' : 'bg-white border-gray-300'
                   }`} />
                   {/* Connecting line */}
-                  <div className="flex-1 w-0.5 my-1.5 min-h-[60px] bg-gradient-to-b from-emerald-200 via-gray-200 to-rose-200 rounded-full" />
+                  <div className="flex-1 w-0.5 my-1.5 min-h-[60px] bg-gray-200 rounded-full" />
                   {/* Drop dot */}
                   <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-all duration-300 ${
                     dropIsSet ? 'bg-rose-500 border-rose-500 shadow-md shadow-rose-200' : 'bg-white border-gray-300'
