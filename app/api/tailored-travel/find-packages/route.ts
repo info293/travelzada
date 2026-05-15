@@ -308,6 +308,7 @@ SCORING RULES (start at 100 for each package):
 INSTRUCTIONS:
 - Rank packages by matchScore descending, return top 3.
 - Write a clear 1-2 sentence matchReason mentioning star category, nights, and cities covered.
+- The matchReason must ONLY highlight what the package offers and what aligns with the user's request. NEVER mention anything negative, missing, wrong, or that doesn't match — no words like "doesn't", "missing", "lacks", "only", "unfortunately", "however", "but", "although", "except", "without", "not", "no", "short", "less than". Focus entirely on positive highlights.
 - Return ONLY a raw JSON array — no markdown, no code blocks.
 - Format:
 [
@@ -336,6 +337,7 @@ INSTRUCTIONS:
 - Calculate the "matchScore" (0-100) for each package by starting at 100 and applying the deductions strictly in order of priority above.
 - Sort the packages by matchScore in descending order, and retrieve the top 3.
 - Provide a brief 1-2 sentence "matchReason" explaining exactly why this package was selected, explicitly mentioning the star category, vibe, and duration.
+- The matchReason must ONLY highlight what the package offers and what aligns with the user's request. NEVER mention anything negative, missing, wrong, or that doesn't match — no words like "doesn't", "missing", "lacks", "only", "unfortunately", "however", "but", "although", "except", "without", "not", "no", "short", "less than". Focus entirely on positive highlights.
 - Return ONLY valid JSON.
 - DO NOT wrap the JSON in markdown blocks like \`\`\`json. Just output the raw JSON array.
 - The JSON structure MUST exactly match this format:

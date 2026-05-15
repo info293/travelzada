@@ -5,9 +5,9 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
-  Loader2, ArrowLeft, X, Send, User, Phone, Mail, Calendar,
+  Loader2, ArrowLeft, X, Send, User, Calendar,
   Users, Star, Clock, CheckCircle, MapPin, Package,
-  FileText, ChevronDown, ChevronLeft, ChevronRight, Pause, Play,
+  FileText, ChevronDown, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
@@ -113,8 +113,7 @@ export default function AgentResultsPage() {
   const [error, setError] = useState<string | null>(null)
   const [noPackages, setNoPackages] = useState(false)
   const [loadingIdx, setLoadingIdx] = useState(0)
-  const [showBookingForm, setShowBookingForm] = useState(false)
-  const [selectedPackage, setSelectedPackage] = useState<MatchedPackage | null>(null)
+  const [nameCaptureAction, setNameCaptureAction] = useState<'pdf' | 'whatsapp' | null>(null)
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
@@ -643,19 +642,13 @@ export default function AgentResultsPage() {
               {/* CTAs */}
               <div className="space-y-2.5">
                 <button
-                  onClick={() => { setSelectedPackage(bestPkg); setShowBookingForm(true) }}
-                  className="w-full bg-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-primary/90 transition shadow-md hover:shadow-lg"
-                >
-                  Request Package
-                </button>
-                <button
-                  onClick={() => setShowPdf(true)}
+                  onClick={() => setNameCaptureAction('pdf')}
                   className="w-full border-2 border-gray-900 text-gray-900 py-3 rounded-lg font-semibold text-sm hover:bg-gray-900 hover:text-white transition flex items-center justify-center gap-2"
                 >
                   <FileText className="w-4 h-4" /> Download Itinerary
                 </button>
                 <button
-                  onClick={() => { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }}
+                  onClick={() => setNameCaptureAction('whatsapp')}
                   className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-semibold text-sm transition"
                 >
                   <Send className="w-3.5 h-3.5" /> Share on WhatsApp
@@ -693,15 +686,27 @@ export default function AgentResultsPage() {
         </div>
       </section>
 
-      {/* ── Booking modal ── */}
+      {/* ── Name Capture Modal ── */}
       <AnimatePresence>
-        {showBookingForm && selectedPackage && agentInfo && (
+        {nameCaptureAction && agentInfo && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
-              <AgentBookingForm agentInfo={agentInfo} pkg={selectedPackage} wizardData={wizardData}
-                subAgentId={subAgentId} sessionId={sessionId} agentSlug={agentSlug}
-                onClose={() => setShowBookingForm(false)} />
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+              <NameCaptureModal
+                action={nameCaptureAction}
+                agentInfo={agentInfo}
+                pkg={bestPkg}
+                wizardData={wizardData}
+                subAgentId={subAgentId}
+                sessionId={sessionId}
+                agentSlug={agentSlug}
+                onClose={() => setNameCaptureAction(null)}
+                onSuccess={() => {
+                  if (nameCaptureAction === 'pdf') setShowPdf(true)
+                  else { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }
+                  setNameCaptureAction(null)
+                }}
+              />
             </motion.div>
           </div>
         )}
@@ -785,20 +790,15 @@ function buildWhatsAppMsg(pkg: MatchedPackage): string {
   return lines.join('\n')
 }
 
-function AgentBookingForm({ agentInfo, pkg, wizardData, subAgentId, sessionId, agentSlug, onClose }: {
-  agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
-  subAgentId?: string; sessionId?: string; agentSlug?: string; onClose: () => void
-}) {
-  if (subAgentId) return <QuotationRequestForm agentInfo={agentInfo} pkg={pkg} wizardData={wizardData} subAgentId={subAgentId} agentSlug={agentSlug} onClose={onClose} />
-  return <BookingRequestForm agentInfo={agentInfo} pkg={pkg} wizardData={wizardData} subAgentId={subAgentId} sessionId={sessionId} agentSlug={agentSlug} onClose={onClose} />
-}
 
-function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlug, onClose }: {
-  agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any; subAgentId: string; agentSlug?: string; onClose: () => void
+function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sessionId, agentSlug, onClose, onSuccess }: {
+  action: 'pdf' | 'whatsapp'
+  agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
+  subAgentId?: string; sessionId?: string; agentSlug?: string
+  onClose: () => void; onSuccess: () => void
 }) {
   const [customerName, setCustomerName] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
 
   const preferredDates = wizardData?.dateRange && !['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(wizardData.dateRange)
@@ -809,7 +809,8 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
     if (!customerName.trim()) { setError('Customer name is required.'); return }
     setError(''); setSubmitting(true)
     try {
-      const res = await fetch('/api/agent/quotations', {
+      const endpoint = subAgentId ? '/api/agent/quotations' : '/api/agent/bookings'
+      const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentId: agentInfo.id, agentSlug: agentInfo.agentSlug, subAgentId, subAgentName: '',
@@ -822,28 +823,27 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
           wizardData, selectedPackage: pkg,
         }),
       })
+      if (agentSlug && sessionId) {
+        fetch('/api/agent/track', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agentSlug, sessionId, action: 'quotation_submitted', subAgentId, destination: pkg.Destination_Name, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name }),
+        }).catch(() => {})
+      }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Submission failed')
-      setSubmitted(true)
+      onSuccess()
     } catch (err: any) { setError(err.message || 'Something went wrong.') }
     finally { setSubmitting(false) }
   }
 
-  if (submitted) return (
-    <div className="p-8 text-center">
-      <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle className="w-7 h-7 text-green-600" /></div>
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Quotation Request Sent!</h3>
-      <p className="text-sm text-gray-500 mb-6">Your quotation request has been sent to the DMC. Track it in your <strong>Quotations</strong> tab.</p>
-      <button onClick={onClose} className="bg-primary hover:bg-primary/90 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
-    </div>
-  )
+  const actionLabel = action === 'pdf' ? 'Download Itinerary' : 'Share on WhatsApp'
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
         <div>
-          <h3 className="font-bold text-gray-900">{pkg.agentPackageTitle || pkg.Destination_Name}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">₹{pkg.Price_Min_INR.toLocaleString('en-IN')}/person · {pkg.Duration_Nights}N {pkg.Duration_Days}D</p>
+          <h3 className="font-bold text-gray-900">{actionLabel}</h3>
+          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · ₹{pkg.Price_Min_INR.toLocaleString('en-IN')}/person</p>
         </div>
         <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>
       </div>
@@ -876,139 +876,8 @@ function QuotationRequestForm({ agentInfo, pkg, wizardData, subAgentId, agentSlu
       <div className="px-6 pb-6">
         <button type="submit" disabled={submitting}
           className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-          {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending…</> : <><Send className="w-4 h-4" />Request Package</>}
+          {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Saving…</> : <><Send className="w-4 h-4" />{actionLabel}</>}
         </button>
-      </div>
-    </form>
-  )
-}
-
-function BookingRequestForm({ agentInfo, pkg, wizardData, subAgentId, sessionId, agentSlug, onClose }: {
-  agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
-  subAgentId?: string; sessionId?: string; agentSlug?: string; onClose: () => void
-}) {
-  const [form, setForm] = useState({
-    customerName: '', customerEmail: '', customerPhone: '',
-    preferredDates: wizardData?.dateRange && wizardData.dateRange !== 'Flexible' ? wizardData.dateRange : '',
-    specialRequests: '',
-  })
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const [error, setError] = useState('')
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.customerName.trim() || !form.customerEmail.trim()) { setError('Name and email are required.'); return }
-    setError(''); setSubmitting(true)
-    try {
-      const res = await fetch('/api/agent/bookings', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agentId: agentInfo.id, agentSlug: agentInfo.agentSlug,
-          packageId: pkg.id, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
-          destination: pkg.Destination_Name, customerName: form.customerName.trim(),
-          customerEmail: form.customerEmail.trim(), customerPhone: form.customerPhone.trim(),
-          preferredDates: form.preferredDates,
-          groupSize: (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0),
-          adults: wizardData?.passengers?.adults || 1, kids: wizardData?.passengers?.kids || 0,
-          rooms: wizardData?.passengers?.rooms || 1, specialRequests: form.specialRequests,
-          wizardData, selectedPackage: pkg, subAgentId,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Submission failed')
-      if (agentSlug && sessionId) {
-        fetch('/api/agent/track', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentSlug, sessionId, action: 'booking_submitted', subAgentId, destination: pkg.Destination_Name, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name }),
-        }).catch(() => {})
-      }
-      setSubmitted(true)
-    } catch (err: any) { setError(err.message || 'Something went wrong.') }
-    finally { setSubmitting(false) }
-  }
-
-  if (submitted) return (
-    <div className="p-8 text-center">
-      <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle className="w-7 h-7 text-green-600" /></div>
-      <h3 className="text-lg font-bold text-gray-900 mb-2">Booking Request Sent!</h3>
-      <p className="text-sm text-gray-500 mb-1">Your request for <strong>{pkg.agentPackageTitle || pkg.Destination_Name}</strong> has been received.</p>
-      <p className="text-sm text-gray-500 mb-6"><strong>{agentInfo.companyName}</strong> will contact you at <strong>{form.customerEmail}</strong> shortly.</p>
-      <button onClick={onClose} className="bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 text-white font-semibold px-6 py-2.5 rounded-xl text-sm">Done</button>
-    </div>
-  )
-
-  return (
-    <form onSubmit={handleSubmit}>
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <div>
-          <h3 className="font-bold text-gray-900">Request This Package</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · ₹{pkg.Price_Min_INR.toLocaleString('en-IN')}/person</p>
-        </div>
-        <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>
-      </div>
-      <div className="px-6 py-5 space-y-4">
-        {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2.5 rounded-xl border border-red-100">{error}</div>}
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Full Name *</label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input name="customerName" value={form.customerName} onChange={handleChange} required placeholder="Your full name"
-              className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Email *</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input type="email" name="customerEmail" value={form.customerEmail} onChange={handleChange} required placeholder="you@email.com"
-                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Phone</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input name="customerPhone" value={form.customerPhone} onChange={handleChange} placeholder="+91 98765..."
-                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
-            </div>
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Preferred Travel Dates</label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <input name="preferredDates" value={form.preferredDates} onChange={handleChange} placeholder="e.g. December 2025, Flexible"
-              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Special Requests</label>
-          <textarea name="specialRequests" value={form.specialRequests} onChange={handleChange} rows={2}
-            placeholder="Dietary needs, accessibility, or special occasions…"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30 focus:outline-none" />
-        </div>
-        <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center gap-3 border border-primary/10">
-          <Users className="w-4 h-4 text-primary flex-shrink-0" />
-          <p className="text-xs text-gray-700">
-            {wizardData?.passengers?.adults || 1} adult{(wizardData?.passengers?.adults || 1) !== 1 ? 's' : ''}
-            {wizardData?.passengers?.kids ? `, ${wizardData.passengers.kids} kid${wizardData.passengers.kids !== 1 ? 's' : ''}` : ''}
-            {' · '}{wizardData?.passengers?.rooms || 1} room{(wizardData?.passengers?.rooms || 1) !== 1 ? 's' : ''}
-            {' · '}{pkg.Duration_Nights}N {pkg.Duration_Days}D
-          </p>
-        </div>
-      </div>
-      <div className="px-6 pb-6">
-        <button type="submit" disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-[#ff8a3d] hover:opacity-90 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-          {submitting ? <><Loader2 className="w-4 h-4 animate-spin" />Sending request…</> : <><Send className="w-4 h-4" />Send Booking Request</>}
-        </button>
-        <p className="text-xs text-center text-gray-400 mt-2">{agentInfo.companyName} will contact you to confirm details.</p>
       </div>
     </form>
   )
