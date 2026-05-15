@@ -429,15 +429,6 @@ export default function AgentResultsPage() {
           ? <img src={bestPkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
           : <div className="w-full h-full bg-primary/10 flex items-center justify-center"><MapPin className="w-16 h-16 text-primary/20" /></div>}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#f8f5f0] opacity-95" />
-        <div className="absolute top-4 left-4 flex items-center gap-2">
-          <span className="flex items-center gap-1.5 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg">
-            <Star className="w-3 h-3 fill-white" /> Best Match
-          </span>
-          <span className="bg-white/95 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-lg">
-            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-            <span className="text-sm font-black text-gray-900">{bestPkg.matchScore}%</span>
-          </span>
-        </div>
       </section>
 
       {/* ── Floating content ── */}
@@ -529,11 +520,7 @@ export default function AgentResultsPage() {
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                       <ChevronLeft className="w-3.5 h-3.5 text-gray-600" />
                     </button>
-                    <button onClick={() => setIsPaused(p => !p)}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors">
-                      {isPaused ? <Play className="w-3.5 h-3.5 text-primary" /> : <Pause className="w-3.5 h-3.5 text-primary" />}
-                    </button>
-                    <button onClick={() => setCurrentDayIdx(p => Math.min(days.length - 1, p + 1))} disabled={currentDayIdx === days.length - 1}
+<button onClick={() => setCurrentDayIdx(p => Math.min(days.length - 1, p + 1))} disabled={currentDayIdx === days.length - 1}
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
                       <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
                     </button>
@@ -676,107 +663,6 @@ export default function AgentResultsPage() {
               </div>
             </div>
 
-            {/* Journey Narrator card */}
-            {days.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-primary/10 overflow-hidden">
-                <div className="px-4 pt-3.5 pb-3 border-b border-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-widest">Journey Narrator</p>
-                      <p className="text-xs font-semibold text-gray-700 mt-0.5">
-                        Day {currentDayIdx + 1} of {days.length}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={toggleAutoListen}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all ${
-                          autoListen ? 'bg-primary text-white' : 'bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10'
-                        }`}>
-                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-                        </svg>
-                        {autoListen ? 'ON' : 'Auto'}
-                      </button>
-                      {isSpeaking ? (
-                        <button onClick={stopSpeak} className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-primary text-white">
-                          <span className="flex items-end gap-px h-2.5">
-                            {[2, 4, 3].map((h, i) => (
-                              <span key={i} className="w-0.5 bg-white rounded-full animate-bounce" style={{ height: `${h * 3}px`, animationDelay: `${i * 0.1}s` }} />
-                            ))}
-                          </span>
-                        </button>
-                      ) : (
-                        !autoListen && (
-                          <button onClick={handleSpeak} disabled={isTranslating || isTyping || !typedText}
-                            className="px-2 py-1 rounded-full text-[10px] font-bold bg-primary/5 text-primary border border-primary/20 hover:bg-primary/10 disabled:opacity-40 transition-all">
-                            ▶
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 mt-2 flex-wrap">
-                    {days.map((_, i) => (
-                      <button key={i} onClick={() => setCurrentDayIdx(i)}
-                        className={`rounded-full transition-all duration-300 ${i === currentDayIdx ? 'w-5 h-2 bg-primary' : 'w-2 h-2 bg-gray-200 hover:bg-primary/40'}`} />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="px-4 pt-3 pb-4 bg-gray-50/50">
-                  <AnimatePresence mode="wait">
-                    <motion.div key={currentDayIdx} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="relative">
-                      <div className="bg-white border border-primary/15 rounded-xl px-3.5 py-2.5 shadow-sm">
-                        <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Your Guide Says…</p>
-                        <p className="text-xs text-gray-700 leading-relaxed min-h-[32px]">
-                          {isTranslating ? (
-                            <span className="flex items-center gap-1.5 text-primary/50">
-                              <svg className="animate-spin w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
-                              Translating…
-                            </span>
-                          ) : (
-                            <>{typedText || '…'}{isTyping && <span className="text-primary animate-pulse font-thin">|</span>}</>
-                          )}
-                        </p>
-                      </div>
-                      <div className="absolute -bottom-2 left-6 w-3 h-3 bg-white border-r border-b border-primary/15 rotate-45" />
-                    </motion.div>
-                  </AnimatePresence>
-
-                  <div className="flex items-center gap-3 mt-5">
-                    <motion.div animate={{ y: [0, -5, 0] }} transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}>
-                      <TravelGuide />
-                    </motion.div>
-                    <div>
-                      <p className="text-[10px] font-black text-primary uppercase tracking-widest">Travel Guide</p>
-                      <p className="text-[9px] text-gray-400 mt-0.5">
-                        Speaking in <span className="font-semibold text-gray-600">{selectedLang.flag} {selectedLang.label}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Language</p>
-                    <div className="flex flex-wrap gap-1">
-                      {LANGUAGES.map(lang => (
-                        <button key={lang.code} onClick={() => setSelectedLang(lang)} title={lang.label}
-                          className={`flex items-center gap-1 px-1.5 py-1 rounded-lg text-[10px] font-semibold transition-all select-none ${
-                            selectedLang.code === lang.code
-                              ? 'bg-primary text-white shadow-sm scale-105'
-                              : 'bg-white border border-gray-100 text-gray-500 hover:border-primary/20 hover:bg-primary/5'
-                          }`}>
-                          <span className="text-sm leading-none">{lang.flag}</span>
-                          <span className="hidden sm:inline">{lang.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Other matched packages */}
             {packages.length > 1 && (
