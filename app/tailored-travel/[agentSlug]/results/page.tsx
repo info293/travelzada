@@ -9,7 +9,6 @@ import {
   Users, Star, Clock, CheckCircle, MapPin, Package,
   FileText, ChevronDown, ChevronLeft, ChevronRight,
 } from 'lucide-react'
-import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
 
 
@@ -117,7 +116,6 @@ export default function AgentResultsPage() {
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
-  const [showPdf, setShowPdf] = useState(false)
   const [selectedPkgIdx, setSelectedPkgIdx] = useState(0)
 
   // Day narrator
@@ -445,9 +443,6 @@ export default function AgentResultsPage() {
                 {bestPkg.Star_Category && bestPkg.Star_Category.toLowerCase() !== 'none' && (
                   <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">{bestPkg.Star_Category}</span>
                 )}
-                {bestPkg.Travel_Type && (
-                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">{bestPkg.Travel_Type}</span>
-                )}
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#1e1d2f] leading-tight">{title}</h1>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -468,13 +463,11 @@ export default function AgentResultsPage() {
                     <p className="text-sm font-bold text-[#1e1d2f]">{bestPkg.Star_Category}</p>
                   </div>
                 )}
-                {bestPkg.Travel_Type && (
-                  <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
-                    <Users className="w-4 h-4 text-primary" />
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Travel Type</p>
-                    <p className="text-sm font-bold text-[#1e1d2f]">{bestPkg.Travel_Type}</p>
-                  </div>
-                )}
+                <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
+                  <Users className="w-4 h-4 text-primary" />
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Passengers</p>
+                  <p className="text-sm font-bold text-[#1e1d2f]">{pdfGroupSize} Pax</p>
+                </div>
               </div>
             </article>
 
@@ -702,8 +695,32 @@ export default function AgentResultsPage() {
                 agentSlug={agentSlug}
                 onClose={() => setNameCaptureAction(null)}
                 onSuccess={() => {
-                  if (nameCaptureAction === 'pdf') setShowPdf(true)
-                  else { const msg = buildWhatsAppMsg(bestPkg); window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank') }
+                  if (nameCaptureAction === 'pdf') {
+                    openPackagePdfWindow({
+                      title,
+                      destination: bestPkg.Destination_Name,
+                      destinationCountry: bestPkg.Destination_Country,
+                      heroImage: bestPkg.Primary_Image_URL,
+                      durationDays: bestPkg.Duration_Days,
+                      durationNights: bestPkg.Duration_Nights,
+                      starCategory: bestPkg.Star_Category,
+                      travelType: bestPkg.Travel_Type,
+                      pricePerPerson: bestPkg.Price_Min_INR,
+                      groupSize: pdfGroupSize,
+                      adults: pdfAdults,
+                      kids: pdfKids || undefined,
+                      overview: bestPkg.Overview,
+                      inclusions,
+                      exclusions,
+                      highlights,
+                      dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
+                      brandName: agentInfo?.companyName || 'Travel Agent',
+                      termsVariant: 'brochure',
+                    })
+                  } else {
+                    const msg = buildWhatsAppMsg(bestPkg)
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+                  }
                   setNameCaptureAction(null)
                 }}
               />
@@ -712,54 +729,6 @@ export default function AgentResultsPage() {
         )}
       </AnimatePresence>
 
-      {/* ── PDF Modal ── */}
-      {showPdf && (
-        <PackagePdfModal
-          title={title}
-          destination={bestPkg.Destination_Name}
-          destinationCountry={bestPkg.Destination_Country}
-          durationDays={bestPkg.Duration_Days}
-          durationNights={bestPkg.Duration_Nights}
-          starCategory={bestPkg.Star_Category}
-          travelType={bestPkg.Travel_Type}
-          pricePerPerson={bestPkg.Price_Min_INR}
-          groupSize={pdfGroupSize}
-          adults={pdfAdults}
-          kids={pdfKids || undefined}
-          overview={bestPkg.Overview}
-          inclusions={inclusions}
-          exclusions={exclusions}
-          highlights={highlights}
-          dayWiseItinerary={bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined}
-          brandName={agentInfo?.companyName || 'Travel Agent'}
-          onClose={() => setShowPdf(false)}
-          onWhatsApp={() => {
-            const msg = buildWhatsAppMsg(bestPkg)
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-          }}
-          onPrint={() => openPackagePdfWindow({
-            title,
-            destination: bestPkg.Destination_Name,
-            destinationCountry: bestPkg.Destination_Country,
-            heroImage: bestPkg.Primary_Image_URL,
-            durationDays: bestPkg.Duration_Days,
-            durationNights: bestPkg.Duration_Nights,
-            starCategory: bestPkg.Star_Category,
-            travelType: bestPkg.Travel_Type,
-            pricePerPerson: bestPkg.Price_Min_INR,
-            groupSize: pdfGroupSize,
-            adults: pdfAdults,
-            kids: pdfKids || undefined,
-            overview: bestPkg.Overview,
-            inclusions,
-            exclusions,
-            highlights,
-            dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
-            brandName: agentInfo?.companyName || 'Travel Agent',
-            termsVariant: 'brochure',
-          })}
-        />
-      )}
     </div>
   )
 }
