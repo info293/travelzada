@@ -87,6 +87,12 @@ export default function SignupPage() {
 
     try {
       await signup(formData.email, formData.password)
+      // Fire-and-forget welcome email
+      fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'customer_signup', data: { name: formData.name.trim(), email: formData.email } }),
+      }).catch(() => {})
       router.push('/')
     } catch (error: any) {
       setErrors({

@@ -156,6 +156,38 @@ export async function POST(request: Request) {
         break
       }
 
+      // ── Customer self-registered ───────────────────────────────────────────
+      case 'customer_signup': {
+        const { name, email } = data
+        payload = {
+          to: email,
+          subject: `Welcome to Travelzada, ${name}! 🌍`,
+          html: `
+            <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px;background:#f9fafb;border-radius:16px">
+              <h2 style="color:#7c3aed;margin-bottom:8px">Welcome aboard, ${name}! ✈️</h2>
+              <p style="color:#374151">
+                Your Travelzada account is ready. Start exploring AI-powered travel plans, discover handpicked packages, and book your next adventure — all in one place.
+              </p>
+              <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:24px 0">
+                <p style="color:#6b7280;font-size:14px;margin:0"><strong>What you can do now:</strong></p>
+                <ul style="color:#6b7280;font-size:14px;margin-top:8px;padding-left:20px">
+                  <li>Browse curated travel packages</li>
+                  <li>Get personalised AI trip plans in minutes</li>
+                  <li>Save and share your favourites</li>
+                </ul>
+              </div>
+              <div style="text-align:center;margin:24px 0">
+                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'}" style="background:#7c3aed;color:#fff;padding:12px 28px;border-radius:12px;text-decoration:none;font-weight:600;font-size:15px">
+                  Start Exploring →
+                </a>
+              </div>
+              <p style="color:#9ca3af;font-size:12px">If you didn't create this account, you can safely ignore this email.</p>
+            </div>
+          `,
+        }
+        break
+      }
+
       default:
         return NextResponse.json({ error: 'Unknown email type' }, { status: 400 })
     }
