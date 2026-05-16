@@ -3,13 +3,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Loader2, Mail, Phone, Calendar, Users, MessageSquare,
-  ChevronDown, ChevronUp, Download, IndianRupee, User,
+  ChevronDown, ChevronUp, Download, Banknote, User,
   MessageCircle, MapPin, Tag, Send, Columns3, List
 } from 'lucide-react'
 import { AgentBooking } from '@/lib/types/agent'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 interface Props {
   agentId: string
+  currency?: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -28,7 +30,8 @@ function formatDate(ts: any) {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function BookingInbox({ agentId }: Props) {
+export default function BookingInbox({ agentId, currency }: Props) {
+  const sym = getCurrencySymbol(currency)
   const [bookings, setBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -269,7 +272,7 @@ export default function BookingInbox({ agentId }: Props) {
                           <p className="font-bold text-gray-900 text-xs leading-snug">{b.customerName}</p>
                           {(b.bookingValue || b.quotedPrice) ? (
                             <span className={`text-xs font-bold flex-shrink-0 ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>
-                              ₹{(Number(b.bookingValue || b.quotedPrice)/1000).toFixed(0)}K
+                              {sym}{(Number(b.bookingValue || b.quotedPrice)/1000).toFixed(0)}K
                             </span>
                           ) : null}
                         </div>
@@ -352,11 +355,11 @@ export default function BookingInbox({ agentId }: Props) {
 
                 <div className="text-right flex-shrink-0 space-y-0.5">
                   {booking.bookingValue ? (
-                    <p className="text-sm font-bold text-emerald-700">₹{Number(booking.bookingValue).toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-emerald-700">{sym}{Number(booking.bookingValue).toLocaleString()}</p>
                   ) : booking.selectedPackage?.pricePerPerson ? (
-                    <p className="text-sm font-bold text-purple-600">₹{(Number(booking.selectedPackage.pricePerPerson) * (booking.groupSize || booking.adults || 1)).toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-purple-600">{sym}{(Number(booking.selectedPackage.pricePerPerson) * (booking.groupSize || booking.adults || 1)).toLocaleString()}</p>
                   ) : booking.quotedPrice ? (
-                    <p className="text-sm font-bold text-purple-600">₹{Number(booking.quotedPrice).toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-purple-600">{sym}{Number(booking.quotedPrice).toLocaleString()}</p>
                   ) : null}
                   <p className="text-xs text-gray-400">{formatDate(booking.createdAt)}</p>
                 </div>
@@ -390,7 +393,7 @@ export default function BookingInbox({ agentId }: Props) {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-[10px] text-gray-400">Package price</p>
-                        <p className="text-sm font-bold text-purple-700">₹{pkgPrice.toLocaleString('en-IN')}<span className="text-[10px] font-normal text-gray-400">/person</span></p>
+                        <p className="text-sm font-bold text-purple-700">{sym}{pkgPrice.toLocaleString()}<span className="text-[10px] font-normal text-gray-400">/person</span></p>
                       </div>
                     </div>
                   )}
@@ -461,10 +464,10 @@ export default function BookingInbox({ agentId }: Props) {
                     {/* Booking value — pre-filled from package price */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Booking Value (₹)</label>
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Booking Value ({sym.trim()})</label>
                         {pkgPrice > 0 && !booking.bookingValue && (
                           <span className="text-[10px] text-purple-600 font-semibold bg-purple-50 px-2 py-0.5 rounded-full">
-                            Suggested: ₹{pkgPrice.toLocaleString('en-IN')} × {booking.groupSize || booking.adults || 1} pax = ₹{(pkgPrice * (booking.groupSize || booking.adults || 1)).toLocaleString('en-IN')}
+                            Suggested: {sym}{pkgPrice.toLocaleString()} × {booking.groupSize || booking.adults || 1} pax = {sym}{(pkgPrice * (booking.groupSize || booking.adults || 1)).toLocaleString()}
                           </span>
                         )}
                       </div>
@@ -473,6 +476,7 @@ export default function BookingInbox({ agentId }: Props) {
                         initial={booking.bookingValue || (pkgPrice * (booking.groupSize || booking.adults || 1)) || ''}
                         onSave={(val) => updateBooking(booking.id, { bookingValue: Number(val) })}
                         placeholder={pkgPrice ? String(pkgPrice * (booking.groupSize || booking.adults || 1)) : 'Enter amount'}
+                        currencySymbol={sym}
                       />
                     </div>
 
@@ -507,12 +511,13 @@ export default function BookingInbox({ agentId }: Props) {
 }
 
 function BookingValueEditor({
-  bookingId, initial, onSave, placeholder = 'Enter amount',
+  bookingId, initial, onSave, placeholder = 'Enter amount', currencySymbol = '₹',
 }: {
   bookingId: string
   initial: number | string
   onSave: (val: string) => Promise<void>
   placeholder?: string
+  currencySymbol?: string
 }) {
   const [value, setValue] = useState(String(initial || ''))
   const [saving, setSaving] = useState(false)
@@ -529,7 +534,7 @@ function BookingValueEditor({
 
   return (
     <div className="relative">
-      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 leading-none">{currencySymbol.trim()}</span>
       <input
         type="number"
         value={value}

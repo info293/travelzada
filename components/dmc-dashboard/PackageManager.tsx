@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
 import { AgentPackage, HotelEntry, VehicleEntry } from '@/lib/types/agent'
+import { CURRENCIES, getCurrencySymbol } from '@/lib/utils/currency'
 
 // Module-level cache so repeated currency switches in the same session don't re-fetch
 // TTL: 30 minutes
@@ -28,20 +29,8 @@ async function fetchINRRate(fromCurrency: string): Promise<{ rate: number; updat
 interface Props {
   agentId: string
   companyName?: string
+  currency?: string
 }
-
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'AED', symbol: 'AED', name: 'UAE Dirham' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-]
 
 const EMPTY_FORM = {
   title: '',
@@ -565,7 +554,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       `📍 ${form.destination}${form.destinationCountry ? ', ' + form.destinationCountry : ''}`,
       `🗓️ ${form.durationDays}D / ${form.durationNights}N  |  ⭐ ${form.starCategory}  |  🎒 ${form.travelType}`,
       `👥 ${form.adults || 0} Adult${Number(form.adults) !== 1 ? 's' : ''}${Number(form.children) > 0 ? ` · ${form.children} Child${Number(form.children) !== 1 ? 'ren' : ''}` : ''}${Number(form.infants) > 0 ? ` · ${form.infants} Infant${Number(form.infants) !== 1 ? 's' : ''}` : ''}`,
-      `💰 *₹${final.toLocaleString('en-IN')} per person*`,
+      `💰 *${getCurrencySymbol(form.currency)}${final.toLocaleString()} per person*`,
       '',
     ]
     if (form.overview) lines.push(form.overview, '')
@@ -1059,9 +1048,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
     const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
 
-    const currencySymbolMap: Record<string, string> = { INR:'₹', USD:'$', EUR:'€', GBP:'£', AED:'AED ', SGD:'S$', AUD:'A$', CAD:'C$', THB:'฿', MYR:'RM ' }
-    const sym = currencySymbolMap[form.currency] ?? `${form.currency} `
-    const fmt = (n: number) => `${sym}${n.toLocaleString('en-IN')}`
+    const sym = getCurrencySymbol(form.currency)
+    const fmt = (n: number) => `${sym}${n.toLocaleString()}`
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>${esc(form.title || 'Package')} — Package Brochure</title>
@@ -1618,7 +1606,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{pkg.title}</p>
                 <p className="text-sm text-gray-500">
-                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · ₹{pkg.pricePerPerson.toLocaleString()}/person
+                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · {getCurrencySymbol(pkg.currency)}{pkg.pricePerPerson.toLocaleString()}/person
                   {((pkg.adults ?? 0) + (pkg.children ?? 0) + (pkg.infants ?? 0)) > 0 && (
                     <span className="ml-1">
                       · 👥 {pkg.adults ?? 0}A{(pkg.children ?? 0) > 0 ? ` ${pkg.children}C` : ''}{(pkg.infants ?? 0) > 0 ? ` ${pkg.infants}I` : ''}
@@ -2416,7 +2404,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   <div className="mx-4 mb-4 bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
                     <p className="text-xl font-bold text-purple-700">
-                      ₹{finalPrice > 0 ? finalPrice.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '–'}
+                      {getCurrencySymbol(form.currency)}{finalPrice > 0 ? finalPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '–'}
                     </p>
                     <p className="text-[10px] text-purple-400">per person</p>
                   </div>
@@ -2601,7 +2589,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-purple-500 font-medium">Starting from</p>
-                  <p className="text-3xl font-bold text-purple-700">₹{(previewPkg.pricePerPerson || 0).toLocaleString('en-IN')}</p>
+                  <p className="text-3xl font-bold text-purple-700">{getCurrencySymbol(previewPkg.currency)}{(previewPkg.pricePerPerson || 0).toLocaleString()}</p>
                   <p className="text-xs text-purple-500">per person</p>
                 </div>
                 <div className="bg-purple-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl opacity-60 cursor-default">
@@ -2696,9 +2684,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         const inclList = (form.inclusions || '').split('\n').filter(Boolean)
         const exclList = (form.exclusions || '').split('\n').filter(Boolean)
         const highlightList = (form.highlights || '').split('\n').filter(Boolean)
-        const currSymMap: Record<string,string> = { INR:'₹', USD:'$', EUR:'€', GBP:'£', AED:'AED ', SGD:'S$', AUD:'A$', CAD:'C$', THB:'฿', MYR:'RM ' }
-        const sym = currSymMap[form.currency] ?? `${form.currency} `
-        const fmtPrice = (n: number) => `${sym}${n.toLocaleString('en-IN')}`
+        const sym = getCurrencySymbol(form.currency)
+        const fmtPrice = (n: number) => `${sym}${n.toLocaleString()}`
         return (
           <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:block">
             <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[92vh] print:shadow-none print:rounded-none print:max-w-full print:max-h-none">

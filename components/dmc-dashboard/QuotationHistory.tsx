@@ -5,8 +5,9 @@ import {
   TrendingUp, Users, Send, DollarSign, Download, Eye, Edit2,
   MessageSquare, MoreHorizontal, ChevronLeft, ChevronRight,
   Loader2, X, Sparkles, MapPin, Clock, CheckCircle, Phone, Mail,
-  IndianRupee, AlertCircle, ChevronDown,
+  Banknote, AlertCircle, ChevronDown,
 } from 'lucide-react'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 interface Message {
   id: string
@@ -71,6 +72,7 @@ interface Quotation {
 interface Props {
   agentId: string
   subAgentId?: string
+  currency?: string
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -105,7 +107,8 @@ function formatDate(ts: any) {
   return new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export default function QuotationHistory({ agentId, subAgentId }: Props) {
+export default function QuotationHistory({ agentId, subAgentId, currency }: Props) {
+  const sym = getCurrencySymbol(currency)
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading]       = useState(true)
   const [filterStatus, setFilterStatus]           = useState('All')
@@ -325,7 +328,7 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
         ))}
         <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl p-4 shadow-sm text-white">
           <p className="text-[10px] font-bold opacity-70 uppercase tracking-wider mb-2">Total Commission</p>
-          <p className="text-2xl font-bold">₹{totalCommission.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+          <p className="text-2xl font-bold">{sym}{totalCommission.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
           <div className="flex items-center gap-1.5 mt-2 text-xs opacity-70">
             <DollarSign className="w-3 h-3" /> YTD earnings
           </div>
@@ -411,7 +414,7 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
                   </td>
                   <td className="px-4 py-3">
                     <p className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                      {q.quotedPrice ? `₹${Number(q.quotedPrice).toLocaleString('en-IN')}` : <span className="text-gray-400 font-normal">–</span>}
+                      {q.quotedPrice ? `${sym}${Number(q.quotedPrice).toLocaleString()}` : <span className="text-gray-400 font-normal">–</span>}
                     </p>
                   </td>
                   <td className="px-4 py-3">
@@ -568,7 +571,7 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
                       {[
                         { label: 'Destination',     value: modalQ.destination || '–' },
                         { label: 'Preferred Dates', value: modalQ.preferredDates || '–' },
-                        { label: 'Quoted Price',    value: modalQ.quotedPrice ? `₹${Number(modalQ.quotedPrice).toLocaleString('en-IN')}` : '–', highlight: true },
+                        { label: 'Quoted Price',    value: modalQ.quotedPrice ? `${sym}${Number(modalQ.quotedPrice).toLocaleString()}` : '–', highlight: true },
                         { label: 'Adults',          value: String(modalQ.adults || modalQ.groupSize || 1) },
                         { label: 'Kids',            value: String(modalQ.kids || 0) },
                         { label: 'Rooms',           value: modalQ.rooms ? `${modalQ.rooms}` : '–' },
@@ -626,7 +629,7 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
                             {pkg.starCategory && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">⭐ {pkg.starCategory}</span>}
                             {pkg.travelType && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">🎒 {pkg.travelType}</span>}
                             {pkg.theme && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">🌿 {pkg.theme}</span>}
-                            {pkg.pricePerPerson && <span className="bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold px-2.5 py-1 rounded-full">₹{Number(pkg.pricePerPerson).toLocaleString('en-IN')}/person</span>}
+                            {pkg.pricePerPerson && <span className="bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold px-2.5 py-1 rounded-full">{sym}{Number(pkg.pricePerPerson).toLocaleString()}/person</span>}
                           </div>
                           {pkg.overview && (
                             <div>
@@ -767,9 +770,9 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">Quoted Price (₹)</label>
+                    <label className="block text-xs font-bold text-gray-600 mb-2 uppercase tracking-wider">Quoted Price ({sym.trim()})</label>
                     <div className="relative">
-                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 leading-none">{sym.trim()}</span>
                       <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)}
                         placeholder="Enter quoted price"
                         className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-purple-400" />
@@ -814,7 +817,7 @@ export default function QuotationHistory({ agentId, subAgentId }: Props) {
                               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-amber-400" placeholder="0" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Price/Person ₹</label>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Price/Person {sym.trim()}</label>
                             <input type="number" value={editCustomPkg.pricePerPerson || ''} onChange={e => setEditCustomPkg(p => p ? { ...p, pricePerPerson: Number(e.target.value) } : p)}
                               className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-amber-400" placeholder="0" />
                           </div>

@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Loader2, UserCircle, Phone, Mail, Search, Tag, MessageCircle,
-  ChevronDown, ChevronUp, Pencil, Check, IndianRupee, BookOpen,
+  ChevronDown, ChevronUp, Pencil, Check, Banknote, BookOpen,
   Calendar, MapPin, Users, Inbox, TrendingUp, Clock
 } from 'lucide-react'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 import { db } from '@/lib/firebase'
 import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'firebase/firestore'
 
@@ -45,6 +46,7 @@ interface EnrichedCustomer extends Customer {
 
 interface Props {
   agentId: string
+  currency?: string
 }
 
 const AVAILABLE_TAGS = ['VIP', 'Repeat', 'Corporate', 'High-value', 'First-time', 'Group', 'Honeymoon']
@@ -74,7 +76,8 @@ function formatDate(ts?: { seconds: number } | null) {
   return new Date(ts.seconds * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export default function CustomerRecords({ agentId }: Props) {
+export default function CustomerRecords({ agentId, currency }: Props) {
+  const sym = getCurrencySymbol(currency)
   const [customers, setCustomers] = useState<EnrichedCustomer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -208,7 +211,7 @@ export default function CustomerRecords({ agentId }: Props) {
           {[
             { icon: Users, label: 'Total Customers', value: customers.length, color: 'text-purple-600 bg-purple-50' },
             { icon: BookOpen, label: 'Total Bookings', value: customers.reduce((s, c) => s + c.bookings.length, 0), color: 'text-blue-600 bg-blue-50' },
-            { icon: IndianRupee, label: 'Confirmed Revenue', value: totalRevenue > 0 ? `₹${(totalRevenue / 1000).toFixed(0)}K` : '—', color: 'text-emerald-600 bg-emerald-50' },
+            { icon: Banknote, label: 'Confirmed Revenue', value: totalRevenue > 0 ? `${sym}${(totalRevenue / 1000).toFixed(0)}K` : '—', color: 'text-emerald-600 bg-emerald-50' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl border border-gray-200 p-4 flex items-center gap-3">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${s.color}`}>
@@ -320,7 +323,7 @@ export default function CustomerRecords({ agentId }: Props) {
                     </div>
                     {customer.computedSpend > 0 && (
                       <div>
-                        <p className="text-sm font-bold text-emerald-700">₹{(customer.computedSpend / 1000).toFixed(0)}K</p>
+                        <p className="text-sm font-bold text-emerald-700">{sym}{(customer.computedSpend / 1000).toFixed(0)}K</p>
                         <p className="text-[10px] text-gray-400">spend</p>
                       </div>
                     )}
@@ -329,7 +332,7 @@ export default function CustomerRecords({ agentId }: Props) {
                   {/* Mobile stats */}
                   <div className="sm:hidden text-right flex-shrink-0">
                     <p className="text-sm font-bold text-gray-900">{customer.bookings.length} trip{customer.bookings.length !== 1 ? 's' : ''}</p>
-                    {customer.computedSpend > 0 && <p className="text-xs text-emerald-600">₹{(customer.computedSpend / 1000).toFixed(0)}K</p>}
+                    {customer.computedSpend > 0 && <p className="text-xs text-emerald-600">{sym}{(customer.computedSpend / 1000).toFixed(0)}K</p>}
                   </div>
 
                   {isExpanded
@@ -381,7 +384,7 @@ export default function CustomerRecords({ agentId }: Props) {
                         </div>
                         <div className="bg-white rounded-xl border border-gray-200 p-3 text-center">
                           <p className="text-lg font-bold text-emerald-700">
-                            {customer.computedSpend > 0 ? `₹${(customer.computedSpend / 1000).toFixed(0)}K` : '—'}
+                            {customer.computedSpend > 0 ? `${sym}${(customer.computedSpend / 1000).toFixed(0)}K` : '—'}
                           </p>
                           <p className="text-[10px] text-gray-500">Revenue</p>
                         </div>
@@ -428,7 +431,7 @@ export default function CustomerRecords({ agentId }: Props) {
                                   <div className="flex-shrink-0 text-right">
                                     {value && (
                                       <p className={`text-xs font-bold ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>
-                                        ₹{Number(value).toLocaleString('en-IN')}
+                                        {sym}{Number(value).toLocaleString()}
                                       </p>
                                     )}
                                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${b.status === 'confirmed' || b.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : b.status === 'cancelled' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>

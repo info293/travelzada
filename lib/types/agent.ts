@@ -33,6 +33,7 @@ export interface Agent {
   approvedBy?: string
   rejectionReason?: string
   adminNotes?: string
+  baseCurrency?: string  // e.g. 'INR', 'USD', 'EUR' — DMC's default display currency
 }
 
 export interface HotelEntry {

@@ -3,16 +3,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
-  IndianRupee, Inbox, Users, Package, TrendingUp, ExternalLink,
+  Banknote, Inbox, Users, Package, TrendingUp, ExternalLink,
   Copy, Check, ArrowRight, Loader2, Clock, CheckCircle, XCircle,
   Eye, BarChart3, Phone, TrendingDown, AlertCircle, Settings,
   Code2, UserCog
 } from 'lucide-react'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 interface Props {
   agentId: string
   agentSlug: string
   companyName: string
+  currency?: string
   onTabChange: (tab: string) => void
 }
 
@@ -46,7 +48,8 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-gray-100 text-gray-600',
 }
 
-export default function DashboardHome({ agentId, agentSlug, companyName, onTabChange }: Props) {
+export default function DashboardHome({ agentId, agentSlug, companyName, currency, onTabChange }: Props) {
+  const sym = getCurrencySymbol(currency)
   const [analytics, setAnalytics] = useState<any>(null)
   const [allBookings, setAllBookings] = useState<RecentBooking[]>([])
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
@@ -145,9 +148,9 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
   const kpis: KPI[] = [
     {
       label: 'Total Revenue',
-      value: `₹${(analytics?.totalRevenue || 0).toLocaleString('en-IN')}`,
-      sub: `₹${thisMonthRevenue.toLocaleString('en-IN')} this month`,
-      icon: IndianRupee, color: 'bg-emerald-100 text-emerald-700', tab: 'analytics',
+      value: `${sym}${(analytics?.totalRevenue || 0).toLocaleString()}`,
+      sub: `${sym}${thisMonthRevenue.toLocaleString()} this month`,
+      icon: Banknote, color: 'bg-emerald-100 text-emerald-700', tab: 'analytics',
       trend: revenueTrend,
     },
     {
@@ -160,7 +163,7 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
     {
       label: 'Customers',
       value: analytics?.totalCustomers || 0,
-      sub: `Avg ₹${avgBookingValue.toLocaleString('en-IN')} per booking`,
+      sub: `Avg ${sym}${avgBookingValue.toLocaleString()} per booking`,
       icon: Users, color: 'bg-purple-100 text-purple-700', tab: 'customers',
       trend: null,
     },
@@ -293,7 +296,7 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
                       {b.status}
                     </span>
                     {b.bookingValue ? (
-                      <p className="text-xs text-gray-500">₹{b.bookingValue.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-500">{sym}{b.bookingValue.toLocaleString()}</p>
                     ) : null}
                   </div>
                   <div className="text-xs text-gray-400 flex-shrink-0 w-14 text-right">
@@ -382,7 +385,7 @@ export default function DashboardHome({ agentId, agentSlug, companyName, onTabCh
               return (
                 <div key={m.month} className="flex-1 flex flex-col items-center gap-1.5">
                   <p className="text-xs font-semibold text-gray-600">
-                    ₹{m.revenue >= 100000 ? `${(m.revenue / 100000).toFixed(1)}L` : m.revenue >= 1000 ? `${(m.revenue / 1000).toFixed(0)}K` : m.revenue}
+                    {sym}{m.revenue >= 100000 ? `${(m.revenue / 100000).toFixed(1)}L` : m.revenue >= 1000 ? `${(m.revenue / 1000).toFixed(0)}K` : m.revenue}
                   </p>
                   <div className="w-full bg-gray-100 rounded-t-lg overflow-hidden" style={{ height: '80px' }}>
                     <div

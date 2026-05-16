@@ -393,15 +393,16 @@ export default function AgentDashboardPage() {
                     agentId={currentUser.uid}
                     agentSlug={agentSlug}
                     companyName={agentData?.companyName || ''}
+                    currency={agentData?.baseCurrency}
                     onTabChange={(t) => setTab(t as Tab)}
                   />
                 )}
-                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} />}
+                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} currency={agentData?.baseCurrency} />}
                 {tab === 'bookings' && (
-                  <BookingInbox agentId={currentUser.uid} />
+                  <BookingInbox agentId={currentUser.uid} currency={agentData?.baseCurrency} />
                 )}
-                {tab === 'analytics' && <Analytics agentId={currentUser.uid} agentSlug={agentSlug} />}
-                {tab === 'customers' && <CustomerRecords agentId={currentUser.uid} />}
+                {tab === 'analytics' && <Analytics agentId={currentUser.uid} agentSlug={agentSlug} currency={agentData?.baseCurrency} />}
+                {tab === 'customers' && <CustomerRecords agentId={currentUser.uid} currency={agentData?.baseCurrency} />}
                 {tab === 'team' && <TeamManager agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'quotations' && (
                   <QuotationsManager
@@ -412,7 +413,7 @@ export default function AgentDashboardPage() {
                   />
                 )}
                 {tab === 'quotation_history' && (
-                  <QuotationHistory agentId={currentUser.uid} />
+                  <QuotationHistory agentId={currentUser.uid} currency={agentData?.baseCurrency} />
                 )}
                 {tab === 'crm' && <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'embed' && <EmbedCode agentSlug={agentSlug} />}

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Loader2, TrendingUp, Package, Users, IndianRupee, BarChart2, MapPin, ArrowUpRight } from 'lucide-react'
+import { Loader2, TrendingUp, Package, Users, Banknote, BarChart2, MapPin, ArrowUpRight } from 'lucide-react'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 interface Props {
   agentId: string
   agentSlug: string
+  currency?: string
 }
 
 interface AnalyticsData {
@@ -33,7 +35,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 type Period = '7d' | '30d' | '90d' | 'all'
 
-export default function Analytics({ agentId, agentSlug }: Props) {
+export default function Analytics({ agentId, agentSlug, currency }: Props) {
+  const sym = getCurrencySymbol(currency)
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [allBookings, setAllBookings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,10 +117,10 @@ export default function Analytics({ agentId, agentSlug }: Props) {
       color: 'text-indigo-600 bg-indigo-50',
     },
     {
-      icon: <IndianRupee className="w-5 h-5" />,
+      icon: <Banknote className="w-5 h-5" />,
       label: 'Revenue',
-      value: `₹${displayRevenue.toLocaleString('en-IN')}`,
-      sub: period === 'all' ? `Net: ₹${data.netRevenue.toLocaleString('en-IN')}` : `${displayConfirmed} confirmed bookings`,
+      value: `${sym}${displayRevenue.toLocaleString()}`,
+      sub: period === 'all' ? `Net: ${sym}${data.netRevenue.toLocaleString()}` : `${displayConfirmed} confirmed bookings`,
       color: 'text-emerald-600 bg-emerald-50',
     },
     {
@@ -314,7 +317,7 @@ export default function Analytics({ agentId, agentSlug }: Props) {
           {
             label: 'Avg Booking Value',
             value: data.confirmedBookings > 0
-              ? `₹${Math.round(data.totalRevenue / data.confirmedBookings).toLocaleString('en-IN')}`
+              ? `${sym}${Math.round(data.totalRevenue / data.confirmedBookings).toLocaleString()}`
               : '—',
             color: 'bg-teal-50 text-teal-700',
           },
@@ -325,12 +328,12 @@ export default function Analytics({ agentId, agentSlug }: Props) {
           },
           {
             label: 'Net Earnings',
-            value: `₹${data.netRevenue.toLocaleString('en-IN')}`,
+            value: `${sym}${data.netRevenue.toLocaleString()}`,
             color: 'bg-emerald-50 text-emerald-700',
           },
           {
             label: 'Commission Paid',
-            value: `₹${data.commissionPaid.toLocaleString('en-IN')}`,
+            value: `${sym}${data.commissionPaid.toLocaleString()}`,
             color: 'bg-rose-50 text-rose-700',
           },
         ].map(s => (
@@ -346,15 +349,15 @@ export default function Analytics({ agentId, agentSlug }: Props) {
         <h3 className="font-semibold mb-4">Revenue Summary</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-2xl font-bold">₹{data.totalRevenue.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold">{sym}{data.totalRevenue.toLocaleString()}</p>
             <p className="text-xs opacity-70 mt-1">Gross Booking Value</p>
           </div>
           <div>
-            <p className="text-2xl font-bold">₹{data.commissionPaid.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold">{sym}{data.commissionPaid.toLocaleString()}</p>
             <p className="text-xs opacity-70 mt-1">Travelzada Commission</p>
           </div>
           <div>
-            <p className="text-2xl font-bold">₹{data.netRevenue.toLocaleString('en-IN')}</p>
+            <p className="text-2xl font-bold">{sym}{data.netRevenue.toLocaleString()}</p>
             <p className="text-xs opacity-70 mt-1">Your Net Earnings</p>
           </div>
         </div>

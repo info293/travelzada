@@ -6,8 +6,9 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import {
   Building2, User, Phone, Mail, FileText, Image, Globe,
   MessageCircle, Save, Loader2, CheckCircle, AlertCircle,
-  ExternalLink, Copy, Check, Shield, CreditCard, ToggleLeft, ToggleRight
+  ExternalLink, Copy, Check, Shield, CreditCard, ToggleLeft, ToggleRight, Banknote
 } from 'lucide-react'
+import { CURRENCIES } from '@/lib/utils/currency'
 
 interface Props {
   agentId: string
@@ -27,6 +28,7 @@ interface AgentProfile {
   commissionRate: number
   fallbackToTravelzada: boolean
   website?: string
+  baseCurrency?: string
 }
 
 const AGENCY_TYPES = ['individual', 'small_agency', 'large_agency', 'franchise']
@@ -67,6 +69,7 @@ export default function AgentSettings({ agentId, agentSlug }: Props) {
             agencyType: data.agencyType || 'individual',
             website: data.website || '',
             fallbackToTravelzada: data.fallbackToTravelzada || false,
+            baseCurrency: data.baseCurrency || 'INR',
           })
         }
       } catch { } finally {
@@ -256,6 +259,38 @@ export default function AgentSettings({ agentId, agentSlug }: Props) {
             <ToggleLeft className="w-7 h-7 text-gray-400 flex-shrink-0" />
           )}
         </div>
+      </div>
+
+      {/* ── Currency ── */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+          <Banknote className="w-4 h-4 text-gray-500" />
+          Display Currency
+        </h3>
+        <p className="text-xs text-gray-500 mb-4">
+          All prices across your dashboard and packages will display in this currency.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+          {CURRENCIES.map(c => (
+            <button
+              key={c.code}
+              onClick={() => handleChange('baseCurrency', c.code)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                form.baseCurrency === c.code
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <span className="font-bold text-base leading-none">{c.symbol.trim()}</span>
+              <span className="truncate">{c.code}</span>
+            </button>
+          ))}
+        </div>
+        {form.baseCurrency && form.baseCurrency !== 'INR' && (
+          <p className="text-xs text-amber-600 mt-3 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            Note: Package prices are stored in their original currency. Dashboard totals reflect the values entered when packages were created.
+          </p>
+        )}
       </div>
 
       {/* ── Subscription (read-only) ── */}
