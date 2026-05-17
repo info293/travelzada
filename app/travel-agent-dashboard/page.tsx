@@ -10,10 +10,11 @@ import {
   MessageSquare, Send, Users, Copy, Check, ExternalLink, Home,
   IndianRupee, Star, ArrowUpRight, Search, ChevronDown, ChevronUp,
   Sparkles, Bot, Mic, MicOff, Volume2, Globe, Share2, FileText,
-  Columns3, List, X
+  Columns3, List, X, UserCircle, Upload, ImageIcon
 } from 'lucide-react'
 import SubAgentDemoLoader from '@/components/travel-agent-dashboard/SubAgentDemoLoader'
 import QuotationHistory from '@/components/dmc-dashboard/QuotationHistory'
+import LogoUploader from '@/components/dmc-dashboard/LogoUploader'
 import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
 
@@ -127,7 +128,7 @@ interface AgentPackage {
   mood?: string
 }
 
-type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'quote_history' | 'customers' | 'stats' | 'activity' | 'ai'
+type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'quote_history' | 'customers' | 'stats' | 'activity' | 'ai' | 'profile'
 
 const INDIAN_LANGUAGES = [
   { code: 'en-IN', label: 'English' },
@@ -226,7 +227,7 @@ export default function SubAgentDashboardPage() {
 
   const pathname = usePathname()
   const urlSegment = pathname.split('/').at(-1)
-  const TA_VALID_TABS: Tab[] = ['planner','home','bookings','packages','quotations','quote_history','customers','stats','activity']
+  const TA_VALID_TABS: Tab[] = ['planner','home','bookings','packages','quotations','quote_history','customers','stats','activity','profile']
   const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'home'
   const [aiActive, setAiActive] = useState(false)
   const tab: Tab = aiActive ? 'ai' : urlTab
@@ -291,6 +292,15 @@ export default function SubAgentDashboardPage() {
 
   // Activity filter
   const [actFilter, setActFilter] = useState('all')
+
+  // Profile tab state
+  const [profileLogoUrl, setProfileLogoUrl] = useState('')
+  const [profileLogoInput, setProfileLogoInput] = useState('')
+  const [profileName, setProfileName] = useState('')
+  const [profilePhone, setProfilePhone] = useState('')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+  const [profileError, setProfileError] = useState('')
 
   // AI Assistant state
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'assistant'; content: string; ts: number }[]>([])
@@ -361,6 +371,21 @@ export default function SubAgentDashboardPage() {
   }, [authLoading, currentUser, isSubAgent, fetchAll])
 
   useEffect(() => {
+    if (!currentUser || !isSubAgent) return
+    fetch(`/api/agent/subagents/${currentUser.uid}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.subAgent) {
+          setProfileLogoUrl(data.subAgent.logoUrl || '')
+          setProfileLogoInput(data.subAgent.logoUrl || '')
+          setProfileName(data.subAgent.name || '')
+          setProfilePhone(data.subAgent.phone || '')
+        }
+      })
+      .catch(() => {})
+  }, [currentUser, isSubAgent])
+
+  useEffect(() => {
     aiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [aiMessages, aiLoading])
 
@@ -393,6 +418,36 @@ export default function SubAgentDashboardPage() {
         setMsgText('')
       }
     } catch { } finally { setSendingMsg(false) }
+  }
+
+  async function saveProfile() {
+    if (!currentUser) return
+    setSavingProfile(true)
+    setProfileError('')
+    setProfileSaved(false)
+    try {
+      const res = await fetch(`/api/agent/subagents/${currentUser.uid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logoUrl: profileLogoInput.trim(),
+          name: profileName.trim() || undefined,
+          phone: profilePhone.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setProfileLogoUrl(profileLogoInput.trim())
+        setProfileSaved(true)
+        setTimeout(() => setProfileSaved(false), 3000)
+      } else {
+        setProfileError(data.error || 'Failed to save')
+      }
+    } catch {
+      setProfileError('Network error — please try again')
+    } finally {
+      setSavingProfile(false)
+    }
   }
 
   // ── Standalone print window for quotation ────────────────────────────────────
@@ -888,6 +943,7 @@ export default function SubAgentDashboardPage() {
     // { id: 'customers', label: 'Customers',  icon: Users },
     { id: 'stats',     label: 'My Stats',   icon: BarChart3 },
     // { id: 'activity',  label: 'Activity',   icon: Activity },
+    { id: 'profile',   label: 'My Profile', icon: UserCircle },
     { id: 'ai',        label: 'AI',         icon: Bot },
   ]
 
@@ -930,9 +986,15 @@ export default function SubAgentDashboardPage() {
       <aside className="w-60 bg-white border-r border-gray-100 flex-col hidden md:flex flex-shrink-0">
         {/* Profile */}
         <div className="px-5 py-5 border-b border-gray-100">
-          <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg mb-2 flex-shrink-0">
-            {subAgentName?.charAt(0)?.toUpperCase() || '?'}
-          </div>
+          <button onClick={() => setTab('profile')} className="block mb-2">
+            {profileLogoUrl ? (
+              <img src={profileLogoUrl} alt="Logo" className="w-11 h-11 rounded-xl object-contain border border-gray-200 bg-gray-50" />
+            ) : (
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                {subAgentName?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
+          </button>
           <p className="font-bold text-gray-900 text-sm leading-tight">{subAgentName || 'Travel Agent'}</p>
           <p className="text-xs text-gray-400 mt-0.5 truncate">{currentUser?.email}</p>
           <span className="mt-1.5 inline-block bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">Travel Agent</span>
@@ -1995,6 +2057,94 @@ export default function SubAgentDashboardPage() {
                     })()}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* ══════════════════════ MY PROFILE ═══════════════════════════ */}
+            {tab === 'profile' && (
+              <div className="max-w-xl mx-auto space-y-6">
+                <div>
+                  <h2 className="font-bold text-gray-900 text-lg">My Profile</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Update your details and logo — visible on PDFs and quotations</p>
+                </div>
+
+                {/* Logo preview + URL input */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0">
+                      {profileLogoUrl ? (
+                        <img
+                          src={profileLogoUrl}
+                          alt="Logo preview"
+                          className="w-16 h-16 rounded-xl object-contain border border-gray-200 bg-gray-50"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <ImageIcon className="w-7 h-7 text-primary/40" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{profileName || subAgentName || 'Travel Agent'}</p>
+                      <p className="text-xs text-gray-400">{currentUser?.email}</p>
+                      <span className="mt-1 inline-block bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">Travel Agent</span>
+                    </div>
+                  </div>
+
+                  <LogoUploader
+                    value={profileLogoUrl}
+                    onChange={url => { setProfileLogoUrl(url); setProfileLogoInput(url) }}
+                  />
+                </div>
+
+                {/* Name & Phone */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+                  <p className="font-semibold text-gray-800 text-sm">Contact Details</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-600">Display Name</label>
+                      <input
+                        type="text"
+                        value={profileName}
+                        onChange={e => setProfileName(e.target.value)}
+                        placeholder={subAgentName || 'Your name'}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-600">Phone Number</label>
+                      <input
+                        type="tel"
+                        value={profilePhone}
+                        onChange={e => setProfilePhone(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={saveProfile}
+                    disabled={savingProfile}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white font-semibold text-sm rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm shadow-primary/20"
+                  >
+                    {savingProfile ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    Save Profile
+                  </button>
+                  {profileSaved && (
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-green-600">
+                      <CheckCircle className="w-4 h-4" />Saved!
+                    </span>
+                  )}
+                  {profileError && (
+                    <span className="text-sm text-red-500">{profileError}</span>
+                  )}
+                </div>
+
               </div>
             )}
 

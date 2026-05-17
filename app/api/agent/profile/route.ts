@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     const doc = snap.docs[0]
     const data = doc.data()
 
+    const logoUrl = data.logoUrl || null
+    console.log(`[Agent Profile] slug=${slug} logoUrl=${logoUrl ?? 'NOT SET'}`)
+
     // Return only what the customer-facing page needs
     return NextResponse.json({
       success: true,
@@ -32,7 +35,7 @@ export async function GET(request: Request) {
         agentSlug: data.agentSlug,
         companyName: data.companyName,
         contactName: data.contactName,
-        logoUrl: data.logoUrl || null,
+        logoUrl,
         status: data.status,
       },
     })

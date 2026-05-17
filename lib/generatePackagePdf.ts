@@ -30,10 +30,40 @@ export interface PackagePdfOptions {
   preferredDates?: string
   brandName: string
   agentContactName?: string
+  agentLogoUrl?: string
   termsVariant?: 'brochure' | 'quotation'
 }
 
-export function openPackagePdfWindow(opts: PackagePdfOptions): void {
+async function urlToBase64(url: string, label = 'image'): Promise<string> {
+  console.log(`[PDF] Fetching ${label}: ${url}`)
+  try {
+    const res = await fetch(url)
+    if (!res.ok) {
+      console.error(`[PDF] ${label} fetch failed — HTTP ${res.status} ${res.statusText} — URL: ${url}`)
+      return ''
+    }
+    const blob = await res.blob()
+    console.log(`[PDF] ${label} fetched OK — size: ${blob.size} bytes, type: ${blob.type}`)
+    return await new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        console.log(`[PDF] ${label} converted to base64 — length: ${result.length}`)
+        resolve(result)
+      }
+      reader.onerror = (e) => {
+        console.error(`[PDF] ${label} FileReader error:`, e)
+        resolve('')
+      }
+      reader.readAsDataURL(blob)
+    })
+  } catch (err) {
+    console.error(`[PDF] ${label} fetch threw an error:`, err)
+    return ''
+  }
+}
+
+export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<void> {
   const {
     title, destination, destinationCountry, heroImage = '',
     badgeText, refId,
@@ -42,10 +72,28 @@ export function openPackagePdfWindow(opts: PackagePdfOptions): void {
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
-    brandName, agentContactName, termsVariant = 'brochure',
+    brandName, agentContactName, agentLogoUrl, termsVariant = 'brochure',
   } = opts
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  console.log('[PDF] openPackagePdfWindow called with:', {
+    agentLogoUrl: agentLogoUrl || 'NOT PROVIDED',
+    heroImage: heroImage || 'NOT PROVIDED',
+    brandName,
+    agentContactName,
+  })
+
+  // Pre-load images as base64 so they always render in the print popup
+  const [logoBase64, heroBase64] = await Promise.all([
+    agentLogoUrl ? urlToBase64(agentLogoUrl, 'agent-logo') : Promise.resolve(''),
+    heroImage ? urlToBase64(heroImage, 'hero-image') : Promise.resolve(''),
+  ])
+
+  console.log('[PDF] Base64 results —', {
+    logoBase64: logoBase64 ? `OK (${logoBase64.length} chars)` : 'EMPTY',
+    heroBase64: heroBase64 ? `OK (${heroBase64.length} chars)` : 'EMPTY',
+  })
 
   const now = new Date()
   const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -123,7 +171,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 /* ── Page header ── */
-.ph{display:flex;justify-content:flex-end;align-items:center;padding:22px 44px;border-bottom:1px solid #e5e7eb}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:18px 44px;border-bottom:1px solid #e5e7eb;min-height:72px}
+.agent-logo{max-height:48px;max-width:180px;object-fit:contain;display:block}
+.agent-name-fallback{font-size:16px;font-weight:800;color:#111;letter-spacing:-.2px}
 .quot-wrap{text-align:right}
 .quot-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.15em}
 .quot-num{font-size:15px;font-weight:700;color:#111;margin-top:4px}
@@ -228,6 +278,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 
 <!-- ── Page Header ── -->
 <div class="ph">
+  <div>
+    ${logoBase64
+      ? `<img src="${logoBase64}" alt="${esc(brandName)}" class="agent-logo" />`
+      : agentLogoUrl
+        ? `<img src="${esc(agentLogoUrl)}" alt="${esc(brandName)}" class="agent-logo" />`
+        : `<span class="agent-name-fallback">${esc(brandName)}</span>`
+    }
+  </div>
   <div class="quot-wrap">
     <div class="quot-lbl">Quotation No.</div>
     <div class="quot-num">${esc(autoRefId)}</div>
@@ -236,7 +294,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 
 <!-- ── Hero ── -->
 <div class="hero">
-  ${heroImage ? `<img src="${esc(heroImage)}" alt="" crossorigin="anonymous" />` : '<div class="hero-bg"></div>'}
+  ${heroBase64
+    ? `<img src="${heroBase64}" alt="" />`
+    : heroImage
+      ? `<img src="${esc(heroImage)}" alt="" crossorigin="anonymous" />`
+      : '<div class="hero-bg"></div>'
+  }
   <div class="overlay"></div>
   <div class="hero-top">
     <span class="hero-badge">${esc(badgeLabel)}</span>
@@ -460,5 +523,5 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   win.document.write(html)
   win.document.close()
   win.focus()
-  setTimeout(() => win.print(), 900)
+  setTimeout(() => win.print(), 400)
 }

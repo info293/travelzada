@@ -116,6 +116,7 @@ export default function AgentResultsPage() {
   const [nameCaptureAction, setNameCaptureAction] = useState<'pdf' | 'whatsapp' | null>(null)
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
+  const [subAgentLogoUrl, setSubAgentLogoUrl] = useState<string | undefined>(undefined)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
   const [selectedPkgIdx, setSelectedPkgIdx] = useState(0)
 
@@ -165,6 +166,20 @@ export default function AgentResultsPage() {
     }
     fetchAgent()
   }, [agentSlug])
+
+  useEffect(() => {
+    if (!subAgentId) return
+    async function fetchSubAgent() {
+      try {
+        const res = await fetch(`/api/agent/subagents/${subAgentId}`)
+        const data = await res.json()
+        if (data.success && data.subAgent?.logoUrl) {
+          setSubAgentLogoUrl(data.subAgent.logoUrl)
+        }
+      } catch { }
+    }
+    fetchSubAgent()
+  }, [subAgentId])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -720,6 +735,7 @@ export default function AgentResultsPage() {
                       customerName: capturedName || undefined,
                       brandName: agentInfo?.companyName || 'Travel Agent',
                       agentContactName: agentInfo?.contactName || undefined,
+                      agentLogoUrl: subAgentLogoUrl || agentInfo?.logoUrl || undefined,
                       termsVariant: 'brochure',
                     })
                   } else {

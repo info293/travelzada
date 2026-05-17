@@ -3,12 +3,26 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 
+// GET - fetch a single sub-agent's profile
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const { id } = params
+    const snap = await getDoc(doc(db, 'sub_agents', id))
+    if (!snap.exists()) {
+      return NextResponse.json({ error: 'Sub-agent not found' }, { status: 404 })
+    }
+    return NextResponse.json({ success: true, subAgent: { id: snap.id, ...snap.data() } })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 // PATCH - update sub-agent (suspend/reactivate/update details)
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params
     const body = await request.json()
-    const { isActive, name, phone } = body
+    const { isActive, name, phone, logoUrl } = body
 
     const subAgentRef = doc(db, 'sub_agents', id)
     const snap = await getDoc(subAgentRef)
@@ -21,6 +35,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (typeof isActive === 'boolean') updates.isActive = isActive
     if (name !== undefined) updates.name = name
     if (phone !== undefined) updates.phone = phone
+    if (logoUrl !== undefined) updates.logoUrl = logoUrl
 
     await updateDoc(subAgentRef, updates)
 

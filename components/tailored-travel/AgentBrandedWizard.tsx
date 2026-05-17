@@ -78,7 +78,7 @@ export default function AgentBrandedWizard({ agent }: Props) {
 
   const handleLoginSuccess = () => {
     setGateVisible(false)
-    if (currentUser) {
+    if (currentUser && isSubAgent && parentAgentSlug === agent.agentSlug) {
       setSubAgentId(currentUser.uid)
       trackEvent({
         agentSlug: agent.agentSlug,

@@ -4,15 +4,17 @@ import { useState, useEffect } from 'react'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import {
-  Building2, User, Phone, Mail, FileText, Image, Globe,
+  Building2, User, Phone, Mail, FileText, Globe,
   MessageCircle, Save, Loader2, CheckCircle, AlertCircle,
   ExternalLink, Copy, Check, Shield, CreditCard, ToggleLeft, ToggleRight, Banknote
 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/utils/currency'
+import LogoUploader from './LogoUploader'
 
 interface Props {
   agentId: string
   agentSlug: string
+  onSaved?: () => void
 }
 
 interface AgentProfile {
@@ -39,7 +41,7 @@ const AGENCY_TYPE_LABELS: Record<string, string> = {
   franchise: 'Franchise',
 }
 
-export default function AgentSettings({ agentId, agentSlug }: Props) {
+export default function AgentSettings({ agentId, agentSlug, onSaved }: Props) {
   const [profile, setProfile] = useState<AgentProfile | null>(null)
   const [form, setForm] = useState<Partial<AgentProfile>>({})
   const [loading, setLoading] = useState(true)
@@ -93,6 +95,7 @@ export default function AgentSettings({ agentId, agentSlug }: Props) {
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+      onSaved?.()
     } catch (err: any) {
       setError(err.message || 'Failed to save changes.')
     } finally {
@@ -193,28 +196,11 @@ export default function AgentSettings({ agentId, agentSlug }: Props) {
           />
         </div>
 
-        {/* Logo URL with preview */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
-            <Image className="w-3.5 h-3.5" />
-            Logo URL
-          </label>
-          <div className="flex items-center gap-3">
-            {form.logoUrl ? (
-              <img src={form.logoUrl} alt="Logo" className="w-12 h-12 rounded-xl object-cover border border-gray-200 flex-shrink-0" />
-            ) : (
-              <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-5 h-5 text-gray-400" />
-              </div>
-            )}
-            <input
-              value={form.logoUrl || ''}
-              onChange={e => handleChange('logoUrl', e.target.value)}
-              placeholder="https://your-cdn.com/logo.png"
-              className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-            />
-          </div>
-        </div>
+        {/* Logo Upload */}
+        <LogoUploader
+          value={form.logoUrl || ''}
+          onChange={url => handleChange('logoUrl', url)}
+        />
 
         {/* Agency type */}
         <div>
@@ -347,7 +333,7 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1.5">
+      <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-1.5">
         <Icon className="w-3.5 h-3.5" />
         {label}
       </label>

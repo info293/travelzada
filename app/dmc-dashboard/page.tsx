@@ -417,7 +417,7 @@ export default function AgentDashboardPage() {
                 )}
                 {tab === 'crm' && <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'embed' && <EmbedCode agentSlug={agentSlug} />}
-                {tab === 'settings' && <AgentSettings agentId={currentUser.uid} agentSlug={agentSlug} />}
+                {tab === 'settings' && <AgentSettings agentId={currentUser.uid} agentSlug={agentSlug} onSaved={fetchAgent} />}
               </motion.div>
             )}
           </div>
