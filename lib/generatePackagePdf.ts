@@ -27,6 +27,7 @@ export interface PackagePdfOptions {
   customerPhone?: string
   preferredDates?: string
   brandName: string
+  agentContactName?: string
   termsVariant?: 'brochure' | 'quotation'
 }
 
@@ -39,195 +40,375 @@ export function openPackagePdfWindow(opts: PackagePdfOptions): void {
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
-    brandName, termsVariant = 'brochure',
+    brandName, agentContactName, termsVariant = 'brochure',
   } = opts
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const dateStr = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
 
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) + ' IST'
+
+  const autoRefId = refId || `TZ-${now.getFullYear()}-${String(Math.floor(10000 + Math.random() * 90000))}`
+  const durationLabel = durationNights ? `${durationNights}N / ${durationDays}D` : durationDays ? `${durationDays}D` : '—'
+  const badgeLabel = badgeText || `HOLIDAY PACKAGE · ${(destinationCountry || destination).toUpperCase()}`
+  const agentName = agentContactName || ''
+
+  function renderStars(cat: string): string {
+    const n = parseInt(cat.match(/\d/)?.[0] || '0')
+    return n > 0 ? '★'.repeat(n) : esc(cat)
+  }
+
+  // Parse days from itinerary text
   const days: { title: string; desc: string }[] = []
   if (dayWiseItinerary) {
     let cur: { title: string; desc: string } | null = null
     for (const line of dayWiseItinerary.split('\n').filter(Boolean)) {
       if (/^day\s*\d+/i.test(line)) {
         if (cur) days.push(cur)
-        cur = { title: line, desc: '' }
+        cur = { title: line.trim(), desc: '' }
       } else if (cur) {
-        cur.desc += (cur.desc ? '\n' : '') + line
+        cur.desc += (cur.desc ? '\n' : '') + line.trim()
       }
     }
     if (cur) days.push(cur)
   }
 
-  const badge = badgeText || (customerName ? brandName : 'Package Brochure')
-  const durationLabel = durationNights ? `${durationNights}N / ${durationDays}D` : durationDays ? `${durationDays} Days` : '—'
-  const themeLabel = theme || mood || '—'
-  const statsCol4 = customerName
-    ? ['👥', 'Travellers', `${groupSize} pax (${adults ?? groupSize}A${kids ? ` + ${kids}K` : ''})`] as const
-    : ['🌿', 'Theme', themeLabel] as const
+  function extractDayTags(desc: string): string[] {
+    const tags: string[] = []
+    const stayMatch = desc.match(/\bstay[\s:·–-]+([^\n,]+)/i)
+    if (stayMatch) tags.push(`Stay · ${stayMatch[1].trim()}`)
+    if (/\bbreakfast\b/i.test(desc)) tags.push('Breakfast')
+    if (/\blunch\b/i.test(desc)) tags.push('Lunch')
+    if (/\bdinner\b/i.test(desc)) tags.push('Dinner')
+    if (/\bprivate transfer\b/i.test(desc)) tags.push('Private transfer')
+    return tags
+  }
 
-  const termsRows = termsVariant === 'quotation'
-    ? ['This quotation is valid for 7 days from the date of issue.', 'Prices are subject to availability at the time of booking.', 'A deposit may be required to confirm the booking.', 'For queries, please contact your travel agent directly.']
-    : ['This brochure is for reference only.', 'Prices are subject to availability at the time of booking.', 'A deposit may be required to confirm the booking.', 'Contact us for custom packages and group bookings.']
+  function cleanDayTitle(raw: string): string {
+    return raw.replace(/^day\s*\d+[\s:·–\-]*/i, '').trim() || raw
+  }
 
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>${esc(title)} — ${customerName ? 'Quotation' : 'Package Brochure'}</title>
+  function cleanDayDesc(desc: string): string {
+    // Remove lines that are just meal/stay tags (already shown as pills)
+    return desc
+      .split('\n')
+      .filter(l => !/^(breakfast|lunch|dinner|stay[\s:·]|private transfer)$/i.test(l.trim()))
+      .join('\n')
+      .trim()
+  }
+
+  const fullTerms = termsVariant === 'quotation'
+    ? [
+        'Rates are valid for travel on the specified dates only. Peak-season surcharges may apply for festival dates.',
+        'This quotation is valid for 7 days from the download date. Hotel availability is confirmed only at the time of booking.',
+        'A non-refundable advance of 30% of the package cost is required to confirm the booking; balance is due 21 days before travel.',
+        'Cancellation 30+ days before travel: 25% deduction. 15–29 days: 50%. 7–14 days: 75%. Less than 7 days: 100% non-refundable.',
+        'Standard check-in is 14:00 and check-out is 12:00. Early check-in / late check-out is subject to availability.',
+        'Houseboat boarding is at 12:30 and disembarkation at 09:00 the next morning, per local regulations.',
+        'Children below 5 years are complimentary without a bed. 5–11 years are charged at 60% of the adult rate with a shared bed.',
+        'Itinerary may be re-sequenced due to weather, road conditions, or local events; inclusions remain unchanged.',
+        'Any increase in government taxes, fuel surcharges or fees levied after booking will be passed on at actuals.',
+        'Guests are responsible for carrying valid government-issued photo ID at all hotels and check-points.',
+        'The travel agency acts as a booking facilitator; service operators (hotels, transport, activities) are independent contractors.',
+        'All disputes are subject to the jurisdiction of courts as applicable under law.',
+      ]
+    : [
+        'Package prices are for reference only and subject to change based on availability at the time of booking.',
+        'This brochure is valid for the current season. Rates may vary for peak seasons and special events.',
+        'A non-refundable advance is required to confirm the booking; balance is due before travel commences.',
+        'Standard cancellation policy applies. Please consult your travel agent for specific terms before booking.',
+        'Standard check-in is 14:00 and check-out is 12:00. Early check-in / late check-out is subject to availability.',
+        'Houseboat boarding and disembarkation times are per local tourism authority regulations.',
+        'Children below 5 years are complimentary without a bed. 5–11 years may be charged at 60% of the adult rate.',
+        'Itinerary sequence may be adjusted due to weather, road conditions, or local events.',
+        'Any increase in government taxes or fuel surcharges after booking will be passed on at actuals.',
+        'Guests must carry valid government-issued photo ID at all hotels and check-points.',
+        'The travel agency acts as a booking facilitator; all service operators are independent contractors.',
+        'For queries or customisation, please contact your travel agent directly.',
+      ]
+
+  let sectionNum = 0
+  function nextNum() { return String(++sectionNum).padStart(2, '0') }
+
+  const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<title>${esc(title)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;background:#fff}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2937;background:#fff;font-size:13px}
 @page{margin:0;size:A4}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-.hero{position:relative;height:280px;overflow:hidden}
-.hero img{width:100%;height:100%;object-fit:cover}
-.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5)}
-.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.35) 55%,rgba(0,0,0,.1) 100%)}
-.hero-top{position:absolute;top:20px;left:28px;right:28px;display:flex;justify-content:space-between;align-items:flex-start}
-.hero-bot{position:absolute;bottom:24px;left:28px;right:28px}
-.badge{background:#fff;color:#111;font-size:11px;font-weight:700;padding:5px 14px;border-radius:999px;display:inline-block}
-.ref{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:10px;font-family:monospace;font-weight:700;padding:5px 12px;border-radius:999px}
-.qlabel{font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px}
-.ptitle{font-size:28px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:4px}
-.dest{font-size:13px;color:rgba(255,255,255,.75);margin-top:6px}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#7c3aed}
-.sc{padding:12px 10px;text-align:center;border-left:1px solid rgba(255,255,255,.15)}.sc:first-child{border-left:none}
-.sicon{font-size:18px;margin-bottom:2px}.slabel{font-size:8px;color:#ddd6fe;text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
-.sval{font-size:12px;font-weight:700;color:#fff;margin-top:3px;line-height:1.3}
-.body{padding:32px 36px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
-.precard{background:#f9fafb;border-radius:14px;padding:20px}
-.slbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px}
-.cname{font-size:20px;font-weight:800;color:#111;margin-bottom:12px}
-.irow{display:flex;align-items:center;gap:7px;font-size:12px;color:#6b7280;margin-bottom:6px}
-.divhr{border:none;border-top:1px solid #e5e7eb;margin:12px 0}
-.pcard{border-radius:14px;padding:20px;display:flex;flex-direction:column;justify-content:center}
-.pamount{font-size:34px;font-weight:800;color:#fff;line-height:1;margin-bottom:5px}
-.psub{font-size:12px;color:rgba(255,255,255,.75)}
-.pper{font-size:12px;color:rgba(255,255,255,.6);margin-top:3px}
-.phr{border:none;border-top:1px solid rgba(255,255,255,.2);margin:12px 0}
-.pdlbl{font-size:9px;color:rgba(255,255,255,.5)}
-.pdval{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:3px}
-.pricebox{background:#7c3aed;border-radius:14px;padding:22px 28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
-.pricetag{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
-.pricelarge{font-size:38px;font-weight:800;color:#fff;line-height:1}
-.pricesub{font-size:12px;color:rgba(255,255,255,.7);margin-top:5px}
-.pricedate{text-align:right}
-.pdlbl2{font-size:9px;color:rgba(255,255,255,.5)}
-.pdval2{font-size:12px;font-weight:600;color:rgba(255,255,255,.85);margin-top:4px}
-.sec{margin-bottom:24px}
-.stitle{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.overview{font-size:13px;color:#374151;line-height:1.7}
-.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.hpill{display:flex;align-items:flex-start;gap:10px;background:#ede9fe;border-radius:10px;padding:10px 14px}
-.hstar{color:#7c3aed;font-size:14px;flex-shrink:0;margin-top:1px}
-.htext{font-size:12px;color:#374151;line-height:1.45}
-.iegrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.icard{background:#f0fdf4;border-radius:14px;padding:16px}.ecard{background:#fff1f2;border-radius:14px;padding:16px}
-.ititle{font-size:10px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-.etitle{font-size:10px;font-weight:700;color:#be123c;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-.li{display:flex;align-items:flex-start;gap:9px;margin-bottom:8px}
-.idot{width:17px;height:17px;border-radius:50%;background:#22c55e;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
-.edot{width:17px;height:17px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;color:#fff;font-size:8px;font-weight:700}
-.litext{font-size:12px;color:#374151;line-height:1.5}
-.dayitem{display:flex;gap:14px;margin-bottom:4px}
-.dayleft{display:flex;flex-direction:column;align-items:center}
-.daynum{width:30px;height:30px;border-radius:50%;background:#7c3aed;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.dayline{width:2px;background:#ede9fe;flex:1;margin-top:5px;min-height:18px}
-.daycontent{padding-bottom:16px;flex:1}
-.daytitle{font-size:13px;font-weight:700;color:#111;line-height:1.4}
-.daydesc{font-size:12px;color:#6b7280;margin-top:4px;line-height:1.55}
-.sreq{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:18px;margin-bottom:24px}
-.sreqt{font-size:9px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
-.sreqb{font-size:12px;color:#374151;line-height:1.55}
-.terms{border-top:1px solid #f3f4f6;padding-top:20px;margin-bottom:20px}
-.termrow{display:flex;gap:8px;font-size:11px;color:#9ca3af;margin-bottom:5px}
-.footer{background:#7c3aed;border-radius:14px;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-.ftname{font-size:14px;font-weight:700;color:#fff}.ftsub{font-size:10px;color:#ddd6fe;margin-top:3px}
-.ftthanks{font-size:12px;color:#ddd6fe}
-</style></head><body>
+
+/* ── Page header ── */
+.ph{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid #e5e7eb}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:#7c3aed;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-text{font-size:20px;font-weight:800;color:#111;letter-spacing:-0.3px}
+.quot-wrap{text-align:right}
+.quot-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.14em}
+.quot-num{font-size:14px;font-weight:700;color:#111;margin-top:2px}
+
+/* ── Hero ── */
+.hero{position:relative;height:300px;overflow:hidden}
+.hero img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)}
+.overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.28) 55%,transparent 100%)}
+.hero-top{position:absolute;top:24px;left:32px}
+.hero-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:9px;font-weight:700;letter-spacing:.1em;padding:5px 14px;border-radius:999px;display:inline-block}
+.hero-bot{position:absolute;bottom:28px;left:32px;right:32px}
+.hero-title{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:10px}
+.hero-dest{font-size:12px;color:rgba(255,255,255,.75);font-weight:500}
+
+/* ── Stats strip ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:2px solid #e5e7eb}
+.sc{padding:14px 18px;border-right:1px solid #e5e7eb}
+.sc:last-child{border-right:none}
+.slbl{font-size:7.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px}
+.sval{font-size:17px;font-weight:800;color:#111;line-height:1.15}
+.ssub{font-size:10px;color:#6b7280;margin-top:3px}
+.stars{color:#f59e0b;font-size:14px;letter-spacing:1px}
+
+/* ── Body ── */
+.body{padding:32px 36px 28px}
+
+/* ── Section ── */
+.section{margin-bottom:30px}
+.sec-hdr{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid #e5e7eb;margin-bottom:18px}
+.sec-num{font-size:11px;font-weight:700;color:#7c3aed}
+.sec-title{font-size:17px;font-weight:800;color:#111}
+
+/* ── Overview ── */
+.overview{font-size:13px;color:#374151;line-height:1.78}
+
+/* ── Day items ── */
+.day-item{display:flex;gap:18px;padding:16px 0;border-bottom:1px solid #f3f4f6}
+.day-item:last-child{border-bottom:none}
+.day-left{flex-shrink:0;width:50px;padding-top:2px}
+.day-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em}
+.day-num{font-size:26px;font-weight:800;color:#111;line-height:1}
+.day-content{flex:1;min-width:0}
+.day-title{font-size:13.5px;font-weight:700;color:#111;margin-bottom:6px;line-height:1.35}
+.day-desc{font-size:12px;color:#6b7280;line-height:1.65;margin-bottom:10px}
+.day-tags{display:flex;flex-wrap:wrap;gap:6px}
+.day-tag{font-size:10px;font-weight:500;color:#374151;border:1px solid #d1d5db;border-radius:999px;padding:3px 10px;white-space:nowrap}
+
+/* ── Inc / Exc ── */
+.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ie-box{border:1px solid #e5e7eb;border-radius:12px;padding:16px}
+.ie-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.ie-htitle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
+.ie-count{font-size:10px;color:#9ca3af}
+.ie-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.ie-row:last-child{margin-bottom:0}
+.ie-icon{flex-shrink:0;margin-top:2px}
+.ie-text{font-size:11.5px;color:#374151;line-height:1.5}
+
+/* ── Terms ── */
+.terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+.term-row{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid #f9fafb}
+.term-num{font-size:10px;font-weight:700;color:#7c3aed;flex-shrink:0;width:20px}
+.term-text{font-size:11px;color:#6b7280;line-height:1.55}
+
+/* ── Footer ── */
+.footer{margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-end}
+.ft-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+.ft-name{font-size:15px;font-weight:800;color:#111;margin-bottom:4px}
+.ft-sub{font-size:11px;color:#6b7280}
+.ft-right{text-align:right}
+.ft-powered{font-size:11px;font-weight:700;color:#111}
+.ft-date{font-size:10px;color:#9ca3af;margin-top:4px}
+
+/* ── Customer card (if quotation) ── */
+.cust-banner{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
+.cust-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.cust-name{font-size:16px;font-weight:800;color:#111}
+.cust-meta{font-size:11px;color:#6b7280;margin-top:3px}
+.price-banner{background:#7c3aed;border-radius:12px;padding:16px 20px;text-align:right}
+.price-lbl{font-size:8px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
+.price-val{font-size:22px;font-weight:800;color:#fff}
+.price-sub{font-size:10px;color:rgba(255,255,255,.7);margin-top:3px}
+</style>
+</head>
+<body>
+
+<!-- ── Page Header ── -->
+<div class="ph">
+  <div class="quot-wrap">
+    <div class="quot-lbl">Quotation No.</div>
+    <div class="quot-num">${esc(autoRefId)}</div>
+  </div>
+</div>
+
+<!-- ── Hero ── -->
 <div class="hero">
-  ${heroImage ? `<img src="${esc(heroImage)}" alt="" />` : '<div class="hero-bg"></div>'}
+  ${heroImage ? `<img src="${esc(heroImage)}" alt="" crossorigin="anonymous" />` : '<div class="hero-bg"></div>'}
   <div class="overlay"></div>
   <div class="hero-top">
-    <span class="badge">${esc(badge)}</span>
-    ${refId ? `<span class="ref">${esc(refId)}</span>` : ''}
+    <span class="hero-badge">${esc(badgeLabel)}</span>
   </div>
   <div class="hero-bot">
-    <p class="qlabel">${customerName ? 'Travel Quotation' : 'Travel Package'}</p>
-    <h1 class="ptitle">${esc(title)}</h1>
-    <p class="dest">📍 ${esc(destination)}${destinationCountry ? ', ' + esc(destinationCountry) : ''}</p>
+    <h1 class="hero-title">${esc(title)}</h1>
+    <p class="hero-dest">${esc(destination)}${destinationCountry ? ` · ${esc(destinationCountry)}` : ''}</p>
   </div>
 </div>
+
+<!-- ── Stats Strip ── -->
 <div class="stats">
-  ${[
-    ['🌙', 'Duration', durationLabel],
-    ['⭐', 'Category', starCategory || '—'],
-    ['✈️', 'Travel Type', travelType || '—'],
-    statsCol4,
-  ].map(([icon, label, val]) => `<div class="sc"><div class="sicon">${icon}</div><div class="slabel">${label}</div><div class="sval">${val}</div></div>`).join('')}
+  <div class="sc">
+    <div class="slbl">Duration</div>
+    <div class="sval">${durationLabel}</div>
+    ${preferredDates ? `<div class="ssub">${esc(preferredDates)}</div>` : ''}
+  </div>
+  <div class="sc">
+    <div class="slbl">Hotel Category</div>
+    <div class="sval">${starCategory ? `<span class="stars">${renderStars(starCategory)}</span>` : '—'}</div>
+    <div class="ssub">${starCategory ? esc(starCategory) : '—'}</div>
+  </div>
+  <div class="sc">
+    <div class="slbl">Total Passengers</div>
+    <div class="sval">${groupSize < 10 ? String(groupSize).padStart(2, '0') : groupSize} pax</div>
+    <div class="ssub">${adults ?? groupSize} Adult${(adults ?? groupSize) !== 1 ? 's' : ''}${kids ? ` · ${kids} Child${kids !== 1 ? 'ren' : ''}` : ''}</div>
+  </div>
+  <div class="sc">
+    <div class="slbl">Price Per Person</div>
+    <div class="sval">${pricePerPerson ? `₹${Number(pricePerPerson).toLocaleString('en-IN')}` : '—'}</div>
+    <div class="ssub">Twin sharing · ex-${esc(destination)}</div>
+  </div>
 </div>
+
+<!-- ── Body ── -->
 <div class="body">
+
   ${customerName ? `
-  <div class="grid2">
-    <div class="precard">
-      <div class="slbl">Prepared For</div>
-      <div class="cname">${esc(customerName)}</div>
-      ${customerEmail ? `<div class="irow">✉️ ${esc(customerEmail)}</div>` : ''}
-      ${customerPhone ? `<div class="irow">📞 ${esc(customerPhone)}</div>` : ''}
-      ${preferredDates ? `<div class="irow">📅 ${esc(preferredDates)}</div>` : ''}
-      <hr class="divhr"/>
-      <div class="irow">✈️ via ${esc(brandName)}</div>
-    </div>
-    <div class="pcard" style="background:${quotedPriceTotal ? '#059669' : '#7c3aed'}">
-      <div class="slbl" style="color:rgba(255,255,255,.6)">${quotedPriceTotal ? 'Quoted Price' : 'Price'}</div>
-      ${quotedPriceTotal
-        ? `<div class="pamount">₹${Number(quotedPriceTotal).toLocaleString('en-IN')}</div>
-           <div class="psub">Total for ${groupSize} traveller${groupSize !== 1 ? 's' : ''}</div>
-           ${pricePerPerson && groupSize > 1 ? `<div class="pper">₹${Number(pricePerPerson).toLocaleString('en-IN')} per person</div>` : ''}`
-        : pricePerPerson
-          ? `<div class="pamount">₹${Number(pricePerPerson).toLocaleString('en-IN')}</div><div class="psub">Per person</div>`
-          : `<div class="pamount" style="font-size:18px">To be confirmed</div>`}
-      <hr class="phr"/>
-      <div class="pdlbl">Date issued</div>
-      <div class="pdval">${dateStr}</div>
-    </div>
-  </div>` : `
-  <div class="pricebox">
+  <div class="cust-banner">
     <div>
-      <div class="pricetag">Price per Person</div>
-      ${pricePerPerson
-        ? `<div class="pricelarge">₹${Number(pricePerPerson).toLocaleString('en-IN')}</div>`
-        : `<div class="pricelarge" style="font-size:20px;margin-top:4px">To be confirmed</div>`}
+      <div class="cust-lbl">Prepared For</div>
+      <div class="cust-name">${esc(customerName)}</div>
+      ${customerEmail || customerPhone ? `<div class="cust-meta">${[customerPhone, customerEmail].filter((v): v is string => Boolean(v)).map(esc).join(' · ')}</div>` : ''}
     </div>
-    <div class="pricedate">
-      <div class="pdlbl2">Published on</div>
-      <div class="pdval2">${dateStr}</div>
-      <div class="pdlbl2" style="margin-top:8px">By</div>
-      <div class="pdval2">${esc(brandName)}</div>
+    ${quotedPriceTotal ? `
+    <div class="price-banner">
+      <div class="price-lbl">Quoted Price</div>
+      <div class="price-val">₹${Number(quotedPriceTotal).toLocaleString('en-IN')}</div>
+      <div class="price-sub">Total for ${groupSize} traveller${groupSize !== 1 ? 's' : ''}</div>
+    </div>` : ''}
+  </div>` : ''}
+
+  ${overview ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Overview</span>
     </div>
-  </div>`}
-  ${overview ? `<div class="sec"><div class="stitle">Overview</div><p class="overview">${esc(overview)}</p></div>` : ''}
-  ${highlights.length ? `<div class="sec"><div class="stitle">Highlights</div><div class="hgrid">${highlights.map(h => `<div class="hpill"><span class="hstar">✦</span><span class="htext">${esc(h)}</span></div>`).join('')}</div></div>` : ''}
-  ${(inclusions.length || exclusions.length) ? `<div class="sec"><div class="iegrid">
-    ${inclusions.length ? `<div class="icard"><div class="ititle">✓ Inclusions</div>${inclusions.map(i => `<div class="li"><div class="idot">✓</div><span class="litext">${esc(i)}</span></div>`).join('')}</div>` : ''}
-    ${exclusions.length ? `<div class="ecard"><div class="etitle">✗ Exclusions</div>${exclusions.map(e => `<div class="li"><div class="edot">✗</div><span class="litext">${esc(e)}</span></div>`).join('')}</div>` : ''}
-  </div></div>` : ''}
-  ${days.length ? `<div class="sec"><div class="stitle">Day-Wise Itinerary</div>${days.map((d, i) => `<div class="dayitem"><div class="dayleft"><div class="daynum">${String(i + 1).padStart(2, '0')}</div>${i < days.length - 1 ? '<div class="dayline"></div>' : ''}</div><div class="daycontent"><div class="daytitle">${esc(d.title)}</div>${d.desc ? `<div class="daydesc">${esc(d.desc).replace(/\n/g, '<br>')}</div>` : ''}</div></div>`).join('')}</div>` : ''}
-  ${specialRequests ? `<div class="sreq"><div class="sreqt">Special Requests</div><p class="sreqb">${esc(specialRequests)}</p></div>` : ''}
-  <div class="terms">
-    <div class="stitle">Terms &amp; Conditions</div>
-    ${termsRows.map(t => `<div class="termrow"><span>•</span><span>${t}</span></div>`).join('')}
+    <p class="overview">${esc(overview)}</p>
+  </div>` : ''}
+
+  ${days.length ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Daywise Itinerary</span>
+    </div>
+    ${days.map((d, i) => {
+      const cleanTitle = cleanDayTitle(d.title)
+      const tags = extractDayTags(d.desc)
+      const visibleDesc = cleanDayDesc(d.desc)
+      return `<div class="day-item">
+        <div class="day-left">
+          <div class="day-lbl">DAY</div>
+          <div class="day-num">${String(i + 1).padStart(2, '0')}</div>
+        </div>
+        <div class="day-content">
+          <div class="day-title">${esc(cleanTitle)}</div>
+          ${visibleDesc ? `<div class="day-desc">${esc(visibleDesc).replace(/\n/g, '<br>')}</div>` : ''}
+          ${tags.length ? `<div class="day-tags">${tags.map(t => `<span class="day-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>`
+    }).join('')}
+  </div>` : ''}
+
+  ${(inclusions.length || exclusions.length) ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">What's Included &amp; What's Not</span>
+    </div>
+    <div class="ie-grid">
+      <div class="ie-box">
+        <div class="ie-hdr">
+          <div class="ie-htitle" style="color:#059669">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="7" fill="#059669"/>
+              <path d="M4 7.2l2.2 2.2 3.8-3.8" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Inclusions
+          </div>
+          <span class="ie-count">${inclusions.length} items</span>
+        </div>
+        ${inclusions.map(item => `
+        <div class="ie-row">
+          <svg class="ie-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect width="14" height="14" rx="3" fill="#f0fdf4"/>
+            <path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#059669" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="ie-text">${esc(item)}</span>
+        </div>`).join('')}
+      </div>
+      <div class="ie-box">
+        <div class="ie-hdr">
+          <div class="ie-htitle" style="color:#dc2626">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="7" fill="#dc2626"/>
+              <path d="M5 5l4 4M9 5l-4 4" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Exclusions
+          </div>
+          <span class="ie-count">${exclusions.length} items</span>
+        </div>
+        ${exclusions.map(item => `
+        <div class="ie-row">
+          <svg class="ie-icon" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect width="14" height="14" rx="3" fill="#fff1f2"/>
+            <path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="#dc2626" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <span class="ie-text">${esc(item)}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>` : ''}
+
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Terms &amp; Conditions</span>
+    </div>
+    <div class="terms-grid">
+      ${fullTerms.map((t, i) => `
+      <div class="term-row">
+        <span class="term-num">${String(i + 1).padStart(2, '0')}</span>
+        <span class="term-text">${t}</span>
+      </div>`).join('')}
+    </div>
   </div>
+
   <div class="footer">
-    <div><div class="ftname">${esc(brandName)}</div><div class="ftsub">Your trusted travel partner</div></div>
-    <div class="ftthanks">Thank you for your interest ✈️</div>
+    ${agentName ? `<div>
+      <div class="ft-lbl">Prepared by your travel agent</div>
+      <div class="ft-name">${esc(agentName)}</div>
+    </div>` : '<div></div>'}
+    <div class="ft-right">
+      <div class="ft-date">Downloaded ${dateStr} · ${timeStr}</div>
+    </div>
   </div>
+
 </div>
 </body></html>`
 
-  const win = window.open('', '_blank', 'width=850,height=1100')
+  const win = window.open('', '_blank', 'width=900,height=1200')
   if (!win) { alert('Please allow pop-ups to generate the PDF.'); return }
   win.document.write(html)
   win.document.close()
   win.focus()
-  setTimeout(() => win.print(), 800)
+  setTimeout(() => win.print(), 900)
 }

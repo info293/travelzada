@@ -694,7 +694,7 @@ export default function AgentResultsPage() {
                 sessionId={sessionId}
                 agentSlug={agentSlug}
                 onClose={() => setNameCaptureAction(null)}
-                onSuccess={() => {
+                onSuccess={(capturedName) => {
                   if (nameCaptureAction === 'pdf') {
                     openPackagePdfWindow({
                       title,
@@ -714,7 +714,9 @@ export default function AgentResultsPage() {
                       exclusions,
                       highlights,
                       dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
+                      customerName: capturedName || undefined,
                       brandName: agentInfo?.companyName || 'Travel Agent',
+                      agentContactName: agentInfo?.contactName || undefined,
                       termsVariant: 'brochure',
                     })
                   } else {
@@ -764,7 +766,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
   action: 'pdf' | 'whatsapp'
   agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
   subAgentId?: string; sessionId?: string; agentSlug?: string
-  onClose: () => void; onSuccess: () => void
+  onClose: () => void; onSuccess: (name: string) => void
 }) {
   const [customerName, setCustomerName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -800,7 +802,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
       }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Submission failed')
-      onSuccess()
+      onSuccess(customerName.trim())
     } catch (err: any) { setError(err.message || 'Something went wrong.') }
     finally { setSubmitting(false) }
   }
