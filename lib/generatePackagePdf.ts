@@ -76,28 +76,8 @@ export function openPackagePdfWindow(opts: PackagePdfOptions): void {
     if (cur) days.push(cur)
   }
 
-  function extractDayTags(desc: string): string[] {
-    const tags: string[] = []
-    const stayMatch = desc.match(/\bstay[\s:·–-]+([^\n,]+)/i)
-    if (stayMatch) tags.push(`Stay · ${stayMatch[1].trim()}`)
-    if (/\bbreakfast\b/i.test(desc)) tags.push('Breakfast')
-    if (/\blunch\b/i.test(desc)) tags.push('Lunch')
-    if (/\bdinner\b/i.test(desc)) tags.push('Dinner')
-    if (/\bprivate transfer\b/i.test(desc)) tags.push('Private transfer')
-    return tags
-  }
-
   function cleanDayTitle(raw: string): string {
     return raw.replace(/^day\s*\d+[\s:·–\-]*/i, '').trim() || raw
-  }
-
-  function cleanDayDesc(desc: string): string {
-    // Remove lines that are just meal/stay tags (already shown as pills)
-    return desc
-      .split('\n')
-      .filter(l => !/^(breakfast|lunch|dinner|stay[\s:·]|private transfer)$/i.test(l.trim()))
-      .join('\n')
-      .trim()
   }
 
   const fullTerms = termsVariant === 'quotation'
@@ -181,7 +161,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .overview{font-size:14px;color:#374151;line-height:1.85}
 
 /* ── Day items ── */
-.day-item{display:flex;gap:24px;padding:22px 0;border-bottom:1px solid #f3f4f6}
+.day-item{display:flex;gap:24px;padding:22px 0;border-bottom:1px solid #f3f4f6;break-inside:avoid;page-break-inside:avoid}
 .day-item:last-child{border-bottom:none}
 .day-left{flex-shrink:0;width:58px;padding-top:2px}
 .day-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em}
@@ -189,8 +169,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .day-content{flex:1;min-width:0}
 .day-title{font-size:15px;font-weight:700;color:#111;margin-bottom:8px;line-height:1.4}
 .day-desc{font-size:13px;color:#6b7280;line-height:1.75;margin-bottom:12px}
-.day-tags{display:flex;flex-wrap:wrap;gap:8px}
-.day-tag{font-size:11px;font-weight:500;color:#374151;border:1px solid #d1d5db;border-radius:999px;padding:4px 12px;white-space:nowrap}
 
 /* ── Hotels table ── */
 .htable{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
@@ -327,8 +305,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
     </div>
     ${days.map((d, i) => {
       const cleanTitle = cleanDayTitle(d.title)
-      const tags = extractDayTags(d.desc)
-      const visibleDesc = cleanDayDesc(d.desc)
+      const visibleDesc = d.desc.trim()
       return `<div class="day-item">
         <div class="day-left">
           <div class="day-lbl">DAY</div>
@@ -337,7 +314,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
         <div class="day-content">
           <div class="day-title">${esc(cleanTitle)}</div>
           ${visibleDesc ? `<div class="day-desc">${esc(visibleDesc).replace(/\n/g, '<br>')}</div>` : ''}
-          ${tags.length ? `<div class="day-tags">${tags.map(t => `<span class="day-tag">${esc(t)}</span>`).join('')}</div>` : ''}
         </div>
       </div>`
     }).join('')}
