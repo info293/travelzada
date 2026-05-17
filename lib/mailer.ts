@@ -8,6 +8,7 @@ export interface MailPayload {
   to: string
   subject: string
   html: string
+  fromName?: string
 }
 
 export async function sendMail(payload: MailPayload): Promise<void> {
@@ -27,7 +28,9 @@ export async function sendMail(payload: MailPayload): Promise<void> {
     auth: { user, pass },
   })
 
-  await transporter.sendMail({ from: `Travelzada <${FROM}>`, to: payload.to, subject: payload.subject, html: payload.html })
+  const fromLabel = payload.fromName || process.env.SMTP_FROM_NAME || ''
+  const fromField = fromLabel ? `${fromLabel} <${FROM}>` : FROM
+  await transporter.sendMail({ from: fromField, to: payload.to, subject: payload.subject, html: payload.html })
 }
 
 // ─── Design Helpers ───────────────────────────────────────────────────────────
@@ -39,9 +42,11 @@ function emailWrap(opts: {
   subtitle?: string
   gradient?: string
   body: string
+  brand?: string
 }) {
   const grad = opts.gradient ?? 'linear-gradient(135deg,#7c3aed 0%,#a855f7 100%)'
   const year = new Date().getFullYear()
+  const supportEmail = process.env.SUPPORT_EMAIL || FROM
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,15 +60,15 @@ function emailWrap(opts: {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
 
-        <!-- Logo strip -->
+        ${opts.brand ? `<!-- Brand strip -->
         <tr><td style="padding:0 0 16px;text-align:center">
-          <span style="font-size:13px;font-weight:800;color:#7c3aed;letter-spacing:1px;text-transform:uppercase">✈ TRAVELZADA</span>
-        </td></tr>
+          <span style="font-size:13px;font-weight:800;color:#7c3aed;letter-spacing:1px;text-transform:uppercase">✈ ${opts.brand}</span>
+        </td></tr>` : ''}
 
         <!-- Header -->
         <tr><td style="background:${grad};border-radius:20px 20px 0 0;padding:48px 40px 40px;text-align:center">
           <div style="display:inline-block;width:68px;height:68px;background:rgba(255,255,255,.18);border-radius:20px;font-size:32px;line-height:68px;margin-bottom:20px">${opts.icon}</div><br>
-          <span style="color:rgba(255,255,255,.7);font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase">Travelzada</span><br>
+          ${opts.brand ? `<span style="color:rgba(255,255,255,.7);font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase">${opts.brand}</span><br>` : ''}
           <span style="color:#ffffff;font-size:26px;font-weight:800;line-height:1.25;display:inline-block;margin-top:8px">${opts.title}</span>
           ${opts.subtitle ? `<br><span style="color:rgba(255,255,255,.82);font-size:14px;display:inline-block;margin-top:8px">${opts.subtitle}</span>` : ''}
         </td></tr>
@@ -80,13 +85,12 @@ function emailWrap(opts: {
 
         <!-- Footer -->
         <tr><td style="padding:28px 24px 16px;text-align:center">
-          <p style="margin:0 0 4px;color:#7c3aed;font-size:13px;font-weight:700;letter-spacing:.5px">TRAVELZADA</p>
+          ${opts.brand ? `<p style="margin:0 0 4px;color:#7c3aed;font-size:13px;font-weight:700;letter-spacing:.5px">${opts.brand.toUpperCase()}</p>` : ''}
           <p style="margin:0 0 8px;color:#9ca3af;font-size:12px;line-height:1.7">
-            © ${year} Travelzada &nbsp;·&nbsp;
-            <a href="${APP_URL}" style="color:#7c3aed;text-decoration:none">travelzada.com</a>
+            © ${year} ${opts.brand || 'Travel Platform'}
           </p>
           <p style="margin:0;color:#d1d5db;font-size:11px">
-            Questions? <a href="mailto:support@travelzada.com" style="color:#a78bfa;text-decoration:none">support@travelzada.com</a>
+            Questions? <a href="mailto:${supportEmail}" style="color:#a78bfa;text-decoration:none">${supportEmail}</a>
           </p>
         </td></tr>
 
@@ -198,15 +202,15 @@ function smallNote(text: string) {
 export function buildCustomerWelcomeEmail(opts: { name: string }): MailPayload {
   return {
     to: '',
-    subject: `Welcome to Travelzada — Your journey starts here ✈️`,
+    subject: `Welcome, ${opts.name} — Your journey starts here ✈️`,
     html: emailWrap({
       icon: '✈️',
-      preheader: `Hi ${opts.name}, your Travelzada account is ready. Let's plan something amazing!`,
+      preheader: `Hi ${opts.name}, your account is ready. Let's plan something amazing!`,
       title: `Welcome, ${opts.name}!`,
       subtitle: 'Your adventure begins here',
       body: `
         ${greeting(opts.name)}
-        ${body("We're thrilled to have you on board. Travelzada brings you AI-powered travel planning, handpicked packages, and seamless booking — all in one beautiful place.")}
+        ${body("We're thrilled to have you on board. Enjoy AI-powered travel planning, handpicked packages, and seamless booking — all in one beautiful place.")}
 
         ${featureBox([
           { icon: '🤖', text: '<strong>AI Trip Planner</strong> — Get a personalised itinerary tailored to your preferences in minutes' },
@@ -226,28 +230,29 @@ export function buildCustomerWelcomeEmail(opts: { name: string }): MailPayload {
 export function buildDmcSignupEmail(opts: { contactName: string; companyName: string }): MailPayload {
   return {
     to: '',
-    subject: `Application Received — ${opts.companyName} | Travelzada`,
+    subject: `Application Received — ${opts.companyName}`,
     html: emailWrap({
       icon: '🏢',
       preheader: `Thanks for applying, ${opts.contactName}. Our team is reviewing your application.`,
       title: 'Application Received!',
       subtitle: 'Our team is reviewing your request',
+      brand: opts.companyName,
       body: `
         ${greeting(opts.contactName)}
-        ${body(`Thank you for registering <strong>${opts.companyName}</strong> as a Travelzada Partner (DMC). We've received your application and will get back to you within <strong>1–2 business days</strong>.`)}
+        ${body(`Thank you for registering <strong>${opts.companyName}</strong> as a DMC Partner. We've received your application and will get back to you within <strong>1–2 business days</strong>.`)}
 
         <p style="margin:0 0 6px;text-align:center">${badge('Pending Review', '#92400e', '#fef3c7')}</p>
 
         <p style="margin:20px 0 4px;color:#111827;font-size:14px;font-weight:700">What happens next?</p>
         ${stepsBox([
-          'Travelzada team carefully reviews your application',
+          'Our team carefully reviews your application',
           'You receive an approval email with full dashboard access',
           'Add your packages and invite your travel agents',
-          'Start receiving bookings and grow your business on Travelzada',
+          'Start receiving bookings and grow your business',
         ])}
 
         ${divider()}
-        ${smallNote('Questions? <a href="mailto:support@travelzada.com" style="color:#7c3aed;text-decoration:none">support@travelzada.com</a>')}
+        ${smallNote(`Questions? <a href="mailto:${process.env.SMTP_FROM || ''}" style="color:#7c3aed;text-decoration:none">Contact Support</a>`)}
       `,
     }),
   }
@@ -257,11 +262,13 @@ export function buildTravelAgentSignupEmail(opts: { name: string; agentCompanyNa
   return {
     to: '',
     subject: `Registration Received — ${opts.agentCompanyName} Travel Team`,
+    fromName: opts.agentCompanyName,
     html: emailWrap({
       icon: '👋',
       preheader: `Hi ${opts.name}, your request to join ${opts.agentCompanyName} has been received.`,
       title: 'Registration Received!',
       subtitle: `Pending approval from ${opts.agentCompanyName}`,
+      brand: opts.agentCompanyName,
       body: `
         ${greeting(opts.name)}
         ${body(`Your request to join <strong>${opts.agentCompanyName}</strong>'s travel team has been submitted. The agency manager will review and approve your account shortly.`)}
@@ -273,11 +280,11 @@ export function buildTravelAgentSignupEmail(opts: { name: string; agentCompanyNa
           { icon: '🤖', text: 'Access the AI Travel Planner with your login credentials' },
           { icon: '📋', text: 'Create and send branded quotations to customers' },
           { icon: '📊', text: 'Track your bookings and commissions in real time' },
-          { icon: '💬', text: 'Collaborate directly with your DMC on every deal' },
+          { icon: '💬', text: `Collaborate directly with <strong>${opts.agentCompanyName}</strong> on every deal` },
         ])}
 
         ${divider()}
-        ${smallNote('Registered via a Travelzada partner invitation link.')}
+        ${smallNote(`Registered via an invitation link from <strong>${opts.agentCompanyName}</strong>.`)}
       `,
     }),
   }
@@ -285,21 +292,25 @@ export function buildTravelAgentSignupEmail(opts: { name: string; agentCompanyNa
 
 export function buildTravelAgentSignupNotifyDmcEmail(opts: {
   agentCompanyName: string
+  dmcContactName?: string
   travelAgentName: string
   travelAgentEmail: string
   dashboardUrl: string
 }): MailPayload {
   return {
     to: '',
-    subject: `New Agent Request — ${opts.travelAgentName} wants to join your team`,
+    subject: `New Agent Request — ${opts.travelAgentName} wants to join ${opts.agentCompanyName}`,
+    fromName: opts.agentCompanyName,
     html: emailWrap({
       icon: '🔔',
-      preheader: `${opts.travelAgentName} has requested to join ${opts.agentCompanyName} on Travelzada.`,
+      preheader: `${opts.travelAgentName} has requested to join ${opts.agentCompanyName}.`,
       title: 'New Team Member Request',
       subtitle: 'Action required — approve or reject in your dashboard',
       gradient: 'linear-gradient(135deg,#ea580c 0%,#f97316 100%)',
+      brand: opts.agentCompanyName,
       body: `
-        ${body(`A travel agent has requested to join <strong>${opts.agentCompanyName}</strong> on Travelzada. Review their request and take action from your dashboard.`)}
+        ${opts.dmcContactName ? greeting(opts.dmcContactName) : ''}
+        ${body(`<strong>${opts.travelAgentName}</strong> has requested to join <strong>${opts.agentCompanyName}</strong>. Review their request and take action from your dashboard.`)}
 
         ${infoCard([
           ['Name', `<strong>${opts.travelAgentName}</strong>`],
@@ -324,12 +335,14 @@ export function buildTravelAgentApprovedEmail(opts: {
   return {
     to: '',
     subject: `You're Approved! — Start Planning with ${opts.agentCompanyName}`,
+    fromName: opts.agentCompanyName,
     html: emailWrap({
       icon: '🎉',
-      preheader: `Congratulations ${opts.name}! Your travel agent account has been approved.`,
+      preheader: `Congratulations ${opts.name}! Your travel agent account with ${opts.agentCompanyName} has been approved.`,
       title: "You're Approved!",
       subtitle: `Welcome to ${opts.agentCompanyName}'s team`,
       gradient: 'linear-gradient(135deg,#059669 0%,#10b981 100%)',
+      brand: opts.agentCompanyName,
       body: `
         ${greeting(opts.name)}
         ${body(`Great news! <strong>${opts.agentCompanyName}</strong> has approved your travel agent account. You're all set — start creating itineraries and delighting your customers today.`)}
@@ -369,15 +382,17 @@ export function buildNewQuotationNotifyDmcEmail(opts: {
   ]
   return {
     to: '',
-    subject: `New Quotation Request — ${opts.packageTitle} | ${opts.companyName}`,
+    subject: `New Quotation Request — ${opts.packageTitle} | ${opts.subAgentName}`,
+    fromName: opts.companyName,
     html: emailWrap({
       icon: '📋',
       preheader: `${opts.subAgentName} created a new quotation for ${opts.customerName}.`,
       title: 'New Quotation Request',
       subtitle: `From ${opts.subAgentName}`,
+      brand: opts.companyName,
       body: `
         ${greeting(opts.dmcName)}
-        ${body(`<strong>${opts.subAgentName}</strong> has created a new quotation request on your platform. Review it in your dashboard and respond to keep the deal moving.`)}
+        ${body(`<strong>${opts.subAgentName}</strong> has created a new quotation request. Review it in your dashboard and respond to keep the deal moving.`)}
 
         ${infoCard(rows)}
 
@@ -402,11 +417,13 @@ export function buildMessageToAgentEmail(opts: {
   return {
     to: '',
     subject: `💬 New message from ${opts.senderName} — ${opts.quotationTitle}`,
+    fromName: opts.senderName,
     html: emailWrap({
       icon: '💬',
       preheader: `${opts.senderName} sent you a message about ${opts.customerName}'s quotation.`,
       title: 'New Message',
-      subtitle: 'From your DMC',
+      subtitle: `From ${opts.senderName}`,
+      brand: opts.senderName,
       body: `
         ${greeting(opts.agentName)}
         ${body(`<strong>${opts.senderName}</strong> sent you a message about the quotation for <strong>${opts.customerName}</strong>.`)}
@@ -438,12 +455,14 @@ export function buildMessageToDmcEmail(opts: {
   return {
     to: '',
     subject: `💬 ${opts.senderName} replied on ${opts.quotationTitle}`,
+    fromName: opts.senderName,
     html: emailWrap({
       icon: '💬',
       preheader: `${opts.senderName} sent a message on the quotation for ${opts.customerName}.`,
       title: 'Travel Agent Replied',
-      subtitle: 'New message on a quotation',
+      subtitle: `New message from ${opts.senderName}`,
       gradient: 'linear-gradient(135deg,#0891b2 0%,#06b6d4 100%)',
+      brand: opts.senderName,
       body: `
         ${greeting(opts.dmcContactName)}
         ${body(`<strong>${opts.senderName}</strong> sent a message on the quotation for <strong>${opts.customerName}</strong>.`)}

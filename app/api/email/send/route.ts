@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       case 'travel_agent_signup_notify_dmc': {
         const mail = buildTravelAgentSignupNotifyDmcEmail({
           agentCompanyName: data.agentCompanyName,
+          dmcContactName: data.dmcContactName,
           travelAgentName: data.travelAgentName,
           travelAgentEmail: data.travelAgentEmail,
           dashboardUrl: data.dashboardUrl || `${BASE}/dmc-dashboard`,
