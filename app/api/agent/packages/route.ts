@@ -82,6 +82,8 @@ export async function POST(request: Request) {
       isActive: true,
       basePackageId: packageData.basePackageId || null,
       markupPercent: Number(packageData.markupPercent) || 0,
+      paymentPolicy: packageData.paymentPolicy || '',
+      cancellationPolicy: packageData.cancellationPolicy || '',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     }

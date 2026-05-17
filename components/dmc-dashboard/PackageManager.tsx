@@ -56,6 +56,8 @@ const EMPTY_FORM = {
   dayWiseItinerary: '',
   primaryImageUrl: '',
   seasonalAvailability: 'Year Round',
+  paymentPolicy: '',
+  cancellationPolicy: '',
 }
 
 const MEAL_PLANS = ['Breakfast', 'Half Board', 'Full Board', 'All Inclusive', 'Room Only']
@@ -103,6 +105,7 @@ const CSV_KNOWN_COLS = new Set([
   'image_url', 'image', 'photo_url', 'cover_image',
   'hotels', 'hotel', 'accommodation',
   'vehicles', 'vehicle', 'transfers', 'transport',
+  'payment_policy', 'cancellation_policy',
 ])
 
 interface CsvValidationIssue {
@@ -323,7 +326,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
       'overview', 'highlights', 'inclusions', 'exclusions',
       'day_wise_itinerary', 'seasonal_availability', 'primary_image_url',
-      'hotels', 'vehicles',
+      'hotels', 'vehicles', 'payment_policy', 'cancellation_policy',
     ]
 
     // Wrap in double-quotes and escape internal quotes
@@ -353,6 +356,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         'Port Blair;1;Sinclairs Bayview;Breakfast;Standard Room||Havelock;4;Symphony Palms Beach Resort;Breakfast;Sea-facing Cottage',
         // vehicles: Type;Seats;Route;Days;Notes  — use || for multiple
         'Innova Crysta;7;Airport & port transfers;6;AC with driver',
+        '30% advance to confirm. Balance due 21 days before travel. Bank transfer / UPI accepted.',
+        '30+ days: 25% charge. 15–29 days: 50% charge. 7–14 days: 75% charge. Less than 7 days: non-refundable.',
       ],
       [
         'Bali Honeymoon 7D/6N',
@@ -374,6 +379,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         '',
         'Seminyak;2;W Bali — Seminyak;Breakfast;Retreat Pool Suite||Ubud;4;Alaya Resort Ubud;Half Board;Private Pool Villa',
         'Luxury Car;4;Airport & villa transfers;7;Private AC with driver||SUV;4;Nusa Penida day trip;1;Shared AC',
+        '50% advance to confirm honeymoon booking. Balance due 30 days before travel. Wire transfer accepted.',
+        '45+ days: full refund. 30–44 days: 25% charge. 15–29 days: 50% charge. Less than 15 days: non-refundable.',
       ],
       [
         'Rajasthan Royal Circuit 8D/7N',
@@ -395,6 +402,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         '',
         'Jaipur;2;Rambagh Palace;Breakfast;Deluxe Room||Jodhpur;2;Umaid Bhawan Heritage Wing;Breakfast;Maharaja Suite||Jaisalmer;3;Suryagarh Jaisalmer;Half Board;Desert View Room',
         'Innova Crysta;7;All intercity & sightseeing transfers;8;AC with English-speaking driver',
+        '25% advance to confirm. 50% due 45 days before travel. Full balance due 21 days before departure.',
+        '60+ days: full refund. 30–59 days: 20% charge. 15–29 days: 50% charge. Less than 15 days: non-refundable.',
       ],
     ]
 
@@ -651,6 +660,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       dayWiseItinerary: pkg.dayWiseItinerary,
       primaryImageUrl: pkg.primaryImageUrl || '',
       seasonalAvailability: pkg.seasonalAvailability || 'Year Round',
+      paymentPolicy: (pkg as any).paymentPolicy || '',
+      cancellationPolicy: (pkg as any).cancellationPolicy || '',
     })
     setDayItems(parseDayItems(pkg.dayWiseItinerary || ''))
     setHotelEntries(Array.isArray(pkg.hotels) ? pkg.hotels : [])
@@ -726,6 +737,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         primaryImageUrl: form.primaryImageUrl,
         seasonalAvailability: form.seasonalAvailability,
         markupPercent: markupEnabled ? Number(markupPercent) : 0,
+        paymentPolicy: form.paymentPolicy.trim(),
+        cancellationPolicy: form.cancellationPolicy.trim(),
       }
 
       let res: Response
@@ -831,7 +844,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
           row: null, field: `unrecognized column${unknownCols.length > 1 ? 's' : ''}`,
           found: unknownCols.join(', '),
           message: `These columns are not recognized and will be ignored: ${unknownCols.join(', ')}`,
-          fix: `Check for typos. Known columns: title, destination, duration_days, duration_nights, price_per_person, currency, travel_type, star_category, theme, mood, overview, highlights, inclusions, exclusions, day_wise_itinerary, seasonal_availability, primary_image_url.`,
+          fix: `Check for typos. Known columns: title, destination, duration_days, duration_nights, price_per_person, currency, travel_type, star_category, theme, mood, overview, highlights, inclusions, exclusions, day_wise_itinerary, seasonal_availability, primary_image_url, hotels, vehicles, payment_policy, cancellation_policy.`,
           severity: 'warning',
         })
       }
@@ -966,6 +979,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
             seasonalAvailability: r['seasonal_availability'] || 'Year Round',
             hotels: parseCsvHotels(r['hotels'] || r['hotel'] || r['accommodation'] || ''),
             vehicles: parseCsvVehicles(r['vehicles'] || r['vehicle'] || r['transfers'] || r['transport'] || ''),
+            paymentPolicy: (r['payment_policy'] || '').trim(),
+            cancellationPolicy: (r['cancellation_policy'] || '').trim(),
           }
 
           const res = await fetch('/api/agent/packages', {
@@ -1386,6 +1401,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   ['primary_image_url', 'No', 'https://cdn.example.com/package.jpg'],
                   ['hotels', 'No', 'Dest;Nights;Hotel Name;Meal Plan;Room Type  — use || to add multiple hotels'],
                   ['vehicles', 'No', 'Vehicle Type;Seats;Route;Days;Notes  — use || to add multiple vehicles'],
+                  ['payment_policy', 'No', '30% advance to confirm. Balance due 21 days before travel.'],
+                  ['cancellation_policy', 'No', '30+ days: 25% charge. 15–29 days: 50% charge. Less than 7 days: non-refundable.'],
                 ].map(([col, req, ex]) => (
                   <tr key={col}>
                     <td className="pr-4 py-0.5 font-mono text-blue-700 whitespace-nowrap">{col}</td>
@@ -2319,6 +2336,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     </table>
                   </div>
                 )}
+              </div>
+
+              {/* ── Policies ──────────────────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📋</span>
+                  <p className="text-sm font-bold text-gray-800">Payment & Cancellation Policy</p>
+                  <span className="ml-auto text-[10px] text-gray-400 font-medium">Shown in customer PDF</span>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="label">Payment Policy</label>
+                    <textarea
+                      name="paymentPolicy"
+                      value={form.paymentPolicy}
+                      onChange={handleChange}
+                      rows={4}
+                      placeholder="e.g. 30% advance to confirm booking. Balance due 21 days before travel. Bank transfer or UPI accepted."
+                      className="input resize-none text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Cancellation Policy</label>
+                    <textarea
+                      name="cancellationPolicy"
+                      value={form.cancellationPolicy}
+                      onChange={handleChange}
+                      rows={4}
+                      placeholder="e.g. 30+ days: 25% charge. 15–29 days: 50% charge. 7–14 days: 75% charge. Less than 7 days: non-refundable."
+                      className="input resize-none text-sm"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Master Itinerary */}

@@ -82,6 +82,8 @@ interface PackageData {
   primaryImageUrl?: string
   theme?: string
   mood?: string
+  paymentPolicy?: string
+  cancellationPolicy?: string
 }
 
 interface Quotation {
@@ -126,6 +128,8 @@ interface AgentPackage {
   dayWiseItinerary?: string
   theme?: string
   mood?: string
+  paymentPolicy?: string
+  cancellationPolicy?: string
 }
 
 type Tab = 'planner' | 'home' | 'bookings' | 'packages' | 'quotations' | 'quote_history' | 'customers' | 'stats' | 'activity' | 'ai' | 'profile'
@@ -486,6 +490,8 @@ export default function SubAgentDashboardPage() {
       customerEmail: q.customerEmail,
       customerPhone: q.customerPhone,
       preferredDates: q.preferredDates,
+      paymentPolicy: (pkg as any)?.paymentPolicy || (pkg as any)?.PaymentPolicy || undefined,
+      cancellationPolicy: (pkg as any)?.cancellationPolicy || (pkg as any)?.CancellationPolicy || undefined,
       brandName: subAgentName || 'Travel Agent',
       termsVariant: 'quotation',
     })
@@ -511,6 +517,8 @@ export default function SubAgentDashboardPage() {
       inclusions: Array.isArray(pkg.inclusions) ? pkg.inclusions.filter(Boolean) : [],
       exclusions: Array.isArray(pkg.exclusions) ? pkg.exclusions.filter(Boolean) : [],
       dayWiseItinerary: pkg.dayWiseItinerary,
+      paymentPolicy: pkg.paymentPolicy || undefined,
+      cancellationPolicy: pkg.cancellationPolicy || undefined,
       brandName: subAgentName || 'Travel Agent',
       termsVariant: 'brochure',
     })

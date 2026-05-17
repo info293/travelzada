@@ -8,6 +8,7 @@ import {
   Loader2, ArrowLeft, X, Send, User, Calendar,
   Users, Star, Clock, CheckCircle, MapPin, Package,
   FileText, ChevronDown, ChevronLeft, ChevronRight,
+  Hotel, Car, CreditCard, Ban,
 } from 'lucide-react'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
 
@@ -31,6 +32,8 @@ interface MatchedPackage {
   Highlights?: string[]
   Hotels?: any[]
   Vehicles?: any[]
+  PaymentPolicy?: string
+  CancellationPolicy?: string
   agentPackageTitle?: string
   agentSlug?: string
   source?: string
@@ -613,12 +616,112 @@ export default function AgentResultsPage() {
               </div>
             )}
 
-            {/* Terms */}
-            <div className="bg-white rounded-xl shadow-sm p-5 text-xs text-gray-400 space-y-1">
-              <p className="font-bold text-gray-500 text-sm">Terms & Conditions</p>
-              <p>• Prices subject to availability at time of booking.</p>
-              <p>• Final price confirmed on booking confirmation.</p>
-            </div>
+            {/* Hotels */}
+            {Array.isArray(bestPkg.Hotels) && bestPkg.Hotels.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <Hotel className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-serif text-[#1e1d2f]">Hotel Information</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Destination</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Nights</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Hotel(s)</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Meal Plan</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2">Room Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {bestPkg.Hotels.map((h: any, i: number) => (
+                        <tr key={i}>
+                          <td className="py-2.5 pr-4 font-semibold text-gray-900">{h.destination || '—'}</td>
+                          <td className="py-2.5 pr-4 text-gray-600">{h.nights ? `${h.nights}N` : '—'}</td>
+                          <td className="py-2.5 pr-4 text-gray-700">{h.hotels || '—'}</td>
+                          <td className="py-2.5 pr-4">
+                            {h.mealPlan
+                              ? <span className="text-xs bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-full font-medium">{h.mealPlan}</span>
+                              : <span className="text-gray-400">—</span>}
+                          </td>
+                          <td className="py-2.5 text-gray-600">{h.roomType || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Transport & Transfers */}
+            {Array.isArray(bestPkg.Vehicles) && bestPkg.Vehicles.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <Car className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-serif text-[#1e1d2f]">Transport & Transfers</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100">
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Vehicle</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Seats</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2 pr-4">Route / Usage</th>
+                        <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wide pb-2">Days</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {bestPkg.Vehicles.map((v: any, i: number) => (
+                        <tr key={i}>
+                          <td className="py-2.5 pr-4">
+                            <p className="font-semibold text-gray-900">{v.vehicleType || '—'}</p>
+                            {v.notes && <p className="text-xs text-gray-400 mt-0.5">{v.notes}</p>}
+                          </td>
+                          <td className="py-2.5 pr-4 text-gray-600">{v.seats || '—'}</td>
+                          <td className="py-2.5 pr-4 text-gray-700">{v.route || '—'}</td>
+                          <td className="py-2.5 text-gray-600">{v.days ? `${v.days}D` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Policy */}
+            {bestPkg.PaymentPolicy && (
+              <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <CreditCard className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-serif text-[#1e1d2f]">Payment Policy</h2>
+                </div>
+                <div className="space-y-2">
+                  {bestPkg.PaymentPolicy.split('\n').filter(Boolean).map((line: string, i: number) => (
+                    <p key={i} className="text-sm text-gray-600 leading-relaxed border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Cancellation Policy */}
+            {bestPkg.CancellationPolicy && (
+              <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <Ban className="w-5 h-5 text-red-400" />
+                  <h2 className="text-xl font-serif text-[#1e1d2f]">Cancellation Policy</h2>
+                </div>
+                <div className="space-y-2">
+                  {bestPkg.CancellationPolicy.split('\n').filter(Boolean).map((line: string, i: number) => (
+                    <p key={i} className="text-sm text-gray-600 leading-relaxed border-b border-gray-50 pb-2 last:border-0 last:pb-0">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -742,6 +845,8 @@ export default function AgentResultsPage() {
                       dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
                       hotels: Array.isArray(bestPkg.Hotels) && bestPkg.Hotels.length > 0 ? bestPkg.Hotels : undefined,
                       vehicles: Array.isArray(bestPkg.Vehicles) && bestPkg.Vehicles.length > 0 ? bestPkg.Vehicles : undefined,
+                      paymentPolicy: bestPkg.PaymentPolicy || undefined,
+                      cancellationPolicy: bestPkg.CancellationPolicy || undefined,
                       preferredDates: pdfPreferredDates,
                       customerName: capturedName || undefined,
                       brandName: agentInfo?.companyName || 'Travel Agent',

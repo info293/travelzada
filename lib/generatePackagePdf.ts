@@ -31,6 +31,8 @@ export interface PackagePdfOptions {
   brandName: string
   agentContactName?: string
   agentLogoUrl?: string
+  paymentPolicy?: string
+  cancellationPolicy?: string
   termsVariant?: 'brochure' | 'quotation'
 }
 
@@ -72,7 +74,7 @@ export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<voi
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
-    brandName, agentContactName, agentLogoUrl, termsVariant = 'brochure',
+    brandName, agentContactName, agentLogoUrl, paymentPolicy, cancellationPolicy, termsVariant = 'brochure',
   } = opts
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -127,36 +129,6 @@ export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<voi
   function cleanDayTitle(raw: string): string {
     return raw.replace(/^day\s*\d+[\s:·–\-]*/i, '').trim() || raw
   }
-
-  const fullTerms = termsVariant === 'quotation'
-    ? [
-        'Rates are valid for travel on the specified dates only. Peak-season surcharges may apply for festival dates.',
-        'This quotation is valid for 7 days from the download date. Hotel availability is confirmed only at the time of booking.',
-        'A non-refundable advance of 30% of the package cost is required to confirm the booking; balance is due 21 days before travel.',
-        'Cancellation 30+ days before travel: 25% deduction. 15–29 days: 50%. 7–14 days: 75%. Less than 7 days: 100% non-refundable.',
-        'Standard check-in is 14:00 and check-out is 12:00. Early check-in / late check-out is subject to availability.',
-        'Houseboat boarding is at 12:30 and disembarkation at 09:00 the next morning, per local regulations.',
-        'Children below 5 years are complimentary without a bed. 5–11 years are charged at 60% of the adult rate with a shared bed.',
-        'Itinerary may be re-sequenced due to weather, road conditions, or local events; inclusions remain unchanged.',
-        'Any increase in government taxes, fuel surcharges or fees levied after booking will be passed on at actuals.',
-        'Guests are responsible for carrying valid government-issued photo ID at all hotels and check-points.',
-        'The travel agency acts as a booking facilitator; service operators (hotels, transport, activities) are independent contractors.',
-        'All disputes are subject to the jurisdiction of courts as applicable under law.',
-      ]
-    : [
-        'Package prices are for reference only and subject to change based on availability at the time of booking.',
-        'This brochure is valid for the current season. Rates may vary for peak seasons and special events.',
-        'A non-refundable advance is required to confirm the booking; balance is due before travel commences.',
-        'Standard cancellation policy applies. Please consult your travel agent for specific terms before booking.',
-        'Standard check-in is 14:00 and check-out is 12:00. Early check-in / late check-out is subject to availability.',
-        'Houseboat boarding and disembarkation times are per local tourism authority regulations.',
-        'Children below 5 years are complimentary without a bed. 5–11 years may be charged at 60% of the adult rate.',
-        'Itinerary sequence may be adjusted due to weather, road conditions, or local events.',
-        'Any increase in government taxes or fuel surcharges after booking will be passed on at actuals.',
-        'Guests must carry valid government-issued photo ID at all hotels and check-points.',
-        'The travel agency acts as a booking facilitator; all service operators are independent contractors.',
-        'For queries or customisation, please contact your travel agent directly.',
-      ]
 
   let sectionNum = 0
   function nextNum() { return String(++sectionNum).padStart(2, '0') }
@@ -249,11 +221,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .ie-icon{flex-shrink:0;margin-top:2px}
 .ie-text{font-size:13px;color:#374151;line-height:1.55}
 
-/* ── Terms ── */
-.terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
-.term-row{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px solid #f3f4f6;break-inside:avoid;page-break-inside:avoid}
-.term-num{font-size:11px;font-weight:700;color:#7c3aed;flex-shrink:0;width:22px}
-.term-text{font-size:12px;color:#6b7280;line-height:1.65}
+/* ── Policies ── */
+.policy-box{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:22px 26px}
+.policy-line{font-size:13px;color:#374151;line-height:1.75;padding:4px 0;border-bottom:1px solid #f3f4f6}
+.policy-line:last-child{border-bottom:none}
 
 /* ── Footer ── */
 .footer{margin-top:40px;padding-top:24px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-end}
@@ -494,19 +465,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
     </div>
   </div>` : ''}
 
+  ${paymentPolicy ? `
   <div class="section">
     <div class="sec-hdr">
       <span class="sec-num">${nextNum()}</span>
-      <span class="sec-title">Terms &amp; Conditions</span>
+      <span class="sec-title">Payment Policy</span>
     </div>
-    <div class="terms-grid">
-      ${fullTerms.map((t, i) => `
-      <div class="term-row">
-        <span class="term-num">${String(i + 1).padStart(2, '0')}</span>
-        <span class="term-text">${t}</span>
-      </div>`).join('')}
+    <div class="policy-box">
+      ${paymentPolicy.split('\n').filter(Boolean).map(line => `<p class="policy-line">${esc(line)}</p>`).join('')}
     </div>
-  </div>
+  </div>` : ''}
+
+  ${cancellationPolicy ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Cancellation Policy</span>
+    </div>
+    <div class="policy-box">
+      ${cancellationPolicy.split('\n').filter(Boolean).map(line => `<p class="policy-line">${esc(line)}</p>`).join('')}
+    </div>
+  </div>` : ''}
 
   <div class="footer">
     ${agentName ? `<div>

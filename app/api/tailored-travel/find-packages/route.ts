@@ -219,6 +219,8 @@ export async function POST(request: Request) {
                         Highlights: Array.isArray(data.highlights) ? data.highlights : [],
                         Hotels: Array.isArray(data.hotels) ? data.hotels : [],
                         Vehicles: Array.isArray(data.vehicles) ? data.vehicles : [],
+                        PaymentPolicy: data.paymentPolicy || '',
+                        CancellationPolicy: data.cancellationPolicy || '',
                         // Agent-specific extras
                         agentPackageTitle: data.title || data.destination,
                         agentId,
