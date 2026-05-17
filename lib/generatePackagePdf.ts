@@ -190,7 +190,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .hero-dest{font-size:13px;color:rgba(255,255,255,.78);font-weight:500}
 
 /* ── Stats strip ── */
-.stats{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:2px solid #e5e7eb}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-bottom:2px solid #e5e7eb}
 .sc{padding:18px 22px;border-right:1px solid #e5e7eb}
 .sc:last-child{border-right:none}
 .slbl{font-size:8.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px}
@@ -315,7 +315,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <div class="sc">
     <div class="slbl">Duration</div>
     <div class="sval">${durationLabel}</div>
-    ${preferredDates ? `<div class="ssub">${esc(preferredDates)}</div>` : ''}
   </div>
   <div class="sc">
     <div class="slbl">Hotel Category</div>
@@ -330,6 +329,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <div class="sc">
     <div class="slbl">Price Per Person</div>
     <div class="sval">${pricePerPerson ? `₹${Number(pricePerPerson).toLocaleString('en-IN')}` : '—'}</div>
+  </div>
+  <div class="sc">
+    <div class="slbl">Date of Travel</div>
+    <div class="sval" style="font-size:14px;line-height:1.4">${preferredDates ? esc(preferredDates) : '—'}</div>
   </div>
 </div>
 

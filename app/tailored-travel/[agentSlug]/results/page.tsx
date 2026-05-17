@@ -432,6 +432,16 @@ export default function AgentResultsPage() {
   const pdfGroupSize = pdfAdults + pdfKids
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
+  // Resolve travel date for PDF: format real dates, keep label strings as-is
+  const pdfPreferredDates = (() => {
+    const raw = wizardData?.dateRange
+    if (!raw) return undefined
+    const LABELS = ['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates']
+    if (LABELS.includes(raw)) return raw
+    const d = new Date(raw)
+    return isNaN(d.getTime()) ? raw : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  })()
+
   return (
     <div className="min-h-screen bg-[#f8f5f0] text-gray-900">
       <AgentStrip pkg={bestPkg} />
@@ -732,6 +742,7 @@ export default function AgentResultsPage() {
                       dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
                       hotels: Array.isArray(bestPkg.Hotels) && bestPkg.Hotels.length > 0 ? bestPkg.Hotels : undefined,
                       vehicles: Array.isArray(bestPkg.Vehicles) && bestPkg.Vehicles.length > 0 ? bestPkg.Vehicles : undefined,
+                      preferredDates: pdfPreferredDates,
                       customerName: capturedName || undefined,
                       brandName: agentInfo?.companyName || 'Travel Agent',
                       agentContactName: agentInfo?.contactName || undefined,
