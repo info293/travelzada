@@ -138,113 +138,111 @@ export function openPackagePdfWindow(opts: PackagePdfOptions): void {
 <title>${esc(title)}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2937;background:#fff;font-size:13px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1f2937;background:#fff;font-size:14px}
 @page{margin:0;size:A4}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 /* ── Page header ── */
-.ph{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid #e5e7eb}
-.logo{display:flex;align-items:center;gap:10px}
-.logo-icon{width:34px;height:34px;background:#7c3aed;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.logo-text{font-size:20px;font-weight:800;color:#111;letter-spacing:-0.3px}
+.ph{display:flex;justify-content:flex-end;align-items:center;padding:22px 44px;border-bottom:1px solid #e5e7eb}
 .quot-wrap{text-align:right}
-.quot-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.14em}
-.quot-num{font-size:14px;font-weight:700;color:#111;margin-top:2px}
+.quot-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.15em}
+.quot-num{font-size:15px;font-weight:700;color:#111;margin-top:4px}
 
 /* ── Hero ── */
-.hero{position:relative;height:300px;overflow:hidden}
+.hero{position:relative;height:320px;overflow:hidden}
 .hero img{width:100%;height:100%;object-fit:cover;display:block}
 .hero-bg{width:100%;height:100%;background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)}
 .overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.28) 55%,transparent 100%)}
-.hero-top{position:absolute;top:24px;left:32px}
-.hero-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:9px;font-weight:700;letter-spacing:.1em;padding:5px 14px;border-radius:999px;display:inline-block}
-.hero-bot{position:absolute;bottom:28px;left:32px;right:32px}
-.hero-title{font-size:34px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:10px}
-.hero-dest{font-size:12px;color:rgba(255,255,255,.75);font-weight:500}
+.hero-top{position:absolute;top:28px;left:44px}
+.hero-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.28);color:#fff;font-size:10px;font-weight:700;letter-spacing:.1em;padding:6px 16px;border-radius:999px;display:inline-block}
+.hero-bot{position:absolute;bottom:32px;left:44px;right:44px}
+.hero-title{font-size:36px;font-weight:800;color:#fff;line-height:1.15;margin-bottom:12px}
+.hero-dest{font-size:13px;color:rgba(255,255,255,.78);font-weight:500}
 
 /* ── Stats strip ── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:2px solid #e5e7eb}
-.sc{padding:14px 18px;border-right:1px solid #e5e7eb}
+.sc{padding:18px 22px;border-right:1px solid #e5e7eb}
 .sc:last-child{border-right:none}
-.slbl{font-size:7.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:5px}
-.sval{font-size:17px;font-weight:800;color:#111;line-height:1.15}
-.ssub{font-size:10px;color:#6b7280;margin-top:3px}
-.stars{color:#f59e0b;font-size:14px;letter-spacing:1px}
+.slbl{font-size:8.5px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px}
+.sval{font-size:19px;font-weight:800;color:#111;line-height:1.2}
+.ssub{font-size:11px;color:#6b7280;margin-top:5px}
+.stars{color:#f59e0b;font-size:16px;letter-spacing:2px}
 
 /* ── Body ── */
-.body{padding:32px 36px 28px}
+.body{padding:44px 48px 40px}
 
 /* ── Section ── */
-.section{margin-bottom:30px}
-.sec-hdr{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid #e5e7eb;margin-bottom:18px}
-.sec-num{font-size:11px;font-weight:700;color:#7c3aed}
-.sec-title{font-size:17px;font-weight:800;color:#111}
+.section{margin-bottom:48px}
+.sec-hdr{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:2px solid #e5e7eb;margin-bottom:26px;break-after:avoid;page-break-after:avoid}
+.sec-num{font-size:13px;font-weight:700;color:#7c3aed;letter-spacing:.04em}
+.sec-title{font-size:22px;font-weight:800;color:#111;letter-spacing:-.3px}
 
 /* ── Overview ── */
-.overview{font-size:13px;color:#374151;line-height:1.78}
+.overview{font-size:14px;color:#374151;line-height:1.85}
 
 /* ── Day items ── */
-.day-item{display:flex;gap:18px;padding:16px 0;border-bottom:1px solid #f3f4f6}
+.day-item{display:flex;gap:24px;padding:22px 0;border-bottom:1px solid #f3f4f6}
 .day-item:last-child{border-bottom:none}
-.day-left{flex-shrink:0;width:50px;padding-top:2px}
-.day-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em}
-.day-num{font-size:26px;font-weight:800;color:#111;line-height:1}
+.day-left{flex-shrink:0;width:58px;padding-top:2px}
+.day-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.1em}
+.day-num{font-size:30px;font-weight:800;color:#111;line-height:1}
 .day-content{flex:1;min-width:0}
-.day-title{font-size:13.5px;font-weight:700;color:#111;margin-bottom:6px;line-height:1.35}
-.day-desc{font-size:12px;color:#6b7280;line-height:1.65;margin-bottom:10px}
-.day-tags{display:flex;flex-wrap:wrap;gap:6px}
-.day-tag{font-size:10px;font-weight:500;color:#374151;border:1px solid #d1d5db;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.day-title{font-size:15px;font-weight:700;color:#111;margin-bottom:8px;line-height:1.4}
+.day-desc{font-size:13px;color:#6b7280;line-height:1.75;margin-bottom:12px}
+.day-tags{display:flex;flex-wrap:wrap;gap:8px}
+.day-tag{font-size:11px;font-weight:500;color:#374151;border:1px solid #d1d5db;border-radius:999px;padding:4px 12px;white-space:nowrap}
 
 /* ── Hotels table ── */
-.htable{width:100%;border-collapse:collapse}
-.htable th{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:8px 12px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
-.htable td{font-size:12px;color:#374151;padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.45}
+.htable{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.htable th{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:12px 18px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.htable td{font-size:13px;color:#374151;padding:14px 18px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.55}
+.htable tr{break-inside:avoid;page-break-inside:avoid}
 .htable tr:last-child td{border-bottom:none}
 .hotel-dest{font-weight:700;color:#111}
-.meal-pill{display:inline-block;font-size:10px;font-weight:500;color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 8px}
+.meal-pill{display:inline-block;font-size:11px;font-weight:500;color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:3px 10px}
 
 /* ── Vehicles table ── */
-.vtable{width:100%;border-collapse:collapse}
-.vtable th{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:8px 12px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
-.vtable td{font-size:12px;color:#374151;padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.45}
+.vtable{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
+.vtable th{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:12px 18px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.vtable td{font-size:13px;color:#374151;padding:14px 18px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.55}
+.vtable tr{break-inside:avoid;page-break-inside:avoid}
 .vtable tr:last-child td{border-bottom:none}
 .vtype{font-weight:700;color:#111}
-.vnotes{font-size:11px;color:#9ca3af;margin-top:2px}
+.vnotes{font-size:12px;color:#9ca3af;margin-top:4px}
 
 /* ── Inc / Exc ── */
-.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.ie-box{border:1px solid #e5e7eb;border-radius:12px;padding:16px}
-.ie-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.ie-htitle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700}
-.ie-count{font-size:10px;color:#9ca3af}
-.ie-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.ie-box{border:1px solid #e5e7eb;border-radius:14px;padding:22px;break-inside:avoid;page-break-inside:avoid}
+.ie-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.ie-htitle{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+.ie-count{font-size:11px;color:#9ca3af}
+.ie-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:11px}
 .ie-row:last-child{margin-bottom:0}
 .ie-icon{flex-shrink:0;margin-top:2px}
-.ie-text{font-size:11.5px;color:#374151;line-height:1.5}
+.ie-text{font-size:13px;color:#374151;line-height:1.55}
 
 /* ── Terms ── */
-.terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
-.term-row{display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-bottom:1px solid #f9fafb}
-.term-num{font-size:10px;font-weight:700;color:#7c3aed;flex-shrink:0;width:20px}
-.term-text{font-size:11px;color:#6b7280;line-height:1.55}
+.terms-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
+.term-row{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px solid #f3f4f6;break-inside:avoid;page-break-inside:avoid}
+.term-num{font-size:11px;font-weight:700;color:#7c3aed;flex-shrink:0;width:22px}
+.term-text{font-size:12px;color:#6b7280;line-height:1.65}
 
 /* ── Footer ── */
-.footer{margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-end}
-.ft-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
-.ft-name{font-size:15px;font-weight:800;color:#111;margin-bottom:4px}
-.ft-sub{font-size:11px;color:#6b7280}
+.footer{margin-top:40px;padding-top:24px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:flex-end}
+.ft-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.13em;margin-bottom:8px}
+.ft-name{font-size:16px;font-weight:800;color:#111;margin-bottom:4px}
+.ft-sub{font-size:12px;color:#6b7280}
 .ft-right{text-align:right}
-.ft-powered{font-size:11px;font-weight:700;color:#111}
-.ft-date{font-size:10px;color:#9ca3af;margin-top:4px}
+.ft-date{font-size:11px;color:#9ca3af;margin-top:4px}
 
 /* ── Customer card (if quotation) ── */
-.cust-banner{background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center}
-.cust-lbl{font-size:8px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
-.cust-name{font-size:16px;font-weight:800;color:#111}
-.cust-meta{font-size:11px;color:#6b7280;margin-top:3px}
-.price-banner{background:#7c3aed;border-radius:12px;padding:16px 20px;text-align:right}
-.price-lbl{font-size:8px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px}
-.price-val{font-size:22px;font-weight:800;color:#fff}
+.cust-banner{background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:22px 26px;margin-bottom:32px;display:flex;justify-content:space-between;align-items:center;break-inside:avoid;page-break-inside:avoid}
+.cust-lbl{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.13em;margin-bottom:6px}
+.cust-name{font-size:20px;font-weight:800;color:#111}
+.cust-meta{font-size:12px;color:#6b7280;margin-top:5px}
+.price-banner{background:#7c3aed;border-radius:14px;padding:20px 24px;text-align:right}
+.price-lbl{font-size:9px;font-weight:700;color:#ddd6fe;text-transform:uppercase;letter-spacing:.13em;margin-bottom:6px}
+.price-val{font-size:26px;font-weight:800;color:#fff}
 .price-sub{font-size:10px;color:rgba(255,255,255,.7);margin-top:3px}
 </style>
 </head>
