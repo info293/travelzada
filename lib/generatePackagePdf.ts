@@ -21,6 +21,8 @@ export interface PackagePdfOptions {
   inclusions?: string[]
   exclusions?: string[]
   dayWiseItinerary?: string
+  hotels?: Array<{ destination: string; nights: number; hotels: string; mealPlan: string; roomType?: string }>
+  vehicles?: Array<{ vehicleType: string; seats?: number; route: string; days?: number; notes?: string }>
   specialRequests?: string
   customerName?: string
   customerEmail?: string
@@ -38,7 +40,7 @@ export function openPackagePdfWindow(opts: PackagePdfOptions): void {
     durationDays, durationNights, starCategory, travelType, theme, mood,
     pricePerPerson, quotedPriceTotal, groupSize = 1, adults, kids,
     overview, highlights = [], inclusions = [], exclusions = [],
-    dayWiseItinerary, specialRequests,
+    dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
     brandName, agentContactName, termsVariant = 'brochure',
   } = opts
@@ -193,6 +195,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .day-tags{display:flex;flex-wrap:wrap;gap:6px}
 .day-tag{font-size:10px;font-weight:500;color:#374151;border:1px solid #d1d5db;border-radius:999px;padding:3px 10px;white-space:nowrap}
 
+/* ── Hotels table ── */
+.htable{width:100%;border-collapse:collapse}
+.htable th{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:8px 12px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.htable td{font-size:12px;color:#374151;padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.45}
+.htable tr:last-child td{border-bottom:none}
+.hotel-dest{font-weight:700;color:#111}
+.meal-pill{display:inline-block;font-size:10px;font-weight:500;color:#059669;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 8px}
+
+/* ── Vehicles table ── */
+.vtable{width:100%;border-collapse:collapse}
+.vtable th{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;padding:8px 12px;text-align:left;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+.vtable td{font-size:12px;color:#374151;padding:10px 12px;border-bottom:1px solid #f3f4f6;vertical-align:top;line-height:1.45}
+.vtable tr:last-child td{border-bottom:none}
+.vtype{font-weight:700;color:#111}
+.vnotes{font-size:11px;color:#9ca3af;margin-top:2px}
+
 /* ── Inc / Exc ── */
 .ie-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .ie-box{border:1px solid #e5e7eb;border-radius:12px;padding:16px}
@@ -273,7 +291,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <div class="sc">
     <div class="slbl">Price Per Person</div>
     <div class="sval">${pricePerPerson ? `₹${Number(pricePerPerson).toLocaleString('en-IN')}` : '—'}</div>
-    <div class="ssub">Twin sharing · ex-${esc(destination)}</div>
   </div>
 </div>
 
@@ -326,6 +343,65 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
         </div>
       </div>`
     }).join('')}
+  </div>` : ''}
+
+  ${hotels.length ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Hotel Information</span>
+    </div>
+    <table class="htable">
+      <thead>
+        <tr>
+          <th>Destination</th>
+          <th>Nights</th>
+          <th>Hotel(s)</th>
+          <th>Meal Plan</th>
+          <th>Room Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${hotels.map(h => `
+        <tr>
+          <td><span class="hotel-dest">${esc(h.destination || '')}</span></td>
+          <td>${h.nights ? `${h.nights}N` : '—'}</td>
+          <td>${esc(h.hotels || '—')}</td>
+          <td>${h.mealPlan ? `<span class="meal-pill">${esc(h.mealPlan)}</span>` : '—'}</td>
+          <td>${esc(h.roomType || '—')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : ''}
+
+  ${vehicles.length ? `
+  <div class="section">
+    <div class="sec-hdr">
+      <span class="sec-num">${nextNum()}</span>
+      <span class="sec-title">Transport &amp; Transfers</span>
+    </div>
+    <table class="vtable">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Seats</th>
+          <th>Route / Usage</th>
+          <th>Days</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${vehicles.map(v => `
+        <tr>
+          <td>
+            <div class="vtype">${esc(v.vehicleType || '—')}</div>
+            ${v.notes ? `<div class="vnotes">${esc(v.notes)}</div>` : ''}
+          </td>
+          <td>${v.seats ? v.seats : '—'}</td>
+          <td>${esc(v.route || '—')}</td>
+          <td>${v.days ? `${v.days}D` : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
   </div>` : ''}
 
   ${(inclusions.length || exclusions.length) ? `

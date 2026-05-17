@@ -218,6 +218,7 @@ export async function POST(request: Request) {
                         Exclusions: Array.isArray(data.exclusions) ? data.exclusions : (data.exclusions || ''),
                         Highlights: Array.isArray(data.highlights) ? data.highlights : [],
                         Hotels: Array.isArray(data.hotels) ? data.hotels : [],
+                        Vehicles: Array.isArray(data.vehicles) ? data.vehicles : [],
                         // Agent-specific extras
                         agentPackageTitle: data.title || data.destination,
                         agentId,

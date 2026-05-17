@@ -30,6 +30,7 @@ interface MatchedPackage {
   Exclusions?: string | string[]
   Highlights?: string[]
   Hotels?: any[]
+  Vehicles?: any[]
   agentPackageTitle?: string
   agentSlug?: string
   source?: string
@@ -714,6 +715,8 @@ export default function AgentResultsPage() {
                       exclusions,
                       highlights,
                       dayWiseItinerary: bestPkg.Day_Wise_Itinerary ? String(bestPkg.Day_Wise_Itinerary) : undefined,
+                      hotels: Array.isArray(bestPkg.Hotels) && bestPkg.Hotels.length > 0 ? bestPkg.Hotels : undefined,
+                      vehicles: Array.isArray(bestPkg.Vehicles) && bestPkg.Vehicles.length > 0 ? bestPkg.Vehicles : undefined,
                       customerName: capturedName || undefined,
                       brandName: agentInfo?.companyName || 'Travel Agent',
                       agentContactName: agentInfo?.contactName || undefined,
