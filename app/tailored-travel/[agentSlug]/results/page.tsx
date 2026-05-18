@@ -11,6 +11,7 @@ import {
   Hotel, Car, CreditCard, Ban,
 } from 'lucide-react'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 
 interface MatchedPackage {
@@ -23,6 +24,7 @@ interface MatchedPackage {
   Travel_Type: string
   Star_Category?: string
   Primary_Image_URL: string
+  Currency?: string
   matchScore: number
   matchReason: string
   Overview?: string
@@ -733,7 +735,7 @@ export default function AgentResultsPage() {
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
                 <p className="text-3xl font-serif text-[#c99846] leading-tight">
-                  ₹{bestPkg.Price_Min_INR.toLocaleString('en-IN')}
+                  {getCurrencySymbol(bestPkg.Currency)}{bestPkg.Price_Min_INR.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500">per person</p>
               </div>
@@ -795,7 +797,7 @@ export default function AgentResultsPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-gray-900 leading-tight line-clamp-2">{pkg.agentPackageTitle || pkg.Destination_Name}</p>
-                        <p className="text-[10px] text-[#c99846] font-semibold mt-1">₹{pkg.Price_Min_INR.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-[#c99846] font-semibold mt-1">{getCurrencySymbol(pkg.Currency)}{pkg.Price_Min_INR.toLocaleString()}</p>
                         <p className="text-[10px] text-gray-400">{pkg.matchScore}% match</p>
                       </div>
                     </button>
@@ -823,7 +825,7 @@ export default function AgentResultsPage() {
                 sessionId={sessionId}
                 agentSlug={agentSlug}
                 onClose={() => setNameCaptureAction(null)}
-                onSuccess={(capturedName) => {
+                onSuccess={(capturedName, priceOpts) => {
                   if (nameCaptureAction === 'pdf') {
                     openPackagePdfWindow({
                       title,
@@ -834,7 +836,9 @@ export default function AgentResultsPage() {
                       durationNights: bestPkg.Duration_Nights,
                       starCategory: bestPkg.Star_Category,
                       travelType: bestPkg.Travel_Type,
-                      pricePerPerson: bestPkg.Price_Min_INR,
+                      pricePerPerson: priceOpts.showPrice ? priceOpts.finalPricePerPerson : null,
+                      quotedPriceTotal: priceOpts.showPrice && pdfGroupSize > 1 ? priceOpts.quotedPriceTotal : null,
+                      currency: bestPkg.Currency,
                       groupSize: pdfGroupSize,
                       adults: pdfAdults,
                       kids: pdfKids || undefined,
@@ -855,7 +859,7 @@ export default function AgentResultsPage() {
                       termsVariant: 'brochure',
                     })
                   } else {
-                    const msg = buildWhatsAppMsg(bestPkg)
+                    const msg = buildWhatsAppMsg(bestPkg, priceOpts)
                     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
                   }
                   setNameCaptureAction(null)
@@ -870,7 +874,7 @@ export default function AgentResultsPage() {
   )
 }
 
-function buildWhatsAppMsg(pkg: MatchedPackage): string {
+function buildWhatsAppMsg(pkg: MatchedPackage, priceOpts?: PriceOpts): string {
   const title = pkg.agentPackageTitle || pkg.Destination_Name
   const inclusions = typeof pkg.Inclusions === 'string'
     ? pkg.Inclusions.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -881,7 +885,11 @@ function buildWhatsAppMsg(pkg: MatchedPackage): string {
   lines.push(`🗓️ ${pkg.Duration_Days} Days / ${pkg.Duration_Nights} Nights`)
   const tags = [pkg.Star_Category, pkg.Travel_Type].filter(Boolean).join('  |  ')
   if (tags) lines.push(`⭐ ${tags}`)
-  lines.push(`💰 *₹${pkg.Price_Min_INR.toLocaleString('en-IN')} per person*`)
+  if (!priceOpts || priceOpts.showPrice) {
+    const sym = getCurrencySymbol((pkg as any).Currency)
+    const displayPrice = priceOpts ? priceOpts.finalPricePerPerson : pkg.Price_Min_INR
+    lines.push(`💰 *${sym}${displayPrice.toLocaleString()} per person*`)
+  }
   if (pkg.Overview) { lines.push(''); lines.push(`📝 *Overview*`); lines.push(pkg.Overview) }
   if (inclusions.length > 0) {
     lines.push(''); lines.push(`✅ *Inclusions*`)
@@ -897,15 +905,34 @@ function buildWhatsAppMsg(pkg: MatchedPackage): string {
 }
 
 
+interface PriceOpts { showPrice: boolean; finalPricePerPerson: number; quotedPriceTotal: number }
+
 function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sessionId, agentSlug, onClose, onSuccess }: {
   action: 'pdf' | 'whatsapp'
   agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
   subAgentId?: string; sessionId?: string; agentSlug?: string
-  onClose: () => void; onSuccess: (name: string) => void
+  onClose: () => void; onSuccess: (name: string, priceOpts: PriceOpts) => void
 }) {
   const [customerName, setCustomerName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Price controls (PDF only)
+  const [showPrice, setShowPrice] = useState(true)
+  const [addServiceFee, setAddServiceFee] = useState(false)
+  const [feeType, setFeeType] = useState<'absolute' | 'percentage'>('absolute')
+  const [feeInput, setFeeInput] = useState('0')
+
+  const basePrice = pkg.Price_Min_INR
+  const groupSize = (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0)
+  const currSym = getCurrencySymbol(pkg.Currency)
+
+  const feeValue = parseFloat(feeInput) || 0
+  const serviceFee = addServiceFee
+    ? feeType === 'absolute' ? feeValue : Math.round(basePrice * feeValue / 100)
+    : 0
+  const finalPricePerPerson = basePrice + serviceFee
+  const quotedPriceTotal = finalPricePerPerson * groupSize
 
   const preferredDates = wizardData?.dateRange && !['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(wizardData.dateRange)
     ? wizardData.dateRange : ''
@@ -923,8 +950,8 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
           packageId: pkg.id, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
           destination: pkg.Destination_Name, customerName: customerName.trim(),
           customerEmail: '', customerPhone: '', preferredDates,
-          groupSize: (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0),
-          adults: wizardData?.passengers?.adults || 1, kids: wizardData?.passengers?.kids || 0,
+          groupSize, adults: wizardData?.passengers?.adults || 1,
+          kids: wizardData?.passengers?.kids || 0,
           rooms: wizardData?.passengers?.rooms || 1, specialRequests: '',
           wizardData, selectedPackage: pkg,
         }),
@@ -937,7 +964,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
       }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Submission failed')
-      onSuccess(customerName.trim())
+      onSuccess(customerName.trim(), { showPrice, finalPricePerPerson, quotedPriceTotal })
     } catch (err: any) { setError(err.message || 'Something went wrong.') }
     finally { setSubmitting(false) }
   }
@@ -946,15 +973,19 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
         <div>
           <h3 className="font-bold text-gray-900">{actionLabel}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · ₹{pkg.Price_Min_INR.toLocaleString('en-IN')}/person</p>
+          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · {currSym}{basePrice.toLocaleString()}/person</p>
         </div>
         <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>
       </div>
-      <div className="px-6 py-5 space-y-4">
+
+      <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
         {error && <div className="bg-red-50 text-red-700 text-sm px-3 py-2.5 rounded-xl border border-red-100">{error}</div>}
+
+        {/* Customer name */}
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">Customer Name *</label>
           <div className="relative">
@@ -969,6 +1000,8 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
             />
           </div>
         </div>
+
+        {/* Passengers summary */}
         <div className="bg-primary/5 rounded-xl px-4 py-3 flex items-center gap-3 border border-primary/10">
           <Users className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-xs text-gray-700">
@@ -978,7 +1011,103 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
             {' · '}{pkg.Duration_Nights}N {pkg.Duration_Days}D
           </p>
         </div>
+
+        {/* Price controls */}
+        <div className="border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-100">
+
+            {/* Show price toggle */}
+            <label className="flex items-start gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={showPrice}
+                onChange={e => setShowPrice(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+              />
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Show price</p>
+                <p className="text-xs text-gray-500 mt-0.5">Display pricing details in the {action === 'pdf' ? 'PDF' : 'WhatsApp message'}</p>
+              </div>
+            </label>
+
+            {/* Service fee toggle */}
+            {showPrice && (
+              <label className="flex items-start gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={addServiceFee}
+                  onChange={e => setAddServiceFee(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Add Service Fees</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Add a markup amount charged to the customer</p>
+                </div>
+              </label>
+            )}
+
+            {/* Fee input */}
+            {showPrice && addServiceFee && (
+              <div className="px-4 py-4 bg-gray-50/60 space-y-3">
+                {/* Absolute / Percentage radio */}
+                <div className="flex items-center gap-5">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="feeType" value="absolute" checked={feeType === 'absolute'}
+                      onChange={() => setFeeType('absolute')} className="w-4 h-4 accent-primary" />
+                    <span className="text-sm font-medium text-gray-700">Absolute</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="feeType" value="percentage" checked={feeType === 'percentage'}
+                      onChange={() => setFeeType('percentage')} className="w-4 h-4 accent-primary" />
+                    <span className="text-sm font-medium text-gray-700">Percentage</span>
+                  </label>
+                </div>
+                {/* Amount input */}
+                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
+                  <span className="px-3 py-2.5 text-sm font-semibold text-gray-500 bg-gray-100 border-r border-gray-200 flex-shrink-0">
+                    {feeType === 'absolute' ? currSym.trim() || pkg.Currency || 'INR' : '%'}
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step={feeType === 'percentage' ? '0.1' : '1'}
+                    value={feeInput}
+                    onChange={e => setFeeInput(e.target.value)}
+                    className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
+                  />
+                </div>
+                <p className="text-xs text-gray-400">This amount will be added to the price per person</p>
+              </div>
+            )}
+
+            {/* Price summary */}
+            {showPrice && (
+              <div className="px-4 py-4 space-y-2">
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest mb-3">Price Summary</p>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Base Price</span>
+                  <span>{currSym}{basePrice.toLocaleString()}</span>
+                </div>
+                {addServiceFee && serviceFee > 0 && (
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Service Fee</span>
+                    <span className="text-green-600">+ {currSym}{serviceFee.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-100">
+                  <span>Total per person</span>
+                  <span>{currSym}{finalPricePerPerson.toLocaleString()}</span>
+                </div>
+                {groupSize > 1 && (
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Total ({groupSize} pax)</span>
+                    <span>{currSym}{quotedPriceTotal.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
       </div>
+
       <div className="px-6 pb-6">
         <button type="submit" disabled={submitting}
           className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 disabled:opacity-60 text-white font-semibold py-3 rounded-xl text-sm transition-colors">

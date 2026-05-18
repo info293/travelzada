@@ -221,6 +221,7 @@ export async function POST(request: Request) {
                         Vehicles: Array.isArray(data.vehicles) ? data.vehicles : [],
                         PaymentPolicy: data.paymentPolicy || '',
                         CancellationPolicy: data.cancellationPolicy || '',
+                        Currency: data.currency || 'INR',
                         // Agent-specific extras
                         agentPackageTitle: data.title || data.destination,
                         agentId,

@@ -1,3 +1,5 @@
+import { getCurrencySymbol } from '@/lib/utils/currency'
+
 export interface PackagePdfOptions {
   title: string
   destination: string
@@ -11,6 +13,7 @@ export interface PackagePdfOptions {
   travelType?: string
   theme?: string
   mood?: string
+  currency?: string
   pricePerPerson?: number | null
   quotedPriceTotal?: number | null
   groupSize?: number
@@ -70,13 +73,14 @@ export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<voi
     title, destination, destinationCountry, heroImage = '',
     badgeText, refId,
     durationDays, durationNights, starCategory, travelType, theme, mood,
-    pricePerPerson, quotedPriceTotal, groupSize = 1, adults, kids,
+    currency, pricePerPerson, quotedPriceTotal, groupSize = 1, adults, kids,
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
     brandName, agentContactName, agentLogoUrl, paymentPolicy, cancellationPolicy, termsVariant = 'brochure',
   } = opts
 
+  const currSym = getCurrencySymbol(currency)
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
   console.log('[PDF] openPackagePdfWindow called with:', {
@@ -299,7 +303,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   </div>
   <div class="sc">
     <div class="slbl">Price Per Person</div>
-    <div class="sval">${pricePerPerson ? `₹${Number(pricePerPerson).toLocaleString('en-IN')}` : '—'}</div>
+    <div class="sval">${pricePerPerson ? `${currSym}${Number(pricePerPerson).toLocaleString()}` : '—'}</div>
   </div>
   <div class="sc">
     <div class="slbl">Date of Travel</div>
@@ -317,12 +321,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
       <div class="cust-name">${esc(customerName)}</div>
       ${customerEmail || customerPhone ? `<div class="cust-meta">${[customerPhone, customerEmail].filter((v): v is string => Boolean(v)).map(esc).join(' · ')}</div>` : ''}
     </div>
-    ${quotedPriceTotal ? `
-    <div class="price-banner">
-      <div class="price-lbl">Quoted Price</div>
-      <div class="price-val">₹${Number(quotedPriceTotal).toLocaleString('en-IN')}</div>
-      <div class="price-sub">Total for ${groupSize} traveller${groupSize !== 1 ? 's' : ''}</div>
-    </div>` : ''}
   </div>` : ''}
 
   ${overview ? `
