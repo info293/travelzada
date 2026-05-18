@@ -81,6 +81,7 @@ interface Props {
   agentSlug: string
   agentName: string
   currentUserId: string
+  subAgentId?: string
 }
 
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
@@ -134,7 +135,7 @@ function serializeDayItems(items: DayItem[]): string {
   return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
 }
 
-export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId }: Props) {
+export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId, subAgentId }: Props) {
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -353,13 +354,16 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
 
   const fetchQuotations = useCallback(async () => {
     try {
-      const res = await fetch(`/api/agent/quotations?agentId=${agentId}`)
+      const url = subAgentId
+        ? `/api/agent/quotations?subAgentId=${subAgentId}`
+        : `/api/agent/quotations?agentId=${agentId}`
+      const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setQuotations(data.quotations.map((q: any) => ({ ...q, messages: q.messages || [] })))
       }
     } catch { } finally { setLoading(false) }
-  }, [agentId])
+  }, [agentId, subAgentId])
 
   useEffect(() => { fetchQuotations() }, [fetchQuotations])
 
