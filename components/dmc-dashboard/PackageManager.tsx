@@ -2454,7 +2454,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   <div className="mx-4 mb-4 bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
                     <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
                     <p className="text-xl font-bold text-purple-700">
-                      {getCurrencySymbol(form.currency)}{finalPrice > 0 ? finalPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '–'}
+                      {getCurrencySymbol(form.currency)}{basePrice > 0 ? (basePrice * (1 + markup / 100)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '–'}
                     </p>
                     <p className="text-[10px] text-purple-400">per person</p>
                   </div>
