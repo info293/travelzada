@@ -14,6 +14,8 @@ export interface PackagePdfModalProps {
   mood?: string
   seasonalAvailability?: string
   pricePerPerson?: number | null
+  totalPrice?: number | null
+  gst?: number | null
   quotedPriceTotal?: number | null
   groupSize?: number
   adults?: number
@@ -38,7 +40,7 @@ export interface PackagePdfModalProps {
 export default function PackagePdfModal({
   title, destination, destinationCountry,
   durationDays, durationNights, starCategory, travelType, theme, mood, seasonalAvailability,
-  pricePerPerson, quotedPriceTotal, groupSize = 1, adults, kids,
+  pricePerPerson, totalPrice, gst, quotedPriceTotal, groupSize = 1, adults, kids,
   overview, inclusions = [], exclusions = [], highlights = [],
   dayWiseItinerary,
   customerName, customerEmail, customerPhone, preferredDates, refId, specialRequests,
@@ -61,7 +63,7 @@ export default function PackagePdfModal({
   }
 
   const displayPrice = pricePerPerson ?? null
-  const priceLabel = quotedPriceTotal ? 'Quoted Price' : 'Price per Person'
+  const priceLabel = quotedPriceTotal ? 'Quoted Price' : totalPrice ? 'Total Price' : 'Price per Person'
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/60 flex items-start justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:block">
@@ -115,11 +117,14 @@ export default function PackagePdfModal({
                     <p className="text-xs text-gray-400">₹{Number(displayPrice).toLocaleString('en-IN')} per person</p>
                   )}
                 </>
+              ) : totalPrice ? (
+                <p className="text-3xl font-bold text-purple-600">₹{Number(totalPrice).toLocaleString('en-IN')}</p>
               ) : displayPrice ? (
                 <p className="text-3xl font-bold text-purple-600">₹{Number(displayPrice).toLocaleString('en-IN')}</p>
               ) : (
                 <p className="text-sm font-semibold text-gray-500">To be confirmed</p>
               )}
+              {gst ? <p className="text-xs text-gray-400 mt-1">+ {gst}% GST applicable</p> : null}
             </div>
           </div>
 

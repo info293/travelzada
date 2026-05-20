@@ -190,6 +190,7 @@ export async function POST(request: Request) {
 
             agentPkgSnap.forEach(d => {
                 const data = d.data()
+                console.log(`[AI Planner] Package "${data.title}" — pricePerPerson:${data.pricePerPerson}, totalPrice:${data.totalPrice}, gst:${data.gst}`)
                 if (
                     data.destination &&
                     requestedDestinations.some((dest: string) =>
@@ -206,7 +207,9 @@ export async function POST(request: Request) {
                         Overview: data.overview || '',
                         Duration_Days: data.durationDays || 0,
                         Duration_Nights: data.durationNights || 0,
-                        Price_Min_INR: data.pricePerPerson || 0,
+                        Price_Min_INR: data.pricePerPerson || data.totalPrice || 0,
+                        totalPrice: data.totalPrice ?? null,
+                        gst: data.gst ?? null,
                         Travel_Type: data.travelType || '',
                         Mood: data.mood || '',
                         Star_Category: data.starCategory || '',

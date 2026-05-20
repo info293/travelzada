@@ -1374,8 +1374,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                   </div>
                   <div className="p-5 flex items-center gap-5">
                     <div className="flex-1">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Price per Person</p>
-                      <p className="text-3xl font-bold text-gray-900">â‚¹{Number(viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{(viewPkg as any).totalPrice ? 'Total Price' : 'Price per Person'}</p>
+                      <p className="text-3xl font-bold text-gray-900">₹{Number((viewPkg as any).totalPrice || viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
                     </div>
                     {viewTotalPrice > 0 && (
                       <div className="bg-indigo-600 text-white rounded-2xl p-4 min-w-[160px] text-center shadow-lg shadow-indigo-100">
@@ -1454,11 +1454,11 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                       ))}
                     </div>
 
-                    {viewPkg.pricePerPerson && (
+                    {((viewPkg as any).totalPrice || viewPkg.pricePerPerson) && (
                       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center mb-3">
-                        <p className="text-[10px] text-indigo-400 font-semibold uppercase">Starting from</p>
-                        <p className="text-xl font-bold text-indigo-700">â‚¹{Number(viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] text-indigo-400">per person</p>
+                        <p className="text-[10px] text-indigo-400 font-semibold uppercase">{(viewPkg as any).totalPrice ? 'Total Price' : 'Starting from'}</p>
+                        <p className="text-xl font-bold text-indigo-700">₹{Number((viewPkg as any).totalPrice || viewPkg.pricePerPerson).toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-indigo-400">{(viewPkg as any).totalPrice ? 'full package' : 'per person'}</p>
                         {viewTotalPrice > 0 && (
                           <p className="text-[10px] font-semibold text-indigo-600 mt-1 border-t border-indigo-100 pt-1">
                             Total â‚¹{viewTotalPrice.toLocaleString('en-IN')} for {groupSize} pax

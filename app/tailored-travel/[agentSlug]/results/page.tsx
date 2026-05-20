@@ -25,6 +25,8 @@ interface MatchedPackage {
   Star_Category?: string
   Primary_Image_URL: string
   Currency?: string
+  totalPrice?: number | null
+  gst?: number | null
   matchScore: number
   matchReason: string
   Overview?: string
@@ -733,11 +735,14 @@ export default function AgentResultsPage() {
             {/* Price + action card */}
             <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 space-y-5">
               <div>
-                <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
+                <p className="text-xs text-gray-500 mb-0.5">{bestPkg.totalPrice ? 'Total Price' : 'Starting from'}</p>
                 <p className="text-3xl font-serif text-[#c99846] leading-tight">
-                  {getCurrencySymbol(bestPkg.Currency)}{bestPkg.Price_Min_INR.toLocaleString()}
+                  {getCurrencySymbol(bestPkg.Currency)}{(bestPkg.totalPrice || bestPkg.Price_Min_INR).toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500">per person</p>
+                <p className="text-xs text-gray-500">
+                  {bestPkg.totalPrice ? 'full package' : 'per person'}
+                  {bestPkg.gst ? <span className="ml-1 text-amber-600 font-medium">+ {bestPkg.gst}% GST</span> : null}
+                </p>
               </div>
 
               {/* Trip summary */}
@@ -797,7 +802,11 @@ export default function AgentResultsPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-gray-900 leading-tight line-clamp-2">{pkg.agentPackageTitle || pkg.Destination_Name}</p>
-                        <p className="text-[10px] text-[#c99846] font-semibold mt-1">{getCurrencySymbol(pkg.Currency)}{pkg.Price_Min_INR.toLocaleString()}</p>
+                        <p className="text-[10px] text-[#c99846] font-semibold mt-1">
+                          {getCurrencySymbol(pkg.Currency)}{(pkg.totalPrice || pkg.Price_Min_INR).toLocaleString()}
+                          <span className="text-gray-400 font-normal">{pkg.totalPrice ? ' total' : '/person'}</span>
+                          {pkg.gst ? <span className="text-amber-600 ml-1">+{pkg.gst}%GST</span> : null}
+                        </p>
                         <p className="text-[10px] text-gray-400">{pkg.matchScore}% match</p>
                       </div>
                     </button>
@@ -836,8 +845,10 @@ export default function AgentResultsPage() {
                       durationNights: bestPkg.Duration_Nights,
                       starCategory: bestPkg.Star_Category,
                       travelType: bestPkg.Travel_Type,
-                      pricePerPerson: priceOpts.showPrice ? priceOpts.finalPricePerPerson : null,
-                      quotedPriceTotal: priceOpts.showPrice && pdfGroupSize > 1 ? priceOpts.quotedPriceTotal : null,
+                      pricePerPerson: priceOpts.showPrice && !bestPkg.totalPrice ? priceOpts.finalPricePerPerson : null,
+                      totalPrice: priceOpts.showPrice && bestPkg.totalPrice ? bestPkg.totalPrice : null,
+                      gst: bestPkg.gst ?? null,
+                      quotedPriceTotal: priceOpts.showPrice && !bestPkg.totalPrice && pdfGroupSize > 1 ? priceOpts.quotedPriceTotal : null,
                       currency: bestPkg.Currency,
                       groupSize: pdfGroupSize,
                       adults: pdfAdults,
@@ -887,8 +898,10 @@ function buildWhatsAppMsg(pkg: MatchedPackage, priceOpts?: PriceOpts): string {
   if (tags) lines.push(`⭐ ${tags}`)
   if (!priceOpts || priceOpts.showPrice) {
     const sym = getCurrencySymbol((pkg as any).Currency)
-    const displayPrice = priceOpts ? priceOpts.finalPricePerPerson : pkg.Price_Min_INR
-    lines.push(`💰 *${sym}${displayPrice.toLocaleString()} per person*`)
+    const displayPrice = priceOpts ? priceOpts.finalPricePerPerson : (pkg.totalPrice || pkg.Price_Min_INR)
+    const priceLabel = pkg.totalPrice ? 'total' : 'per person'
+    const gstNote = pkg.gst ? ` + ${pkg.gst}% GST` : ''
+    lines.push(`💰 *${sym}${displayPrice.toLocaleString()} ${priceLabel}${gstNote}*`)
   }
   if (pkg.Overview) { lines.push(''); lines.push(`📝 *Overview*`); lines.push(pkg.Overview) }
   if (inclusions.length > 0) {
@@ -923,7 +936,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
   const [feeType, setFeeType] = useState<'absolute' | 'percentage'>('absolute')
   const [feeInput, setFeeInput] = useState('0')
 
-  const basePrice = pkg.Price_Min_INR
+  const basePrice = pkg.totalPrice || pkg.Price_Min_INR
   const groupSize = (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0)
   const currSym = getCurrencySymbol(pkg.Currency)
 

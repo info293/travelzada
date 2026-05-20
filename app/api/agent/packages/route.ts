@@ -61,6 +61,8 @@ export async function POST(request: Request) {
       durationDays: Number(packageData.durationDays) || 0,
       durationNights: Number(packageData.durationNights) || 0,
       pricePerPerson: Number(packageData.pricePerPerson) || 0,
+      totalPrice: packageData.totalPrice != null ? Number(packageData.totalPrice) : null,
+      gst: packageData.gst != null ? Number(packageData.gst) : null,
       currency: packageData.currency || 'INR',
       priceInINR: Number(packageData.priceInINR) || Number(packageData.pricePerPerson) || 0,
       maxGroupSize: Number(packageData.maxGroupSize) || 20,

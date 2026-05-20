@@ -40,6 +40,8 @@ const EMPTY_FORM = {
   durationDays: '',
   durationNights: '',
   pricePerPerson: '',
+  totalPrice: '',
+  gst: '',
   currency: 'INR',
   maxGroupSize: '20',
   minGroupSize: '1',
@@ -93,7 +95,7 @@ const VALID_CURRENCY_CODES = new Set(CURRENCIES.map(c => c.code))
 const VALID_TRAVEL_TYPE_SET = new Set([...TRAVEL_TYPES, 'Cultural'])
 const CSV_KNOWN_COLS = new Set([
   'title', 'destination', 'destination_country', 'duration_days', 'duration_nights',
-  'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
+  'price_per_person', 'total_price', 'gst', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
   'overview', 'highlights', 'inclusions', 'exclusions', 'day_wise_itinerary',
   'seasonal_availability', 'primary_image_url', 'max_group_size', 'min_group_size',
   // common aliases accepted by the parser
@@ -323,7 +325,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
   function downloadSampleCsv() {
     const headers = [
       'title', 'destination', 'destination_country', 'duration_days', 'duration_nights',
-      'price_per_person', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
+      'price_per_person', 'total_price', 'gst', 'currency', 'travel_type', 'star_category', 'theme', 'mood',
       'overview', 'highlights', 'inclusions', 'exclusions',
       'day_wise_itinerary', 'seasonal_availability', 'primary_image_url',
       'hotels', 'vehicles', 'payment_policy', 'cancellation_policy',
@@ -339,6 +341,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         'India',
         '6', '5',
         '28000',
+        '',   // total_price (leave blank — per-person pricing)
+        '5',  // gst %
         'INR',
         'Leisure',
         '4-Star',
@@ -365,6 +369,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         'Indonesia',
         '7', '6',
         '650',
+        '',   // total_price (leave blank — per-person pricing)
+        '5',  // gst %
         'USD',
         'Honeymoon',
         '5-Star',
@@ -388,6 +394,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         'India',
         '8', '7',
         '35000',
+        '',   // total_price (leave blank — per-person pricing)
+        '5',  // gst %
         'INR',
         'Cultural',
         '4-Star',
@@ -644,6 +652,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       durationDays: String(pkg.durationDays),
       durationNights: String(pkg.durationNights),
       pricePerPerson: String(pkg.pricePerPerson),
+      totalPrice: pkg.totalPrice != null ? String(pkg.totalPrice) : '',
+      gst: pkg.gst != null ? String(pkg.gst) : '',
       currency: (pkg as any).currency || 'INR',
       maxGroupSize: String(pkg.maxGroupSize),
       minGroupSize: String(pkg.minGroupSize || 1),
@@ -700,8 +710,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
 
   async function handleSave() {
     setError('')
-    if (!form.title || !form.destination || !form.pricePerPerson) {
-      setError('Title, destination, and price are required.')
+    if (!form.title || !form.destination || (!form.pricePerPerson && !form.totalPrice)) {
+      setError('Title, destination, and at least one price (per person or total) are required.')
       return
     }
 
@@ -716,6 +726,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         durationDays: Number(form.durationDays),
         durationNights: Number(form.durationNights),
         pricePerPerson: Number(form.pricePerPerson),
+        totalPrice: form.totalPrice !== '' ? Number(form.totalPrice) : null,
+        gst: form.gst !== '' ? Number(form.gst) : null,
         currency: form.currency || 'INR',
         priceInINR: Math.round(Number(form.pricePerPerson) * exchangeRate),
         maxGroupSize: Number(form.maxGroupSize) || 20,
@@ -759,8 +771,17 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      setShowForm(false)
       fetchPackages()
+      if (editingId) {
+        // Stay in the form on update — just show a success banner
+        setError('')
+        setSaving(false)
+        // Briefly show a success message by reusing the error state with a prefix
+        setError('✅ Package updated successfully.')
+        setTimeout(() => setError(''), 3000)
+        return
+      }
+      setShowForm(false)
     } catch (e: any) {
       setError(e.message || 'Failed to save package.')
     } finally {
@@ -844,7 +865,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
           row: null, field: `unrecognized column${unknownCols.length > 1 ? 's' : ''}`,
           found: unknownCols.join(', '),
           message: `These columns are not recognized and will be ignored: ${unknownCols.join(', ')}`,
-          fix: `Check for typos. Known columns: title, destination, duration_days, duration_nights, price_per_person, currency, travel_type, star_category, theme, mood, overview, highlights, inclusions, exclusions, day_wise_itinerary, seasonal_availability, primary_image_url, hotels, vehicles, payment_policy, cancellation_policy.`,
+          fix: `Check for typos. Known columns: title, destination, duration_days, duration_nights, price_per_person, total_price, gst, currency, travel_type, star_category, theme, mood, overview, highlights, inclusions, exclusions, day_wise_itinerary, seasonal_availability, primary_image_url, hotels, vehicles, payment_policy, cancellation_policy.`,
           severity: 'warning',
         })
       }
@@ -954,6 +975,11 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
             catch { /* fallback to raw price */ }
           }
 
+          const rawTotalPrice = (r['total_price'] || '').trim()
+          const totalPrice = rawTotalPrice ? (parseFloat(rawTotalPrice.replace(/[₹$€£,\s]/g, '')) || null) : null
+          const rawGst = (r['gst'] || '').trim()
+          const gst = rawGst ? (parseFloat(rawGst) || null) : null
+
           const payload = {
             agentId,
             title,
@@ -963,6 +989,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
             durationDays,
             durationNights,
             pricePerPerson: price,
+            totalPrice,
+            gst,
             currency,
             priceInINR,
             maxGroupSize: parseInt(r['max_group_size'] || '20') || 20,
@@ -1025,6 +1053,9 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
       durationDays: Number(form.durationDays) || 0,
       durationNights: Number(form.durationNights) || 0,
       pricePerPerson: Number(form.pricePerPerson) || 0,
+      totalPrice: form.totalPrice !== '' ? Number(form.totalPrice) : null,
+      gst: form.gst !== '' ? Number(form.gst) : null,
+      currency: form.currency || 'INR',
       maxGroupSize: Number(form.maxGroupSize) || 20,
       minGroupSize: Number(form.minGroupSize) || 1,
       adults: Number(form.adults) || 0,
@@ -1165,10 +1196,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
   <div class="pricebox">
     <div class="price-top">
       <div>
-        <div class="pricetag">Pricing Configuration</div>
-        <div class="pricelarge">${finalPrice > 0 ? fmt(finalPrice) : 'To be confirmed'}</div>
-        <div class="pricesub">Per person${form.currency !== 'INR' ? ` · ${esc(form.currency)}` : ''}</div>
-        ${markupEnabled && base > 0 ? `<div class="pricesub" style="margin-top:2px">Base: ${fmt(base)} + ${markupPercent}% markup</div>` : ''}
+        ${Number(form.totalPrice) > 0
+          ? `<div class="pricetag">Total Price</div>
+             <div class="pricelarge">${fmt(Number(form.totalPrice))}</div>
+             <div class="pricesub">Full package${form.currency !== 'INR' ? ` · ${esc(form.currency)}` : ''}</div>
+             ${form.gst ? `<div class="pricesub" style="margin-top:2px">+ ${esc(form.gst)}% GST applicable</div>` : ''}`
+          : `<div class="pricetag">Pricing Configuration</div>
+             <div class="pricelarge">${finalPrice > 0 ? fmt(finalPrice) : 'To be confirmed'}</div>
+             <div class="pricesub">Per person${form.currency !== 'INR' ? ` · ${esc(form.currency)}` : ''}</div>
+             ${markupEnabled && base > 0 ? `<div class="pricesub" style="margin-top:2px">Base: ${fmt(base)} + ${markupPercent}% markup</div>` : ''}
+             ${form.gst ? `<div class="pricesub" style="margin-top:2px">+ ${esc(form.gst)}% GST applicable</div>` : ''}`
+        }
       </div>
       <div class="priceright">
         <div class="pdlbl">Published on</div>
@@ -1387,6 +1425,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   ['duration_days', 'No', '6'],
                   ['duration_nights', 'No', '5  (auto-computed as days−1 if omitted)'],
                   ['price_per_person', 'No', '25000'],
+                  ['total_price', 'No', '150000 — optional total for the whole group; if set, PDF shows Total Price instead of Per Person'],
+                  ['gst', 'No', '5 — GST percentage (e.g. 5 for 5%); shown as "+ 5% GST" on the PDF'],
                   ['currency', 'No', 'INR (default) / USD / EUR / GBP / AED / SGD / AUD — auto-converted to INR'],
                   ['travel_type', 'No', 'Leisure / Honeymoon / Adventure / Family / Corporate'],
                   ['star_category', 'No', '3-Star / 4-Star / 5-Star / leave blank for no hotel'],
@@ -1623,7 +1663,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{pkg.title}</p>
                 <p className="text-sm text-gray-500">
-                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · {getCurrencySymbol(pkg.currency)}{pkg.pricePerPerson.toLocaleString()}/person
+                  {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · {(pkg as any).totalPrice ? `${getCurrencySymbol((pkg as any).currency)}${Number((pkg as any).totalPrice).toLocaleString()} total` : `${getCurrencySymbol(pkg.currency)}${pkg.pricePerPerson.toLocaleString()}/person`}
                   {((pkg.adults ?? 0) + (pkg.children ?? 0) + (pkg.infants ?? 0)) > 0 && (
                     <span className="ml-1">
                       · 👥 {pkg.adults ?? 0}A{(pkg.children ?? 0) > 0 ? ` ${pkg.children}C` : ''}{(pkg.infants ?? 0) > 0 ? ` ${pkg.infants}I` : ''}
@@ -1722,8 +1762,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
             <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
 
               {error && (
-                <div className="flex items-center gap-2 bg-red-50 text-red-700 text-sm px-4 py-3 rounded-xl border border-red-100">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
+                <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-xl border ${error.startsWith('✅') ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
+                  {!error.startsWith('✅') && <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+                  {error}
                 </div>
               )}
 
@@ -2111,6 +2152,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${markupEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </button>
                     </div>
+                    {/* Total Price & GST */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Total Price (optional)</p>
+                        <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 gap-1.5">
+                          <span className="text-gray-400 font-semibold text-sm">{currencyMeta.symbol}</span>
+                          <input
+                            name="totalPrice"
+                            type="number"
+                            value={form.totalPrice}
+                            onChange={handleChange}
+                            placeholder="e.g. 150000"
+                            className="flex-1 text-sm font-bold text-gray-900 border-none outline-none bg-transparent w-0 min-w-0"
+                          />
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-1 pl-1">If set, PDF shows this as the package total price instead of per-person price.</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">GST (%)</p>
+                        <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 gap-1.5">
+                          <input
+                            name="gst"
+                            type="number"
+                            value={form.gst}
+                            onChange={handleChange}
+                            placeholder="e.g. 5"
+                            min="0"
+                            max="100"
+                            className="flex-1 text-sm font-bold text-gray-900 border-none outline-none bg-transparent w-0 min-w-0"
+                          />
+                          <span className="text-gray-400 font-semibold text-sm">%</span>
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-1 pl-1">GST percentage shown on PDF quotation.</p>
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-purple-600 text-white rounded-2xl p-4 min-w-[160px] flex-shrink-0 text-center shadow-lg shadow-purple-200">
                     <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-1">Final Quotation Price</p>
@@ -2452,11 +2528,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     </div>
                   </div>
                   <div className="mx-4 mb-4 bg-purple-50 border border-purple-100 rounded-xl p-3 text-center">
-                    <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
-                    <p className="text-xl font-bold text-purple-700">
-                      {getCurrencySymbol(form.currency)}{basePrice > 0 ? (basePrice * (1 + markup / 100)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '–'}
-                    </p>
-                    <p className="text-[10px] text-purple-400">per person</p>
+                    {Number(form.totalPrice) > 0 ? (
+                      <>
+                        <p className="text-[10px] text-purple-400 font-semibold uppercase">Total Price</p>
+                        <p className="text-xl font-bold text-purple-700">
+                          {getCurrencySymbol(form.currency)}{Number(form.totalPrice).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                        </p>
+                        <p className="text-[10px] text-purple-400">full package{Number(form.gst) > 0 ? ` + ${form.gst}% GST` : ''}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[10px] text-purple-400 font-semibold uppercase">Starting from</p>
+                        <p className="text-xl font-bold text-purple-700">
+                          {getCurrencySymbol(form.currency)}{basePrice > 0 ? (basePrice * (1 + markup / 100)).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '–'}
+                        </p>
+                        <p className="text-[10px] text-purple-400">per person{Number(form.gst) > 0 ? ` + ${form.gst}% GST` : ''}</p>
+                      </>
+                    )}
                   </div>
                   {dayItems.length > 0 && (
                     <div className="px-4 pb-3">
@@ -2638,9 +2726,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               {/* Price */}
               <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-purple-500 font-medium">Starting from</p>
-                  <p className="text-3xl font-bold text-purple-700">{getCurrencySymbol(previewPkg.currency)}{(previewPkg.pricePerPerson || 0).toLocaleString()}</p>
-                  <p className="text-xs text-purple-500">per person</p>
+                  {previewPkg.totalPrice ? (
+                    <>
+                      <p className="text-xs text-purple-500 font-medium">Total Price</p>
+                      <p className="text-3xl font-bold text-purple-700">{getCurrencySymbol(previewPkg.currency)}{Number(previewPkg.totalPrice).toLocaleString()}</p>
+                      <p className="text-xs text-purple-500">full package{previewPkg.gst ? ` + ${previewPkg.gst}% GST` : ''}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-purple-500 font-medium">Starting from</p>
+                      <p className="text-3xl font-bold text-purple-700">{getCurrencySymbol(previewPkg.currency)}{(previewPkg.pricePerPerson || 0).toLocaleString()}</p>
+                      <p className="text-xs text-purple-500">per person{previewPkg.gst ? ` + ${previewPkg.gst}% GST` : ''}</p>
+                    </>
+                  )}
                 </div>
                 <div className="bg-purple-600 text-white text-sm font-bold px-5 py-2.5 rounded-xl opacity-60 cursor-default">
                   Request Quote
@@ -2813,11 +2911,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   <div className="bg-purple-600 rounded-xl p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-[9px] font-bold text-purple-200 uppercase tracking-widest mb-1">Pricing Configuration</p>
-                        <p className="text-3xl font-extrabold text-white leading-none">{final > 0 ? fmtPrice(final) : 'TBC'}</p>
-                        <p className="text-xs text-purple-200 mt-1">Per person{form.currency !== 'INR' ? ` · ${form.currency}` : ''}</p>
-                        {markupEnabled && base > 0 && (
-                          <p className="text-[11px] text-purple-300 mt-0.5">Base {fmtPrice(base)} + {markupPercent}% markup</p>
+                        {Number(form.totalPrice) > 0 ? (
+                          <>
+                            <p className="text-[9px] font-bold text-purple-200 uppercase tracking-widest mb-1">Total Price</p>
+                            <p className="text-3xl font-extrabold text-white leading-none">{fmtPrice(Number(form.totalPrice))}</p>
+                            <p className="text-xs text-purple-200 mt-1">Full package{form.currency !== 'INR' ? ` · ${form.currency}` : ''}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-[9px] font-bold text-purple-200 uppercase tracking-widest mb-1">Pricing Configuration</p>
+                            <p className="text-3xl font-extrabold text-white leading-none">{final > 0 ? fmtPrice(final) : 'TBC'}</p>
+                            <p className="text-xs text-purple-200 mt-1">Per person{form.currency !== 'INR' ? ` · ${form.currency}` : ''}</p>
+                            {markupEnabled && base > 0 && (
+                              <p className="text-[11px] text-purple-300 mt-0.5">Base {fmtPrice(base)} + {markupPercent}% markup</p>
+                            )}
+                          </>
+                        )}
+                        {Number(form.gst) > 0 && (
+                          <p className="text-[11px] text-purple-300 mt-0.5">+ {form.gst}% GST applicable</p>
                         )}
                       </div>
                       <div className="text-right">

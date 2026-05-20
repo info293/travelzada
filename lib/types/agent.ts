@@ -66,6 +66,8 @@ export interface AgentPackage {
   durationDays: number
   durationNights: number
   pricePerPerson: number       // price in original currency
+  totalPrice?: number | null   // optional fixed total price for the whole group
+  gst?: number | null          // GST percentage, e.g. 5 = 5%
   currency?: string            // e.g. 'INR', 'USD', 'EUR', 'AED'
   priceInINR?: number          // converted price in INR (stored for consistency)
   maxGroupSize: number

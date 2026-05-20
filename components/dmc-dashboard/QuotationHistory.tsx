@@ -629,7 +629,12 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
                             {pkg.starCategory && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">⭐ {pkg.starCategory}</span>}
                             {pkg.travelType && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">🎒 {pkg.travelType}</span>}
                             {pkg.theme && <span className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full">🌿 {pkg.theme}</span>}
-                            {pkg.pricePerPerson && <span className="bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold px-2.5 py-1 rounded-full">{sym}{Number(pkg.pricePerPerson).toLocaleString()}/person</span>}
+                            {(pkg as any).totalPrice
+                              ? <span className="bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold px-2.5 py-1 rounded-full">{sym}{Number((pkg as any).totalPrice).toLocaleString()} total</span>
+                              : pkg.pricePerPerson
+                                ? <span className="bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold px-2.5 py-1 rounded-full">{sym}{Number(pkg.pricePerPerson).toLocaleString()}/person</span>
+                                : null
+                            }
                           </div>
                           {pkg.overview && (
                             <div>

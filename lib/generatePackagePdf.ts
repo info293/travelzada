@@ -15,6 +15,8 @@ export interface PackagePdfOptions {
   mood?: string
   currency?: string
   pricePerPerson?: number | null
+  totalPrice?: number | null
+  gst?: number | null
   quotedPriceTotal?: number | null
   groupSize?: number
   adults?: number
@@ -73,7 +75,7 @@ export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<voi
     title, destination, destinationCountry, heroImage = '',
     badgeText, refId,
     durationDays, durationNights, starCategory, travelType, theme, mood,
-    currency, pricePerPerson, quotedPriceTotal, groupSize = 1, adults, kids,
+    currency, pricePerPerson, totalPrice, gst, quotedPriceTotal, groupSize = 1, adults, kids,
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
@@ -302,8 +304,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
     <div class="ssub">${adults ?? groupSize} Adult${(adults ?? groupSize) !== 1 ? 's' : ''}${kids ? ` · ${kids} Child${kids !== 1 ? 'ren' : ''}` : ''}</div>
   </div>
   <div class="sc">
-    <div class="slbl">Price Per Person</div>
-    <div class="sval">${pricePerPerson ? `${currSym}${Number(pricePerPerson).toLocaleString()}` : '—'}</div>
+    ${totalPrice
+      ? `<div class="slbl">Total Price</div>
+         <div class="sval">${currSym}${Number(totalPrice).toLocaleString()}</div>
+         ${gst ? `<div class="ssub">+ ${gst}% GST</div>` : ''}`
+      : `<div class="slbl">Price Per Person</div>
+         <div class="sval">${pricePerPerson ? `${currSym}${Number(pricePerPerson).toLocaleString()}` : '—'}</div>
+         ${gst ? `<div class="ssub">+ ${gst}% GST</div>` : ''}`
+    }
   </div>
   <div class="sc">
     <div class="slbl">Date of Travel</div>
