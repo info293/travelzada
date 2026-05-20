@@ -6,7 +6,7 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import {
   Building2, User, Phone, Mail, FileText, Globe,
   MessageCircle, Save, Loader2, CheckCircle, AlertCircle,
-  ExternalLink, Copy, Check, Shield, CreditCard, ToggleLeft, ToggleRight, Banknote
+  ExternalLink, Copy, Check, Shield, CreditCard, ToggleLeft, ToggleRight, Banknote, LogOut
 } from 'lucide-react'
 import { CURRENCIES } from '@/lib/utils/currency'
 import LogoUploader from './LogoUploader'
@@ -15,6 +15,7 @@ interface Props {
   agentId: string
   agentSlug: string
   onSaved?: () => void
+  onLogout?: () => void
 }
 
 interface AgentProfile {
@@ -41,7 +42,7 @@ const AGENCY_TYPE_LABELS: Record<string, string> = {
   franchise: 'Franchise',
 }
 
-export default function AgentSettings({ agentId, agentSlug, onSaved }: Props) {
+export default function AgentSettings({ agentId, agentSlug, onSaved, onLogout }: Props) {
   const [profile, setProfile] = useState<AgentProfile | null>(null)
   const [form, setForm] = useState<Partial<AgentProfile>>({})
   const [loading, setLoading] = useState(true)
@@ -304,19 +305,30 @@ export default function AgentSettings({ agentId, agentSlug, onSaved }: Props) {
         </div>
       )}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
-      >
-        {saving ? (
-          <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
-        ) : saved ? (
-          <><CheckCircle className="w-4 h-4" />Saved!</>
-        ) : (
-          <><Save className="w-4 h-4" />Save Changes</>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-60 transition-colors"
+        >
+          {saving ? (
+            <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
+          ) : saved ? (
+            <><CheckCircle className="w-4 h-4" />Saved!</>
+          ) : (
+            <><Save className="w-4 h-4" />Save Changes</>
+          )}
+        </button>
+
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 font-semibold text-sm transition-colors"
+          >
+            <LogOut className="w-4 h-4" />Sign Out
+          </button>
         )}
-      </button>
+      </div>
     </div>
   )
 }

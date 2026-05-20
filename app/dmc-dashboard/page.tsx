@@ -203,16 +203,16 @@ export default function AgentDashboardPage() {
   const totalUnread = notifications.filter(n => !n.isRead).length
 
   const TABS: TabDef[] = [
-    { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+    // { id: 'home', label: 'Home', icon: <Home className="w-4 h-4" /> },
+    { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" />, badge: quotationNotifCount || undefined },
     { id: 'packages', label: 'Packages', icon: <Package className="w-4 h-4" /> },
-    { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: bookingNotifCount || undefined },
-    { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
+    // { id: 'bookings', label: 'Bookings', icon: <Inbox className="w-4 h-4" />, badge: bookingNotifCount || undefined },
+    // { id: 'analytics', label: 'Analytics', icon: <BarChart2 className="w-4 h-4" /> },
     // { id: 'customers', label: 'Customers', icon: <Users className="w-4 h-4" /> },
     { id: 'team', label: 'Travel Agents', icon: <UserCog className="w-4 h-4" /> },
-    { id: 'quotations', label: 'Quotations', icon: <MessageSquare className="w-4 h-4" />, badge: quotationNotifCount || undefined },
     // { id: 'quotation_history', label: 'Quote History', icon: <BarChart2 className="w-4 h-4" /> },
     // { id: 'crm', label: 'CRM', icon: <Activity className="w-4 h-4" /> },
-    { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
+    // { id: 'embed', label: 'Embed', icon: <Code2 className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
   ]
 
@@ -229,7 +229,7 @@ export default function AgentDashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-60 bg-white border-r border-gray-100 flex-col flex-shrink-0 hidden md:flex">
+        <aside className="w-72 bg-white border-r border-gray-100 flex-col flex-shrink-0 hidden md:flex">
           {/* Brand */}
           <div className="px-5 py-4 border-b border-gray-100">
             <div className="flex items-center gap-2.5">
@@ -288,17 +288,11 @@ export default function AgentDashboardPage() {
           </nav>
 
           {/* Bottom */}
-          <div className="px-4 py-4 border-t border-gray-100 space-y-2">
+          <div className="px-4 py-4 border-t border-gray-100">
             <div className="text-xs text-gray-500">
               <p className="font-medium text-gray-700 truncate">{currentUser?.email}</p>
               <p className="capitalize mt-0.5">{agentData?.subscriptionPlan || 'Basic'} Plan</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 font-medium"
-            >
-              <LogOut className="w-4 h-4" />Sign Out
-            </button>
           </div>
         </aside>
 
@@ -417,7 +411,7 @@ export default function AgentDashboardPage() {
                 )}
                 {tab === 'crm' && <CRMAnalytics agentId={currentUser.uid} agentSlug={agentSlug} />}
                 {tab === 'embed' && <EmbedCode agentSlug={agentSlug} />}
-                {tab === 'settings' && <AgentSettings agentId={currentUser.uid} agentSlug={agentSlug} onSaved={fetchAgent} />}
+                {tab === 'settings' && <AgentSettings agentId={currentUser.uid} agentSlug={agentSlug} onSaved={fetchAgent} onLogout={handleLogout} />}
               </motion.div>
             )}
           </div>
