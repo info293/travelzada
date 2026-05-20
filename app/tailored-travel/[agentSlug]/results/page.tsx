@@ -936,6 +936,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
   const [feeType, setFeeType] = useState<'absolute' | 'percentage'>('absolute')
   const [feeInput, setFeeInput] = useState('0')
 
+  const isTotalPrice = Boolean(pkg.totalPrice)
   const basePrice = pkg.totalPrice || pkg.Price_Min_INR
   const groupSize = (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0)
   const currSym = getCurrencySymbol(pkg.Currency)
@@ -945,7 +946,8 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
     ? feeType === 'absolute' ? feeValue : Math.round(basePrice * feeValue / 100)
     : 0
   const finalPricePerPerson = basePrice + serviceFee
-  const quotedPriceTotal = finalPricePerPerson * groupSize
+  // if totalPrice is set it's already the full package total — don't multiply by pax
+  const quotedPriceTotal = isTotalPrice ? finalPricePerPerson : finalPricePerPerson * groupSize
 
   const preferredDates = wizardData?.dateRange && !['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(wizardData.dateRange)
     ? wizardData.dateRange : ''
@@ -990,7 +992,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
         <div>
           <h3 className="font-bold text-gray-900">{actionLabel}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · {currSym}{basePrice.toLocaleString()}/person</p>
+          <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · {currSym}{basePrice.toLocaleString()}{isTotalPrice ? ' total' : '/person'}</p>
         </div>
         <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>
       </div>
@@ -1088,7 +1090,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
                     className="flex-1 px-3 py-2.5 text-sm focus:outline-none"
                   />
                 </div>
-                <p className="text-xs text-gray-400">This amount will be added to the price per person</p>
+                <p className="text-xs text-gray-400">This amount will be added to the {isTotalPrice ? 'total package price' : 'price per person'}</p>
               </div>
             )}
 
@@ -1107,10 +1109,10 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-bold text-gray-900 pt-2 border-t border-gray-100">
-                  <span>Total per person</span>
+                  <span>{isTotalPrice ? 'Total Price' : 'Total per person'}</span>
                   <span>{currSym}{finalPricePerPerson.toLocaleString()}</span>
                 </div>
-                {groupSize > 1 && (
+                {!isTotalPrice && groupSize > 1 && (
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>Total ({groupSize} pax)</span>
                     <span>{currSym}{quotedPriceTotal.toLocaleString()}</span>
