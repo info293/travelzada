@@ -13,6 +13,7 @@ export interface PackagePdfModalProps {
   theme?: string
   mood?: string
   seasonalAvailability?: string
+  currency?: string
   pricePerPerson?: number | null
   totalPrice?: number | null
   gst?: number | null

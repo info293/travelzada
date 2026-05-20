@@ -18,6 +18,7 @@ import QuotationsManager from '@/components/dmc-dashboard/QuotationsManager'
 import LogoUploader from '@/components/dmc-dashboard/LogoUploader'
 import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
+import { getCurrencySymbol } from '@/lib/utils/currency'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Booking {
@@ -74,6 +75,9 @@ interface PackageData {
   durationDays?: number
   durationNights?: number
   pricePerPerson?: number
+  totalPrice?: number | null
+  gst?: number | null
+  currency?: string
   travelType?: string
   starCategory?: string
   inclusions?: string[]
@@ -118,6 +122,9 @@ interface AgentPackage {
   durationNights: number
   durationDays: number
   pricePerPerson: number
+  totalPrice?: number | null
+  gst?: number | null
+  currency?: string
   travelType: string
   starCategory: string
   primaryImageUrl?: string
@@ -182,13 +189,16 @@ function fmtDT(ts?: { seconds: number }) {
 
 function buildPackageWhatsAppMessage(pkg: AgentPackage, finalPrice?: number): string {
   const lines: string[] = []
-  const displayPrice = finalPrice ?? pkg.pricePerPerson
+  const currSym = getCurrencySymbol(pkg.currency)
+  const isTotalPkg = Boolean(pkg.totalPrice)
+  const displayPrice = finalPrice ?? (pkg.totalPrice || pkg.pricePerPerson)
+  const priceLabel = isTotalPkg ? 'total package' : 'per person'
 
   lines.push(`✈️ *${pkg.title}*`)
   lines.push(`📍 ${pkg.destination}${pkg.destinationCountry ? ', ' + pkg.destinationCountry : ''}`)
   lines.push(`🗓️ ${pkg.durationDays} Days / ${pkg.durationNights} Nights`)
   lines.push(`⭐ ${pkg.starCategory}  |  🎒 ${pkg.travelType}${pkg.theme ? '  |  🎨 ' + pkg.theme : ''}${pkg.mood ? '  |  💫 ' + pkg.mood : ''}`)
-  lines.push(`💰 *₹${displayPrice.toLocaleString('en-IN')} per person*`)
+  lines.push(`💰 *${currSym}${displayPrice.toLocaleString('en-IN')} ${priceLabel}*${pkg.gst ? ` + ${pkg.gst}% GST` : ''}`)
 
   if (pkg.overview) {
     lines.push('')
@@ -459,10 +469,13 @@ export default function SubAgentDashboardPage() {
   function openQuotPrintWindow(q: Quotation) {
     const pkg = q.customPackageData || q.selectedPackage
     const groupSize = q.groupSize || 1
-    const pricePerPerson = pkg?.pricePerPerson
-      || (q.quotedPrice ? Math.round(Number(q.quotedPrice) / groupSize) : null)
+    const isTotalQuot = Boolean(pkg?.totalPrice)
+    const basePrice = pkg?.totalPrice || pkg?.pricePerPerson
+    const pricePerPerson = isTotalQuot ? undefined
+      : (basePrice || (q.quotedPrice ? Math.round(Number(q.quotedPrice) / groupSize) : null))
     const quotedPriceTotal = q.quotedPrice
       ? Number(q.quotedPrice)
+      : isTotalQuot ? (basePrice ?? null)
       : pricePerPerson && groupSize > 1 ? pricePerPerson * groupSize : null
     openPackagePdfWindow({
       title: q.packageTitle,
@@ -476,7 +489,10 @@ export default function SubAgentDashboardPage() {
       travelType: pkg?.travelType,
       theme: pkg?.theme,
       mood: pkg?.mood,
+      currency: pkg?.currency,
       pricePerPerson: pricePerPerson ?? undefined,
+      totalPrice: isTotalQuot ? (pkg?.totalPrice ?? undefined) : undefined,
+      gst: pkg?.gst ?? undefined,
       quotedPriceTotal: quotedPriceTotal ?? undefined,
       groupSize,
       adults: q.adults,
@@ -501,6 +517,7 @@ export default function SubAgentDashboardPage() {
 
   // ── Standalone print window for package quote ─────────────────────────────────
   function openPkgPrintWindow(pkg: AgentPackage, finalPrice: number) {
+    const isTotalPdf = Boolean(pkg.totalPrice)
     openPackagePdfWindow({
       title: pkg.title,
       destination: pkg.destination,
@@ -512,7 +529,10 @@ export default function SubAgentDashboardPage() {
       travelType: pkg.travelType,
       theme: pkg.theme,
       mood: pkg.mood,
-      pricePerPerson: finalPrice,
+      pricePerPerson: isTotalPdf ? undefined : finalPrice,
+      totalPrice: isTotalPdf ? finalPrice : undefined,
+      gst: pkg.gst ?? undefined,
+      currency: pkg.currency,
       overview: pkg.overview,
       highlights: Array.isArray(pkg.highlights) ? pkg.highlights.filter(Boolean) : [],
       inclusions: Array.isArray(pkg.inclusions) ? pkg.inclusions.filter(Boolean) : [],
@@ -567,7 +587,8 @@ export default function SubAgentDashboardPage() {
           id: found.id, title: found.title, destination: found.destination,
           destinationCountry: found.destinationCountry, overview: found.overview,
           durationDays: found.durationDays, durationNights: found.durationNights,
-          pricePerPerson: found.pricePerPerson, travelType: found.travelType,
+          pricePerPerson: found.pricePerPerson, totalPrice: found.totalPrice, gst: found.gst, currency: found.currency,
+          travelType: found.travelType,
           starCategory: found.starCategory, inclusions: found.inclusions || [],
           exclusions: found.exclusions || [], highlights: found.highlights || [],
           dayWiseItinerary: found.dayWiseItinerary || '',
@@ -612,6 +633,9 @@ export default function SubAgentDashboardPage() {
           durationDays: found.durationDays,
           durationNights: found.durationNights,
           pricePerPerson: found.pricePerPerson,
+          totalPrice: found.totalPrice,
+          gst: found.gst,
+          currency: found.currency,
           travelType: found.travelType,
           starCategory: found.starCategory,
           inclusions: found.inclusions || [],
@@ -1284,10 +1308,14 @@ export default function SubAgentDashboardPage() {
                               </div>
                                       <div className="flex items-center gap-3 flex-shrink-0">
                                 {(() => {
-                                  const price = b.bookingValue || (b.selectedPackage?.pricePerPerson ? b.selectedPackage.pricePerPerson * (b.groupSize || b.adults || 1) : 0) || b.quotedPrice
+                                  const selPkg = b.selectedPackage as any
+                                  const pax = b.groupSize || b.adults || 1
+                                  const estValue = selPkg?.totalPrice ?? (selPkg?.pricePerPerson ? selPkg.pricePerPerson * pax : 0)
+                                  const price = b.bookingValue || estValue || b.quotedPrice
+                                  const currSym = getCurrencySymbol(selPkg?.currency)
                                   return price ? (
                                     <div className="text-right">
-                                      <p className={`text-base font-bold ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>₹{Number(price).toLocaleString('en-IN')}</p>
+                                      <p className={`text-base font-bold ${b.bookingValue ? 'text-emerald-700' : 'text-purple-600'}`}>{currSym}{Number(price).toLocaleString('en-IN')}</p>
                                       <p className="text-[10px] text-gray-400">{b.bookingValue ? 'confirmed' : 'est. value'}</p>
                                     </div>
                                   ) : null
@@ -1313,8 +1341,8 @@ export default function SubAgentDashboardPage() {
                                     </p>
                                   </div>
                                   <div className="text-right flex-shrink-0">
-                                    <p className="text-[10px] text-gray-400">Per person</p>
-                                    <p className="text-sm font-bold text-purple-700">₹{Number(b.selectedPackage.pricePerPerson).toLocaleString('en-IN')}</p>
+                                    <p className="text-[10px] text-gray-400">{(b.selectedPackage as any).totalPrice ? 'Total price' : 'Per person'}</p>
+                                    <p className="text-sm font-bold text-purple-700">{getCurrencySymbol((b.selectedPackage as any).currency)}{Number((b.selectedPackage as any).totalPrice || b.selectedPackage.pricePerPerson).toLocaleString('en-IN')}</p>
                                   </div>
                                 </div>
                               )}
@@ -1460,8 +1488,9 @@ export default function SubAgentDashboardPage() {
                               <p className="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-3">{pkg.overview}</p>
                             )}
                             <p className="text-lg font-bold text-primary mt-auto mb-3">
-                              ₹{pkg.pricePerPerson.toLocaleString('en-IN')}
-                              <span className="text-xs font-normal text-gray-400">/person (base)</span>
+                              {getCurrencySymbol(pkg.currency)}{(pkg.totalPrice || pkg.pricePerPerson).toLocaleString('en-IN')}
+                              <span className="text-xs font-normal text-gray-400">{pkg.totalPrice ? ' total' : '/person (base)'}</span>
+                              {pkg.gst ? <span className="text-[10px] font-normal text-amber-500 block">+ {pkg.gst}% GST</span> : null}
                             </p>
                             {/* Action buttons — no copy link; markup popup before share/download */}
                             <div className="grid grid-cols-3 gap-1.5">
@@ -2118,7 +2147,7 @@ export default function SubAgentDashboardPage() {
                   { label: 'Duration', value: `${viewPkgDetail.durationDays}D / ${viewPkgDetail.durationNights}N` },
                   { label: 'Star Category', value: viewPkgDetail.starCategory },
                   { label: 'Travel Type', value: viewPkgDetail.travelType },
-                  { label: 'Price / Person', value: `₹${viewPkgDetail.pricePerPerson.toLocaleString('en-IN')}` },
+                  { label: viewPkgDetail.totalPrice ? 'Total Price' : 'Price / Person', value: `${getCurrencySymbol(viewPkgDetail.currency)}${(viewPkgDetail.totalPrice || viewPkgDetail.pricePerPerson).toLocaleString('en-IN')}${viewPkgDetail.gst ? ` + ${viewPkgDetail.gst}% GST` : ''}` },
                 ].map(s => (
                   <div key={s.label} className="bg-gray-50 rounded-xl p-3 text-center">
                     <p className="text-xs text-gray-400 mb-0.5">{s.label}</p>
@@ -2519,10 +2548,13 @@ export default function SubAgentDashboardPage() {
       {pdfQuot && (() => {
         const pkg = pdfQuot.customPackageData || pdfQuot.selectedPackage
         const groupSize = pdfQuot.groupSize || 1
-        const pricePerPerson = pkg?.pricePerPerson
-          || (pdfQuot.quotedPrice ? Math.round(Number(pdfQuot.quotedPrice) / groupSize) : null)
+        const isTotalPdfQuot = Boolean(pkg?.totalPrice)
+        const basePdfPrice = pkg?.totalPrice || pkg?.pricePerPerson
+        const pricePerPerson = isTotalPdfQuot ? undefined
+          : (basePdfPrice || (pdfQuot.quotedPrice ? Math.round(Number(pdfQuot.quotedPrice) / groupSize) : null))
         const quotedPriceTotal = pdfQuot.quotedPrice
           ? Number(pdfQuot.quotedPrice)
+          : isTotalPdfQuot ? (basePdfPrice ?? null)
           : pricePerPerson && groupSize > 1 ? pricePerPerson * groupSize : null
         return (
           <PackagePdfModal
@@ -2535,7 +2567,10 @@ export default function SubAgentDashboardPage() {
             travelType={pkg?.travelType}
             theme={pkg?.theme}
             mood={pkg?.mood}
+            currency={pkg?.currency}
             pricePerPerson={pricePerPerson}
+            totalPrice={isTotalPdfQuot ? (pkg?.totalPrice ?? undefined) : undefined}
+            gst={pkg?.gst ?? undefined}
             quotedPriceTotal={quotedPriceTotal}
             groupSize={groupSize}
             adults={pdfQuot.adults}
@@ -2561,7 +2596,9 @@ export default function SubAgentDashboardPage() {
 
       {/* ── Markup Popup ─────────────────────────────────────────────────────── */}
       {markupPkg && (() => {
-        const base = markupPkg.pricePerPerson
+        const base = markupPkg.totalPrice || markupPkg.pricePerPerson
+        const isTotalMarkup = Boolean(markupPkg.totalPrice)
+        const currMarkup = getCurrencySymbol(markupPkg.currency)
         const markupAmt = Math.round(base * markupPct / 100)
         const finalPrice = base + markupAmt
         function proceed() {
@@ -2593,7 +2630,7 @@ export default function SubAgentDashboardPage() {
                 {/* Base price display */}
                 <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
                   <span className="text-xs text-gray-500">Base (DMC) price</span>
-                  <span className="font-bold text-gray-700">₹{base.toLocaleString('en-IN')}/person</span>
+                  <span className="font-bold text-gray-700">{currMarkup}{base.toLocaleString('en-IN')}{isTotalMarkup ? ' total' : '/person'}{markupPkg.gst ? ` + ${markupPkg.gst}% GST` : ''}</span>
                 </div>
 
                 {/* Quick markup pills */}
@@ -2620,18 +2657,18 @@ export default function SubAgentDashboardPage() {
                 {/* Price breakdown */}
                 <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 space-y-1">
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>Base price</span><span>₹{base.toLocaleString('en-IN')}</span>
+                    <span>Base price</span><span>{currMarkup}{base.toLocaleString('en-IN')}</span>
                   </div>
                   {markupAmt > 0 && (
                     <div className="flex justify-between text-xs text-green-600">
-                      <span>Your markup (+{markupPct}%)</span><span>+₹{markupAmt.toLocaleString('en-IN')}</span>
+                      <span>Your markup (+{markupPct}%)</span><span>+{currMarkup}{markupAmt.toLocaleString('en-IN')}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-sm font-bold text-primary border-t border-primary/20 pt-1 mt-1">
-                    <span>Customer pays</span><span>₹{finalPrice.toLocaleString('en-IN')}/person</span>
+                    <span>Customer pays</span><span>{currMarkup}{finalPrice.toLocaleString('en-IN')}{isTotalMarkup ? ' total' : '/person'}</span>
                   </div>
                   {markupAmt > 0 && (
-                    <p className="text-[11px] text-gray-400">Your profit: ₹{markupAmt.toLocaleString('en-IN')} per person</p>
+                    <p className="text-[11px] text-gray-400">Your profit: {currMarkup}{markupAmt.toLocaleString('en-IN')}{isTotalMarkup ? ' total' : ' per person'}</p>
                   )}
                 </div>
 
@@ -2681,7 +2718,10 @@ export default function SubAgentDashboardPage() {
           travelType={pkgPdfPkg.travelType}
           theme={pkgPdfPkg.theme}
           mood={pkgPdfPkg.mood}
-          pricePerPerson={pkgPdfFinalPrice}
+          currency={pkgPdfPkg.currency}
+          pricePerPerson={pkgPdfPkg.totalPrice ? undefined : pkgPdfFinalPrice}
+          totalPrice={pkgPdfPkg.totalPrice ? pkgPdfFinalPrice : undefined}
+          gst={pkgPdfPkg.gst ?? undefined}
           overview={pkgPdfPkg.overview}
           inclusions={pkgPdfPkg.inclusions ?? []}
           exclusions={pkgPdfPkg.exclusions ?? []}
