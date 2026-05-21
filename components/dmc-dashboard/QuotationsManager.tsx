@@ -109,8 +109,18 @@ function formatTime(iso: string) {
 }
 
 function formatDate(ts?: { seconds: number }) {
-  if (!ts) return ''
-  return new Date(ts.seconds * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  if (!ts) return null
+  const d = new Date(ts.seconds * 1000)
+  const date = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+  return { date, time }
+}
+
+function formatTravelDate(raw?: string) {
+  if (!raw) return null
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return raw
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function parseDayItems(text: string): DayItem[] {
@@ -360,7 +370,27 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
-        setQuotations(data.quotations.map((q: any) => ({ ...q, messages: q.messages || [] })))
+        const raw: Quotation[] = data.quotations.map((q: any) => ({ ...q, messages: q.messages || [] }))
+
+        // Resolve subAgentName for quotations where it is missing but subAgentId exists
+        const missingIds = [...new Set(
+          raw.filter(q => !q.subAgentName && q.subAgentId).map(q => q.subAgentId)
+        )]
+        const nameMap: Record<string, string> = {}
+        await Promise.all(
+          missingIds.map(async id => {
+            try {
+              const r = await fetch(`/api/agent/subagents/${id}`)
+              const d = await r.json()
+              if (d.success && d.subAgent?.name) nameMap[id] = d.subAgent.name
+            } catch { }
+          })
+        )
+        setQuotations(raw.map(q =>
+          (!q.subAgentName && q.subAgentId && nameMap[q.subAgentId])
+            ? { ...q, subAgentName: nameMap[q.subAgentId] }
+            : q
+        ))
       }
     } catch { } finally { setLoading(false) }
   }, [agentId, subAgentId])
@@ -636,21 +666,9 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-gray-200 overflow-hidden min-w-0">
 
         {/* Filter bar */}
-        <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div></div>
-            {hasActiveFilters && (
-              <button
-                onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}
-                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-              >
-                <X className="w-3 h-3" />Clear
-              </button>
-            )}
-          </div>
-
+        <div className="px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[180px]">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search customer, package, destination..."
@@ -683,9 +701,18 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <X className="w-3 h-3" />Clear
+              </button>
+            )}
           </div>
 
-          <div className="flex gap-1.5 flex-wrap mt-2.5">
+          {false && <div className="flex gap-1.5 flex-wrap mt-2.5">
             <button onClick={() => setFilterStatus('all')}
               className={`px-2.5 py-1 rounded-full text-xs font-semibold ${filterStatus === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600'}`}>
               All ({quotations.length})
@@ -696,7 +723,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                 {STATUS_CONFIG[s].label} ({countByStatus[s]})
               </button>
             ) : null)}
-          </div>
+          </div>}
         </div>
 
         {/* Table */}
@@ -713,9 +740,10 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                   <th className="px-4 py-3 text-left whitespace-nowrap">Proposal Name</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">From</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Travel Date</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap">Price Quoted</th>
-                  <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap"></th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">Pax</th>
+                  {false && <th className="px-4 py-3 text-right whitespace-nowrap">Price Quoted</th>}
+                  {false && <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>}
+                  <th className="px-4 py-3 text-center whitespace-nowrap"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -738,34 +766,45 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                         {q.customerEmail && <p className="text-xs text-gray-400 truncate max-w-[160px]">{q.customerEmail}</p>}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <p className="text-xs text-gray-600">{formatDate(q.createdAt)}</p>
+                        {(() => { const ts = formatDate(q.createdAt); return ts ? (<><p className="text-xs text-gray-700">{ts.date}</p><p className="text-[11px] text-gray-400">{ts.time}</p></>) : <span className="text-gray-300">—</span> })()}
                       </td>
                       <td className="px-4 py-3.5">
                         <p className="font-medium text-gray-800 leading-snug">{q.packageTitle}</p>
                         <p className="text-xs text-gray-400">{q.destination}</p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-sm text-gray-600">{q.subAgentName || '-'}</p>
+                        {q.subAgentName
+                          ? <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-100 text-xs font-semibold px-2.5 py-1 rounded-full">
+                              <User className="w-3 h-3" />
+                              {q.subAgentName}
+                            </span>
+                          : <span className="text-gray-300 text-xs">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <p className="text-xs text-gray-700">{formatTravelDate(q.preferredDates) || <span className="text-gray-300">—</span>}</p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-sm text-gray-700">{q.preferredDates || '-'}</p>
-                        <p className="text-xs text-gray-400">
-                          {q.groupSize} pax{q.adults ? ` · ${q.adults}A` : ''}{q.kids ? ` ${q.kids}K` : ''}
-                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {(q.adults > 0) && <span className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{q.adults}A</span>}
+                          {(q.kids > 0) && <span className="text-[10px] font-semibold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">{q.kids}C</span>}
+                          {((q as any).infants > 0) && <span className="text-[10px] font-semibold bg-pink-50 text-pink-500 px-1.5 py-0.5 rounded">{(q as any).infants}I</span>}
+                          {(!q.adults && !q.kids && !(q as any).infants) && <span className="text-gray-300 text-xs">—</span>}
+                        </div>
                       </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      {false && <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         {q.quotedPrice
                           ? <span className="text-sm font-bold text-emerald-700">&#8377;{Number(q.quotedPrice).toLocaleString('en-IN')}</span>
                           : <span className="text-gray-400">-</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
+                      </td>}
+                      {false && <td className="px-4 py-3.5 text-center">
                         <span className={`text-[11px] px-2.5 py-1 rounded-full font-semibold whitespace-nowrap ${cfg.color}`}>
                           {cfg.label}
                         </span>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2 justify-end whitespace-nowrap">
-                          <button
+                      </td>}
+                      <td className="px-4 py-3.5 text-center">
+                        <div className="flex items-center gap-2 justify-center whitespace-nowrap">
+                          {false && <button
                             onClick={() => {
                               setActiveId(q.id)
                               setEditingPrice(false)
@@ -786,7 +825,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                                 {q.messages.length}
                               </span>
                             )}
-                          </button>
+                          </button>}
                           <button
                             onClick={() => {
                               setActiveId(q.id)
@@ -795,9 +834,9 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                               setDetailPanelOpen(true)
                               setChatPanelOpen(false)
                             }}
-                            className="text-xs font-semibold text-primary hover:text-primary/70 hover:underline transition-colors"
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                           >
-                            View Proposal
+                            View
                           </button>
                         </div>
                       </td>

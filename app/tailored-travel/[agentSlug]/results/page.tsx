@@ -123,6 +123,7 @@ export default function AgentResultsPage() {
   const [nameCaptureAction, setNameCaptureAction] = useState<'pdf' | 'whatsapp' | null>(null)
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null)
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
+  const [subAgentName, setSubAgentName] = useState<string | undefined>(undefined)
   const [subAgentLogoUrl, setSubAgentLogoUrl] = useState<string | undefined>(undefined)
   const [sessionId, setSessionId] = useState<string | undefined>(undefined)
   const [selectedPkgIdx, setSelectedPkgIdx] = useState(0)
@@ -180,8 +181,9 @@ export default function AgentResultsPage() {
       try {
         const res = await fetch(`/api/agent/subagents/${subAgentId}`)
         const data = await res.json()
-        if (data.success && data.subAgent?.logoUrl) {
-          setSubAgentLogoUrl(data.subAgent.logoUrl)
+        if (data.success && data.subAgent) {
+          if (data.subAgent.logoUrl) setSubAgentLogoUrl(data.subAgent.logoUrl)
+          if (data.subAgent.name) setSubAgentName(data.subAgent.name)
         }
       } catch { }
     }
@@ -831,6 +833,7 @@ export default function AgentResultsPage() {
                 pkg={bestPkg}
                 wizardData={wizardData}
                 subAgentId={subAgentId}
+                subAgentName={subAgentName}
                 sessionId={sessionId}
                 agentSlug={agentSlug}
                 onClose={() => setNameCaptureAction(null)}
@@ -920,10 +923,10 @@ function buildWhatsAppMsg(pkg: MatchedPackage, priceOpts?: PriceOpts): string {
 
 interface PriceOpts { showPrice: boolean; finalPricePerPerson: number; quotedPriceTotal: number }
 
-function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sessionId, agentSlug, onClose, onSuccess }: {
+function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, subAgentName, sessionId, agentSlug, onClose, onSuccess }: {
   action: 'pdf' | 'whatsapp'
   agentInfo: AgentInfo; pkg: MatchedPackage; wizardData: any
-  subAgentId?: string; sessionId?: string; agentSlug?: string
+  subAgentId?: string; subAgentName?: string; sessionId?: string; agentSlug?: string
   onClose: () => void; onSuccess: (name: string, priceOpts: PriceOpts) => void
 }) {
   const [customerName, setCustomerName] = useState('')
@@ -961,7 +964,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, sess
       const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          agentId: agentInfo.id, agentSlug: agentInfo.agentSlug, subAgentId, subAgentName: '',
+          agentId: agentInfo.id, agentSlug: agentInfo.agentSlug, subAgentId, subAgentName: subAgentName || '',
           packageId: pkg.id, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
           destination: pkg.Destination_Name, customerName: customerName.trim(),
           customerEmail: '', customerPhone: '', preferredDates,

@@ -79,12 +79,23 @@ export async function POST(request: Request) {
       )
     }
 
+    // Resolve sub-agent name from Firestore if not provided by client
+    let resolvedSubAgentName = subAgentName || ''
+    if (!resolvedSubAgentName && subAgentId) {
+      try {
+        const subAgentSnap = await getDoc(doc(db, 'sub_agents', subAgentId))
+        if (subAgentSnap.exists()) {
+          resolvedSubAgentName = subAgentSnap.data().name || ''
+        }
+      } catch { /* non-fatal */ }
+    }
+
     const quotation = {
       publicId: generatePublicId(),
       agentId,
       agentSlug: agentSlug || '',
       subAgentId,
-      subAgentName: subAgentName || '',
+      subAgentName: resolvedSubAgentName,
       packageId: packageId || '',
       packageTitle: packageTitle || destination || 'Custom Request',
       destination: destination || '',
@@ -114,7 +125,7 @@ export async function POST(request: Request) {
     await writeNotification({
       agentId,
       subAgentId,
-      subAgentName: subAgentName || 'Travel Agent',
+      subAgentName: resolvedSubAgentName || 'Travel Agent',
       type: 'new_quotation',
       referenceId: ref.id,
       referenceTitle: packageTitle || destination || 'Custom Request',
@@ -131,7 +142,7 @@ export async function POST(request: Request) {
       const mail = buildNewQuotationNotifyDmcEmail({
         dmcName: agent.contactName || agent.companyName || 'there',
         companyName: agent.companyName || '',
-        subAgentName: subAgentName || 'A travel agent',
+        subAgentName: resolvedSubAgentName || 'A travel agent',
         customerName,
         packageTitle: pkgLabel,
         paxLabel,
