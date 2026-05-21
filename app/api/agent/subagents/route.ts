@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { agentId, agentSlug: bodyAgentSlug, name, email, password, phone, selfRegister } = body
+    const { agentId, agentSlug: bodyAgentSlug, name, email, password, phone, organization, selfRegister } = body
 
     if (!agentId || !name || !email || !password) {
       return NextResponse.json(
@@ -96,6 +96,7 @@ export async function POST(request: Request) {
       name,
       email,
       phone: phone || '',
+      organization: organization || '',
       status,   // 'pending' | 'active' | 'suspended'
       isActive,
       totalBookings: 0,

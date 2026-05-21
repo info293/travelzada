@@ -14,6 +14,7 @@ interface TravelAgent {
   name: string
   email: string
   phone?: string
+  organization?: string
   status: string      // 'pending' | 'active' | 'suspended'
   isActive: boolean
   selfRegistered?: boolean
@@ -296,6 +297,7 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Agent</th>
+                <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden md:table-cell">Organization</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Bookings</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden lg:table-cell">Added</th>
@@ -318,6 +320,11 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
                         )}
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-4 hidden md:table-cell">
+                    {agent.organization
+                      ? <p className="text-sm text-gray-700 font-medium">{agent.organization}</p>
+                      : <span className="text-gray-300 text-xs">—</span>}
                   </td>
                   <td className="px-4 py-4 hidden md:table-cell">
                     <div className="space-y-0.5">

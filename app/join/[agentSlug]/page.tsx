@@ -28,7 +28,7 @@ export default function TravelAgentJoinPage() {
   const [agentLoading, setAgentLoading] = useState(true)
   const [agentNotFound, setAgentNotFound] = useState(false)
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirmPassword: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', organization: '', password: '', confirmPassword: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -66,6 +66,7 @@ export default function TravelAgentJoinPage() {
           name: form.name,
           email: form.email,
           phone: form.phone,
+          organization: form.organization,
           password: form.password,
           selfRegister: true,
         }),
@@ -95,7 +96,7 @@ export default function TravelAgentJoinPage() {
           </div>
           <h1 className="text-lg font-bold text-gray-900 mb-2">Invalid Registration Link</h1>
           <p className="text-sm text-gray-500">This link is not valid or the agency is no longer active.</p>
-          <Link href="/" className="inline-block mt-5 text-sm text-violet-600 font-semibold hover:underline">Go to Travelzada →</Link>
+          <Link href="/" className="inline-block mt-5 text-sm text-violet-600 font-semibold hover:underline">Go back →</Link>
         </div>
       </div>
     )
@@ -120,7 +121,7 @@ export default function TravelAgentJoinPage() {
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
             We'll notify you at <strong>{form.email}</strong> once approved.
           </div>
-          <Link href="/" className="inline-block mt-6 text-sm text-gray-400 hover:text-gray-600">← Back to Travelzada</Link>
+          <Link href="/" className="inline-block mt-6 text-sm text-gray-400 hover:text-gray-600">← Back</Link>
         </motion.div>
       </div>
     )
@@ -147,7 +148,7 @@ export default function TravelAgentJoinPage() {
             )}
             <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2">You're joining</p>
             <h1 className="text-3xl font-bold text-white leading-tight mb-1">{agentInfo?.companyName}</h1>
-            <p className="text-white/50 text-sm">Powered by Travelzada</p>
+            <p className="text-white/50 text-sm">Travel Agent Portal</p>
           </div>
 
           {/* What you get */}
@@ -197,7 +198,7 @@ export default function TravelAgentJoinPage() {
               </div>
             )}
             <h1 className="font-bold text-gray-900">{agentInfo?.companyName}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Powered by Travelzada</p>
+            <p className="text-xs text-gray-400 mt-0.5">Travel Agent Portal</p>
           </div>
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 p-8">
@@ -207,6 +208,20 @@ export default function TravelAgentJoinPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Organization Name *</label>
+                <div className="relative">
+                  <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    value={form.organization}
+                    onChange={e => setForm(p => ({ ...p, organization: e.target.value }))}
+                    required
+                    placeholder="Your travel agency name"
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name *</label>
                 <div className="relative">
@@ -237,13 +252,14 @@ export default function TravelAgentJoinPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number <span className="text-gray-400 font-normal">(optional)</span></label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone Number *</label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="tel"
                     value={form.phone}
                     onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                    required
                     placeholder="+91 98765 43210"
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500 transition-all"
                   />
@@ -303,7 +319,7 @@ export default function TravelAgentJoinPage() {
             </form>
 
             <p className="text-center text-xs text-gray-400 mt-5">
-              <Link href="/" className="hover:text-gray-600">← Back to Travelzada</Link>
+              <Link href="/" className="hover:text-gray-600">← Back</Link>
             </p>
           </div>
         </motion.div>
