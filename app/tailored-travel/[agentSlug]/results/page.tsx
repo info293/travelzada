@@ -438,7 +438,8 @@ export default function AgentResultsPage() {
   const highlights = Array.isArray(bestPkg.Highlights) ? bestPkg.Highlights : []
   const pdfAdults = wizardData?.passengers?.adults || 1
   const pdfKids = wizardData?.passengers?.kids || 0
-  const pdfGroupSize = pdfAdults + pdfKids
+  const pdfInfants = wizardData?.groupSize?.infants || 0
+  const pdfGroupSize = pdfAdults + pdfKids + pdfInfants
   const days = parseDays(bestPkg.Day_Wise_Itinerary || '')
 
   // Resolve travel date for PDF: format real dates, keep label strings as-is
@@ -754,6 +755,7 @@ export default function AgentResultsPage() {
                   <span>
                     {pdfAdults} adult{pdfAdults !== 1 ? 's' : ''}
                     {pdfKids ? `, ${pdfKids} kid${pdfKids !== 1 ? 's' : ''}` : ''}
+                    {pdfInfants ? `, ${pdfInfants} infant${pdfInfants !== 1 ? 's' : ''}` : ''}
                   </span>
                 </div>
                 {wizardData?.dateRange && !['Flexible', 'Next Month', 'Within 3 Months', 'Decided Dates'].includes(wizardData.dateRange) && (
@@ -788,34 +790,6 @@ export default function AgentResultsPage() {
             </div>
 
 
-            {/* Other matched packages */}
-            {packages.length > 1 && (
-              <div className="bg-white rounded-xl shadow-sm p-4">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Other Matches</p>
-                <div className="space-y-2">
-                  {packages.slice(1).map((pkg, i) => (
-                    <button
-                      key={pkg.id}
-                      onClick={() => { setSelectedPkgIdx(i + 1); setCurrentDayIdx(0); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
-                      className={`w-full flex gap-3 p-2.5 rounded-lg transition text-left ${selectedPkgIdx === i + 1 ? 'bg-primary/5 border border-primary/20' : 'hover:bg-gray-50 border border-transparent'}`}
-                    >
-                      {pkg.Primary_Image_URL && (
-                        <img src={pkg.Primary_Image_URL} alt="" className="w-16 h-12 object-cover rounded-lg flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gray-900 leading-tight line-clamp-2">{pkg.agentPackageTitle || pkg.Destination_Name}</p>
-                        <p className="text-[10px] text-[#c99846] font-semibold mt-1">
-                          {getCurrencySymbol(pkg.Currency)}{(pkg.totalPrice || pkg.Price_Min_INR).toLocaleString()}
-                          <span className="text-gray-400 font-normal">{pkg.totalPrice ? ' total' : '/person'}</span>
-                          {pkg.gst ? <span className="text-amber-600 ml-1">+{pkg.gst}%GST</span> : null}
-                        </p>
-                        <p className="text-[10px] text-gray-400">{pkg.matchScore}% match</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
           </div>
         </div>
@@ -856,6 +830,7 @@ export default function AgentResultsPage() {
                       groupSize: pdfGroupSize,
                       adults: pdfAdults,
                       kids: pdfKids || undefined,
+                      infants: pdfInfants || undefined,
                       overview: bestPkg.Overview,
                       inclusions,
                       exclusions,
@@ -1025,6 +1000,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, subA
           <p className="text-xs text-gray-700">
             {wizardData?.passengers?.adults || 1} adult{(wizardData?.passengers?.adults || 1) !== 1 ? 's' : ''}
             {wizardData?.passengers?.kids ? `, ${wizardData.passengers.kids} kid${wizardData.passengers.kids !== 1 ? 's' : ''}` : ''}
+            {wizardData?.groupSize?.infants ? `, ${wizardData.groupSize.infants} infant${wizardData.groupSize.infants !== 1 ? 's' : ''}` : ''}
             {' · '}{wizardData?.passengers?.rooms || 1} room{(wizardData?.passengers?.rooms || 1) !== 1 ? 's' : ''}
             {' · '}{pkg.Duration_Nights}N {pkg.Duration_Days}D
           </p>

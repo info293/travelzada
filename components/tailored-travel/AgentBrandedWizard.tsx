@@ -51,10 +51,10 @@ async function trackEvent(payload: {
 }
 
 export default function AgentBrandedWizard({ agent }: Props) {
-  const { isSubAgent, parentAgentSlug, subAgentName, currentUser, loading } = useAuth()
+  const { isAgent, agentSlug, isSubAgent, parentAgentSlug, subAgentName, currentUser, loading } = useAuth()
   const searchParams = useSearchParams()
   const isEmbed = searchParams.get('embed') === '1'
-  const [gateVisible, setGateVisible] = useState(!isEmbed) // skip gate in embed mode
+  const [gateVisible, setGateVisible] = useState(!isEmbed)
   const [sessionId, setSessionId] = useState<string>('')
   const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
 
@@ -62,19 +62,26 @@ export default function AgentBrandedWizard({ agent }: Props) {
     const sid = getOrCreateSessionId(agent.agentSlug)
     setSessionId(sid)
 
-    // If already logged in as a sub-agent of this agency, skip gate
-    if (!loading && isSubAgent && parentAgentSlug === agent.agentSlug && currentUser) {
-      setSubAgentId(currentUser.uid)
-      setGateVisible(false)
-      trackEvent({
-        agentSlug: agent.agentSlug,
-        sessionId: sid,
-        action: 'visit',
-        subAgentId: currentUser.uid,
-        subAgentName: subAgentName || undefined,
-      })
+    if (!loading && currentUser) {
+      // Skip gate for the agent who owns this planner
+      if (isAgent && agentSlug === agent.agentSlug) {
+        setGateVisible(false)
+        trackEvent({ agentSlug: agent.agentSlug, sessionId: sid, action: 'visit', subAgentId: currentUser.uid })
+      }
+      // Skip gate for sub-agents of this agency
+      else if (isSubAgent && parentAgentSlug === agent.agentSlug) {
+        setSubAgentId(currentUser.uid)
+        setGateVisible(false)
+        trackEvent({
+          agentSlug: agent.agentSlug,
+          sessionId: sid,
+          action: 'visit',
+          subAgentId: currentUser.uid,
+          subAgentName: subAgentName || undefined,
+        })
+      }
     }
-  }, [loading, isSubAgent, parentAgentSlug, currentUser, agent.agentSlug, subAgentName])
+  }, [loading, isAgent, agentSlug, isSubAgent, parentAgentSlug, currentUser, agent.agentSlug, subAgentName])
 
   const handleLoginSuccess = () => {
     setGateVisible(false)
@@ -103,7 +110,8 @@ export default function AgentBrandedWizard({ agent }: Props) {
       </div>
 
 
-      {/* Login gate — hidden in embed mode */}
+
+      {/* Login gate — hidden in embed mode or when already logged in */}
       {gateVisible && !loading && !isEmbed && (
         <AgentLoginGate
           agentSlug={agent.agentSlug}

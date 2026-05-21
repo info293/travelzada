@@ -151,26 +151,6 @@ export default function TravelAgentJoinPage() {
             <p className="text-white/50 text-sm">Travel Agent Portal</p>
           </div>
 
-          {/* What you get */}
-          <div className="mb-10">
-            <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-5">As a travel agent, you'll get</p>
-            <div className="space-y-5">
-              {PERKS.map((p, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 + i * 0.08 }}
-                  className="flex items-start gap-3"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <p.icon className="w-4 h-4 text-white/70" />
-                  </div>
-                  <p className="text-white/70 text-sm leading-relaxed">{p.text}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
 
           <div className="flex-1" />
 

@@ -21,6 +21,7 @@ export interface PackagePdfOptions {
   groupSize?: number
   adults?: number
   kids?: number
+  infants?: number
   overview?: string
   highlights?: string[]
   inclusions?: string[]
@@ -75,7 +76,7 @@ export async function openPackagePdfWindow(opts: PackagePdfOptions): Promise<voi
     title, destination, destinationCountry, heroImage = '',
     badgeText, refId,
     durationDays, durationNights, starCategory, travelType, theme, mood,
-    currency, pricePerPerson, totalPrice, gst, quotedPriceTotal, groupSize = 1, adults, kids,
+    currency, pricePerPerson, totalPrice, gst, quotedPriceTotal, groupSize = 1, adults, kids, infants,
     overview, highlights = [], inclusions = [], exclusions = [],
     dayWiseItinerary, hotels = [], vehicles = [], specialRequests,
     customerName, customerEmail, customerPhone, preferredDates,
@@ -301,7 +302,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <div class="sc">
     <div class="slbl">Total Passengers</div>
     <div class="sval">${groupSize < 10 ? String(groupSize).padStart(2, '0') : groupSize} pax</div>
-    <div class="ssub">${adults ?? groupSize} Adult${(adults ?? groupSize) !== 1 ? 's' : ''}${kids ? ` · ${kids} Child${kids !== 1 ? 'ren' : ''}` : ''}</div>
+    <div class="ssub">${adults ?? groupSize} Adult${(adults ?? groupSize) !== 1 ? 's' : ''}${kids ? ` · ${kids} Child${kids !== 1 ? 'ren' : ''}` : ''}${infants ? ` · ${infants} Infant${infants !== 1 ? 's' : ''}` : ''}</div>
   </div>
   <div class="sc">
     ${totalPrice
