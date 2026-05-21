@@ -44,7 +44,11 @@ export default function AgentDashboardPage() {
   const pathSegments = pathname.split('/').filter(Boolean)
   const urlSegment = pathSegments.at(-1) ?? ''
   const DMC_VALID_TABS: Tab[] = ['home','packages','bookings','analytics','customers','team','quotations','quotation_history','crm','embed','settings']
-  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment) ? (urlSegment as Tab) : 'quotations'
+  // Detect /dmc-dashboard/packages/new or /dmc-dashboard/packages/[id]/edit
+  const isPackageFormRoute = pathSegments.length >= 3 && pathSegments[1] === 'packages'
+  const openPackageCreate = isPackageFormRoute && pathSegments[2] === 'new'
+  const openPackageEditId = isPackageFormRoute && pathSegments.length === 4 && pathSegments[3] === 'edit' ? pathSegments[2] : undefined
+  const tab: Tab = isPackageFormRoute ? 'packages' : ((DMC_VALID_TABS as string[]).includes(urlSegment) ? (urlSegment as Tab) : 'quotations')
   // Detect /dmc-dashboard/quotations/[id] → auto-open customize form
   const openQuotationId = pathSegments.length === 3 && pathSegments[1] === 'quotations' ? pathSegments[2] : undefined
   const setTab = (t: Tab) => router.push(`/dmc-dashboard/${t}`)
@@ -395,7 +399,7 @@ export default function AgentDashboardPage() {
                     onTabChange={(t) => setTab(t as Tab)}
                   />
                 )}
-                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} currency={agentData?.baseCurrency} />}
+                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} currency={agentData?.baseCurrency} openCreate={openPackageCreate} openEditId={openPackageEditId} />}
                 {tab === 'bookings' && (
                   <BookingInbox agentId={currentUser.uid} currency={agentData?.baseCurrency} />
                 )}

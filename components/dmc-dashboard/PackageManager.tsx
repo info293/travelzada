@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
 import { AgentPackage, HotelEntry, VehicleEntry } from '@/lib/types/agent'
 import { CURRENCIES, getCurrencySymbol } from '@/lib/utils/currency'
@@ -31,6 +32,8 @@ interface Props {
   agentId: string
   companyName?: string
   currency?: string
+  openCreate?: boolean
+  openEditId?: string
 }
 
 const EMPTY_FORM = {
@@ -196,7 +199,8 @@ function parseCsvVehicles(raw: string): VehicleEntry[] {
   }).filter(v => v.vehicleType)
 }
 
-export default function PackageManager({ agentId, companyName = 'DMC Partner' }: Props) {
+export default function PackageManager({ agentId, companyName = 'DMC Partner', openCreate, openEditId }: Props) {
+  const router = useRouter()
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -628,7 +632,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
     setShowPdfPreview(true)
   }
 
-  function openNewForm() {
+  function initNewForm() {
     setForm(EMPTY_FORM)
     setEditingId(null)
     setDayItems([])
@@ -645,7 +649,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
     setShowForm(true)
   }
 
-  function openEditForm(pkg: AgentPackage) {
+  function initEditForm(pkg: AgentPackage) {
     setForm({
       title: pkg.title,
       destination: pkg.destination,
@@ -689,6 +693,31 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
     setError('')
     setShowForm(true)
   }
+
+  function openNewForm() {
+    router.push('/dmc-dashboard/packages/new')
+  }
+
+  function openEditForm(pkg: AgentPackage) {
+    router.push(`/dmc-dashboard/packages/${pkg.id}/edit`)
+  }
+
+  // Respond to URL-driven create/edit/list props
+  useEffect(() => {
+    if (openCreate) {
+      initNewForm()
+    } else if (!openEditId) {
+      setShowForm(false)
+      setEditingId(null)
+    }
+  }, [openCreate, openEditId])
+
+  useEffect(() => {
+    if (openEditId && packages.length > 0) {
+      const pkg = packages.find(p => p.id === openEditId)
+      if (pkg) initEditForm(pkg)
+    }
+  }, [openEditId, packages])
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -778,12 +807,11 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
         // Stay in the form on update — just show a success banner
         setError('')
         setSaving(false)
-        // Briefly show a success message by reusing the error state with a prefix
         setError('✅ Package updated successfully.')
         setTimeout(() => setError(''), 3000)
         return
       }
-      setShowForm(false)
+      router.push('/dmc-dashboard/packages')
     } catch (e: any) {
       setError(e.message || 'Failed to save package.')
     } finally {
@@ -1769,7 +1797,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
           <div className="flex items-center gap-4 bg-white border-b border-gray-100 px-5 py-0 flex-shrink-0 h-14">
             {/* Back button */}
             <button
-              onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
+              onClick={() => router.push('/dmc-dashboard/packages')}
               className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 px-3.5 py-2 rounded-lg transition-colors font-semibold text-sm flex-shrink-0"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
