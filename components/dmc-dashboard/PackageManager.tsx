@@ -1587,8 +1587,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         const destOptions = ['all', ...Array.from(new Set(packages.map(p => p.destination).filter(Boolean)))]
         const WITH_HOTEL_CATS = new Set(['3-Star', '4-Star', '5-Star'])
         const filteredPackages = packages.filter(pkg => {
-          const q = pkgSearch.toLowerCase()
-          const matchSearch = !q || pkg.title.toLowerCase().includes(q) || pkg.destination.toLowerCase().includes(q) || (pkg.travelType || '').toLowerCase().includes(q)
+          const q = pkgSearch.toLowerCase().trim()
+          let matchSearch = true
+          if (q) {
+            // Extract all itinerary text — handle both raw string and || delimited formats
+            const itineraryRaw = typeof pkg.dayWiseItinerary === 'string' ? pkg.dayWiseItinerary : ''
+            const itineraryText = itineraryRaw.replace(/\|\|/g, ' ')
+
+            const haystack = [
+              pkg.title,
+              pkg.destination,
+              pkg.destinationCountry,
+              pkg.travelType,
+              pkg.starCategory,
+              pkg.theme,
+              pkg.mood,
+              pkg.overview,
+              pkg.seasonalAvailability,
+              String(pkg.durationDays ?? ''),
+              String(pkg.durationNights ?? ''),
+              String(pkg.pricePerPerson ?? ''),
+              String((pkg as any).totalPrice ?? ''),
+              String((pkg as any).paymentPolicy ?? ''),
+              String((pkg as any).cancellationPolicy ?? ''),
+              itineraryText,
+              Array.isArray(pkg.highlights) ? pkg.highlights.join(' ') : String(pkg.highlights ?? ''),
+              Array.isArray(pkg.inclusions) ? pkg.inclusions.join(' ') : String(pkg.inclusions ?? ''),
+              Array.isArray(pkg.exclusions) ? pkg.exclusions.join(' ') : String(pkg.exclusions ?? ''),
+              Array.isArray(pkg.perks) ? pkg.perks.join(' ') : '',
+              Array.isArray(pkg.hotels) ? pkg.hotels.map((h: any) => [h.destination, h.hotels, h.mealPlan, h.roomType].filter(Boolean).join(' ')).join(' ') : '',
+              Array.isArray(pkg.vehicles) ? pkg.vehicles.map((v: any) => [v.vehicleType, v.route, v.notes].filter(Boolean).join(' ')).join(' ') : '',
+            ].join(' ').toLowerCase()
+
+            // Match every word in the query individually so multi-word searches work across fields
+            const words = q.split(/\s+/).filter(Boolean)
+            matchSearch = words.every(word => haystack.includes(word))
+          }
           const matchStatus = pkgStatusFilter === 'all' || (pkgStatusFilter === 'active' ? pkg.isActive : !pkg.isActive)
           const matchDest = pkgDestFilter === 'all' || pkg.destination === pkgDestFilter
           const matchHotel = pkgHotelFilter === 'all' || (pkgHotelFilter === 'with' ? WITH_HOTEL_CATS.has(pkg.starCategory || '') : !WITH_HOTEL_CATS.has(pkg.starCategory || ''))
@@ -1603,7 +1637,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               <input
                 value={pkgSearch}
                 onChange={e => setPkgSearch(e.target.value)}
-                placeholder="Search packages, destinations…"
+                placeholder="Search anything — title, destination, hotel, itinerary, inclusions…"
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200"
               />
             </div>
