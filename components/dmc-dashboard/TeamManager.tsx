@@ -7,6 +7,7 @@ import {
   Trash2, Phone, Mail, Calendar, Loader2, AlertCircle, CheckCircle,
   Copy, Check, Link as LinkIcon, Clock, UserCheck, UserX, Search
 } from 'lucide-react'
+import ConfirmModal from './ConfirmModal'
 
 interface TravelAgent {
   id: string
@@ -373,20 +374,10 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
                       )}
 
                       {/* Delete */}
-                      {deleteConfirm === agent.id ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-red-600 font-medium">Delete?</span>
-                          <button onClick={() => handleDelete(agent.id)} disabled={actionLoading === agent.id}
-                            className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded-lg disabled:opacity-60">Yes</button>
-                          <button onClick={() => setDeleteConfirm(null)}
-                            className="text-xs border border-gray-200 text-gray-600 px-2 py-1 rounded-lg hover:bg-gray-50">No</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setDeleteConfirm(agent.id)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button onClick={() => setDeleteConfirm(agent.id)}
+                        className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -394,6 +385,16 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Delete travel agent?"
+          message="This action cannot be undone. The agent will lose access to your planner."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
+        />
       )}
     </div>
   )

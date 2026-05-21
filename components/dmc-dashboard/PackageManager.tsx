@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, CheckCircle, AlertCircle, Star, MapPin, Clock, Users, Calendar, Download, Maximize2, GripVertical, ChevronDown, ChevronUp, Search, Filter } from 'lucide-react'
 import { AgentPackage, HotelEntry, VehicleEntry } from '@/lib/types/agent'
 import { CURRENCIES, getCurrencySymbol } from '@/lib/utils/currency'
+import ConfirmModal from './ConfirmModal'
 
 // Module-level cache so repeated currency switches in the same session don't re-fetch
 // TTL: 30 minutes
@@ -200,6 +201,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -799,8 +801,8 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner' }:
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this package? This cannot be undone.')) return
     await fetch(`/api/agent/packages/${id}?agentId=${agentId}`, { method: 'DELETE' })
+    setDeleteConfirm(null)
     fetchPackages()
   }
 
@@ -1684,19 +1686,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {pkg.isActive ? 'Active' : 'Paused'}
-                </span>
-                <button onClick={() => toggleActive(pkg)} title={pkg.isActive ? 'Pause' : 'Activate'} className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50">
-                  {pkg.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {/* Active / Inactive toggle */}
+                <button
+                  onClick={() => toggleActive(pkg)}
+                  title={pkg.isActive ? 'Set Inactive' : 'Set Active'}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${pkg.isActive ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${pkg.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
-                <button onClick={() => setPreviewPkg(pkg)} title="Preview" className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50">
+                <span className={`text-xs font-semibold w-14 ${pkg.isActive ? 'text-green-600' : 'text-gray-400'}`}>
+                  {pkg.isActive ? 'Active' : 'Inactive'}
+                </span>
+                {/* Preview */}
+                <button onClick={() => setPreviewPkg(pkg)} title="Preview"
+                  className="p-1.5 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition-colors">
                   <Eye className="w-4 h-4" />
                 </button>
-                <button onClick={() => openEditForm(pkg)} title="Edit" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50">
+                {/* Edit */}
+                <button onClick={() => openEditForm(pkg)} title="Edit"
+                  className="p-1.5 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors">
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(pkg.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50">
+                {/* Delete */}
+                <button onClick={() => setDeleteConfirm(pkg.id)} title="Delete"
+                  className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -3136,6 +3149,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         .input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.875rem; outline: none; background: #fff; transition: border-color 0.15s; }
         .input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
       `}</style>
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Delete package?"
+          message="This action cannot be undone. The package will be permanently removed."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
+        />
+      )}
     </div>
   )
 }

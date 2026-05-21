@@ -8,6 +8,7 @@ import {
   Banknote, AlertCircle, ChevronDown,
 } from 'lucide-react'
 import { getCurrencySymbol } from '@/lib/utils/currency'
+import ConfirmModal from './ConfirmModal'
 
 interface Message {
   id: string
@@ -126,6 +127,7 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
   const [saving, setSaving]         = useState(false)
   const [msgSending, setMsgSending] = useState(false)
   const [showMore, setShowMore]     = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   // custom proposal editor state
   const [editCustomPkg, setEditCustomPkg]     = useState<PackageData | null>(null)
@@ -264,10 +266,10 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this quotation? This cannot be undone.')) return
     await fetch(`/api/agent/quotations/${id}`, { method: 'DELETE' }).catch(() => {})
     setQuotations(prev => prev.filter(q => q.id !== id))
     setShowMore(null)
+    setDeleteConfirm(null)
   }
 
   // ─── export ───────────────────────────────────────────────────────────────
@@ -438,7 +440,7 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
                             <button onClick={() => openModal(q, 'edit')} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><Edit2 className="w-3.5 h-3.5" />Edit</button>
                             <button onClick={() => openModal(q, 'message')} className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5" />Message</button>
                             <hr className="my-1 border-gray-100" />
-                            <button onClick={() => handleDelete(q.id)} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><X className="w-3.5 h-3.5" />Delete</button>
+                            <button onClick={() => { setDeleteConfirm(q.id); setShowMore(null) }} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><X className="w-3.5 h-3.5" />Delete</button>
                           </div>
                         )}
                       </div>
@@ -966,6 +968,16 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
             </div>
           </div>
         </div>
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title="Delete quotation?"
+          message="This action cannot be undone. The quotation will be permanently removed."
+          confirmLabel="Delete"
+          onConfirm={() => handleDelete(deleteConfirm)}
+          onCancel={() => setDeleteConfirm(null)}
+        />
       )}
     </div>
   )
