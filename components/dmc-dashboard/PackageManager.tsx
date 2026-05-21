@@ -1729,39 +1729,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         const finalPrice = baseINR * (1 + markup / 100)
         const currencyMeta = CURRENCIES.find(c => c.code === form.currency) || CURRENCIES[0]
         return (
-        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-50 flex flex-col bg-[#f4f5f9]">
+        <div className="fixed left-0 md:left-72 right-0 top-0 bottom-0 z-50 flex flex-col bg-[#f4f5f9]">
 
           {/* Top bar */}
-          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
-                className="flex items-center gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-                Back
-              </button>
-              <div className="h-4 w-px bg-gray-200" />
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${editingId ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                {editingId ? 'Editing' : 'New Package'}
+          <div className="flex items-center gap-4 bg-white border-b border-gray-100 px-5 py-0 flex-shrink-0 h-14">
+            {/* Back button */}
+            <button
+              onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
+              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 px-3.5 py-2 rounded-lg transition-colors font-semibold text-sm flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+              Back
+            </button>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
+
+            {/* Title + badge */}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate leading-tight">{form.title || 'Untitled Package'}</p>
+                <p className="text-xs text-gray-400 leading-tight">{editingId ? 'Editing package details' : 'Creating a new package'}</p>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${editingId ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                {editingId ? 'Editing' : 'New'}
               </span>
-              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">{form.title || '—'}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
-              >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                {saving ? 'Saving…' : (editingId ? 'Update' : 'Publish')}
-              </button>
-              <button
-                onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setDayItems([]); setHotelEntries([]) }}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
@@ -1778,162 +1770,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 </div>
               )}
 
-              {/* ── 1. Title ──────────────────────────────────────── */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="bg-gradient-to-r from-purple-600 to-indigo-500 px-5 pt-4 pb-3">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
-                  <input
-                    name="title"
-                    value={form.title}
-                    onChange={handleChange}
-                    placeholder="e.g. Swiss Alps Luxury Getaway"
-                    className="w-full text-xl font-bold text-white bg-transparent border-none outline-none placeholder:text-white/30"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 px-5 py-3 border-b border-gray-50">
-                  <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                    <Clock className="w-3 h-3" />{form.durationDays || '?'}D / {form.durationNights || '?'}N
-                  </span>
-                  <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                    <Star className="w-3 h-3" />{form.starCategory || 'None'}
-                  </span>
-                  {form.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.travelType}</span>}
-                  {form.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{form.theme}</span>}
-                </div>
-              </div>
-
-              {/* ── 2. Basic Info ─────────────────────────────────── */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
-                  <p className="text-sm font-bold text-gray-800">Basic Info</p>
-                </div>
-                <div className="p-5 grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Destination *</label>
-                    <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Country</label>
-                    <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Days</label>
-                    <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Nights</label>
-                    <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Min Group</label>
-                    <input name="minGroupSize" type="number" min="1" value={form.minGroupSize} onChange={handleChange} className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Max Group</label>
-                    <input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" />
-                  </div>
-
-                  {/* Travellers breakdown */}
-                  <div className="col-span-2">
-                    <label className="label mb-3">No. of Persons Travelling</label>
-                    <div className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100">
-                      {([
-                        { name: 'adults',   label: 'Adults',   sub: 'Age 12+',    min: 1 },
-                        { name: 'children', label: 'Children', sub: 'Age 2–11',   min: 0 },
-                        { name: 'infants',  label: 'Infants',  sub: 'Under 2',    min: 0 },
-                      ] as const).map(({ name, label, sub, min }) => (
-                        <div key={name} className="flex items-center justify-between px-4 py-3">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">{label}</p>
-                            <p className="text-xs text-gray-400">{sub}</p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setForm(p => ({ ...p, [name]: String(Math.max(min, (Number(p[name]) || 0) - 1)) }))}
-                              className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-600 hover:border-purple-400 hover:text-purple-600 flex items-center justify-center font-bold text-lg transition-colors"
-                            >−</button>
-                            <span className="w-6 text-center text-base font-bold text-gray-900">{form[name] || 0}</span>
-                            <button
-                              type="button"
-                              onClick={() => setForm(p => ({ ...p, [name]: String((Number(p[name]) || 0) + 1) }))}
-                              className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-600 hover:border-purple-400 hover:text-purple-600 flex items-center justify-center font-bold text-lg transition-colors"
-                            >+</button>
-                          </div>
-                        </div>
-                      ))}
-                      {/* Room suggestion hint */}
-                      {Number(form.adults) > 0 && (
-                        <div className="px-4 py-2.5 bg-white flex items-center gap-2 text-xs text-gray-400">
-                          <span>🏠</span>
-                          <span>
-                            <strong className="text-gray-600">{Math.ceil(Number(form.adults) / 2)} room{Math.ceil(Number(form.adults) / 2) !== 1 ? 's' : ''} suggested</strong>
-                            {` · based on ${form.adults} adult${Number(form.adults) !== 1 ? 's' : ''}`}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="label">Seasonal Availability</label>
-                    <input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" />
-                  </div>
-                </div>
-              </div>
-
-              {/* ── 3. Package Type ───────────────────────────────── */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎯</span>
-                  <p className="text-sm font-bold text-gray-800">Package Type</p>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
-                    <label className="label mb-2">Travel Type</label>
-                    <div className="flex flex-wrap gap-2">
-                      {TRAVEL_TYPES.map(t => (
-                        <button key={t} type="button" onClick={() => setForm(p => ({ ...p, travelType: t }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.travelType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-300'}`}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label mb-2">Star Category</label>
-                    <div className="flex flex-wrap gap-2">
-                      {STAR_CATEGORIES.map(s => (
-                        <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}
-                        >{s === '' ? 'None' : s}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label mb-2">Theme</label>
-                    <div className="flex flex-wrap gap-2">
-                      {THEMES.map(t => (
-                        <button key={t} type="button" onClick={() => setForm(p => ({ ...p, theme: form.theme === t ? '' : t }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300'}`}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label mb-2">Mood / Vibe</label>
-                    <div className="flex flex-wrap gap-2">
-                      {MOODS.map(m => (
-                        <button key={m} type="button" onClick={() => setForm(p => ({ ...p, mood: form.mood === m ? '' : m }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-pink-300'}`}
-                        >{m}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── 4. Cover Image ────────────────────────────────── */}
+              {/* ── 1. Cover Image ────────────────────────────────── */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
                   <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">🖼️</span>
@@ -1968,111 +1805,98 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 </div>
               </div>
 
-              {/* ── 5. Description ────────────────────────────────── */}
+              {/* ── 2. Basic Info ─────────────────────────────────── */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
-                  <p className="text-sm font-bold text-gray-800">Description & Content</p>
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
+                  <p className="text-sm font-bold text-gray-800">Basic Info</p>
                 </div>
                 <div className="p-5 space-y-4">
+                  {/* Title */}
+                  <div>
+                    <label className="label">Package Title *</label>
+                    <input
+                      name="title"
+                      value={form.title}
+                      onChange={handleChange}
+                      placeholder="e.g. Swiss Alps Luxury Getaway"
+                      className="input text-base font-semibold"
+                    />
+                  </div>
+
+                  {/* Destination / Country / Days / Nights */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="label">Destination *</label>
+                      <input name="destination" value={form.destination} onChange={handleChange} placeholder="Andaman Islands" className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Country</label>
+                      <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Days</label>
+                      <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
+                    </div>
+                    <div>
+                      <label className="label">Nights</label>
+                      <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
+                    </div>
+                  </div>
+
+                  {/* Star Category */}
+                  <div>
+                    <label className="label mb-2">Star Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {STAR_CATEGORIES.map(s => (
+                        <button key={s} type="button" onClick={() => setForm(p => ({ ...p, starCategory: s }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}
+                        >{s === '' ? 'None' : s}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Travel Type */}
+                  <div>
+                    <label className="label mb-2">Travel Type</label>
+                    <div className="flex flex-wrap gap-2">
+                      {TRAVEL_TYPES.map(t => (
+                        <button key={t} type="button" onClick={() => setForm(p => ({ ...p, travelType: t }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${form.travelType === t ? 'bg-purple-600 text-white border-purple-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-300'}`}
+                        >{t}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Overview */}
                   <div>
                     <label className="label">Overview</label>
                     <textarea name="overview" value={form.overview} onChange={handleChange} rows={3} placeholder="Describe this package in a few sentences…" className="input resize-none" />
                   </div>
+
+                  {/* Highlights */}
                   <div>
                     <label className="label">Highlights <span className="font-normal text-gray-400">(one per line)</span></label>
                     <textarea name="highlights" value={form.highlights} onChange={handleChange} rows={3} placeholder="Sunset cruise&#10;Scuba diving at Neil Island&#10;Elephant beach visit" className="input resize-none text-sm" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="label text-green-700">✓ Inclusions</label>
-                      <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast" className="input resize-none text-sm" />
-                    </div>
-                    <div>
-                      <label className="label text-red-500">✗ Exclusions</label>
-                      <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities" className="input resize-none text-sm" />
-                    </div>
+
+                  {/* Min Group, Max Group, No. of Persons Travelling, Seasonal Availability — hidden */}
+                  {/*
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className="label">Min Group</label><input name="minGroupSize" type="number" min="1" value={form.minGroupSize} onChange={handleChange} className="input" /></div>
+                    <div><label className="label">Max Group</label><input name="maxGroupSize" type="number" min="1" value={form.maxGroupSize} onChange={handleChange} className="input" /></div>
                   </div>
+                  <div className="col-span-2"><label className="label">Seasonal Availability</label><input name="seasonalAvailability" value={form.seasonalAvailability} onChange={handleChange} placeholder="Oct–Mar / Year Round" className="input" /></div>
+                  */}
                 </div>
               </div>
 
-              {/* ── Perks ────────────────────────────────────────── */}
+              {/* ── Package Type (Theme / Mood — hidden) ─────────── */}
+              {/*
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">🎁</span>
-                  <p className="text-sm font-bold text-gray-800">Package Perks</p>
-                  {perks.length > 0 && (
-                    <span className="ml-auto text-[10px] font-bold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{perks.length} selected</span>
-                  )}
-                </div>
-                <div className="p-5 space-y-4">
-                  {/* Preset grid */}
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Quick-add common perks</p>
-                    <div className="flex flex-wrap gap-2">
-                      {PRESET_PERKS.map(p => {
-                        const active = perks.includes(p.label)
-                        return (
-                          <button
-                            key={p.label}
-                            type="button"
-                            onClick={() => togglePerk(p.label)}
-                            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
-                              active
-                                ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600 hover:bg-purple-50'
-                            }`}
-                          >
-                            <span>{p.emoji}</span> {p.label}
-                            {active && <span className="text-purple-200 font-bold">✓</span>}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Custom perk input */}
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Add custom perk</p>
-                    <div className="flex gap-2">
-                      <input
-                        value={perkInput}
-                        onChange={e => setPerkInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustomPerk() } }}
-                        placeholder="e.g. Helicopter transfer included"
-                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={addCustomPerk}
-                        className="text-sm font-semibold px-4 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-xl transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Selected perks with remove */}
-                  {perks.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Selected perks</p>
-                      <div className="flex flex-wrap gap-2">
-                        {perks.map(p => {
-                          const preset = PRESET_PERKS.find(x => x.label === p)
-                          return (
-                            <span key={p} className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 text-purple-800 text-xs font-semibold px-3 py-1.5 rounded-full">
-                              {preset ? preset.emoji : '✓'} {p}
-                              <button type="button" onClick={() => removePerk(p)} className="text-purple-400 hover:text-red-500 transition-colors ml-0.5">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                Package Type: Theme and Mood / Vibe removed
               </div>
+              */}
 
               {/* Pricing Configuration */}
               <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -2085,25 +1909,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Net Cost (per person)</p>
                       {/* Currency selector + price input */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex gap-2">
                         <select
                           name="currency"
                           value={form.currency}
                           onChange={handleChange}
-                          className="text-sm font-bold border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer"
+                          className="text-sm font-semibold border border-gray-200 rounded-xl px-3 py-3 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200 cursor-pointer flex-shrink-0"
                         >
                           {CURRENCIES.map(c => (
                             <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
                           ))}
                         </select>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-gray-400 font-bold text-xl">{currencyMeta.symbol}</span>
+                        <div className="flex-1 flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 gap-2 focus-within:ring-2 focus-within:ring-purple-200 focus-within:border-purple-300 transition-all">
+                          <span className="text-gray-400 font-bold text-lg flex-shrink-0">{currencyMeta.symbol}</span>
                           <input
                             name="pricePerPerson"
                             type="number"
                             value={form.pricePerPerson}
                             onChange={handleChange}
-                            className="text-3xl font-bold text-gray-900 border-none outline-none w-36 bg-transparent"
+                            onFocus={e => { if (e.target.value === '0') setForm(p => ({ ...p, pricePerPerson: '' })) }}
+                            className="flex-1 text-xl font-bold text-gray-900 border-none outline-none bg-transparent min-w-0"
                             placeholder="0"
                           />
                         </div>
@@ -2142,7 +1967,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                    {false && <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-gray-700">Agency Markup</p>
                         <p className="text-[10px] text-gray-400">Apply {markupPercent}% standard profit</p>
@@ -2161,7 +1986,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       >
                         <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${markupEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
                       </button>
-                    </div>
+                    </div>}
                     {/* Total Price & GST */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -2212,6 +2037,42 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Master Itinerary */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-sm">Master Itinerary</h3>
+                  </div>
+                  <button onClick={addDayItem} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                    <Plus className="w-3.5 h-3.5" /> Add New Day
+                  </button>
+                </div>
+                {dayItems.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No days added yet</p>
+                    <button onClick={addDayItem} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add Day 1</button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dayItems.map((day, idx) => (
+                      <DayCard
+                        key={day.id}
+                        day={day}
+                        idx={idx}
+                        onTitleChange={v => updateDayItem(day.id, 'title', v)}
+                        onDescChange={v => updateDayItem(day.id, 'description', v)}
+                        onAddTag={tag => addTagToDayItem(day.id, tag)}
+                        onRemoveTag={tag => removeTagFromDayItem(day.id, tag)}
+                        onRemove={() => removeDayItem(day.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Hotels & Accommodation */}
@@ -2424,7 +2285,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                 )}
               </div>
 
-              {/* ── Policies ──────────────────────────────────────── */}
+              {/* ── Inclusions & Exclusions ────────────────────────── */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
+                  <p className="text-sm font-bold text-gray-800">Inclusions & Exclusions</p>
+                </div>
+                <div className="p-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label text-green-700">✓ Inclusions</label>
+                      <textarea name="inclusions" value={form.inclusions} onChange={handleChange} rows={4} placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast" className="input resize-none text-sm" />
+                    </div>
+                    <div>
+                      <label className="label text-red-500">✗ Exclusions</label>
+                      <textarea name="exclusions" value={form.exclusions} onChange={handleChange} rows={4} placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities" className="input resize-none text-sm" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Payment & Cancellation Policy ─────────────────── */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
                   <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📋</span>
@@ -2456,46 +2337,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   </div>
                 </div>
               </div>
-
-              {/* Master Itinerary */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-purple-600" />
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-sm">Master Itinerary</h3>
-                  </div>
-                  <button onClick={addDayItem} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
-                    <Plus className="w-3.5 h-3.5" /> Add New Day
-                  </button>
-                </div>
-                {dayItems.length === 0 ? (
-                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
-                    <p className="text-sm text-gray-400">No days added yet</p>
-                    <button onClick={addDayItem} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add Day 1</button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {dayItems.map((day, idx) => (
-                      <DayCard
-                        key={day.id}
-                        day={day}
-                        idx={idx}
-                        onTitleChange={v => updateDayItem(day.id, 'title', v)}
-                        onDescChange={v => updateDayItem(day.id, 'description', v)}
-                        onAddTag={tag => addTagToDayItem(day.id, tag)}
-                        onRemoveTag={tag => removeTagFromDayItem(day.id, tag)}
-                        onRemove={() => removeDayItem(day.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
-            {/* Right: live preview */}
-            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
+            {/* Right: live preview — hidden */}
+            {false && <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <span className="text-xs font-bold text-gray-700">Live Preview</span>
                 <button className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setPreviewPkg(formAsPackage())}>
@@ -2594,7 +2439,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                   )}
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
 
           {/* Bottom action bar */}
