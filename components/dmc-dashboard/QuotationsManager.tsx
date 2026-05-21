@@ -356,7 +356,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
         customPackageData: merged as PackageData,
         ...(newQuotedPrice ? { quotedPrice: newQuotedPrice, status: q.status === 'pending' ? 'quoted' : q.status } : {}),
       } : q))
-      setShowCustomize(false)
+      router.push('/dmc-dashboard/quotations')
     } catch { }
     finally { setSavingCustom(false) }
   }
@@ -432,12 +432,56 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       originalCustomFormRef.current = { ...merged }
       originalCustomDayItemsRef.current = customDayItems.map(i => ({ ...i }))
 
-      alert(`âœ… Package "${merged.title}" created in Package Manager and saved to this quotation!`)
+      router.push('/dmc-dashboard/quotations')
     } catch (err: any) {
       alert('Failed to create package: ' + err.message)
     } finally {
       setCreatingPkg(false)
     }
+  }
+
+  function downloadCurrentPdf() {
+    if (!active) return
+    const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
+    const groupSize = active.groupSize || active.adults || 1
+    const pricePerPerson = Number(customForm.pricePerPerson) || null
+    openPackagePdfWindow({
+      title: customForm.title || active.packageTitle,
+      destination: customForm.destination || active.destination,
+      destinationCountry: customForm.destinationCountry,
+      heroImage: customForm.primaryImageUrl || undefined,
+      refId: active.publicId || active.id.slice(-8).toUpperCase(),
+      durationDays: Number(customForm.durationDays) || undefined,
+      durationNights: Number(customForm.durationNights) || undefined,
+      starCategory: customForm.starCategory || undefined,
+      travelType: customForm.travelType || undefined,
+      theme: customForm.theme || undefined,
+      mood: customForm.mood || undefined,
+      currency: (customForm as any).currency || 'INR',
+      pricePerPerson: pricePerPerson && !customForm.totalPrice ? pricePerPerson : null,
+      totalPrice: Number(customForm.totalPrice) > 0 ? Number(customForm.totalPrice) : null,
+      gst: Number(customForm.gst) > 0 ? Number(customForm.gst) : null,
+      quotedPriceTotal: active.quotedPrice ? Number(active.quotedPrice) : undefined,
+      groupSize,
+      adults: active.adults,
+      kids: active.kids,
+      overview: customForm.overview || undefined,
+      highlights: Array.isArray(customForm.highlights) ? customForm.highlights.filter(Boolean) : [],
+      inclusions: Array.isArray(customForm.inclusions) ? customForm.inclusions.filter(Boolean) : [],
+      exclusions: Array.isArray(customForm.exclusions) ? customForm.exclusions.filter(Boolean) : [],
+      dayWiseItinerary: dayWise || undefined,
+      hotels: customHotelEntries.length > 0 ? customHotelEntries : undefined,
+      vehicles: customVehicleEntries.length > 0 ? customVehicleEntries : undefined,
+      paymentPolicy: customForm.paymentPolicy || undefined,
+      cancellationPolicy: customForm.cancellationPolicy || undefined,
+      specialRequests: active.specialRequests,
+      customerName: active.customerName,
+      customerEmail: active.customerEmail,
+      customerPhone: active.customerPhone,
+      preferredDates: active.preferredDates,
+      brandName: agentName,
+      termsVariant: 'quotation',
+    })
   }
 
   function addCustomDayItem() {
@@ -2293,42 +2337,31 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
           </div>
 
           {/* Bottom action bar */}
-          <div className="flex items-center justify-between px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={saveCustomPackage}
-                disabled={savingCustom || creatingPkg}
-                className="flex flex-col items-center gap-0.5 bg-gray-900 hover:bg-gray-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm min-w-[130px]"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                  {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  {savingCustom ? 'Saving...' : 'Save Custom Package'}
-                </div>
-                <span className="text-[10px] text-gray-300">Updates this quotation</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={createNewPackage}
-                disabled={savingCustom || creatingPkg}
-                className="flex flex-col items-center gap-0.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm shadow-amber-200 min-w-[130px]"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                  {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
-                  {creatingPkg ? 'Creating...' : 'Create New Package'}
-                </div>
-                <span className="text-[10px] text-amber-200">Save as reusable package</span>
-              </button>
-              <button
-                onClick={() => { setShowCustomize(false); if (openCustomizeId) router.push('/dmc-dashboard/quotations') }}
-                className="flex flex-col items-center gap-0.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors min-w-[80px]"
-              >
-                <div className="flex items-center gap-1.5 text-gray-700 text-xs font-bold">
-                  <X className="w-3.5 h-3.5" /> Cancel
-                </div>
-                <span className="text-[10px] text-gray-400">Discard changes</span>
-              </button>
-            </div>
+          <div className="flex items-center justify-end px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-2">
+            <button
+              onClick={saveCustomPackage}
+              disabled={savingCustom || creatingPkg}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {savingCustom ? 'Saving…' : 'Save'}
+            </button>
+
+            <button
+              onClick={createNewPackage}
+              disabled={savingCustom || creatingPkg}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-gray-700 hover:text-indigo-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {creatingPkg ? 'Saving…' : 'Save As'}
+            </button>
+
+            <button
+              onClick={downloadCurrentPdf}
+              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm shadow-purple-200"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
           </div>
         </div>
       )
