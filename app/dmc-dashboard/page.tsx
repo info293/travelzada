@@ -43,7 +43,7 @@ export default function AgentDashboardPage() {
   const pathname = usePathname()
   const urlSegment = pathname.split('/').at(-1)
   const DMC_VALID_TABS: Tab[] = ['home','packages','bookings','analytics','customers','team','quotations','quotation_history','crm','embed','settings']
-  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'home'
+  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'quotations'
   const setTab = (t: Tab) => router.push(`/dmc-dashboard/${t}`)
   const [copied, setCopied] = useState(false)
   const [agentLoading, setAgentLoading] = useState(true)
@@ -52,14 +52,15 @@ export default function AgentDashboardPage() {
   const [notifLoading, setNotifLoading] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
 
-  // Redirect non-agents; sub-agents get their own dashboard
+  // Redirect non-agents; sub-agents get their own dashboard; base URL → quotations
   useEffect(() => {
     if (!authLoading) {
       if (!currentUser) router.push('/agent-login')
       else if (isSubAgent) router.push('/travel-agent-dashboard')
       else if (!isAgent) router.push('/')
+      else if (pathname === '/dmc-dashboard') router.replace('/dmc-dashboard/quotations')
     }
-  }, [authLoading, currentUser, isAgent, isSubAgent, router])
+  }, [authLoading, currentUser, isAgent, isSubAgent, pathname, router])
 
   // Fetch agent data + new booking count
   const fetchAgent = useCallback(async () => {
