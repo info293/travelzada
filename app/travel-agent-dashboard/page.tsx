@@ -9,7 +9,7 @@ import {
   CheckCircle, Clock, XCircle, Package, TrendingUp, Eye, BarChart3,
   MessageSquare, Send, Users, Copy, Check, ExternalLink, Home,
   IndianRupee, Star, ArrowUpRight, Search, ChevronDown, ChevronUp,
-  Sparkles, Bot, Mic, MicOff, Volume2, Globe, Share2, FileText,
+  Sparkles, Bot, Mic, MicOff, Volume2, Globe, Share2, FileText, Filter,
   Columns3, List, X, UserCircle, Upload, ImageIcon
 } from 'lucide-react'
 import SubAgentDemoLoader from '@/components/travel-agent-dashboard/SubAgentDemoLoader'
@@ -243,7 +243,7 @@ export default function SubAgentDashboardPage() {
   const pathname = usePathname()
   const urlSegment = pathname.split('/').at(-1)
   const TA_VALID_TABS: Tab[] = ['planner','home','bookings','packages','quotations','quote_history','customers','stats','activity','profile']
-  const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'home'
+  const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'quotations'
   const [aiActive, setAiActive] = useState(false)
   const tab: Tab = aiActive ? 'ai' : urlTab
   const setTab = (t: Tab) => {
@@ -297,6 +297,7 @@ export default function SubAgentDashboardPage() {
   const [pkgDestFilter, setPkgDestFilter] = useState('all')
   const [pkgStarFilter, setPkgStarFilter] = useState('all')
   const [pkgTypeFilter, setPkgTypeFilter] = useState('all')
+  const [pkgHotelFilter, setPkgHotelFilter] = useState<'all' | 'with' | 'without'>('all')
 
   // Quotation search
   const [quotSearch, setQuotSearch] = useState('')
@@ -316,6 +317,7 @@ export default function SubAgentDashboardPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
   const [profileError, setProfileError] = useState('')
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
 
   // AI Assistant state
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'assistant'; content: string; ts: number }[]>([])
@@ -340,13 +342,14 @@ export default function SubAgentDashboardPage() {
   const selectedAiPkgRef = useRef<AgentPackage | null>(null)
   const aiMessagesRef = useRef<{ role: 'user' | 'assistant'; content: string; ts: number }[]>([])
 
-  // Redirect non-sub-agents
+  // Redirect non-sub-agents + redirect base URL to quotations
   useEffect(() => {
     if (!authLoading) {
       if (!currentUser) router.push('/agent-login')
       else if (!isSubAgent) router.push('/')
+      else if (pathname === '/travel-agent-dashboard') router.replace('/travel-agent-dashboard/quotations')
     }
-  }, [authLoading, currentUser, isSubAgent, router])
+  }, [authLoading, currentUser, isSubAgent, pathname, router])
 
   useEffect(() => { setAiActive(false) }, [pathname])
 
@@ -967,17 +970,17 @@ export default function SubAgentDashboardPage() {
     : `/tailored-travel/${parentAgentSlug}`
 
   const TABS: { id: Tab; label: string; icon: any; badge?: number }[] = [
-    { id: 'planner',   label: 'AI Planner', icon: Sparkles },
-    { id: 'home',      label: 'Home',       icon: Home },
-    { id: 'bookings',  label: 'Bookings',   icon: BookOpen,     badge: bookings.filter(b => b.status === 'new').length || undefined },
-    { id: 'packages',  label: 'Packages',   icon: Package },
-    { id: 'quotations',    label: 'Quotations',   icon: MessageSquare, badge: pendingQuots || undefined },
+    { id: 'planner',      label: 'AI Planner',  icon: Sparkles },
+    { id: 'quotations',   label: 'Quotations',  icon: MessageSquare, badge: pendingQuots || undefined },
+    { id: 'packages',     label: 'Packages',    icon: Package },
+    { id: 'profile',      label: 'My Profile',  icon: UserCircle },
+    // { id: 'home',      label: 'Home',        icon: Home },
+    // { id: 'bookings',  label: 'Bookings',    icon: BookOpen, badge: bookings.filter(b => b.status === 'new').length || undefined },
+    // { id: 'stats',     label: 'My Stats',    icon: BarChart3 },
+    // { id: 'ai',        label: 'AI',          icon: Bot },
     // { id: 'quote_history', label: 'Quote History', icon: BarChart3 },
-    // { id: 'customers', label: 'Customers',  icon: Users },
-    { id: 'stats',     label: 'My Stats',   icon: BarChart3 },
-    // { id: 'activity',  label: 'Activity',   icon: Activity },
-    { id: 'profile',   label: 'My Profile', icon: UserCircle },
-    { id: 'ai',        label: 'AI',         icon: Bot },
+    // { id: 'customers', label: 'Customers',   icon: Users },
+    // { id: 'activity',  label: 'Activity',    icon: Activity },
   ]
 
   // Filtered bookings
@@ -989,14 +992,29 @@ export default function SubAgentDashboardPage() {
     return matchSearch && matchStatus
   })
 
-  // Filtered packages
+  const WITH_HOTEL_CATS = new Set(['3-Star', '4-Star', '5-Star', '3 Star', '4 Star', '5 Star'])
+
+  // Filtered packages — full-text word-by-word search across all fields
   const filteredPkgs = packages.filter(p => {
-    const q = pkgSearch.toLowerCase()
-    const matchSearch = !q || p.title.toLowerCase().includes(q) || p.destination.toLowerCase().includes(q)
+    const q = pkgSearch.toLowerCase().trim()
+    let matchSearch = true
+    if (q) {
+      const itineraryText = (typeof p.dayWiseItinerary === 'string' ? p.dayWiseItinerary : '').replace(/\|\|/g, ' ')
+      const haystack = [
+        p.title, p.destination, p.destinationCountry, p.travelType, p.starCategory,
+        p.theme, p.mood, p.overview, String(p.durationDays ?? ''), String(p.durationNights ?? ''),
+        String(p.pricePerPerson ?? ''), String((p as any).totalPrice ?? ''),
+        itineraryText,
+        Array.isArray(p.highlights) ? p.highlights.join(' ') : '',
+        Array.isArray(p.inclusions) ? p.inclusions.join(' ') : '',
+        Array.isArray(p.exclusions) ? p.exclusions.join(' ') : '',
+        Array.isArray((p as any).perks) ? (p as any).perks.join(' ') : '',
+      ].join(' ').toLowerCase()
+      matchSearch = q.split(/\s+/).filter(Boolean).every(word => haystack.includes(word))
+    }
     const matchDest = pkgDestFilter === 'all' || p.destination === pkgDestFilter
-    const matchStar = pkgStarFilter === 'all' || p.starCategory === pkgStarFilter
-    const matchType = pkgTypeFilter === 'all' || p.travelType === pkgTypeFilter
-    return matchSearch && matchDest && matchStar && matchType
+    const matchHotel = pkgHotelFilter === 'all' || (pkgHotelFilter === 'with' ? WITH_HOTEL_CATS.has(p.starCategory || '') : !WITH_HOTEL_CATS.has(p.starCategory || ''))
+    return matchSearch && matchDest && matchHotel
   })
 
   // Filtered quotations
@@ -1065,13 +1083,6 @@ export default function SubAgentDashboardPage() {
           ))}
         </nav>
 
-        {/* Bottom */}
-        <div className="px-4 py-4 border-t border-gray-100 space-y-2">
-          <button onClick={() => logout().then(() => router.push('/agent-login'))}
-            className="flex items-center gap-2 text-sm text-red-500 hover:text-red-700 font-medium">
-            <LogOut className="w-4 h-4" />Sign Out
-          </button>
-        </div>
       </aside>
 
       {/* ── Main ────────────────────────────────────────────────────────────── */}
@@ -1398,123 +1409,111 @@ export default function SubAgentDashboardPage() {
 
             {/* ══════════════════════ PACKAGES ══════════════════════════════ */}
             {tab === 'packages' && (
-              <div className="space-y-4">
-                {/* Filter bar */}
+              <div className="space-y-3">
+                {/* Filter bar — row 1: search */}
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="relative flex-1 min-w-[180px]">
+                  <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input value={pkgSearch} onChange={e => setPkgSearch(e.target.value)}
-                      placeholder="Search packages, destinations…"
+                      placeholder="Search anything — title, destination, hotel, itinerary, inclusions…"
                       className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" />
                   </div>
-                  {/* Destination */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <span className="text-xs text-gray-500 font-semibold mr-0.5">Hotel:</span>
+                    {(['all', 'with', 'without'] as const).map(h => (
+                      <button key={h} onClick={() => setPkgHotelFilter(h)}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${pkgHotelFilter === h ? 'bg-amber-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                        {h === 'all' ? 'All' : h === 'with' ? '🏨 With Hotel' : '🏕️ Without Hotel'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Filter bar — row 2: destination + count */}
+                <div className="flex flex-wrap items-center gap-2.5">
                   {Array.from(new Set(packages.map(p => p.destination))).length > 1 && (
                     <select value={pkgDestFilter} onChange={e => setPkgDestFilter(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
+                      className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
                       <option value="all">All Destinations</option>
-                      {Array.from(new Set(packages.map(p => p.destination))).map(d => <option key={d} value={d}>{d}</option>)}
+                      {Array.from(new Set(packages.map(p => p.destination))).sort().map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   )}
-                  {/* Star Category */}
-                  {Array.from(new Set(packages.map(p => p.starCategory))).length > 1 && (
-                    <select value={pkgStarFilter} onChange={e => setPkgStarFilter(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
-                      <option value="all">All Stars</option>
-                      {Array.from(new Set(packages.map(p => p.starCategory))).map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                  {(pkgSearch || pkgDestFilter !== 'all' || pkgHotelFilter !== 'all') && (
+                    <button onClick={() => { setPkgSearch(''); setPkgDestFilter('all'); setPkgHotelFilter('all') }}
+                      className="text-xs text-gray-400 hover:text-red-500 font-semibold">Clear</button>
                   )}
-                  {/* Travel Type */}
-                  {Array.from(new Set(packages.map(p => p.travelType))).length > 1 && (
-                    <select value={pkgTypeFilter} onChange={e => setPkgTypeFilter(e.target.value)}
-                      className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
-                      <option value="all">All Types</option>
-                      {Array.from(new Set(packages.map(p => p.travelType))).map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  )}
-                  {(pkgSearch || pkgDestFilter !== 'all' || pkgStarFilter !== 'all' || pkgTypeFilter !== 'all') && (
-                    <button onClick={() => { setPkgSearch(''); setPkgDestFilter('all'); setPkgStarFilter('all'); setPkgTypeFilter('all') }}
-                      className="text-xs text-gray-400 hover:text-red-500 font-medium px-2 py-1">Clear</button>
-                  )}
+                  <span className="text-xs text-gray-400 ml-auto">{filteredPkgs.length} of {packages.length}</span>
                 </div>
-                <p className="text-sm text-gray-500">{filteredPkgs.length} of {packages.filter(p => p.isActive).length} active package{packages.filter(p => p.isActive).length !== 1 ? 's' : ''} available to share</p>
 
                 {filteredPkgs.length === 0 ? (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
+                  <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                     <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">No packages available yet.</p>
+                    <p className="text-gray-500 text-sm">No packages match your filters</p>
+                    <button onClick={() => { setPkgSearch(''); setPkgDestFilter('all'); setPkgHotelFilter('all') }}
+                      className="mt-2 text-primary text-xs font-semibold hover:underline">Clear filters</button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="divide-y divide-gray-100 rounded-2xl border border-gray-200 overflow-hidden">
                     {filteredPkgs.map(pkg => {
-                      const plannerUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/tailored-travel/${parentAgentSlug}?subAgent=${currentUser?.uid}`
-                      const isCopied = copiedPkgId === pkg.id
-                      function copyLink() {
-                        navigator.clipboard.writeText(plannerUrl)
-                        setCopiedPkgId(pkg.id)
-                        setTimeout(() => setCopiedPkgId(null), 2000)
+                      const PERKS_MAP: Record<string, string> = {
+                        'Free Airport Transfer': '🚗', 'Complimentary Breakfast': '🍳', 'All Meals Included': '🍽️',
+                        'Free WiFi': '📶', 'Travel Insurance': '🛡️', 'Entry Tickets Included': '🎟️',
+                        'English-Speaking Guide': '🎯', 'Sightseeing Included': '🚌', 'Free Cancellation': '🔄',
+                        'Welcome Drink': '🍾', 'Water Sports Included': '🏄', 'Wildlife Safari Included': '🦁',
+                        'Complimentary Spa': '💆', 'Pool Access': '🏊', 'Early Check-in / Late Checkout': '🏨',
+                        'Porter Service': '🎒', 'Ferry / Cruise Included': '🚢', 'Professional Photography': '📸',
                       }
-                      function shareWhatsApp() {
-                        const msg = buildPackageWhatsAppMessage(pkg)
-                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-                      }
+                      const perks: string[] = Array.isArray((pkg as any).perks) ? (pkg as any).perks : []
+                      const pax = { a: (pkg as any).adults ?? 0, c: (pkg as any).children ?? 0, i: (pkg as any).infants ?? 0 }
+                      const hasPax = pax.a + pax.c + pax.i > 0
                       return (
-                        <div key={pkg.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-                          <div className="relative">
-                            {pkg.primaryImageUrl ? (
-                              <img src={pkg.primaryImageUrl} alt={pkg.title} className="w-full h-40 object-cover" />
-                            ) : (
-                              <div className="w-full h-40 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                                <Package className="w-10 h-10 text-primary/30" />
+                        <div key={pkg.id} className="flex items-center gap-4 p-4 bg-white hover:bg-gray-50 transition-colors">
+                          {/* Thumbnail */}
+                          {pkg.primaryImageUrl ? (
+                            <img src={pkg.primaryImageUrl} alt={pkg.title} className="w-16 h-12 object-cover rounded-lg flex-shrink-0" />
+                          ) : (
+                            <div className="w-16 h-12 bg-primary/10 rounded-lg flex-shrink-0 flex items-center justify-center">
+                              <Package className="w-5 h-5 text-primary/40" />
+                            </div>
+                          )}
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 truncate">{pkg.title}</p>
+                            <p className="text-sm text-gray-500">
+                              {pkg.destination} · {pkg.durationNights}N · {pkg.starCategory || 'No Hotel'} · {(pkg as any).totalPrice ? `${getCurrencySymbol((pkg as any).currency)}${Number((pkg as any).totalPrice).toLocaleString()} total` : `${getCurrencySymbol(pkg.currency)}${pkg.pricePerPerson.toLocaleString()}/person`}
+                              {hasPax && (
+                                <span className="ml-1">
+                                  · 👥 {pax.a}A{pax.c > 0 ? ` ${pax.c}C` : ''}{pax.i > 0 ? ` ${pax.i}I` : ''}
+                                </span>
+                              )}
+                            </p>
+                            {perks.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {perks.slice(0, 4).map(p => (
+                                  <span key={p} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary/5 text-primary border border-primary/10 px-2 py-0.5 rounded-full">
+                                    {PERKS_MAP[p] ?? '✓'} {p}
+                                  </span>
+                                ))}
+                                {perks.length > 4 && (
+                                  <span className="text-[10px] font-semibold text-gray-400 px-2 py-0.5">+{perks.length - 4} more</span>
+                                )}
                               </div>
                             )}
-                            <span className="absolute top-2 left-2 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-sm">
-                              {pkg.durationDays}D / {pkg.durationNights}N
-                            </span>
-                            <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-                              {pkg.travelType}
-                            </span>
                           </div>
-                          <div className="p-4 flex-1 flex flex-col">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className="font-bold text-gray-900 text-sm leading-snug">{pkg.title}</h3>
-                              <span className="flex-shrink-0 flex items-center gap-0.5 text-xs text-amber-500 font-semibold">
-                                <Star className="w-3 h-3 fill-amber-400" />{pkg.starCategory}
-                              </span>
-                            </div>
-                            <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />{pkg.destination}
-                            </p>
-                            {pkg.overview && (
-                              <p className="text-xs text-gray-400 leading-relaxed line-clamp-2 mb-3">{pkg.overview}</p>
-                            )}
-                            <p className="text-lg font-bold text-primary mt-auto mb-3">
-                              {getCurrencySymbol(pkg.currency)}{(pkg.totalPrice || pkg.pricePerPerson).toLocaleString('en-IN')}
-                              <span className="text-xs font-normal text-gray-400">{pkg.totalPrice ? ' total' : '/person (base)'}</span>
-                              {pkg.gst ? <span className="text-[10px] font-normal text-amber-500 block">+ {pkg.gst}% GST</span> : null}
-                            </p>
-                            {/* Action buttons — no copy link; markup popup before share/download */}
-                            <div className="grid grid-cols-3 gap-1.5">
-                              <button
-                                onClick={() => setViewPkgDetail(pkg)}
-                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-gray-900 text-white py-2 rounded-xl hover:bg-gray-700 transition-colors"
-                              >
-                                <Eye className="w-3 h-3" />View
-                              </button>
-                              <button
-                                onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('whatsapp') }}
-                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-green-500 text-white py-2 rounded-xl hover:bg-green-600 transition-colors"
-                                title="Send on WhatsApp"
-                              >
-                                <Share2 className="w-3 h-3" />WA
-                              </button>
-                              <button
-                                onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('pdf') }}
-                                className="flex items-center justify-center gap-1 text-xs font-semibold bg-primary/10 text-primary py-2 rounded-xl hover:bg-primary/20 transition-colors"
-                                title="Download Quote PDF"
-                              >
-                                <IndianRupee className="w-3 h-3" />Quote
-                              </button>
-                            </div>
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button onClick={() => setViewPkgDetail(pkg)} title="Preview"
+                              className="p-1.5 rounded-lg bg-indigo-50 text-indigo-500 hover:bg-indigo-100 transition-colors">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('whatsapp') }} title="Share on WhatsApp"
+                              className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors">
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => { setMarkupPkg(pkg); setMarkupPct(0); setMarkupAction('pdf') }} title="Download Quote PDF"
+                              className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                              <FileText className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       )
@@ -1963,6 +1962,39 @@ export default function SubAgentDashboardPage() {
                   )}
                   {profileError && (
                     <span className="text-sm text-red-500">{profileError}</span>
+                  )}
+                </div>
+
+                {/* Sign out */}
+                <div className="bg-white rounded-2xl border border-gray-200 p-5 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-gray-900 text-sm">Sign Out</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {confirmSignOut ? 'Are you sure you want to sign out?' : "You'll be redirected to the login page"}
+                    </p>
+                  </div>
+                  {confirmSignOut ? (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => logout().then(() => router.push('/agent-login'))}
+                        className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 font-semibold text-sm transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />Yes, Sign Out
+                      </button>
+                      <button
+                        onClick={() => setConfirmSignOut(false)}
+                        className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmSignOut(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700 font-semibold text-sm transition-colors flex-shrink-0"
+                    >
+                      <LogOut className="w-4 h-4" />Sign Out
+                    </button>
                   )}
                 </div>
 
