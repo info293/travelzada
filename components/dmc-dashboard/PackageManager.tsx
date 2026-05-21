@@ -6,6 +6,7 @@ import { Plus, Edit2, Trash2, Eye, EyeOff, Loader2, X, Save, Package, Upload, Ch
 import { AgentPackage, HotelEntry, VehicleEntry } from '@/lib/types/agent'
 import { CURRENCIES, getCurrencySymbol } from '@/lib/utils/currency'
 import ConfirmModal from './ConfirmModal'
+import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
 
 // Module-level cache so repeated currency switches in the same session don't re-fetch
 // TTL: 30 minutes
@@ -31,6 +32,8 @@ async function fetchINRRate(fromCurrency: string): Promise<{ rate: number; updat
 interface Props {
   agentId: string
   companyName?: string
+  logoUrl?: string
+  contactName?: string
   currency?: string
   openCreate?: boolean
   openEditId?: string
@@ -199,7 +202,7 @@ function parseCsvVehicles(raw: string): VehicleEntry[] {
   }).filter(v => v.vehicleType)
 }
 
-export default function PackageManager({ agentId, companyName = 'DMC Partner', openCreate, openEditId }: Props) {
+export default function PackageManager({ agentId, companyName = 'DMC Partner', logoUrl, contactName, openCreate, openEditId }: Props) {
   const router = useRouter()
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
@@ -803,20 +806,108 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', o
       if (!res.ok) throw new Error(data.error)
 
       fetchPackages()
-      if (editingId) {
-        // Stay in the form on update — just show a success banner
-        setError('')
-        setSaving(false)
-        setError('✅ Package updated successfully.')
-        setTimeout(() => setError(''), 3000)
-        return
-      }
       router.push('/dmc-dashboard/packages')
     } catch (e: any) {
       setError(e.message || 'Failed to save package.')
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleSaveAs() {
+    setError('')
+    if (!form.title || !form.destination || (!form.pricePerPerson && !form.totalPrice)) {
+      setError('Title, destination, and at least one price (per person or total) are required.')
+      return
+    }
+    setSaving(true)
+    try {
+      const payload = {
+        agentId,
+        title: `${form.title} (Copy)`,
+        destination: form.destination,
+        destinationCountry: form.destinationCountry,
+        overview: form.overview,
+        durationDays: Number(form.durationDays),
+        durationNights: Number(form.durationNights),
+        pricePerPerson: Number(form.pricePerPerson),
+        totalPrice: form.totalPrice !== '' ? Number(form.totalPrice) : null,
+        gst: form.gst !== '' ? Number(form.gst) : null,
+        currency: form.currency || 'INR',
+        priceInINR: Math.round(Number(form.pricePerPerson) * exchangeRate),
+        maxGroupSize: Number(form.maxGroupSize) || 20,
+        minGroupSize: Number(form.minGroupSize) || 1,
+        adults: Number(form.adults) || 0,
+        children: Number(form.children) || 0,
+        infants: Number(form.infants) || 0,
+        travelType: form.travelType,
+        theme: form.theme,
+        mood: form.mood,
+        starCategory: form.starCategory,
+        inclusions: form.inclusions.split('\n').filter(Boolean),
+        exclusions: form.exclusions.split('\n').filter(Boolean),
+        highlights: form.highlights.split('\n').filter(Boolean),
+        dayWiseItinerary: dayItems.length > 0 ? serializeDayItems(dayItems) : form.dayWiseItinerary,
+        hotels: hotelEntries,
+        vehicles: vehicleEntries,
+        perks,
+        primaryImageUrl: form.primaryImageUrl,
+        seasonalAvailability: form.seasonalAvailability,
+        markupPercent: markupEnabled ? Number(markupPercent) : 0,
+        paymentPolicy: form.paymentPolicy.trim(),
+        cancellationPolicy: form.cancellationPolicy.trim(),
+      }
+      const res = await fetch('/api/agent/packages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      fetchPackages()
+      router.push('/dmc-dashboard/packages')
+    } catch (e: any) {
+      setError(e.message || 'Failed to save as new package.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function downloadPdf() {
+    const base = Number(form.pricePerPerson) || 0
+    const finalPrice = markupEnabled ? base * (1 + Number(markupPercent) / 100) : base
+    await openPackagePdfWindow({
+      title: form.title || 'Travel Package',
+      destination: form.destination,
+      destinationCountry: form.destinationCountry,
+      heroImage: form.primaryImageUrl || undefined,
+      durationDays: Number(form.durationDays) || undefined,
+      durationNights: Number(form.durationNights) || undefined,
+      starCategory: form.starCategory || undefined,
+      travelType: form.travelType || undefined,
+      theme: form.theme || undefined,
+      mood: form.mood || undefined,
+      currency: form.currency || 'INR',
+      pricePerPerson: finalPrice > 0 && !Number(form.totalPrice) ? finalPrice : null,
+      totalPrice: Number(form.totalPrice) > 0 ? Number(form.totalPrice) : null,
+      gst: form.gst !== '' ? Number(form.gst) : null,
+      groupSize: (Number(form.adults) || 0) + (Number(form.children) || 0) + (Number(form.infants) || 0) || undefined,
+      adults: Number(form.adults) || undefined,
+      kids: Number(form.children) || undefined,
+      overview: form.overview || undefined,
+      highlights: form.highlights.split('\n').filter(Boolean),
+      inclusions: form.inclusions.split('\n').filter(Boolean),
+      exclusions: form.exclusions.split('\n').filter(Boolean),
+      dayWiseItinerary: dayItems.length > 0 ? serializeDayItems(dayItems) : form.dayWiseItinerary || undefined,
+      hotels: hotelEntries.length > 0 ? hotelEntries : undefined,
+      vehicles: vehicleEntries.length > 0 ? vehicleEntries : undefined,
+      paymentPolicy: form.paymentPolicy || undefined,
+      cancellationPolicy: form.cancellationPolicy || undefined,
+      brandName: companyName,
+      agentContactName: contactName || undefined,
+      agentLogoUrl: logoUrl || undefined,
+      termsVariant: 'brochure',
+    })
   }
 
   async function toggleActive(pkg: AgentPackage) {
@@ -2505,72 +2596,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
           </div>
 
           {/* Bottom action bar */}
-          <div className="flex items-center justify-between px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-3">
+          <div className="flex items-center justify-end px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {saving ? 'Saving…' : 'Save'}
+            </button>
 
-            {/* Left — secondary actions */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="group flex flex-col items-center gap-0.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
-              >
-                <div className="flex items-center gap-1.5 text-gray-700 text-xs font-bold">
-                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  {saving ? 'Saving…' : 'Save Draft'}
-                </div>
-                <span className="text-[10px] text-gray-400">Keep editing later</span>
-              </button>
+            <button
+              onClick={handleSaveAs}
+              disabled={saving}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-gray-700 hover:text-indigo-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+            >
+              <Save className="w-3.5 h-3.5" /> Save As
+            </button>
 
-              <button
-                onClick={() => setShowPdfPreview(true)}
-                className="group flex flex-col items-center gap-0.5 border border-gray-200 hover:border-purple-300 hover:bg-purple-50 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
-              >
-                <div className="flex items-center gap-1.5 text-gray-700 group-hover:text-purple-700 text-xs font-bold">
-                  <Download className="w-3.5 h-3.5" /> PDF Preview
-                </div>
-                <span className="text-[10px] text-gray-400 group-hover:text-purple-400">Print or save as PDF</span>
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="h-10 w-px bg-gray-100 hidden sm:block" />
-
-            {/* Right — share + publish */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={sharePackageOnWhatsApp}
-                className="group flex flex-col items-center gap-0.5 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl transition-colors shadow-sm shadow-green-200 min-w-[90px]"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                  <span>📱</span> WhatsApp Text
-                </div>
-                <span className="text-[10px] text-green-100">Send as formatted text</span>
-              </button>
-
-              <button
-                onClick={sharePackageAsPdfWA}
-                className="group flex flex-col items-center gap-0.5 bg-green-50 hover:bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded-xl transition-colors min-w-[90px]"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                  <span>📄</span> WhatsApp PDF
-                </div>
-                <span className="text-[10px] text-green-600">Preview PDF &amp; share</span>
-              </button>
-
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex flex-col items-center gap-0.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm shadow-purple-200 min-w-[110px]"
-              >
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  {editingId ? 'Update Package' : 'Publish Package'}
-                </div>
-                <span className="text-[10px] text-purple-200">
-                  {editingId ? 'Save all changes' : 'Go live on your page'}
-                </span>
-              </button>
-            </div>
+            <button
+              onClick={downloadPdf}
+              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm shadow-purple-200"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </button>
           </div>
         </div>
         )

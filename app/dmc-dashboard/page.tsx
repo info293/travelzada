@@ -399,7 +399,7 @@ export default function AgentDashboardPage() {
                     onTabChange={(t) => setTab(t as Tab)}
                   />
                 )}
-                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} currency={agentData?.baseCurrency} openCreate={openPackageCreate} openEditId={openPackageEditId} />}
+                {tab === 'packages' && <PackageManager agentId={currentUser.uid} companyName={agentData?.companyName} logoUrl={agentData?.logoUrl} contactName={agentData?.contactName} currency={agentData?.baseCurrency} openCreate={openPackageCreate} openEditId={openPackageEditId} />}
                 {tab === 'bookings' && (
                   <BookingInbox agentId={currentUser.uid} currency={agentData?.baseCurrency} />
                 )}
