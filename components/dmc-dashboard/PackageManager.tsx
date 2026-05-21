@@ -1284,10 +1284,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Package Manager</h2>
-          <p className="text-sm text-gray-500">{packages.length} package{packages.length !== 1 ? 's' : ''} uploaded</p>
-        </div>
+        <div></div>
         <div className="flex items-center gap-2">
           <input
             ref={csvInputRef}

@@ -178,10 +178,7 @@ export default function CustomerRecords({ agentId, currency }: Props) {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Customers</h2>
-          <p className="text-sm text-gray-500">{customers.length} customer{customers.length !== 1 ? 's' : ''}</p>
-        </div>
+        <div></div>
         <div className="flex items-center gap-2 flex-wrap">
           <select
             value={sortKey}

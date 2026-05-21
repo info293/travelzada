@@ -141,10 +141,7 @@ export default function BookingInbox({ agentId, currency }: Props) {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Booking Inbox</h2>
-          <p className="text-sm text-gray-500">{filtered.length} of {bookings.length} booking{bookings.length !== 1 ? 's' : ''}</p>
-        </div>
+        <div></div>
         <div className="flex items-center gap-2">
           <input
             value={search}

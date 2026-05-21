@@ -120,10 +120,6 @@ export default function AgentSettings({ agentId, agentSlug, onSaved, onLogout }:
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Settings & Profile</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Manage your agency information and planner preferences</p>
-      </div>
 
       {/* ── Planner URL ── */}
       <div className="bg-white rounded-2xl border border-gray-200 p-5">

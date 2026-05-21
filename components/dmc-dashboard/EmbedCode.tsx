@@ -148,12 +148,6 @@ export default function EmbedCode({ agentSlug }: Props) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">Embed Your Planner</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
-          Share your AI planner via a direct link, embed it on your website, or add it as a floating chat widget.
-        </p>
-      </div>
 
       {/* ── Shareable direct link ───────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-primary/5 to-purple-50 border border-primary/20 rounded-2xl p-5">

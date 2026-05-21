@@ -298,10 +298,7 @@ export default function QuotationHistory({ agentId, subAgentId, currency }: Prop
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">My Quotations History</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Manage and track your AI-powered travel itineraries.</p>
-        </div>
+        <div></div>
         <button
           onClick={exportCsv}
           className="flex items-center gap-2 text-sm font-semibold text-purple-600 border border-purple-200 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-xl transition-colors"

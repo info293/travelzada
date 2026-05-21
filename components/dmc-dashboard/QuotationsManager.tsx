@@ -638,12 +638,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
         {/* Filter bar */}
         <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Proposals</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {hasActiveFilters ? `${filtered.length} of ${quotations.length}` : `${quotations.length} total`}
-              </p>
-            </div>
+            <div></div>
             {hasActiveFilters && (
               <button
                 onClick={() => { setSearch(''); setFilterStatus('all'); setFilterDate('all'); setFilterSubAgent('all'); setFilterDest('all') }}

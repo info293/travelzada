@@ -141,10 +141,6 @@ export default function CRMAnalytics({ agentId, agentSlug }: Props) {
   return (
     <div className="space-y-8">
       {/* Overview header */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900">CRM & Analytics</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Full-funnel tracking across your team and guest visitors</p>
-      </div>
 
       {/* Overview stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

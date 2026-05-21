@@ -142,10 +142,7 @@ export default function Analytics({ agentId, agentSlug, currency }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Analytics</h2>
-          <p className="text-sm text-gray-500">{PERIOD_LABELS[period]} · {displayBookings} booking{displayBookings !== 1 ? 's' : ''}</p>
-        </div>
+        <div></div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Period filter tabs */}
           <div className="flex bg-gray-100 rounded-xl p-1 gap-0.5">

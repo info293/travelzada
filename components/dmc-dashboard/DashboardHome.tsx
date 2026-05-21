@@ -199,10 +199,7 @@ export default function DashboardHome({ agentId, agentSlug, companyName, currenc
 
       {/* Welcome header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Welcome back</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{companyName} · Here's your business at a glance</p>
-        </div>
+        <div></div>
         <div className="flex items-center gap-2">
           <button
             onClick={copyUrl}
