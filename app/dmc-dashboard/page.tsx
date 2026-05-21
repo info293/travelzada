@@ -41,9 +41,12 @@ export default function AgentDashboardPage() {
 
   const [agentData, setAgentData] = useState<Agent | null>(null)
   const pathname = usePathname()
-  const urlSegment = pathname.split('/').at(-1)
+  const pathSegments = pathname.split('/').filter(Boolean)
+  const urlSegment = pathSegments.at(-1) ?? ''
   const DMC_VALID_TABS: Tab[] = ['home','packages','bookings','analytics','customers','team','quotations','quotation_history','crm','embed','settings']
-  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'quotations'
+  const tab: Tab = (DMC_VALID_TABS as string[]).includes(urlSegment) ? (urlSegment as Tab) : 'quotations'
+  // Detect /dmc-dashboard/quotations/[id] → auto-open customize form
+  const openQuotationId = pathSegments.length === 3 && pathSegments[1] === 'quotations' ? pathSegments[2] : undefined
   const setTab = (t: Tab) => router.push(`/dmc-dashboard/${t}`)
   const [copied, setCopied] = useState(false)
   const [agentLoading, setAgentLoading] = useState(true)
@@ -405,6 +408,7 @@ export default function AgentDashboardPage() {
                     agentSlug={agentSlug}
                     agentName={agentData?.companyName || agentData?.contactName || ''}
                     currentUserId={currentUser.uid}
+                    openCustomizeId={openQuotationId}
                   />
                 )}
                 {tab === 'quotation_history' && (

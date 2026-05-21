@@ -1,15 +1,37 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Search, Loader2, IndianRupee, Send,
   CheckCircle, XCircle, Clock, Package, Phone, Mail,
   MapPin, Calendar, Users, User, BookCheck, Edit3, X,
   Eye, Star, Save, ChevronDown, ChevronUp, FileEdit, Share2, FileText, Printer, SlidersHorizontal,
-  Plus, GripVertical
+  Plus, GripVertical, Upload, Download, AlertCircle
 } from 'lucide-react'
 import PackagePdfModal from '@/components/pdf/PackagePdfModal'
 import { openPackagePdfWindow } from '@/lib/generatePackagePdf'
+import { HotelEntry, VehicleEntry } from '@/lib/types/agent'
+import { CURRENCIES, getCurrencySymbol } from '@/lib/utils/currency'
+
+// Module-level exchange rate cache for the customize form
+const QUOT_RATE_CACHE: Record<string, { rate: number; updatedAt: string; cachedAt: number }> = {}
+const QUOT_CACHE_TTL_MS = 30 * 60 * 1000
+
+async function fetchQuotINRRate(fromCurrency: string): Promise<{ rate: number; updatedAt: string }> {
+  const cached = QUOT_RATE_CACHE[fromCurrency]
+  if (cached && Date.now() - cached.cachedAt < QUOT_CACHE_TTL_MS) {
+    return { rate: cached.rate, updatedAt: cached.updatedAt }
+  }
+  const res = await fetch(`https://open.er-api.com/v6/latest/${fromCurrency}`)
+  if (!res.ok) throw new Error(`Rate fetch failed: ${res.status}`)
+  const data = await res.json()
+  if (data.result !== 'success') throw new Error('Rate API error')
+  const rate: number = data.rates['INR'] ?? 1
+  const updatedAt: string = data.time_last_update_utc ?? new Date().toUTCString()
+  QUOT_RATE_CACHE[fromCurrency] = { rate, updatedAt, cachedAt: Date.now() }
+  return { rate, updatedAt }
+}
 
 interface Message {
   id: string
@@ -36,6 +58,9 @@ interface PackageData {
   durationDays?: number
   durationNights?: number
   pricePerPerson?: number
+  totalPrice?: number | null
+  gst?: number | null
+  currency?: string
   maxGroupSize?: number
   minGroupSize?: number
   travelType?: string
@@ -48,6 +73,11 @@ interface PackageData {
   dayWiseItinerary?: string
   primaryImageUrl?: string
   seasonalAvailability?: string
+  hotels?: HotelEntry[]
+  vehicles?: VehicleEntry[]
+  perks?: string[]
+  paymentPolicy?: string
+  cancellationPolicy?: string
 }
 
 interface Quotation {
@@ -82,12 +112,35 @@ interface Props {
   agentName: string
   currentUserId: string
   subAgentId?: string
+  openCustomizeId?: string
 }
 
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
 const STAR_CATEGORIES = ['3-Star', '4-Star', '5-Star', 'Luxury', 'Budget', 'Homestay']
 const THEMES = ['Beach', 'Wildlife', 'Cultural', 'Hills', 'Desert', 'Adventure', 'Wellness', 'Heritage', 'Backpacking']
 const MOODS = ['Relaxing', 'Adventurous', 'Romantic', 'Family Fun', 'Spiritual', 'Exploratory']
+const MEAL_PLANS = ['Breakfast', 'Half Board', 'Full Board', 'All Inclusive', 'Room Only']
+const VEHICLE_TYPES = ['Sedan', 'SUV', 'Innova Crysta', 'Tempo Traveller (12 Seater)', 'Tempo Traveller (16 Seater)', 'Mini Bus (20 Seater)', 'Bus (40+ Seater)', 'Luxury Car', 'Hatchback', 'Van', 'Auto Rickshaw']
+const PRESET_PERKS = [
+  { label: 'Free Airport Transfer', emoji: '🚗' },
+  { label: 'Complimentary Breakfast', emoji: '🍳' },
+  { label: 'All Meals Included', emoji: '🍽️' },
+  { label: 'Free WiFi', emoji: '📶' },
+  { label: 'Travel Insurance', emoji: '🛡️' },
+  { label: 'Entry Tickets Included', emoji: '🎟️' },
+  { label: 'English-Speaking Guide', emoji: '🎯' },
+  { label: 'Sightseeing Included', emoji: '🚌' },
+  { label: 'Free Cancellation', emoji: '🔄' },
+  { label: 'Welcome Drink', emoji: '🍾' },
+  { label: 'Water Sports Included', emoji: '🏄' },
+  { label: 'Wildlife Safari Included', emoji: '🦁' },
+  { label: 'Complimentary Spa', emoji: '💆' },
+  { label: 'Pool Access', emoji: '🏊' },
+  { label: 'Early Check-in / Late Checkout', emoji: '🏨' },
+  { label: 'Porter Service', emoji: '🎒' },
+  { label: 'Ferry / Cruise Included', emoji: '🚢' },
+  { label: 'Professional Photography', emoji: '📸' },
+]
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   pending:       { label: 'Pending',       color: 'bg-gray-100 text-gray-600',    icon: Clock },
@@ -145,7 +198,10 @@ function serializeDayItems(items: DayItem[]): string {
   return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
 }
 
-export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId, subAgentId }: Props) {
+export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId, subAgentId, openCustomizeId }: Props) {
+  const router = useRouter()
+  const autoOpenDoneRef = useRef(false)
+  const skipNextResetRef = useRef(false)
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -177,6 +233,24 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   const originalCustomFormRef = useRef<Partial<PackageData>>({})
   const originalCustomDayItemsRef = useRef<DayItem[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Customize form — hotels / vehicles / perks
+  const [customHotelEntries, setCustomHotelEntries] = useState<HotelEntry[]>([])
+  const [customVehicleEntries, setCustomVehicleEntries] = useState<VehicleEntry[]>([])
+  const [customPerks, setCustomPerks] = useState<string[]>([])
+  const [customPerkInput, setCustomPerkInput] = useState('')
+  const [customHotelCsvMsg, setCustomHotelCsvMsg] = useState('')
+  const [customVehicleCsvMsg, setCustomVehicleCsvMsg] = useState('')
+  const [customImgUploading, setCustomImgUploading] = useState(false)
+  const customImgInputRef = useRef<HTMLInputElement>(null)
+  const customHotelCsvRef = useRef<HTMLInputElement>(null)
+  const customVehicleCsvRef = useRef<HTMLInputElement>(null)
+
+  // Exchange rate for customize form
+  const [customExchangeRate, setCustomExchangeRate] = useState<number>(1)
+  const [customRateLoading, setCustomRateLoading] = useState(false)
+  const [customRateUpdatedAt, setCustomRateUpdatedAt] = useState<string>('')
+  const [customRateError, setCustomRateError] = useState(false)
 
   // ── Open PDF modal with resolved package data ────────────────────────────────
   async function openPdfForQuotation(q: Quotation) {
@@ -215,20 +289,22 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
   // â”€â”€ Open customize form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function openCustomize(q: Quotation) {
     setShowCustomize(true)
+    setCustomHotelCsvMsg(''); setCustomVehicleCsvMsg('')
     if (q.customPackageData) {
       const items = parseDayItems(q.customPackageData.dayWiseItinerary || '')
       setCustomForm(q.customPackageData)
       setCustomDayItems(items)
+      setCustomHotelEntries(Array.isArray(q.customPackageData.hotels) ? q.customPackageData.hotels : [])
+      setCustomVehicleEntries(Array.isArray(q.customPackageData.vehicles) ? q.customPackageData.vehicles : [])
+      setCustomPerks(Array.isArray(q.customPackageData.perks) ? q.customPackageData.perks : [])
       originalCustomFormRef.current = { ...q.customPackageData }
       originalCustomDayItemsRef.current = items.map(i => ({ ...i }))
       return
     }
     if (!q.packageId) {
       const form = { title: q.packageTitle, destination: q.destination }
-      setCustomForm(form)
-      setCustomDayItems([])
-      originalCustomFormRef.current = { ...form }
-      originalCustomDayItemsRef.current = []
+      setCustomForm(form); setCustomDayItems([]); setCustomHotelEntries([]); setCustomVehicleEntries([]); setCustomPerks([])
+      originalCustomFormRef.current = { ...form }; originalCustomDayItemsRef.current = []
       return
     }
     setLoadingPkg(true)
@@ -239,21 +315,20 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
         const items = parseDayItems(data.package.dayWiseItinerary || '')
         setCustomForm(data.package)
         setCustomDayItems(items)
+        setCustomHotelEntries(Array.isArray(data.package.hotels) ? data.package.hotels : [])
+        setCustomVehicleEntries(Array.isArray(data.package.vehicles) ? data.package.vehicles : [])
+        setCustomPerks(Array.isArray(data.package.perks) ? data.package.perks : [])
         originalCustomFormRef.current = { ...data.package }
         originalCustomDayItemsRef.current = items.map(i => ({ ...i }))
       } else {
         const form = { title: q.packageTitle, destination: q.destination }
-        setCustomForm(form)
-        setCustomDayItems([])
-        originalCustomFormRef.current = { ...form }
-        originalCustomDayItemsRef.current = []
+        setCustomForm(form); setCustomDayItems([]); setCustomHotelEntries([]); setCustomVehicleEntries([]); setCustomPerks([])
+        originalCustomFormRef.current = { ...form }; originalCustomDayItemsRef.current = []
       }
     } catch {
       const form = { title: q.packageTitle, destination: q.destination }
-      setCustomForm(form)
-      setCustomDayItems([])
-      originalCustomFormRef.current = { ...form }
-      originalCustomDayItemsRef.current = []
+      setCustomForm(form); setCustomDayItems([]); setCustomHotelEntries([]); setCustomVehicleEntries([]); setCustomPerks([])
+      originalCustomFormRef.current = { ...form }; originalCustomDayItemsRef.current = []
     }
     finally { setLoadingPkg(false) }
   }
@@ -264,7 +339,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     setSavingCustom(true)
     try {
       const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
-      const merged = { ...customForm, dayWiseItinerary: dayWise }
+      const merged = { ...customForm, dayWiseItinerary: dayWise, hotels: customHotelEntries, vehicles: customVehicleEntries, perks: customPerks }
       const groupSize = active.groupSize || active.adults || 1
       const newQuotedPrice = merged.pricePerPerson
         ? Number(merged.pricePerPerson) * groupSize
@@ -296,7 +371,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     setCreatingPkg(true)
     try {
       const dayWise = customDayItems.length > 0 ? serializeDayItems(customDayItems) : customForm.dayWiseItinerary || ''
-      const merged = { ...customForm, dayWiseItinerary: dayWise }
+      const merged = { ...customForm, dayWiseItinerary: dayWise, hotels: customHotelEntries, vehicles: customVehicleEntries, perks: customPerks }
 
       // 1. Create the package in Package Manager
       const pkgRes = await fetch('/api/agent/packages', {
@@ -310,18 +385,26 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
           durationDays: Number(merged.durationDays) || 0,
           durationNights: Number(merged.durationNights) || 0,
           pricePerPerson: Number(merged.pricePerPerson) || 0,
+          totalPrice: merged.totalPrice || null,
+          gst: merged.gst || null,
+          currency: merged.currency || 'INR',
           maxGroupSize: Number(merged.maxGroupSize) || 20,
           minGroupSize: Number(merged.minGroupSize) || 1,
           travelType: merged.travelType || '',
           theme: merged.theme || '',
           mood: merged.mood || '',
-          starCategory: merged.starCategory || '3-Star',
+          starCategory: merged.starCategory || '',
           inclusions: Array.isArray(merged.inclusions) ? merged.inclusions.filter(Boolean) : [],
           exclusions: Array.isArray(merged.exclusions) ? merged.exclusions.filter(Boolean) : [],
           highlights: Array.isArray(merged.highlights) ? merged.highlights.filter(Boolean) : [],
           dayWiseItinerary: dayWise,
+          hotels: customHotelEntries,
+          vehicles: customVehicleEntries,
+          perks: customPerks,
           primaryImageUrl: merged.primaryImageUrl || '',
           seasonalAvailability: merged.seasonalAvailability || 'Year Round',
+          paymentPolicy: merged.paymentPolicy || '',
+          cancellationPolicy: merged.cancellationPolicy || '',
         }),
       })
       const pkgData = await pkgRes.json()
@@ -362,6 +445,118 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
     setCustomDayItems(prev => [...prev, { id: crypto.randomUUID(), title: `Day ${idx}:`, description: '', tags: [] }])
   }
 
+  // ── Exchange rate for customize form ────────────────────────────────────
+  useEffect(() => {
+    if (!showCustomize) return
+    const currency = (customForm as any).currency || 'INR'
+    if (currency === 'INR') { setCustomExchangeRate(1); setCustomRateUpdatedAt(''); setCustomRateError(false); return }
+    setCustomRateLoading(true); setCustomRateError(false)
+    fetchQuotINRRate(currency)
+      .then(({ rate, updatedAt }) => { setCustomExchangeRate(rate); setCustomRateUpdatedAt(updatedAt) })
+      .catch(() => { setCustomExchangeRate(1); setCustomRateError(true) })
+      .finally(() => setCustomRateLoading(false))
+  }, [(customForm as any)?.currency, showCustomize])
+
+  // ── Hotel helpers ────────────────────────────────────────────────────────
+  function addCustomHotel() {
+    setCustomHotelEntries(prev => [...prev, { id: crypto.randomUUID(), destination: '', nights: 1, hotels: '', mealPlan: 'Breakfast', roomType: '' }])
+  }
+  function updateCustomHotel(id: string, field: keyof HotelEntry, value: string | number) {
+    setCustomHotelEntries(prev => prev.map(h => h.id === id ? { ...h, [field]: value } : h))
+  }
+  function removeCustomHotel(id: string) {
+    setCustomHotelEntries(prev => prev.filter(h => h.id !== id))
+  }
+  function handleCustomHotelCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    e.target.value = ''; setCustomHotelCsvMsg('')
+    file.text().then(text => {
+      const lines = text.replace(/\r\n/g, '\n').split('\n').filter(Boolean)
+      if (lines.length < 2) { setCustomHotelCsvMsg('No data rows found.'); return }
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'))
+      const added: HotelEntry[] = []
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+        const row: Record<string, string> = {}
+        headers.forEach((h, idx) => { row[h] = vals[idx] || '' })
+        const dest = (row['destination'] || row['dest'] || row['city'] || '').trim()
+        const hotel = (row['hotel_name'] || row['hotel'] || row['hotels'] || row['name'] || '').trim()
+        if (!dest || !hotel) continue
+        const nights = parseInt(row['nights'] || '1') || 1
+        const mealPlan = MEAL_PLANS.includes(row['meal_plan'] || row['meal'] || '') ? (row['meal_plan'] || row['meal']) : 'Breakfast'
+        const roomType = (row['room_type'] || row['room'] || '').trim()
+        added.push({ id: crypto.randomUUID(), destination: dest, nights, hotels: hotel, mealPlan, roomType })
+      }
+      if (added.length === 0) { setCustomHotelCsvMsg('No valid rows found.'); return }
+      setCustomHotelEntries(prev => [...prev, ...added])
+      setCustomHotelCsvMsg(`✓ ${added.length} hotel${added.length > 1 ? 's' : ''} imported.`)
+    }).catch(() => setCustomHotelCsvMsg('Failed to read file.'))
+  }
+
+  // ── Vehicle helpers ──────────────────────────────────────────────────────
+  function addCustomVehicle() {
+    setCustomVehicleEntries(prev => [...prev, { id: crypto.randomUUID(), vehicleType: 'Innova Crysta', seats: 7, route: '', days: 1, notes: '' }])
+  }
+  function updateCustomVehicle(id: string, field: keyof VehicleEntry, value: string | number) {
+    setCustomVehicleEntries(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v))
+  }
+  function removeCustomVehicle(id: string) {
+    setCustomVehicleEntries(prev => prev.filter(v => v.id !== id))
+  }
+  function handleCustomVehicleCsv(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    e.target.value = ''; setCustomVehicleCsvMsg('')
+    file.text().then(text => {
+      const lines = text.replace(/\r\n/g, '\n').split('\n').filter(Boolean)
+      if (lines.length < 2) { setCustomVehicleCsvMsg('No data rows found.'); return }
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'))
+      const added: VehicleEntry[] = []
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+        const row: Record<string, string> = {}
+        headers.forEach((h, idx) => { row[h] = vals[idx] || '' })
+        const vType = (row['vehicle_type'] || row['vehicle'] || row['type'] || '').trim()
+        if (!vType) continue
+        const seats = parseInt(row['seats'] || '4') || 4
+        const route = (row['route'] || row['transfer'] || '').trim()
+        const days = parseInt(row['days'] || '1') || 1
+        const notes = (row['notes'] || row['remarks'] || '').trim()
+        added.push({ id: crypto.randomUUID(), vehicleType: vType, seats, route, days, notes })
+      }
+      if (added.length === 0) { setCustomVehicleCsvMsg('No valid rows found.'); return }
+      setCustomVehicleEntries(prev => [...prev, ...added])
+      setCustomVehicleCsvMsg(`✓ ${added.length} vehicle${added.length > 1 ? 's' : ''} imported.`)
+    }).catch(() => setCustomVehicleCsvMsg('Failed to read file.'))
+  }
+
+  // ── Image upload ─────────────────────────────────────────────────────────
+  async function handleCustomImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setCustomImgUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', '/packages')
+      fd.append('fileName', `custom_${agentId}_${Date.now()}`)
+      const res = await fetch('/api/imagekit/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.success) setCustomForm(p => ({ ...p, primaryImageUrl: data.url }))
+    } catch (e) { console.error(e) } finally {
+      setCustomImgUploading(false)
+      if (customImgInputRef.current) customImgInputRef.current.value = ''
+    }
+  }
+
+  // ── Perks helpers ────────────────────────────────────────────────────────
+  function toggleCustomPerk(label: string) {
+    setCustomPerks(prev => prev.includes(label) ? prev.filter(p => p !== label) : [...prev, label])
+  }
+  function addCustomPerk() {
+    const t = customPerkInput.trim()
+    if (!t || customPerks.includes(t)) { setCustomPerkInput(''); return }
+    setCustomPerks(prev => [...prev, t]); setCustomPerkInput('')
+  }
+
   const fetchQuotations = useCallback(async () => {
     try {
       const url = subAgentId
@@ -397,12 +592,26 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
 
   useEffect(() => { fetchQuotations() }, [fetchQuotations])
 
+  // Auto-open customize form when navigated to /dmc-dashboard/quotations/[id]
+  useEffect(() => {
+    if (!openCustomizeId || loading || quotations.length === 0 || autoOpenDoneRef.current) return
+    const q = quotations.find(x => x.id === openCustomizeId)
+    if (q) {
+      autoOpenDoneRef.current = true
+      skipNextResetRef.current = true
+      setActiveId(q.id)
+      openCustomize(q)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCustomizeId, loading, quotations])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeId, quotations])
 
-  // Reset package states when switching quotations
+  // Reset package states when switching quotations (skip when auto-opening via URL)
   useEffect(() => {
+    if (skipNextResetRef.current) { skipNextResetRef.current = false; return }
     setShowCustomize(false)
     setViewPkg(null)
     setCustomDayItems([])
@@ -827,13 +1036,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                             )}
                           </button>}
                           <button
-                            onClick={() => {
-                              setActiveId(q.id)
-                              setEditingPrice(false)
-                              setPriceInput(String(q.quotedPrice || ''))
-                              setDetailPanelOpen(true)
-                              setChatPanelOpen(false)
-                            }}
+                            onClick={() => router.push(`/dmc-dashboard/quotations/${q.id}`)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                           >
                             View
@@ -939,7 +1142,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
 
     {/* VIEW PROPOSAL - Full-Screen Overlay */}
     {detailPanelOpen && active && (
-      <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+      <div className="fixed left-0 md:left-72 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
 
         <div className="flex items-center justify-between bg-white border-b border-gray-100 px-5 py-3 flex-shrink-0">
           <div className="flex items-center gap-3 flex-wrap min-w-0">
@@ -1179,7 +1382,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       const viewTotalPrice = viewPkg.pricePerPerson ? Number(viewPkg.pricePerPerson) * groupSize : 0
       const isCustom = !!active.customPackageData
       return (
-        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+        <div className="fixed left-0 md:left-72 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
 
           {/* Top bar */}
           <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
@@ -1553,61 +1756,38 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
       )
     })()}
 
-    {/* â”€â”€ Full-Screen Customize Overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+    {/* ── Full-Screen Customize Overlay ─────────────────────────────────── */}
     {showCustomize && active && (() => {
       const groupSize = active.groupSize || active.adults || 1
-      const totalPrice = customForm.pricePerPerson ? Number(customForm.pricePerPerson) * groupSize : 0
       const isFormDirty =
         JSON.stringify(customForm) !== JSON.stringify(originalCustomFormRef.current) ||
         JSON.stringify(customDayItems) !== JSON.stringify(originalCustomDayItemsRef.current)
+      const customCurrency = (customForm as any).currency || 'INR'
+      const currencyMeta = CURRENCIES.find(c => c.code === customCurrency) || CURRENCIES[0]
+      const basePrice = Number(customForm.pricePerPerson) || 0
+      const baseINR = basePrice * customExchangeRate
+      const totalINR = baseINR * groupSize
       return (
-        <div className="fixed left-0 md:left-60 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
+        <div className="fixed left-0 md:left-72 right-0 top-0 bottom-0 z-[60] flex flex-col bg-[#f4f5f9]">
 
-          {/* Top bar */}
-          <div className="flex items-center justify-between bg-white border-b border-gray-100 px-4 py-2.5 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowCustomize(false)}
-                className="flex items-center gap-1.5 text-gray-500 hover:text-amber-700 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg transition-colors text-sm font-semibold"
-              >
+          {/* Top bar — matches PackageManager style */}
+          <div className="flex items-center gap-4 bg-white border-b border-gray-100 px-5 py-0 flex-shrink-0 h-14">
+            <button
+              onClick={() => { setShowCustomize(false); if (openCustomizeId) router.push('/dmc-dashboard/quotations') }}
+              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors flex-shrink-0"
+            >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                 Back
               </button>
-              <div className="h-4 w-px bg-gray-200" />
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                {active.customPackageData ? 'Editing Custom' : 'Customizing'}
+            <div className="h-6 w-px bg-gray-200 flex-shrink-0" />
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">{customForm.title || active.packageTitle || 'Untitled'}</p>
+                <p className="text-xs text-gray-400">{active.customPackageData ? 'Editing custom package for this quotation' : 'Customizing package for this quotation'}</p>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${active.customPackageData ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                {active.customPackageData ? 'Editing' : 'Customizing'}
               </span>
-              <p className="text-sm font-semibold text-gray-700 truncate max-w-xs hidden sm:block">
-                {customForm.title || active.packageTitle || 'â€”'}
-              </p>
-              <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium hidden sm:block">
-                Not saved to Package Manager
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={createNewPackage}
-                disabled={creatingPkg || savingCustom || !isFormDirty}
-                className="flex items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-3.5 py-1.5 rounded-lg transition-colors"
-                title={!isFormDirty ? 'Make changes first to create a new package' : 'Create this as a new package in Package Manager'}
-              >
-                {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                {creatingPkg ? 'Creatingâ€¦' : 'Create New Package'}
-              </button>
-              <button
-                onClick={saveCustomPackage}
-                disabled={savingCustom || creatingPkg}
-                className="flex items-center gap-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-3.5 py-1.5 rounded-lg transition-colors"
-              >
-                {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                {savingCustom ? 'Savingâ€¦' : 'Save Custom Package'}
-              </button>
-              <button
-                onClick={() => setShowCustomize(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
@@ -1617,87 +1797,92 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
             {/* Left: editor */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
 
-              {/* â”€â”€ 1. Title â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-5 pt-4 pb-3">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">Package Title</p>
-                  <input
-                    value={customForm.title || ''}
-                    onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
-                    placeholder={active.packageTitle || 'e.g. Customized Goa Beach Package'}
-                    className="w-full text-xl font-bold text-white bg-transparent border-none outline-none placeholder:text-white/30"
-                  />
+              {/* Cover Image */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">🖼️</span>
+                  <p className="text-sm font-bold text-gray-800">Cover Image</p>
                 </div>
-                <div className="flex flex-wrap gap-2 px-5 py-3">
-                  <span className="flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                    <Clock className="w-3 h-3" />{customForm.durationDays || '?'}D / {customForm.durationNights || '?'}N
-                  </span>
-                  {customForm.starCategory && (
-                    <span className="flex items-center gap-1 bg-amber-50 text-amber-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                      <Star className="w-3 h-3" />{customForm.starCategory}
-                    </span>
+                <div className="p-5">
+                  <input ref={customImgInputRef} type="file" accept="image/*" onChange={handleCustomImageUpload} className="hidden" />
+                  {customForm.primaryImageUrl ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200 h-44 group">
+                      <img src={customForm.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <button type="button" onClick={() => customImgInputRef.current?.click()}
+                          className="flex items-center gap-1.5 bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100">
+                          <Upload className="w-3.5 h-3.5" /> Change
+                        </button>
+                        <button type="button" onClick={() => setCustomForm(p => ({ ...p, primaryImageUrl: '' }))}
+                          className="flex items-center gap-1.5 bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-600">
+                          <X className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </div>
+                      {customImgUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-white" /></div>}
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => customImgInputRef.current?.click()} disabled={customImgUploading}
+                      className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-amber-400 hover:bg-amber-50/40 transition-colors text-gray-400 hover:text-amber-600">
+                      {customImgUploading
+                        ? <><Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm font-medium">Uploading...</span></>
+                        : <><Upload className="w-6 h-6" /><span className="text-sm font-medium">Click to upload cover image</span><span className="text-xs">JPG, PNG, WEBP · Max 10 MB</span></>
+                      }
+                    </button>
                   )}
-                  {customForm.travelType && <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.travelType}</span>}
-                  {customForm.theme && <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.theme}</span>}
-                  {customForm.mood && <span className="bg-pink-50 text-pink-700 text-xs font-semibold px-2.5 py-1 rounded-full">{customForm.mood}</span>}
                 </div>
               </div>
 
-              {/* â”€â”€ 2. Basic Info â”€â”€ */}
+              {/* Basic Info */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
                 <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">ðŸ“</span>
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📍</span>
                   <p className="text-sm font-bold text-gray-800">Basic Info</p>
                 </div>
-                <div className="p-5 grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Destination</label>
-                    <input value={customForm.destination || ''} onChange={e => setCustomForm(p => ({ ...p, destination: e.target.value }))}
-                      placeholder={active.destination}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Country</label>
-                    <input value={customForm.destinationCountry || ''} onChange={e => setCustomForm(p => ({ ...p, destinationCountry: e.target.value }))}
-                      placeholder="India"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Days</label>
-                    <input type="number" min="1" value={customForm.durationDays || ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Nights</label>
-                    <input type="number" min="0" value={customForm.durationNights || ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Min Group</label>
-                    <input type="number" min="1" value={customForm.minGroupSize || ''} onChange={e => setCustomForm(p => ({ ...p, minGroupSize: Number(e.target.value) }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Max Group</label>
-                    <input type="number" min="1" value={customForm.maxGroupSize || ''} onChange={e => setCustomForm(p => ({ ...p, maxGroupSize: Number(e.target.value) }))}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-semibold text-gray-500 block mb-1">Seasonal Availability</label>
-                    <input value={customForm.seasonalAvailability || ''} onChange={e => setCustomForm(p => ({ ...p, seasonalAvailability: e.target.value }))}
-                      placeholder="Octâ€“Mar / Year Round"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  </div>
-                </div>
-              </div>
-
-              {/* â”€â”€ 3. Package Type â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-purple-50 flex items-center justify-center text-sm">ðŸŽ¯</span>
-                  <p className="text-sm font-bold text-gray-800">Package Type</p>
-                </div>
                 <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Package Title</label>
+                    <input
+                      value={customForm.title || ''}
+                      onChange={e => setCustomForm(p => ({ ...p, title: e.target.value }))}
+                      placeholder={active.packageTitle || 'e.g. Customized Goa Beach Package'}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Destination</label>
+                      <input value={customForm.destination || ''} onChange={e => setCustomForm(p => ({ ...p, destination: e.target.value }))}
+                        placeholder={active.destination}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Country</label>
+                      <input value={customForm.destinationCountry || ''} onChange={e => setCustomForm(p => ({ ...p, destinationCountry: e.target.value }))}
+                        placeholder="India"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Days</label>
+                      <input type="number" min="1" value={customForm.durationDays || ''} onChange={e => setCustomForm(p => ({ ...p, durationDays: Number(e.target.value) }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-gray-500 block mb-1">Nights</label>
+                      <input type="number" min="0" value={customForm.durationNights || ''} onChange={e => setCustomForm(p => ({ ...p, durationNights: Number(e.target.value) }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-2">Star Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {STAR_CATEGORIES.map(s => (
+                        <button key={s} type="button" onClick={() => setCustomForm(p => ({ ...p, starCategory: s }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}>
+                          {s === '' ? 'None' : s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 block mb-2">Travel Type</label>
                     <div className="flex flex-wrap gap-2">
@@ -1710,52 +1895,9 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-2">Star Category</label>
-                    <div className="flex flex-wrap gap-2">
-                      {STAR_CATEGORIES.map(s => (
-                        <button key={s} type="button" onClick={() => setCustomForm(p => ({ ...p, starCategory: s }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.starCategory === s ? 'bg-amber-500 text-white border-amber-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-amber-300'}`}>
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-2">Theme</label>
-                    <div className="flex flex-wrap gap-2">
-                      {THEMES.map(t => (
-                        <button key={t} type="button" onClick={() => setCustomForm(p => ({ ...p, theme: customForm.theme === t ? '' : t }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.theme === t ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-indigo-300'}`}>
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 block mb-2">Mood / Vibe</label>
-                    <div className="flex flex-wrap gap-2">
-                      {MOODS.map(m => (
-                        <button key={m} type="button" onClick={() => setCustomForm(p => ({ ...p, mood: customForm.mood === m ? '' : m }))}
-                          className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${customForm.mood === m ? 'bg-pink-500 text-white border-pink-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-pink-300'}`}>
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* â”€â”€ 4. Description & Content â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">ðŸ“</span>
-                  <p className="text-sm font-bold text-gray-800">Description & Content</p>
-                </div>
-                <div className="p-5 space-y-4">
-                  <div>
                     <label className="text-xs font-semibold text-gray-500 block mb-1">Overview</label>
                     <textarea rows={3} value={customForm.overview || ''} onChange={e => setCustomForm(p => ({ ...p, overview: e.target.value }))}
-                      placeholder="Describe this package in a few sentencesâ€¦"
+                      placeholder="Describe this package in a few sentences..."
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
                   <div>
@@ -1763,257 +1905,435 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                     <textarea rows={3}
                       value={Array.isArray(customForm.highlights) ? customForm.highlights.join('\n') : (customForm.highlights || '')}
                       onChange={e => setCustomForm(p => ({ ...p, highlights: e.target.value.split('\n') }))}
-                      placeholder="Sunset cruise&#10;Scuba diving&#10;Island hopping"
+                      placeholder={"Sunset cruise\nScuba diving\nIsland hopping"}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-semibold text-green-700 block mb-1">âœ“ Inclusions</label>
-                      <textarea rows={4}
-                        value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : (customForm.inclusions || '')}
-                        onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n') }))}
-                        placeholder="Flights&#10;Hotel accommodation&#10;Daily breakfast"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-semibold text-red-500 block mb-1">âœ— Exclusions</label>
-                      <textarea rows={4}
-                        value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : (customForm.exclusions || '')}
-                        onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n') }))}
-                        placeholder="Travel insurance&#10;Visa fees&#10;Tips & gratuities"
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* â”€â”€ 5. Pricing â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-sm">ðŸ’°</span>
-                  <p className="text-sm font-bold text-gray-800">Pricing for This Quotation</p>
+              {/* Pricing Configuration */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-base">💰</div>
+                  <h3 className="font-bold text-gray-900 text-sm">Pricing Configuration</h3>
                 </div>
-                <div className="p-5 flex items-start gap-5">
-                  <div className="flex-1 space-y-1">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Price per Person (â‚¹)</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-gray-400 font-semibold text-lg">â‚¹</span>
-                      <input
-                        type="number"
-                        value={customForm.pricePerPerson || ''}
-                        onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) || undefined }))}
-                        placeholder="0"
-                        className="text-3xl font-bold text-gray-900 border-none outline-none w-40 bg-transparent focus:outline-none"
-                      />
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Net Cost (per person)</p>
+                      <div className="flex gap-2">
+                        <select
+                          value={(customForm as any).currency || 'INR'}
+                          onChange={e => setCustomForm(p => ({ ...p, currency: e.target.value } as any))}
+                          className="text-sm font-semibold border border-gray-200 rounded-xl px-3 py-3 bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-200 cursor-pointer flex-shrink-0"
+                        >
+                          {CURRENCIES.map(c => (
+                            <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
+                          ))}
+                        </select>
+                        <div className="flex-1 flex items-center border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 gap-2 focus-within:ring-2 focus-within:ring-amber-200 focus-within:border-amber-300 transition-all">
+                          <span className="text-gray-400 font-bold text-lg flex-shrink-0">{currencyMeta.symbol}</span>
+                          <input
+                            type="number"
+                            value={customForm.pricePerPerson || ''}
+                            onChange={e => setCustomForm(p => ({ ...p, pricePerPerson: Number(e.target.value) || undefined }))}
+                            className="flex-1 text-xl font-bold text-gray-900 border-none outline-none bg-transparent min-w-0"
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                      {customCurrency !== 'INR' && (
+                        <div className="mt-2 flex flex-col gap-1">
+                          {customRateLoading ? (
+                            <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              Fetching live rate...
+                            </span>
+                          ) : customRateError ? (
+                            <span className="text-xs text-red-500 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+                              Could not fetch rate — using 1:1 fallback.
+                            </span>
+                          ) : basePrice > 0 ? (
+                            <>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 inline-flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                                approx. ₹{baseINR.toLocaleString('en-IN', { maximumFractionDigits: 0 })} INR
+                                <span className="text-emerald-500 font-medium">·</span>
+                                <span className="font-normal text-emerald-500">1 {customCurrency} = ₹{customExchangeRate.toLocaleString('en-IN', { maximumFractionDigits: 4 })}</span>
+                              </span>
+                              {customRateUpdatedAt && (
+                                <span className="text-[10px] text-gray-400 pl-1">
+                                  Rate last updated: {new Date(customRateUpdatedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 pl-1">
+                              {customExchangeRate > 1 ? `1 ${customCurrency} = ₹${customExchangeRate.toLocaleString('en-IN', { maximumFractionDigits: 4 })}` : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-gray-400">{groupSize} pax Â· will auto-set quoted price</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Total Price (optional)</p>
+                        <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 gap-1.5">
+                          <span className="text-gray-400 font-semibold text-sm">{currencyMeta.symbol}</span>
+                          <input
+                            type="number"
+                            value={(customForm as any).totalPrice || ''}
+                            onChange={e => setCustomForm(p => ({ ...p, totalPrice: Number(e.target.value) || null } as any))}
+                            placeholder="e.g. 150000"
+                            className="flex-1 text-sm font-bold text-gray-900 border-none outline-none bg-transparent w-0 min-w-0"
+                          />
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-1 pl-1">If set, PDF shows this as total package price.</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">GST (%)</p>
+                        <div className="flex items-center border border-gray-200 rounded-xl px-3 py-2 bg-gray-50 gap-1.5">
+                          <input
+                            type="number"
+                            value={(customForm as any).gst || ''}
+                            onChange={e => setCustomForm(p => ({ ...p, gst: Number(e.target.value) || null } as any))}
+                            placeholder="e.g. 5"
+                            min="0"
+                            max="100"
+                            className="flex-1 text-sm font-bold text-gray-900 border-none outline-none bg-transparent w-0 min-w-0"
+                          />
+                          <span className="text-gray-400 font-semibold text-sm">%</span>
+                        </div>
+                        <p className="text-[9px] text-gray-400 mt-1 pl-1">GST percentage shown on PDF quotation.</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-amber-600 text-white rounded-2xl p-4 min-w-[160px] text-center shadow-lg shadow-amber-100">
+                  <div className="bg-amber-600 text-white rounded-2xl p-4 min-w-[160px] flex-shrink-0 text-center shadow-lg shadow-amber-100">
                     <p className="text-[9px] font-bold uppercase tracking-widest opacity-70 mb-1">Total Quoted Price</p>
+                    <p className="text-[9px] opacity-50 mb-2">(in INR)</p>
                     <p className="text-2xl font-bold leading-tight">
-                      â‚¹{totalPrice > 0 ? totalPrice.toLocaleString('en-IN') : 'â€”'}
+                      ₹{totalINR > 0 ? totalINR.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—'}
                     </p>
-                    <p className="text-[10px] opacity-60 mt-1">for {groupSize} pax</p>
+                    <p className="text-[10px] opacity-60 mt-1.5">for {groupSize} pax</p>
+                    {customCurrency !== 'INR' && basePrice > 0 && !customRateLoading && (
+                      <p className="text-[9px] opacity-50 mt-1">{currencyMeta.symbol}{basePrice.toLocaleString()} × {customExchangeRate.toFixed(2)}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* â”€â”€ 6. Cover Image â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
-                  <span className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-sm">ðŸ–¼ï¸</span>
-                  <p className="text-sm font-bold text-gray-800">Cover Image URL</p>
-                </div>
-                <div className="p-5 space-y-3">
-                  <input value={customForm.primaryImageUrl || ''} onChange={e => setCustomForm(p => ({ ...p, primaryImageUrl: e.target.value }))}
-                    placeholder="https://images.unsplash.com/â€¦"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-                  {customForm.primaryImageUrl && (
-                    <div className="relative rounded-xl overflow-hidden h-36 border border-gray-200">
-                      <img src={customForm.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
+              {/* Master Itinerary */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-purple-600" />
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* â”€â”€ 7. Master Itinerary â”€â”€ */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-sm">ðŸ—ºï¸</span>
-                    <p className="text-sm font-bold text-gray-800">Master Itinerary</p>
+                    <h3 className="font-bold text-gray-900 text-sm">Master Itinerary</h3>
                     {customDayItems.length > 0 && (
                       <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
                         {customDayItems.length} day{customDayItems.length !== 1 ? 's' : ''}
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={addCustomDayItem}
-                    className="flex items-center gap-1.5 text-xs text-indigo-600 font-bold hover:text-indigo-800 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />Add New Day
+                  <button onClick={addCustomDayItem} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                    <Plus className="w-3.5 h-3.5" /> Add New Day
                   </button>
                 </div>
-                <div className="p-5">
-                  {customDayItems.length === 0 ? (
-                    <button
-                      onClick={addCustomDayItem}
-                      className="w-full py-8 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm hover:border-indigo-300 hover:text-indigo-500 transition-colors"
-                    >
-                      + Add your first day
+                {customDayItems.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No days added yet</p>
+                    <button onClick={addCustomDayItem} className="mt-2 text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add Day 1</button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {customDayItems.map((day, idx) => (
+                      <QuotDayCard
+                        key={day.id}
+                        day={day}
+                        idx={idx}
+                        onTitleChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, title: v } : d))}
+                        onDescChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, description: v } : d))}
+                        onAddTag={tag => { const t = tag.trim(); if (!t) return; setCustomDayItems(prev => prev.map(d => d.id === day.id && !d.tags.includes(t) ? { ...d, tags: [...d.tags, t] } : d)) }}
+                        onRemoveTag={tag => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, tags: d.tags.filter(t => t !== tag) } : d))}
+                        onRemove={() => setCustomDayItems(prev => prev.filter(d => d.id !== day.id))}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Hotels & Accommodation */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <input ref={customHotelCsvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCustomHotelCsv} />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center text-base">🏨</div>
+                    <h3 className="font-bold text-gray-900 text-sm">Hotels & Accommodation</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => customHotelCsvRef.current?.click()} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg">
+                      <Upload className="w-3 h-3" /> Import CSV
                     </button>
-                  ) : (
-                    <div className="space-y-3">
-                      {customDayItems.map((day, idx) => (
-                        <QuotDayCard
-                          key={day.id}
-                          day={day}
-                          idx={idx}
-                          onTitleChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, title: v } : d))}
-                          onDescChange={v => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, description: v } : d))}
-                          onAddTag={tag => { const t = tag.trim(); if (!t) return; setCustomDayItems(prev => prev.map(d => d.id === day.id && !d.tags.includes(t) ? { ...d, tags: [...d.tags, t] } : d)) }}
-                          onRemoveTag={tag => setCustomDayItems(prev => prev.map(d => d.id === day.id ? { ...d, tags: d.tags.filter(t => t !== tag) } : d))}
-                          onRemove={() => setCustomDayItems(prev => prev.filter(d => d.id !== day.id))}
-                        />
-                      ))}
+                    <button onClick={addCustomHotel} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                      <Plus className="w-3.5 h-3.5" /> Add Hotel
+                    </button>
+                  </div>
+                </div>
+                {customHotelCsvMsg && (
+                  <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${customHotelCsvMsg.startsWith('ok') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{customHotelCsvMsg}</p>
+                )}
+                {customHotelEntries.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No hotels added yet</p>
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button onClick={addCustomHotel} className="text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add manually</button>
+                      <span className="text-gray-300">|</span>
+                      <button onClick={() => customHotelCsvRef.current?.click()} className="text-xs text-emerald-600 font-semibold hover:text-emerald-800">Import from CSV</button>
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Destination</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-12">Nights</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Hotel(s)</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-32">Meal Plan</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Room Type</th>
+                          <th className="pb-2 w-6" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {customHotelEntries.map(h => (
+                          <tr key={h.id} className="group">
+                            <td className="py-2 pr-3">
+                              <input value={h.destination} onChange={e => updateCustomHotel(h.id, 'destination', e.target.value)} placeholder="Kuta"
+                                className="w-full text-sm font-semibold text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input type="number" min="1" value={h.nights} onChange={e => updateCustomHotel(h.id, 'nights', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <textarea value={h.hotels} onChange={e => updateCustomHotel(h.id, 'hotels', e.target.value)} placeholder="Hotel name" rows={2}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 resize-none" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <select value={h.mealPlan} onChange={e => updateCustomHotel(h.id, 'mealPlan', e.target.value)}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400">
+                                {MEAL_PLANS.map(m => <option key={m}>{m}</option>)}
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <textarea value={h.roomType} onChange={e => updateCustomHotel(h.id, 'roomType', e.target.value)} placeholder="Room type" rows={2}
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400 resize-none" />
+                            </td>
+                            <td className="py-2">
+                              <button onClick={() => removeCustomHotel(h.id)} className="p-1 text-gray-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Vehicles & Transfers */}
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <input ref={customVehicleCsvRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleCustomVehicleCsv} />
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center text-base">🚗</div>
+                    <h3 className="font-bold text-gray-900 text-sm">Vehicles & Transfers</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => customVehicleCsvRef.current?.click()} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg">
+                      <Upload className="w-3 h-3" /> Import CSV
+                    </button>
+                    <button onClick={addCustomVehicle} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                      <Plus className="w-3.5 h-3.5" /> Add Vehicle
+                    </button>
+                  </div>
+                </div>
+                {customVehicleCsvMsg && (
+                  <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${customVehicleCsvMsg.startsWith('ok') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{customVehicleCsvMsg}</p>
+                )}
+                {customVehicleEntries.length === 0 ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">No vehicles added yet</p>
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button onClick={addCustomVehicle} className="text-xs text-blue-500 font-semibold hover:text-blue-700">+ Add manually</button>
+                      <span className="text-gray-300">|</span>
+                      <button onClick={() => customVehicleCsvRef.current?.click()} className="text-xs text-emerald-600 font-semibold hover:text-emerald-800">Import from CSV</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Vehicle Type</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-14">Seats</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Route / Transfers</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3 w-12">Days</th>
+                          <th className="text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider pb-2 pr-3">Notes</th>
+                          <th className="pb-2 w-6" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {customVehicleEntries.map(v => (
+                          <tr key={v.id} className="group">
+                            <td className="py-2 pr-3">
+                              <select value={v.vehicleType} onChange={e => updateCustomVehicle(v.id, 'vehicleType', e.target.value)}
+                                className="w-full text-sm text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400">
+                                {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
+                                {!VEHICLE_TYPES.includes(v.vehicleType) && v.vehicleType && (
+                                  <option value={v.vehicleType}>{v.vehicleType}</option>
+                                )}
+                              </select>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input type="number" min="1" value={v.seats} onChange={e => updateCustomVehicle(v.id, 'seats', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input value={v.route} onChange={e => updateCustomVehicle(v.id, 'route', e.target.value)} placeholder="Airport transfers, all sightseeing"
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input type="number" min="1" value={v.days} onChange={e => updateCustomVehicle(v.id, 'days', Number(e.target.value))}
+                                className="w-full text-sm text-center text-gray-800 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input value={v.notes} onChange={e => updateCustomVehicle(v.id, 'notes', e.target.value)} placeholder="AC vehicle, with driver"
+                                className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-blue-400" />
+                            </td>
+                            <td className="py-2">
+                              <button onClick={() => removeCustomVehicle(v.id)} className="p-1 text-gray-200 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Inclusions & Exclusions */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-sm">📝</span>
+                  <p className="text-sm font-bold text-gray-800">Inclusions & Exclusions</p>
+                </div>
+                <div className="p-5">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-green-700 block mb-1">✓ Inclusions</label>
+                      <textarea rows={4}
+                        value={Array.isArray(customForm.inclusions) ? customForm.inclusions.join('\n') : (customForm.inclusions || '')}
+                        onChange={e => setCustomForm(p => ({ ...p, inclusions: e.target.value.split('\n') }))}
+                        placeholder={"Flights\nHotel accommodation\nDaily breakfast"}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-red-500 block mb-1">✗ Exclusions</label>
+                      <textarea rows={4}
+                        value={Array.isArray(customForm.exclusions) ? customForm.exclusions.join('\n') : (customForm.exclusions || '')}
+                        onChange={e => setCustomForm(p => ({ ...p, exclusions: e.target.value.split('\n') }))}
+                        placeholder={"Travel insurance\nVisa fees\nTips & gratuities"}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Package Perks — hidden
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                ...
+              </div>
+              */}
+
+              {/* Payment & Cancellation Policy */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-gray-50">
+                  <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-sm">📋</span>
+                  <p className="text-sm font-bold text-gray-800">Payment & Cancellation Policy</p>
+                  <span className="ml-auto text-[10px] text-gray-400 font-medium">Shown in customer PDF</span>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Payment Policy</label>
+                    <textarea rows={4}
+                      value={(customForm as any).paymentPolicy || ''}
+                      onChange={e => setCustomForm(p => ({ ...p, paymentPolicy: e.target.value } as any))}
+                      placeholder="e.g. 30% advance to confirm booking. Balance due 21 days before travel. Bank transfer or UPI accepted."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 block mb-1">Cancellation Policy</label>
+                    <textarea rows={4}
+                      value={(customForm as any).cancellationPolicy || ''}
+                      onChange={e => setCustomForm(p => ({ ...p, cancellationPolicy: e.target.value } as any))}
+                      placeholder="e.g. 30+ days: 25% charge. 15-29 days: 50% charge. 7-14 days: 75% charge. Less than 7 days: non-refundable."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-300" />
+                  </div>
                 </div>
               </div>
 
             </div>
 
-            {/* Right: Live Preview */}
-            <div className="w-80 flex-shrink-0 bg-white border-l border-gray-100 flex flex-col overflow-y-auto">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <span className="text-xs font-bold text-gray-700">Live Preview</span>
-                <p className="text-[10px] text-gray-400 mt-0.5">for {active.customerName} Â· {groupSize} pax</p>
-              </div>
-              <div className="p-4">
-                <div className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
-                  {/* Hero */}
-                  <div className="relative h-40">
-                    {customForm.primaryImageUrl ? (
-                      <img src={customForm.primaryImageUrl} alt="Cover" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center">
-                        <Package className="w-12 h-12 text-white/50" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
-                    <div className="absolute top-3 left-3">
-                      <span className="bg-white text-[10px] font-bold px-2.5 py-1 rounded-full text-gray-800 shadow">Custom Quote</span>
-                    </div>
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <p className="text-white font-bold text-sm leading-snug line-clamp-2">
-                        {customForm.title || active.packageTitle || 'Your Package'}
-                      </p>
-                      {(customForm.destination || active.destination) && (
-                        <p className="text-white/70 text-[10px] flex items-center gap-0.5 mt-0.5">
-                          <MapPin className="w-2.5 h-2.5" />{customForm.destination || active.destination}
-                        </p>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Stats */}
-                  <div className="p-3">
-                    <div className="grid grid-cols-3 gap-2 mb-3">
-                      {[
-                        { emoji: 'ðŸ¨', label: 'Stay', val: customForm.starCategory || 'â€“' },
-                        { emoji: 'âœˆï¸', label: 'Type', val: customForm.travelType || 'â€“' },
-                        { emoji: 'ðŸŒ™', label: 'Nights', val: customForm.durationNights || 'â€“' },
-                      ].map(({ emoji, label, val }) => (
-                        <div key={label} className="text-center">
-                          <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-1 text-sm">{emoji}</div>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase">{label}</p>
-                          <p className="text-[10px] font-bold text-gray-700">{String(val)}</p>
-                        </div>
-                      ))}
-                    </div>
+          </div>
 
-                    {/* Price */}
-                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-center mb-3">
-                      <p className="text-[10px] text-amber-500 font-semibold uppercase">Total Quoted Price</p>
-                      <p className="text-xl font-bold text-amber-700">
-                        {totalPrice > 0 ? `â‚¹${totalPrice.toLocaleString('en-IN')}` : 'â€”'}
-                      </p>
-                      {customForm.pricePerPerson && totalPrice > 0 && (
-                        <p className="text-[10px] text-amber-400">â‚¹{Number(customForm.pricePerPerson).toLocaleString('en-IN')}/person Ã— {groupSize}</p>
-                      )}
-                    </div>
-
-                    {/* Highlights */}
-                    {Array.isArray(customForm.highlights) && customForm.highlights.filter(Boolean).length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">Highlights</p>
-                        <ul className="space-y-1">
-                          {customForm.highlights.filter(Boolean).slice(0, 4).map((h, i) => (
-                            <li key={i} className="flex items-start gap-1.5 text-[10px] text-gray-600">
-                              <span className="text-amber-400 mt-0.5 flex-shrink-0">âœ¦</span>{h}
-                            </li>
-                          ))}
-                          {customForm.highlights.filter(Boolean).length > 4 && (
-                            <li className="text-[10px] text-gray-400 pl-4">+{customForm.highlights.filter(Boolean).length - 4} moreâ€¦</li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Inclusions preview */}
-                    {Array.isArray(customForm.inclusions) && customForm.inclusions.filter(Boolean).length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] font-bold text-green-700 mb-1">âœ“ Inclusions</p>
-                        <ul className="space-y-0.5">
-                          {customForm.inclusions.filter(Boolean).slice(0, 3).map((inc, i) => (
-                            <li key={i} className="text-[10px] text-gray-500 flex items-start gap-1">
-                              <span className="text-green-400 flex-shrink-0">â€¢</span>{inc}
-                            </li>
-                          ))}
-                          {customForm.inclusions.filter(Boolean).length > 3 && (
-                            <li className="text-[10px] text-gray-400 pl-3">+{customForm.inclusions.filter(Boolean).length - 3} moreâ€¦</li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                    {customDayItems.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-700 mb-1.5">Itinerary ({customDayItems.length} days)</p>
-                        <div className="space-y-1.5">
-                          {customDayItems.slice(0, 3).map((d, i) => (
-                            <div key={d.id} className="flex items-start gap-2">
-                              <span className="w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                                {String(i + 1).padStart(2, '0')}
-                              </span>
-                              <div>
-                                <p className="text-[10px] font-bold text-gray-800 leading-tight">{d.title}</p>
-                                {d.description && <p className="text-[10px] text-gray-400 leading-snug line-clamp-1 mt-0.5">{d.description}</p>}
-                              </div>
-                            </div>
-                          ))}
-                          {customDayItems.length > 3 && <p className="text-[10px] text-gray-400 pl-7">+{customDayItems.length - 3} more daysâ€¦</p>}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+          {/* Bottom action bar */}
+          <div className="flex items-center justify-between px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveCustomPackage}
+                disabled={savingCustom || creatingPkg}
+                className="flex flex-col items-center gap-0.5 bg-gray-900 hover:bg-gray-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm min-w-[130px]"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  {savingCustom ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  {savingCustom ? 'Saving...' : 'Save Custom Package'}
                 </div>
-
-                {/* Quotation context */}
-                <div className="mt-3 bg-gray-50 rounded-xl p-3 text-[10px] text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-700">Quotation Context</p>
-                  <p>Customer: <span className="font-medium text-gray-800">{active.customerName}</span></p>
-                  <p>Group: <span className="font-medium text-gray-800">{active.adults}A{active.kids ? ` + ${active.kids}K` : ''}</span></p>
-                  {active.preferredDates && <p>Dates: <span className="font-medium text-gray-800">{active.preferredDates}</span></p>}
-                  <p>Agent: <span className="font-medium text-gray-800">{active.subAgentName}</span></p>
-                </div>
-              </div>
+                <span className="text-[10px] text-gray-300">Updates this quotation</span>
+              </button>
             </div>
-
+            <div className="flex items-center gap-2">
+              <button
+                onClick={createNewPackage}
+                disabled={savingCustom || creatingPkg}
+                className="flex flex-col items-center gap-0.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white px-5 py-2 rounded-xl transition-colors shadow-sm shadow-amber-200 min-w-[130px]"
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                  {creatingPkg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
+                  {creatingPkg ? 'Creating...' : 'Create New Package'}
+                </div>
+                <span className="text-[10px] text-amber-200">Save as reusable package</span>
+              </button>
+              <button
+                onClick={() => { setShowCustomize(false); if (openCustomizeId) router.push('/dmc-dashboard/quotations') }}
+                className="flex flex-col items-center gap-0.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-xl transition-colors min-w-[80px]"
+              >
+                <div className="flex items-center gap-1.5 text-gray-700 text-xs font-bold">
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </div>
+                <span className="text-[10px] text-gray-400">Discard changes</span>
+              </button>
+            </div>
           </div>
         </div>
       )
     })()}
+
 
     {/* â”€â”€ Quotation PDF Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
     {pdfQuot && (() => {
@@ -2129,4 +2449,3 @@ function QuotDayCard({ day, idx, onTitleChange, onDescChange, onAddTag, onRemove
     </div>
   )
 }
-
