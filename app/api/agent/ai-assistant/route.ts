@@ -1,9 +1,14 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  : null
+
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null
 
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -22,7 +27,7 @@ const LANGUAGE_NAMES: Record<string, string> = {
 }
 
 export async function POST(request: Request) {
-  if (!anthropic) {
+  if (!anthropic && !openai) {
     return NextResponse.json({ error: 'AI not configured' }, { status: 500 })
   }
 
@@ -75,18 +80,44 @@ Focus your answers on this specific package. Help the agent understand highlight
         }))
       : []
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: [
-        ...history,
-        { role: 'user', content: message },
-      ],
-    })
+    let reply = ''
 
-    const textContent = response.content.find((b: any) => b.type === 'text') as any
-    const reply = textContent?.text ?? 'Sorry, I could not generate a response.'
+    if (anthropic) {
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 512,
+          system: systemPrompt,
+          messages: [
+            ...history,
+            { role: 'user', content: message },
+          ],
+        })
+        const textContent = response.content.find((b: any) => b.type === 'text') as any
+        reply = textContent?.text ?? ''
+      } catch (err: any) {
+        console.warn('[ai-assistant] Claude failed, falling back to GPT-4o:', err?.message)
+      }
+    }
+
+    if (!reply && openai) {
+      console.log('[ai-assistant] Using GPT-4o fallback')
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        max_tokens: 512,
+        temperature: 0.5,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...history.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+          { role: 'user', content: message },
+        ],
+      })
+      reply = res.choices[0]?.message?.content?.trim() ?? ''
+    }
+
+    if (!reply) {
+      return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 })
+    }
 
     return NextResponse.json({ reply, langCode })
   } catch (error: any) {

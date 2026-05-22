@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import TailoredItineraryWizard from './TailoredItineraryWizard'
 import AgentLoginGate from './AgentLoginGate'
-import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -137,7 +136,7 @@ export default function AgentBrandedWizard({ agent }: Props) {
             )}
             <div>
               <p className="font-semibold text-gray-900 text-sm leading-tight">{agent.companyName}</p>
-              <p className="text-xs text-gray-500">Powered by Travelzada AI</p>
+              <p className="text-xs text-gray-500">AI Travel Planner</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -145,15 +144,6 @@ export default function AgentBrandedWizard({ agent }: Props) {
               <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium border border-green-100">
                 {subAgentName}
               </span>
-            )}
-            {!isEmbed && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-                <span>A</span>
-                <div className="w-4 h-px bg-gray-300" />
-                <Link href="/" className="hover:text-purple-600 transition-colors text-gray-400 font-medium">
-                  Travelzada
-                </Link>
-              </div>
             )}
             <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full font-medium">
               Verified Agent

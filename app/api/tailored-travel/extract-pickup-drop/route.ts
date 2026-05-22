@@ -1,32 +1,17 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   : null
 
-export async function POST(req: Request) {
-  try {
-    const { itineraries } = await req.json()
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null
 
-    if (!Array.isArray(itineraries) || itineraries.length === 0) {
-      return NextResponse.json({ pairs: [] })
-    }
-
-    if (!anthropic) {
-      return NextResponse.json({ pairs: [] }, { status: 500 })
-    }
-
-    const combinedText = itineraries
-      .filter(Boolean)
-      .map((s: string, i: number) => `--- Package ${i + 1} ---\n${s}`)
-      .join('\n\n')
-
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 768,
-      system: `You are a travel itinerary analyzer. For each numbered package itinerary given:
+const SYSTEM_PROMPT = `You are a travel itinerary analyzer. For each numbered package itinerary given:
 1. Find the PICKUP CITY: where the trip starts (Day 1 / first location the traveler reaches)
 2. Find the DROP CITY: where the trip ends (last day / final departure point)
 
@@ -36,14 +21,56 @@ Rules:
 - Each city must be a short standalone place name under 30 characters
 - Return one JSON object per package in an array
 - Format: [{"pickup": "CityName", "drop": "CityName"}, ...]
-- Return ONLY the JSON array, nothing else`,
-      messages: [{
-        role: 'user',
-        content: `For each package below, find the pickup (start) city and drop (end) city:\n\n${combinedText}`,
-      }],
-    })
+- Return ONLY the JSON array, nothing else`
 
-    const raw = (response.content.find(b => b.type === 'text') as any)?.text?.trim() || '[]'
+export async function POST(req: Request) {
+  try {
+    const { itineraries } = await req.json()
+
+    if (!Array.isArray(itineraries) || itineraries.length === 0) {
+      return NextResponse.json({ pairs: [] })
+    }
+
+    if (!anthropic && !openai) {
+      return NextResponse.json({ pairs: [] }, { status: 500 })
+    }
+
+    const combinedText = itineraries
+      .filter(Boolean)
+      .map((s: string, i: number) => `--- Package ${i + 1} ---\n${s}`)
+      .join('\n\n')
+
+    const userContent = `For each package below, find the pickup (start) city and drop (end) city:\n\n${combinedText}`
+
+    let raw = '[]'
+
+    if (anthropic) {
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 768,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: 'user', content: userContent }],
+        })
+        raw = (response.content.find(b => b.type === 'text') as any)?.text?.trim() || '[]'
+      } catch (err: any) {
+        console.warn('[extract-pickup-drop] Claude failed, falling back to GPT-4o:', err?.message)
+      }
+    }
+
+    if (raw === '[]' && openai) {
+      console.log('[extract-pickup-drop] Using GPT-4o fallback')
+      const res = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        max_tokens: 768,
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userContent },
+        ],
+      })
+      raw = res.choices[0]?.message?.content?.trim() || '[]'
+    }
     const jsonMatch = raw.match(/\[[\s\S]*\]/)
     let pairs: { pickup: string; drop: string }[] = []
 

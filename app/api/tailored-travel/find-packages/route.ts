@@ -111,8 +111,8 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
     if (openai) {
         console.log('[AI Planner] 🤖 Using OpenAI (ChatGPT) for package matching...')
         const res = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 1024,
+            model: 'gpt-4o',
+            max_tokens: 2048,
             temperature: 0.1,
             messages: [
                 { role: 'system', content: systemPrompt },
