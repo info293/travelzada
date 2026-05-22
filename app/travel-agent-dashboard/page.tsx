@@ -241,9 +241,11 @@ export default function SubAgentDashboardPage() {
   const { currentUser, isSubAgent, subAgentName, parentAgentId, parentAgentSlug, loading: authLoading, logout } = useAuth()
 
   const pathname = usePathname()
-  const urlSegment = pathname.split('/').at(-1)
+  const pathSegments = pathname.split('/').filter(Boolean)
+  const urlSegment = pathSegments.at(-1) ?? ''
+  const openQuotationId = pathSegments.length === 3 && pathSegments[1] === 'quotations' ? pathSegments[2] : undefined
   const TA_VALID_TABS: Tab[] = ['planner','home','bookings','packages','quotations','quote_history','customers','stats','activity','profile']
-  const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment ?? '') ? (urlSegment as Tab) : 'quotations'
+  const urlTab: Tab = (TA_VALID_TABS as string[]).includes(urlSegment) ? (urlSegment as Tab) : 'quotations'
   const [aiActive, setAiActive] = useState(false)
   const tab: Tab = aiActive ? 'ai' : urlTab
   const setTab = (t: Tab) => {
@@ -257,6 +259,7 @@ export default function SubAgentDashboardPage() {
   const [packages, setPackages] = useState<AgentPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [parentAgentName, setParentAgentName] = useState('')
 
   // Quotation chat state
   const [selQuot, setSelQuot] = useState<Quotation | null>(null)
@@ -352,6 +355,15 @@ export default function SubAgentDashboardPage() {
   }, [authLoading, currentUser, isSubAgent, pathname, router])
 
   useEffect(() => { setAiActive(false) }, [pathname])
+
+  // Fetch parent DMC name
+  useEffect(() => {
+    if (!parentAgentSlug) return
+    fetch(`/api/agent/profile?slug=${parentAgentSlug}`)
+      .then(r => r.json())
+      .then(d => { if (d.success && d.agent) setParentAgentName(d.agent.companyName || d.agent.contactName || '') })
+      .catch(() => {})
+  }, [parentAgentSlug])
 
   // Fetch everything in parallel
   const fetchAll = useCallback(async () => {
@@ -1531,6 +1543,8 @@ export default function SubAgentDashboardPage() {
                 agentName={subAgentName || ''}
                 currentUserId={currentUser.uid}
                 subAgentId={currentUser.uid}
+                toName={parentAgentName}
+                openCustomizeId={openQuotationId}
               />
             )}
 

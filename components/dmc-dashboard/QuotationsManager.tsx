@@ -113,6 +113,7 @@ interface Props {
   currentUserId: string
   subAgentId?: string
   openCustomizeId?: string
+  toName?: string
 }
 
 const TRAVEL_TYPES = ['Leisure', 'Adventure', 'Honeymoon', 'Family', 'Corporate', 'Pilgrimage', 'Wildlife']
@@ -198,7 +199,7 @@ function serializeDayItems(items: DayItem[]): string {
   return items.map(d => [d.title, d.description].filter(Boolean).join('\n')).join('\n\n')
 }
 
-export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId, subAgentId, openCustomizeId }: Props) {
+export default function QuotationsManager({ agentId, agentSlug, agentName, currentUserId, subAgentId, openCustomizeId, toName }: Props) {
   const router = useRouter()
   const autoOpenDoneRef = useRef(false)
   const skipNextResetRef = useRef(false)
@@ -991,7 +992,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                   <th className="px-4 py-3 text-left whitespace-nowrap">Customer</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Created At</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Proposal Name</th>
-                  <th className="px-4 py-3 text-left whitespace-nowrap">From</th>
+                  <th className="px-4 py-3 text-left whitespace-nowrap">{subAgentId ? 'To' : 'From'}</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Travel Date</th>
                   <th className="px-4 py-3 text-left whitespace-nowrap">Pax</th>
                   {false && <th className="px-4 py-3 text-right whitespace-nowrap">Price Quoted</th>}
@@ -1026,12 +1027,21 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                         <p className="text-xs text-gray-400">{q.destination}</p>
                       </td>
                       <td className="px-4 py-3.5">
-                        {q.subAgentName
-                          ? <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-100 text-xs font-semibold px-2.5 py-1 rounded-full">
-                              <User className="w-3 h-3" />
-                              {q.subAgentName}
-                            </span>
-                          : <span className="text-gray-300 text-xs">—</span>
+                        {subAgentId
+                          ? (toName
+                              ? <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                  <User className="w-3 h-3" />
+                                  {toName}
+                                </span>
+                              : <span className="text-gray-300 text-xs">—</span>
+                            )
+                          : (q.subAgentName
+                              ? <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 border border-purple-100 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                  <User className="w-3 h-3" />
+                                  {q.subAgentName}
+                                </span>
+                              : <span className="text-gray-300 text-xs">—</span>
+                            )
                         }
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">
@@ -1080,7 +1090,7 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                             )}
                           </button>}
                           <button
-                            onClick={() => router.push(`/dmc-dashboard/quotations/${q.id}`)}
+                            onClick={() => router.push(subAgentId ? `/travel-agent-dashboard/quotations/${q.id}` : `/dmc-dashboard/quotations/${q.id}`)}
                             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                           >
                             View
