@@ -848,7 +848,7 @@ export default function AgentResultsPage() {
                       termsVariant: 'brochure',
                     })
                   } else {
-                    const msg = buildWhatsAppMsg(bestPkg, priceOpts)
+                    const msg = buildWhatsAppMsg(bestPkg, priceOpts, { adults: pdfAdults, kids: pdfKids, infants: pdfInfants })
                     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
                   }
                   setNameCaptureAction(null)
@@ -863,35 +863,138 @@ export default function AgentResultsPage() {
   )
 }
 
-function buildWhatsAppMsg(pkg: MatchedPackage, priceOpts?: PriceOpts): string {
+function buildWhatsAppMsg(
+  pkg: MatchedPackage,
+  priceOpts?: PriceOpts,
+  pax?: { adults: number; kids: number; infants: number },
+): string {
   const title = pkg.agentPackageTitle || pkg.Destination_Name
-  const inclusions = typeof pkg.Inclusions === 'string'
-    ? pkg.Inclusions.split(',').map((s: string) => s.trim()).filter(Boolean)
-    : Array.isArray(pkg.Inclusions) ? pkg.Inclusions : []
+  const div = '━━━━━━━━━━━━━━━━━━━━━━'
+  const thin = '──────────────────────'
+
+  const toList = (val: string | string[] | undefined): string[] =>
+    typeof val === 'string'
+      ? val.split(',').map((s: string) => s.trim()).filter(Boolean)
+      : Array.isArray(val) ? val.filter(Boolean) : []
+
+  const inclusions = toList(pkg.Inclusions)
+  const exclusions = toList(pkg.Exclusions)
   const lines: string[] = []
+
+  // ── Header ──────────────────────────────────────────
   lines.push(`✈️ *${title}*`)
-  lines.push(`📍 ${pkg.Destination_Name}`)
-  lines.push(`🗓️ ${pkg.Duration_Days} Days / ${pkg.Duration_Nights} Nights`)
-  const tags = [pkg.Star_Category, pkg.Travel_Type].filter(Boolean).join('  |  ')
-  if (tags) lines.push(`⭐ ${tags}`)
+  lines.push(div)
+
+  // ── 1. Basic Information ─────────────────────────────
+  lines.push(``)
+  lines.push(`📋 *BASIC INFORMATION*`)
+  lines.push(`📍 *Destination:* ${pkg.Destination_Name}${pkg.Destination_Country ? ', ' + pkg.Destination_Country : ''}`)
+  lines.push(`🗓️ *Duration:* ${pkg.Duration_Days} Days / ${pkg.Duration_Nights} Nights`)
+  if (pkg.Star_Category) lines.push(`⭐ *Hotel Category:* ${pkg.Star_Category}`)
+  if (pax) {
+    const totalPax = pax.adults + pax.kids + pax.infants
+    const paxParts = [`${pax.adults} Adult${pax.adults !== 1 ? 's' : ''}`]
+    if (pax.kids > 0) paxParts.push(`${pax.kids} Child${pax.kids !== 1 ? 'ren' : ''}`)
+    if (pax.infants > 0) paxParts.push(`${pax.infants} Infant${pax.infants !== 1 ? 's' : ''}`)
+    lines.push(`👥 *Passengers:* ${totalPax} Pax (${paxParts.join(', ')})`)
+  }
   if (!priceOpts || priceOpts.showPrice) {
     const sym = getCurrencySymbol((pkg as any).Currency)
     const displayPrice = priceOpts ? priceOpts.finalPricePerPerson : (pkg.totalPrice || pkg.Price_Min_INR)
-    const priceLabel = pkg.totalPrice ? 'total' : 'per person'
+    const priceLabel = pkg.totalPrice ? 'Full Package' : 'Per Person'
     const gstNote = pkg.gst ? ` + ${pkg.gst}% GST` : ''
-    lines.push(`💰 *${sym}${displayPrice.toLocaleString()} ${priceLabel}${gstNote}*`)
+    lines.push(`💰 *Price:* ${sym}${displayPrice.toLocaleString()} (${priceLabel})${gstNote}`)
   }
-  if (pkg.Overview) { lines.push(''); lines.push(`📝 *Overview*`); lines.push(pkg.Overview) }
-  if (inclusions.length > 0) {
-    lines.push(''); lines.push(`✅ *Inclusions*`)
-    inclusions.forEach((inc: string) => lines.push(`  ✓ ${inc}`))
+
+  // ── 2. Overview ──────────────────────────────────────
+  if (pkg.Overview) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`📝 *OVERVIEW*`)
+    lines.push(pkg.Overview)
   }
+
+  // ── 3. Day-wise Itinerary ────────────────────────────
   if (pkg.Day_Wise_Itinerary) {
-    lines.push(''); lines.push(`🗺️ *Day-wise Itinerary*`)
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`🗺️ *DAY-WISE ITINERARY*`)
     String(pkg.Day_Wise_Itinerary).split('\n').filter(Boolean).forEach(line => {
-      lines.push(/^day\s*\d+/i.test(line) ? `*${line}*` : `  ${line}`)
+      if (/^day\s*\d+/i.test(line)) {
+        lines.push(``)
+        lines.push(`*${line.trim()}*`)
+      } else {
+        lines.push(`  • ${line.trim()}`)
+      }
     })
   }
+
+  // ── 4. Hotel Information ─────────────────────────────
+  if (Array.isArray(pkg.Hotels) && pkg.Hotels.length > 0) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`🏨 *HOTEL INFORMATION*`)
+    pkg.Hotels.forEach((h: any) => {
+      lines.push(``)
+      lines.push(`📌 *${h.destination || 'Hotel'}*${h.nights ? ` — ${h.nights} Night${h.nights > 1 ? 's' : ''}` : ''}`)
+      if (h.hotels) lines.push(`   🏩 ${h.hotels}`)
+      if (h.mealPlan) lines.push(`   🍽️ Meal Plan: ${h.mealPlan}`)
+      if (h.roomType) lines.push(`   🛏️ Room: ${h.roomType}`)
+    })
+  }
+
+  // ── 5. Transport & Transfers ─────────────────────────
+  if (Array.isArray(pkg.Vehicles) && pkg.Vehicles.length > 0) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`🚗 *TRANSPORT & TRANSFERS*`)
+    pkg.Vehicles.forEach((v: any) => {
+      const parts = [v.vehicleType, v.seats ? `${v.seats} Seats` : null, v.route, v.days ? `${v.days} Day(s)` : null].filter(Boolean)
+      lines.push(`  🚌 ${parts.join('  |  ')}`)
+      if (v.notes) lines.push(`     _${v.notes}_`)
+    })
+  }
+
+  // ── 6. Inclusions ────────────────────────────────────
+  if (inclusions.length > 0) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`✅ *INCLUSIONS*`)
+    inclusions.forEach((inc: string) => lines.push(`  ✓ ${inc}`))
+  }
+
+  // ── 7. Exclusions ────────────────────────────────────
+  if (exclusions.length > 0) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`❌ *EXCLUSIONS*`)
+    exclusions.forEach((exc: string) => lines.push(`  ✗ ${exc}`))
+  }
+
+  // ── 8. Payment Policy ────────────────────────────────
+  if (pkg.PaymentPolicy) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`💳 *PAYMENT POLICY*`)
+    pkg.PaymentPolicy.split('\n').filter(Boolean).forEach(line => lines.push(`  ${line.trim()}`))
+  }
+
+  // ── 9. Cancellation Policy ───────────────────────────
+  if (pkg.CancellationPolicy) {
+    lines.push(``)
+    lines.push(thin)
+    lines.push(``)
+    lines.push(`🚫 *CANCELLATION POLICY*`)
+    pkg.CancellationPolicy.split('\n').filter(Boolean).forEach(line => lines.push(`  ${line.trim()}`))
+  }
+
   return lines.join('\n')
 }
 
