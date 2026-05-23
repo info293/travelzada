@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  UserCog, Plus, X, Eye, EyeOff, ToggleLeft, ToggleRight,
+  UserCog, Plus, X, Eye, EyeOff,
   Trash2, Phone, Mail, Calendar, Loader2, AlertCircle, CheckCircle,
   Copy, Check, Link as LinkIcon, Clock, UserCheck, UserX, Search
 } from 'lucide-react'
@@ -40,7 +40,7 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'active' | 'suspended'>('all')
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [teamSearch, setTeamSearch] = useState('')
 
   const registrationUrl = typeof window !== 'undefined'
@@ -135,7 +135,9 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
 
   const pendingCount = agents.filter(a => a.status === 'pending').length
   const filtered = agents.filter(a => {
-    const matchStatus = filterStatus === 'all' || a.status === filterStatus
+    const matchStatus = filterStatus === 'all'
+      || (filterStatus === 'active' && a.isActive)
+      || (filterStatus === 'inactive' && !a.isActive)
     const q = teamSearch.toLowerCase()
     const matchSearch = !q || a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || (a.phone || '').includes(q)
     return matchStatus && matchSearch
@@ -181,7 +183,7 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
             <p className="text-sm font-semibold text-amber-900">{pendingCount} pending approval{pendingCount !== 1 ? 's' : ''}</p>
             <p className="text-xs text-amber-700">New travel agents are waiting for your approval.</p>
           </div>
-          <button onClick={() => setFilterStatus('pending')} className="text-xs font-bold text-amber-800 hover:underline">
+          <button onClick={() => setFilterStatus('inactive')} className="text-xs font-bold text-amber-800 hover:underline">
             Review →
           </button>
         </div>
@@ -268,12 +270,16 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {(['all', 'pending', 'active', 'suspended'] as const).map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)}
+          {([
+            { key: 'all', label: 'All', count: agents.length },
+            { key: 'active', label: 'Active', count: agents.filter(a => a.isActive).length },
+            { key: 'inactive', label: 'Inactive', count: agents.filter(a => !a.isActive).length },
+          ] as const).map(({ key, label, count }) => (
+            <button key={key} onClick={() => setFilterStatus(key)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${
-                filterStatus === s ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                filterStatus === key ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}>
-              {s} ({s === 'all' ? agents.length : agents.filter(a => a.status === s).length})
+              {label} ({count})
             </button>
           ))}
         </div>
@@ -299,7 +305,6 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
                 <th className="text-left px-5 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Agent</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden md:table-cell">Organization</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden md:table-cell">Contact</th>
-                <th className="text-center px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Bookings</th>
                 <th className="text-left px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide hidden lg:table-cell">Added</th>
                 <th className="text-center px-4 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
                 <th className="text-right px-5 py-3.5 font-semibold text-gray-600 text-xs uppercase tracking-wide">Actions</th>
@@ -332,20 +337,16 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
                       {agent.phone && <div className="flex items-center gap-1.5 text-xs text-gray-400"><Phone className="w-3 h-3" />{agent.phone}</div>}
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-center font-semibold text-gray-900">{agent.totalBookings}</td>
                   <td className="px-4 py-4 hidden lg:table-cell">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
                       <Calendar className="w-3 h-3" />{formatDate(agent.createdAt)}
                     </div>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
-                      agent.status === 'active' ? 'bg-green-50 text-green-700'
-                      : agent.status === 'pending' ? 'bg-amber-50 text-amber-700'
-                      : 'bg-gray-100 text-gray-500'
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      agent.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {agent.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
-                      {agent.status}
+                      {agent.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
@@ -367,17 +368,15 @@ export default function TeamManager({ agentId, agentSlug }: Props) {
                         </>
                       )}
 
-                      {/* Active/Suspended: toggle */}
+                      {/* Active/Inactive: toggle */}
                       {agent.status !== 'pending' && (
-                        <button onClick={() => toggleActive(agent)} disabled={actionLoading === agent.id}
-                          title={agent.isActive ? 'Suspend' : 'Reactivate'}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 disabled:opacity-50 transition-colors">
-                          {actionLoading === agent.id
-                            ? <Loader2 className="w-4 h-4 animate-spin" />
-                            : agent.isActive
-                            ? <ToggleRight className="w-5 h-5 text-green-600" />
-                            : <ToggleLeft className="w-5 h-5 text-gray-400" />}
-                        </button>
+                        actionLoading === agent.id
+                          ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                          : <button onClick={() => toggleActive(agent)} disabled={actionLoading === agent.id}
+                              title={agent.isActive ? 'Set Inactive' : 'Set Active'}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${agent.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${agent.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                            </button>
                       )}
 
                       {/* Delete */}
