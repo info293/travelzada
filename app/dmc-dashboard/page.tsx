@@ -156,7 +156,8 @@ export default function AgentDashboardPage() {
   }
 
   function copyPlannerUrl() {
-    const url = `${window.location.origin}/tailored-travel/${agentSlug}`
+    const subAgentParam = currentUser ? `?subAgent=${currentUser.uid}` : ''
+    const url = `${window.location.origin}/tailored-travel/${agentSlug}${subAgentParam}`
     navigator.clipboard.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -265,7 +266,7 @@ export default function AgentDashboardPage() {
               <button onClick={copyPlannerUrl} className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80">
                 {copied ? <><Check className="w-3 h-3" />Copied!</> : <><Copy className="w-3 h-3" />Copy</>}
               </button>
-              <a href={`/tailored-travel/${agentSlug}`} target="_blank"
+              <a href={`/tailored-travel/${agentSlug}${currentUser ? `?subAgent=${currentUser.uid}` : ''}`} target="_blank"
                 className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80">
                 <ExternalLink className="w-3 h-3" />Open
               </a>
@@ -342,7 +343,7 @@ export default function AgentDashboardPage() {
                 />
               )}
               <a
-                href={`/tailored-travel/${agentSlug}`}
+                href={`/tailored-travel/${agentSlug}${currentUser ? `?subAgent=${currentUser.uid}` : ''}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 bg-primary/5 px-3 py-1.5 rounded-lg"

@@ -1019,7 +1019,9 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, subA
 
   const isTotalPrice = Boolean(pkg.totalPrice)
   const basePrice = pkg.totalPrice || pkg.Price_Min_INR
-  const groupSize = (wizardData?.passengers?.adults || 1) + (wizardData?.passengers?.kids || 0)
+  const groupSize = (wizardData?.groupSize?.adults || wizardData?.passengers?.adults || 1)
+    + (wizardData?.groupSize?.children || wizardData?.passengers?.kids || 0)
+    + (wizardData?.groupSize?.infants || 0)
   const currSym = getCurrencySymbol(pkg.Currency)
 
   const feeValue = parseFloat(feeInput) || 0
@@ -1046,8 +1048,9 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, subA
           packageId: pkg.id, packageTitle: pkg.agentPackageTitle || pkg.Destination_Name,
           destination: pkg.Destination_Name, customerName: customerName.trim(),
           customerEmail: '', customerPhone: '', preferredDates,
-          groupSize, adults: wizardData?.passengers?.adults || 1,
-          kids: wizardData?.passengers?.kids || 0,
+          groupSize, adults: wizardData?.groupSize?.adults || wizardData?.passengers?.adults || 1,
+          kids: wizardData?.groupSize?.children || wizardData?.passengers?.kids || 0,
+          infants: wizardData?.groupSize?.infants || 0,
           rooms: wizardData?.passengers?.rooms || 1, specialRequests: '',
           wizardData, selectedPackage: pkg,
         }),

@@ -95,6 +95,7 @@ interface Quotation {
   groupSize: number
   adults: number
   kids: number
+  infants?: number
   rooms?: number
   specialRequests?: string
   status: string
@@ -619,6 +620,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
         const nameMap: Record<string, string> = {}
         await Promise.all(
           missingIds.map(async id => {
+            // DMC generated this quote via ?subAgent= param — use the agent's own name
+            if (id === agentId) { nameMap[id] = agentName; return }
             try {
               const r = await fetch(`/api/agent/subagents/${id}`)
               const d = await r.json()
@@ -1051,8 +1054,8 @@ export default function QuotationsManager({ agentId, agentSlug, agentName, curre
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {(q.adults > 0) && <span className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">{q.adults}A</span>}
                           {(q.kids > 0) && <span className="text-[10px] font-semibold bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded">{q.kids}C</span>}
-                          {((q as any).infants > 0) && <span className="text-[10px] font-semibold bg-pink-50 text-pink-500 px-1.5 py-0.5 rounded">{(q as any).infants}I</span>}
-                          {(!q.adults && !q.kids && !(q as any).infants) && <span className="text-gray-300 text-xs">—</span>}
+                          {(q.infants ?? 0) > 0 && <span className="text-[10px] font-semibold bg-pink-50 text-pink-500 px-1.5 py-0.5 rounded">{q.infants}I</span>}
+                          {(!q.adults && !q.kids && !(q.infants ?? 0)) && <span className="text-gray-300 text-xs">—</span>}
                         </div>
                       </td>
                       {false && <td className="px-4 py-3.5 text-right whitespace-nowrap">

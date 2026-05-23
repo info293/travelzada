@@ -68,7 +68,7 @@ export async function POST(request: Request) {
       subAgentId, subAgentName,
       packageId, packageTitle, destination,
       customerName, customerEmail, customerPhone,
-      preferredDates, groupSize, adults, kids, rooms,
+      preferredDates, groupSize, adults, kids, infants, rooms,
       specialRequests, wizardData, selectedPackage,
     } = body
 
@@ -88,6 +88,15 @@ export async function POST(request: Request) {
           resolvedSubAgentName = subAgentSnap.data().name || ''
         }
       } catch { /* non-fatal */ }
+      // Fallback: the subAgentId may be a DMC's own agent ID (self-generated via ?subAgent= URL param)
+      if (!resolvedSubAgentName) {
+        try {
+          const agentSnap = await getDoc(doc(db, 'agents', subAgentId))
+          if (agentSnap.exists()) {
+            resolvedSubAgentName = agentSnap.data().companyName || agentSnap.data().contactName || ''
+          }
+        } catch { /* non-fatal */ }
+      }
     }
 
     const quotation = {
@@ -106,6 +115,7 @@ export async function POST(request: Request) {
       groupSize: Number(groupSize) || 1,
       adults: Number(adults) || 1,
       kids: Number(kids) || 0,
+      infants: Number(infants) || 0,
       rooms: Number(rooms) || 1,
       specialRequests: specialRequests || '',
       wizardData: wizardData || null,

@@ -53,13 +53,22 @@ export default function AgentBrandedWizard({ agent }: Props) {
   const { isAgent, agentSlug, isSubAgent, parentAgentSlug, subAgentName, currentUser, loading } = useAuth()
   const searchParams = useSearchParams()
   const isEmbed = searchParams.get('embed') === '1'
+  const subAgentParam = searchParams.get('subAgent') ?? undefined
   const [gateVisible, setGateVisible] = useState(!isEmbed)
   const [sessionId, setSessionId] = useState<string>('')
-  const [subAgentId, setSubAgentId] = useState<string | undefined>(undefined)
+  const [subAgentId, setSubAgentId] = useState<string | undefined>(subAgentParam)
 
   useEffect(() => {
     const sid = getOrCreateSessionId(agent.agentSlug)
     setSessionId(sid)
+
+    // DMC opened planner via ?subAgent= param — skip gate and use the passed ID
+    if (subAgentParam) {
+      setSubAgentId(subAgentParam)
+      setGateVisible(false)
+      trackEvent({ agentSlug: agent.agentSlug, sessionId: sid, action: 'visit', subAgentId: subAgentParam })
+      return
+    }
 
     if (!loading && currentUser) {
       // Skip gate for the agent who owns this planner
@@ -80,7 +89,7 @@ export default function AgentBrandedWizard({ agent }: Props) {
         })
       }
     }
-  }, [loading, isAgent, agentSlug, isSubAgent, parentAgentSlug, currentUser, agent.agentSlug, subAgentName])
+  }, [loading, isAgent, agentSlug, isSubAgent, parentAgentSlug, currentUser, agent.agentSlug, subAgentName, subAgentParam])
 
   const handleLoginSuccess = () => {
     setGateVisible(false)
