@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo } from 'react'
 
 const HOTEL_STAR_OPTIONS = [
   { id: '3-star', label: '3-Star', desc: 'Comfortable', stars: 3 },
@@ -15,11 +15,17 @@ function packageHasHotel(pkg: any): boolean {
 
 function filterPackages(
   allPackages: any[],
+  selectedNights: number,
   includedCities: string[],
   hotelIncluded: boolean | null,
   hotelTypes: string[],
 ) {
   let pkgs = allPackages
+
+  // Filter by nights first (already selected in step 1)
+  if (selectedNights > 0) {
+    pkgs = pkgs.filter(pkg => Number(pkg.durationNights) === selectedNights)
+  }
 
   if (includedCities.length > 0) {
     pkgs = pkgs.filter(pkg => {
@@ -46,18 +52,6 @@ function filterPackages(
   }
 
   return pkgs
-}
-
-function deriveNights(packages: any[]): { nights: number; days: number }[] {
-  const nightMap = new Map<number, number>()
-  packages.forEach(pkg => {
-    const nights = Number(pkg.durationNights || 0)
-    const days = Number(pkg.durationDays || 0)
-    if (nights > 0 && !nightMap.has(nights)) nightMap.set(nights, days)
-  })
-  return Array.from(nightMap.entries())
-    .map(([nights, days]) => ({ nights, days }))
-    .sort((a, b) => a.nights - b.nights)
 }
 
 function StarRow({ count, active }: { count: number; active: boolean }) {
@@ -97,22 +91,9 @@ export default function StepDmc2Cities({
     ? data.dateRange : ''
 
   const matchingPackages = useMemo(
-    () => filterPackages(allPackages, includedCities, hotelIncluded, hotelTypes),
-    [allPackages.length, includedCities.join(','), hotelIncluded, hotelTypes.join(',')]
+    () => filterPackages(allPackages, selectedNights, includedCities, hotelIncluded, hotelTypes),
+    [allPackages.length, selectedNights, includedCities.join(','), hotelIncluded, hotelTypes.join(',')]
   )
-
-  const availableNights = useMemo(
-    () => deriveNights(matchingPackages),
-    [matchingPackages.length, matchingPackages.map((p: any) => p.durationNights).join(',')]
-  )
-
-  useEffect(() => {
-    if (availableNights.length === 0) return
-    const stillValid = availableNights.some(o => o.nights === selectedNights)
-    if (!stillValid) {
-      updateData({ routeItems: [{ destination: data.destinations[0] || '', nights: availableNights[0].nights }] })
-    }
-  }, [availableNights.map(o => o.nights).join(',')])
 
   const setHotelIncluded = (value: boolean) => {
     updateData({
@@ -126,10 +107,6 @@ export default function StepDmc2Cities({
     if (current.has(id)) current.delete(id)
     else current.add(id)
     updateData({ hotelTypes: Array.from(current) })
-  }
-
-  const selectNights = (nights: number) => {
-    updateData({ routeItems: [{ destination: data.destinations[0] || '', nights }] })
   }
 
   const adjust = (field: 'adults' | 'children' | 'infants', delta: number) => {
@@ -146,7 +123,8 @@ export default function StepDmc2Cities({
   }
 
   const totalTravelers = (groupSize.adults || 0) + (groupSize.children || 0) + (groupSize.infants || 0)
-  const canSubmit = selectedNights > 0 && hotelIncluded !== null
+  const noPackagesFound = hotelIncluded !== null && matchingPackages.length === 0
+  const canSubmit = hotelIncluded !== null && matchingPackages.length > 0
 
   const paxRows = [
     { field: 'adults'   as const, label: 'Adults',   sub: 'Age 12+',  min: 1 },
@@ -161,18 +139,32 @@ export default function StepDmc2Cities({
           Package Details
         </h2>
         <p className="text-xs sm:text-base text-gray-500 font-medium px-2">
-          Set your dates, hotel preference, duration and group size.
+          Set your travel date, hotel preference, and group size.
         </p>
       </div>
 
       <div className="max-w-2xl mx-auto space-y-2.5">
 
-        {/* ── Section 4: Travel Date ── */}
+        {/* ── Selection summary from step 1 ── */}
+        {selectedNights > 0 && (
+          <div className="bg-primary/5 rounded-2xl px-4 py-3 flex items-center gap-3 border border-primary/10">
+            <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+            </svg>
+            <p className="text-xs font-semibold text-primary">
+              {data.destinations?.[0]} · {selectedNights} nights
+              {includedCities.length > 0 && ` · ${includedCities.join(', ')}`}
+              {(data.pickupCity || data.dropCity) && ` · ${data.pickupCity || ''}${data.dropCity ? ` → ${data.dropCity}` : ''}`}
+            </p>
+          </div>
+        )}
+
+        {/* ── Section 5: Travel Date ── */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-4 py-4">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
-                <span className="text-[9px] font-black text-white">4</span>
+                <span className="text-[9px] font-black text-white">5</span>
               </div>
               <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Travel Date</span>
               <span className="text-[9px] text-gray-300 font-semibold">optional</span>
@@ -203,13 +195,13 @@ export default function StepDmc2Cities({
           </div>
         </div>
 
-        {/* ── Section 5: Hotel Preference ── */}
+        {/* ── Section 6: Hotel Preference ── */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
-                  <span className="text-[9px] font-black text-white">5</span>
+                  <span className="text-[9px] font-black text-white">6</span>
                 </div>
                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Hotel Preference</span>
               </div>
@@ -220,7 +212,6 @@ export default function StepDmc2Cities({
               )}
             </div>
 
-            {/* Without / With Hotel toggle — two cards */}
             <div className="grid grid-cols-2 gap-2 mb-3">
               <button
                 onClick={() => setHotelIncluded(false)}
@@ -271,7 +262,6 @@ export default function StepDmc2Cities({
               </button>
             </div>
 
-            {/* Star category chips — horizontal wrap */}
             {hotelIncluded === true && (
               <div>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] mb-2.5">
@@ -306,88 +296,22 @@ export default function StepDmc2Cities({
           </div>
         </div>
 
-        {/* ── Section 6: Package Nights ── */}
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm transition-colors ${hotelIncluded !== null ? 'bg-primary shadow-primary/30' : 'bg-gray-200'}`}>
-                  <span className="text-[9px] font-black text-white">6</span>
-                </div>
-                <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Package Nights</span>
-              </div>
-              {hotelIncluded === null && (
-                <span className="text-[10px] text-amber-500 font-bold bg-amber-50 px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  Choose hotel first
-                </span>
-              )}
-              {hotelIncluded !== null && availableNights.length > 0 && (
-                <span className="text-[10px] font-semibold text-gray-400">
-                  {matchingPackages.length} package{matchingPackages.length !== 1 ? 's' : ''}
-                </span>
-              )}
+        {/* ── No packages warning ── */}
+        {noPackagesFound && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 flex gap-3 items-start">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
             </div>
-
-            {hotelIncluded === null ? (
-              <div className="flex items-center justify-center gap-3 py-7 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
-                <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                <p className="text-sm text-gray-400 font-medium">Select hotel preference to unlock durations</p>
-              </div>
-            ) : availableNights.length === 0 ? (
-              <div className="py-5 px-4 bg-amber-50 rounded-2xl border border-amber-100">
-                <p className="text-sm text-amber-700 font-semibold text-center">
-                  No packages found {hotelIncluded ? 'with hotel' : 'without hotel'}
-                  {includedCities.length > 0 ? ` covering ${includedCities.join(', ')}` : ''}
-                </p>
-                <p className="text-xs text-amber-400 mt-1 text-center">Try adjusting your hotel preference or city selection</p>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {availableNights.map(opt => {
-                  const isSelected = selectedNights === opt.nights
-                  return (
-                    <button
-                      key={opt.nights}
-                      onClick={() => selectNights(opt.nights)}
-                      className={`relative flex flex-col items-center justify-center w-20 h-20 rounded-2xl border-2 transition-all duration-200 group select-none ${
-                        isSelected
-                          ? 'bg-primary border-transparent shadow-xl shadow-primary/30 scale-[1.06]'
-                          : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
-                      }`}
-                    >
-                      {isSelected && (
-                        <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md flex items-center justify-center">
-                          <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                      <svg className={`w-5 h-5 mb-1 transition-transform group-hover:scale-110 ${isSelected ? 'text-white/80' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                      </svg>
-                      <span className={`text-2xl font-black leading-none tabular-nums ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                        {opt.nights}
-                      </span>
-                      <span className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
-                        nights
-                      </span>
-                      {opt.days > 0 && (
-                        <span className={`text-[9px] font-semibold ${isSelected ? 'text-white/50' : 'text-gray-300'}`}>
-                          {opt.days}D
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            <div>
+              <p className="text-sm font-bold text-amber-800">No packages found</p>
+              <p className="text-xs text-amber-600 mt-0.5 leading-relaxed">
+                No packages match your current selection. Try switching to <span className="font-bold">Without Hotel</span> or adjust your city and nights choices in the previous step.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Section 7: PAX ── */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -435,7 +359,6 @@ export default function StepDmc2Cities({
             ))}
           </div>
 
-          {/* Room summary */}
           <div className="px-4 py-2.5 bg-gray-50 flex items-center gap-2">
             <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -465,7 +388,11 @@ export default function StepDmc2Cities({
         <button
           onClick={onNext}
           disabled={!canSubmit || isSubmitting}
-          className="group flex items-center gap-2.5 px-10 py-3 bg-primary text-white rounded-full font-bold text-sm shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+          className={`group flex items-center gap-2.5 px-10 py-3 rounded-full font-bold text-sm transition-all ${
+            canSubmit && !isSubmitting
+              ? 'bg-primary text-white shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 hover:scale-105 cursor-pointer'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+          }`}
         >
           {isSubmitting ? (
             <>

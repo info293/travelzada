@@ -44,6 +44,7 @@ export default function StepDmc1Destination({
   const [showDropdown, setShowDropdown] = useState(false)
   const [isLoadingDest, setIsLoadingDest] = useState(true)
   const [isLoadingPackages, setIsLoadingPackages] = useState(false)
+  const [isLoadingCities, setIsLoadingCities] = useState(false)
   const [pickupDropPairs, setPickupDropPairs] = useState<{ pickup: string; drop: string }[]>([])
   const [isLoadingPickupDrop, setIsLoadingPickupDrop] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -53,7 +54,10 @@ export default function StepDmc1Destination({
   const availableCities: string[] = data.availableCities || []
   const selectedCities: string[] = data.includedCities || []
   const allPackages: any[] = data.destinationPackages || []
+  const availableNights: { nights: number; label: string }[] = data.availableNights || []
+  const selectedNights: number = data.routeItems?.[0]?.nights || 0
 
+  // Fetch all destinations for this agent on mount
   useEffect(() => {
     async function fetchDest() {
       try {
@@ -88,6 +92,7 @@ export default function StepDmc1Destination({
     fetchDest()
   }, [agentSlug])
 
+  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -99,14 +104,20 @@ export default function StepDmc1Destination({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // Re-extract pickup/drop when nights-filtered + city-filtered packages change
   useEffect(() => {
     if (allPackages.length === 0) {
       setPickupDropPairs([])
       return
     }
 
+    // Filter by selected nights first, then by selected cities
+    const nightFilteredPkgs = selectedNights > 0
+      ? allPackages.filter(pkg => Number(pkg.durationNights) === selectedNights)
+      : allPackages
+
     const packagesToUse = selectedCities.length > 0
-      ? allPackages.filter(pkg => {
+      ? nightFilteredPkgs.filter(pkg => {
           const itinerary = (pkg.dayWiseItinerary || '').toLowerCase()
           const hotelCities = (Array.isArray(pkg.hotels) ? pkg.hotels : [])
             .map((h: any) => (h.destination || '').toLowerCase())
@@ -115,7 +126,7 @@ export default function StepDmc1Destination({
             hotelCities.includes(city.toLowerCase())
           )
         })
-      : allPackages
+      : nightFilteredPkgs
 
     if (packagesToUse.length === 0) {
       setPickupDropPairs([])
@@ -146,7 +157,7 @@ export default function StepDmc1Destination({
       .finally(() => { if (!cancelled) setIsLoadingPickupDrop(false) })
 
     return () => { cancelled = true }
-  }, [allPackages.length, selectedCities.join(',')])
+  }, [allPackages.length, selectedCities.join(','), selectedNights])
 
   const filtered = destInput.trim()
     ? allDestinations.filter(d =>
@@ -167,6 +178,8 @@ export default function StepDmc1Destination({
       destinationPackages: [],
       includedCities: [],
       routeItems: [],
+      pickupCity: '',
+      dropCity: '',
     })
 
     try {
@@ -203,7 +216,14 @@ export default function StepDmc1Destination({
         .map(([nights, label]) => ({ nights, label }))
         .sort((a, b) => a.nights - b.nights)
 
-      const cities = await extractCitiesWithAI(packages)
+      const defaultNights = nightsArr[0]?.nights || 0
+
+      // Extract cities only from packages matching the default nights selection
+      const defaultNightPkgs = defaultNights > 0
+        ? packages.filter(p => Number(p.durationNights) === defaultNights)
+        : packages
+
+      const cities = await extractCitiesWithAI(defaultNightPkgs)
 
       updateData({
         destinations: [dest.name],
@@ -211,7 +231,9 @@ export default function StepDmc1Destination({
         availableNights: nightsArr,
         destinationPackages: packages,
         includedCities: [],
-        routeItems: [{ destination: dest.name, nights: nightsArr[0]?.nights || 0 }],
+        routeItems: [{ destination: dest.name, nights: defaultNights }],
+        pickupCity: '',
+        dropCity: '',
       })
     } catch (err) {
       console.error(err)
@@ -229,7 +251,31 @@ export default function StepDmc1Destination({
       destinationPackages: [],
       includedCities: [],
       routeItems: [],
+      pickupCity: '',
+      dropCity: '',
     })
+  }
+
+  // When user picks a different nights option, re-extract cities from those packages only
+  const selectNights = async (nights: number) => {
+    updateData({
+      routeItems: [{ destination: data.destinations[0] || '', nights }],
+      includedCities: [],
+      availableCities: [],
+      pickupCity: '',
+      dropCity: '',
+    })
+
+    const nightPkgs = allPackages.filter(pkg => Number(pkg.durationNights) === nights)
+    if (nightPkgs.length === 0) return
+
+    setIsLoadingCities(true)
+    try {
+      const cities = await extractCitiesWithAI(nightPkgs)
+      updateData({ availableCities: cities })
+    } finally {
+      setIsLoadingCities(false)
+    }
   }
 
   const toggleCity = (city: string) => {
@@ -259,6 +305,13 @@ export default function StepDmc1Destination({
   const pickupIsSet = !!(data.pickupCity || '').trim()
   const dropIsSet = !!(data.dropCity || '').trim()
 
+  const isLoadingAnything = isLoadingPackages || isLoadingCities
+
+  // Night-filtered package count (for the badge)
+  const nightFilteredCount = selectedNights > 0
+    ? allPackages.filter(pkg => Number(pkg.durationNights) === selectedNights).length
+    : allPackages.length
+
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-5">
@@ -266,7 +319,7 @@ export default function StepDmc1Destination({
           Plan Your Journey
         </h2>
         <p className="text-xs sm:text-base text-gray-500 font-medium px-2">
-          Choose your destination and cities to visit.
+          Choose your destination, duration, and cities to visit.
         </p>
       </div>
 
@@ -308,15 +361,15 @@ export default function StepDmc1Destination({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <span className="text-xs text-primary font-semibold">AI extracting cities from itineraries…</span>
+                    <span className="text-xs text-primary font-semibold">Loading packages…</span>
                   </div>
-                ) : availableCities.length > 0 ? (
+                ) : allPackages.length > 0 ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-xl w-fit">
                     <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                     <span className="text-xs text-green-700 font-semibold">
-                      {availableCities.length} cities found across {data.destinationPackages?.length || 0} packages
+                      {allPackages.length} packages found
                     </span>
                   </div>
                 ) : null}
@@ -380,15 +433,87 @@ export default function StepDmc1Destination({
           </div>
         </div>
 
-        {/* ── Section 2: City to Include ── */}
+        {/* ── Section 2: Package Nights ── */}
         {isDestSelected && !isLoadingPackages && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 py-4">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
+                    <span className="text-[9px] font-black text-white">2</span>
+                  </div>
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Package Nights</span>
+                </div>
+                {selectedNights > 0 && (
+                  <span className="text-[10px] font-semibold text-gray-400">
+                    {nightFilteredCount} package{nightFilteredCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+
+              {availableNights.length === 0 ? (
+                <p className="text-xs text-gray-400 italic py-4 text-center bg-gray-50 rounded-2xl">
+                  No duration options found for this destination.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {availableNights.map(opt => {
+                    const isSelected = selectedNights === opt.nights
+                    return (
+                      <button
+                        key={opt.nights}
+                        onClick={() => selectNights(opt.nights)}
+                        disabled={isLoadingCities}
+                        className={`relative flex flex-col items-center justify-center w-20 h-20 rounded-2xl border-2 transition-all duration-200 group select-none ${
+                          isSelected
+                            ? 'bg-primary border-transparent shadow-xl shadow-primary/30 scale-[1.06]'
+                            : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
+                        } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {isSelected && (
+                          <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full shadow-md flex items-center justify-center">
+                            <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </span>
+                        )}
+                        <svg className={`w-5 h-5 mb-1 transition-transform group-hover:scale-110 ${isSelected ? 'text-white/80' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                        </svg>
+                        <span className={`text-2xl font-black leading-none tabular-nums ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                          {opt.nights}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                          nights
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {isLoadingCities && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-primary/5 rounded-xl w-fit">
+                  <svg className="animate-spin w-3.5 h-3.5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="text-xs text-primary font-semibold">AI extracting cities for {selectedNights}-night packages…</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 3: City to Include ── */}
+        {isDestSelected && !isLoadingAnything && selectedNights > 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-4 py-4">
 
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
-                    <span className="text-[9px] font-black text-white">2</span>
+                    <span className="text-[9px] font-black text-white">3</span>
                   </div>
                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">City to Include</span>
                   <span className="text-[9px] text-gray-300 font-semibold">optional</span>
@@ -414,7 +539,7 @@ export default function StepDmc1Destination({
 
               {availableCities.length === 0 ? (
                 <p className="text-xs text-gray-400 italic py-4 text-center bg-gray-50 rounded-2xl">
-                  No cities found in itineraries for this destination.
+                  No cities found in {selectedNights}-night itineraries.
                 </p>
               ) : (
                 <>
@@ -461,15 +586,15 @@ export default function StepDmc1Destination({
           </div>
         )}
 
-        {/* ── Section 3: Pickup & Drop City ── */}
-        {isDestSelected && !isLoadingPackages && (
+        {/* ── Section 4: Pickup & Drop City ── */}
+        {isDestSelected && !isLoadingAnything && selectedNights > 0 && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-4 py-4">
 
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm shadow-primary/30">
-                    <span className="text-[9px] font-black text-white">3</span>
+                    <span className="text-[9px] font-black text-white">4</span>
                   </div>
                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.15em]">Pickup &amp; Drop</span>
                   <span className="text-[9px] text-gray-300 font-semibold">optional</span>
@@ -490,13 +615,10 @@ export default function StepDmc1Destination({
 
                 {/* Vertical timeline line */}
                 <div className="flex flex-col items-center pt-1 flex-shrink-0">
-                  {/* Pickup dot */}
                   <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-all duration-300 ${
                     pickupIsSet ? 'bg-emerald-500 border-emerald-500 shadow-md shadow-emerald-200' : 'bg-white border-gray-300'
                   }`} />
-                  {/* Connecting line */}
                   <div className="flex-1 w-0.5 my-1.5 min-h-[60px] bg-gray-200 rounded-full" />
-                  {/* Drop dot */}
                   <div className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-all duration-300 ${
                     dropIsSet ? 'bg-rose-500 border-rose-500 shadow-md shadow-rose-200' : 'bg-white border-gray-300'
                   }`} />
@@ -514,7 +636,7 @@ export default function StepDmc1Destination({
                       type="text"
                       value={data.pickupCity || ''}
                       onChange={e => updateData({ pickupCity: e.target.value, dropCity: '' })}
-                      placeholder="e.g. Delhi Airport"
+                      placeholder="e.g. Bagdogra Airport"
                       className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-emerald-300 focus:ring-4 focus:ring-emerald-50 transition-all text-sm font-medium outline-none text-gray-900 placeholder-gray-300"
                     />
                     {!isLoadingPickupDrop && pickupSuggestions.length > 0 && (
@@ -551,7 +673,7 @@ export default function StepDmc1Destination({
                         type="text"
                         value={data.dropCity || ''}
                         onChange={e => updateData({ dropCity: e.target.value })}
-                        placeholder="e.g. Jaipur"
+                        placeholder="e.g. Bagdogra"
                         className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-100 rounded-xl focus:bg-white focus:border-rose-300 focus:ring-4 focus:ring-rose-50 transition-all text-sm font-medium outline-none text-gray-900 placeholder-gray-300"
                       />
                       {dropSuggestions.length > 0 ? (
@@ -596,12 +718,12 @@ export default function StepDmc1Destination({
       <div className="mt-5 flex justify-center">
         <button
           onClick={onNext}
-          disabled={!isDestSelected || isLoadingPackages}
+          disabled={!isDestSelected || isLoadingAnything || selectedNights === 0}
           className="group px-10 py-3.5 bg-gray-900 text-white rounded-full font-bold text-base shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
         >
           <span>Continue</span>
           <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>

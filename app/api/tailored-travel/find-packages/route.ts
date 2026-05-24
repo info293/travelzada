@@ -20,6 +20,31 @@ function pkgHasHotel(starCategory: string): boolean {
     return !!star && star !== 'none'
 }
 
+// Extract the text content of a specific day section from an itinerary string.
+function getDaySection(itinerary: string, dayNum: number): string {
+    const lower = itinerary.toLowerCase()
+    const pattern = new RegExp(`day\\s*0?${dayNum}[\\s:–\\-]`, 'i')
+    const match = lower.match(pattern)
+    if (!match || match.index === undefined) return ''
+    const start = match.index
+    const nextPattern = new RegExp(`day\\s*0?${dayNum + 1}[\\s:–\\-]`, 'i')
+    const nextMatch = lower.substring(start + 5).match(nextPattern)
+    const end = nextMatch?.index !== undefined ? start + 5 + nextMatch.index : start + 700
+    return lower.substring(start, end)
+}
+
+function getFirstDayContent(itinerary: string): string {
+    return getDaySection(itinerary, 1) || itinerary.toLowerCase().substring(0, 500)
+}
+
+function getLastDayContent(itinerary: string): string {
+    const lower = itinerary.toLowerCase()
+    const allMatches = [...lower.matchAll(/day\s*0?(\d+)[\s:–\-]/gi)]
+    if (allMatches.length === 0) return lower.substring(Math.max(0, lower.length - 500))
+    const lastMatch = allMatches[allMatches.length - 1]
+    return lower.substring(lastMatch.index ?? 0)
+}
+
 function applyDmcFilters(packages: any[], wizardData: any): any[] {
     let pkgs = [...packages]
 
@@ -28,6 +53,7 @@ function applyDmcFilters(packages: any[], wizardData: any): any[] {
     const hotelTypes: string[] = wizardData.hotelTypes || []
     const selectedNights: number = wizardData.routeItems?.[0]?.nights || 0
     const pickupCity: string = wizardData.pickupCity || ''
+    const dropCity: string = wizardData.dropCity || ''
 
     // 1. City filter — itinerary must mention at least one selected city
     if (includedCities.length > 0) {
@@ -70,14 +96,32 @@ function applyDmcFilters(packages: any[], wizardData: any): any[] {
         }
     }
 
-    // 4. Pickup city — soft filter (only applied if it narrows results)
+    // 4. Pickup city — check only Day 1 of the itinerary so a city mentioned only
+    //    at departure (last day) doesn't incorrectly satisfy the pickup constraint.
     if (pickupCity) {
-        const pickupFiltered = pkgs.filter(pkg =>
-            (pkg.Day_Wise_Itinerary || '').toLowerCase().includes(pickupCity.toLowerCase())
-        )
+        const pickupFiltered = pkgs.filter(pkg => {
+            const day1 = getFirstDayContent(pkg.Day_Wise_Itinerary || '')
+            return day1.includes(pickupCity.toLowerCase())
+        })
         if (pickupFiltered.length > 0) {
             pkgs = pickupFiltered
             console.log(`[AI Planner] After pickup city filter (${pickupCity}): ${pkgs.length} packages`)
+        } else {
+            console.log(`[AI Planner] Pickup city filter (${pickupCity}) matched 0 — skipping (soft filter)`)
+        }
+    }
+
+    // 5. Drop city — check only the last day of the itinerary (soft filter)
+    if (dropCity) {
+        const dropFiltered = pkgs.filter(pkg => {
+            const lastDay = getLastDayContent(pkg.Day_Wise_Itinerary || '')
+            return lastDay.includes(dropCity.toLowerCase())
+        })
+        if (dropFiltered.length > 0) {
+            pkgs = dropFiltered
+            console.log(`[AI Planner] After drop city filter (${dropCity}): ${pkgs.length} packages`)
+        } else {
+            console.log(`[AI Planner] Drop city filter (${dropCity}) matched 0 — skipping (soft filter)`)
         }
     }
 
