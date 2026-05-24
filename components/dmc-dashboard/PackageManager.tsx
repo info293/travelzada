@@ -242,6 +242,14 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
   const [hotelCsvMsg, setHotelCsvMsg] = useState('')
   const [vehicleCsvMsg, setVehicleCsvMsg] = useState('')
 
+  // Change detection
+  const [originalSnapshot, setOriginalSnapshot] = useState<string>('')
+  const skipDayEffect = useRef(false)
+
+  // Save As modal
+  const [showSaveAsModal, setShowSaveAsModal] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+
   // Currency / exchange rate state
   const [exchangeRate, setExchangeRate] = useState<number>(1)
   const [rateLoading, setRateLoading] = useState(false)
@@ -253,6 +261,21 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
   const [pkgStatusFilter, setPkgStatusFilter] = useState<'all' | 'active' | 'paused'>('all')
   const [pkgDestFilter, setPkgDestFilter] = useState('all')
   const [pkgHotelFilter, setPkgHotelFilter] = useState<'all' | 'with' | 'without'>('all')
+
+  function makeSnapshot(
+    f: typeof EMPTY_FORM,
+    di: DayItem[],
+    he: HotelEntry[],
+    ve: VehicleEntry[],
+    p: string[],
+    me: boolean,
+    mp: string,
+  ): string {
+    return JSON.stringify({ form: f, dayItems: di, hotelEntries: he, vehicleEntries: ve, perks: p, markupEnabled: me, markupPercent: mp })
+  }
+
+  const currentSnapshot = makeSnapshot(form, dayItems, hotelEntries, vehicleEntries, perks, markupEnabled, markupPercent)
+  const hasChanges = showForm && currentSnapshot !== originalSnapshot
 
   const fetchPackages = useCallback(async () => {
     try {
@@ -290,6 +313,20 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
       })
       .finally(() => setRateLoading(false))
   }, [form.currency])
+
+  // Auto-derive days/nights from itinerary when user adds/removes day cards
+  useEffect(() => {
+    if (skipDayEffect.current) {
+      skipDayEffect.current = false
+      return
+    }
+    if (!showForm) return
+    setForm(prev => ({
+      ...prev,
+      durationDays: dayItems.length > 0 ? String(dayItems.length) : prev.durationDays,
+      durationNights: dayItems.length > 0 ? String(Math.max(0, dayItems.length - 1)) : prev.durationNights,
+    }))
+  }, [dayItems.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function parseDayItems(text: string): DayItem[] {
     if (!text?.trim()) return []
@@ -636,6 +673,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
   }
 
   function initNewForm() {
+    skipDayEffect.current = true
     setForm(EMPTY_FORM)
     setEditingId(null)
     setDayItems([])
@@ -650,16 +688,21 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
     setDetailsOpen(true)
     setError('')
     setShowForm(true)
+    setOriginalSnapshot(makeSnapshot(EMPTY_FORM, [], [], [], [], false, '15'))
   }
 
   function initEditForm(pkg: AgentPackage) {
-    setForm({
+    skipDayEffect.current = true
+    const newDayItems = parseDayItems(pkg.dayWiseItinerary || '')
+    const derivedDays = newDayItems.length > 0 ? String(newDayItems.length) : String(pkg.durationDays)
+    const derivedNights = newDayItems.length > 0 ? String(Math.max(0, newDayItems.length - 1)) : String(pkg.durationNights)
+    const newForm = {
       title: pkg.title,
       destination: pkg.destination,
       destinationCountry: pkg.destinationCountry || 'India',
       overview: pkg.overview,
-      durationDays: String(pkg.durationDays),
-      durationNights: String(pkg.durationNights),
+      durationDays: derivedDays,
+      durationNights: derivedNights,
       pricePerPerson: String(pkg.pricePerPerson),
       totalPrice: pkg.totalPrice != null ? String(pkg.totalPrice) : '',
       gst: pkg.gst != null ? String(pkg.gst) : '',
@@ -681,11 +724,15 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
       seasonalAvailability: pkg.seasonalAvailability || 'Year Round',
       paymentPolicy: (pkg as any).paymentPolicy || '',
       cancellationPolicy: (pkg as any).cancellationPolicy || '',
-    })
-    setDayItems(parseDayItems(pkg.dayWiseItinerary || ''))
-    setHotelEntries(Array.isArray(pkg.hotels) ? pkg.hotels : [])
-    setVehicleEntries(Array.isArray(pkg.vehicles) ? pkg.vehicles : [])
-    setPerks(Array.isArray(pkg.perks) ? pkg.perks : [])
+    }
+    const newHotelEntries = Array.isArray(pkg.hotels) ? pkg.hotels : []
+    const newVehicleEntries = Array.isArray(pkg.vehicles) ? pkg.vehicles : []
+    const newPerks = Array.isArray(pkg.perks) ? pkg.perks : []
+    setForm(newForm)
+    setDayItems(newDayItems)
+    setHotelEntries(newHotelEntries)
+    setVehicleEntries(newVehicleEntries)
+    setPerks(newPerks)
     setPerkInput('')
     setHotelCsvMsg('')
     setVehicleCsvMsg('')
@@ -695,6 +742,7 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
     setEditingId(pkg.id)
     setError('')
     setShowForm(true)
+    setOriginalSnapshot(makeSnapshot(newForm, newDayItems, newHotelEntries, newVehicleEntries, newPerks, false, '15'))
   }
 
   function openNewForm() {
@@ -746,6 +794,10 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
     setError('')
     if (!form.title || !form.destination || (!form.pricePerPerson && !form.totalPrice)) {
       setError('Title, destination, and at least one price (per person or total) are required.')
+      return
+    }
+    if (form.starCategory && hotelEntries.length === 0) {
+      setError('Hotels & Accommodation requires at least 1 hotel when a star category is selected.')
       return
     }
 
@@ -814,17 +866,31 @@ export default function PackageManager({ agentId, companyName = 'DMC Partner', l
     }
   }
 
+  function openSaveAsModal() {
+    setSaveAsName(form.title ? `${form.title} (Copy)` : '')
+    setShowSaveAsModal(true)
+  }
+
   async function handleSaveAs() {
     setError('')
-    if (!form.title || !form.destination || (!form.pricePerPerson && !form.totalPrice)) {
-      setError('Title, destination, and at least one price (per person or total) are required.')
+    if (!saveAsName.trim()) {
+      setError('Package name is required for Save As.')
       return
     }
+    if (!form.destination || (!form.pricePerPerson && !form.totalPrice)) {
+      setError('Destination and at least one price (per person or total) are required.')
+      return
+    }
+    if (form.starCategory && hotelEntries.length === 0) {
+      setError('Hotels & Accommodation requires at least 1 hotel when a star category is selected.')
+      return
+    }
+    setShowSaveAsModal(false)
     setSaving(true)
     try {
       const payload = {
         agentId,
-        title: `${form.title} (Copy)`,
+        title: saveAsName.trim(),
         destination: form.destination,
         destinationCountry: form.destinationCountry,
         overview: form.overview,
@@ -1988,12 +2054,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       <input name="destinationCountry" value={form.destinationCountry} onChange={handleChange} className="input" />
                     </div>
                     <div>
-                      <label className="label">Days</label>
-                      <input name="durationDays" type="number" min="1" value={form.durationDays} onChange={handleChange} className="input" />
+                      <label className="label">Days {dayItems.length > 0 && <span className="text-[10px] font-normal text-blue-400 ml-1">(from itinerary)</span>}</label>
+                      <input
+                        name="durationDays"
+                        type="number"
+                        min="1"
+                        value={form.durationDays}
+                        onChange={handleChange}
+                        readOnly={dayItems.length > 0}
+                        className={`input ${dayItems.length > 0 ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                      />
                     </div>
                     <div>
-                      <label className="label">Nights</label>
-                      <input name="durationNights" type="number" min="0" value={form.durationNights} onChange={handleChange} className="input" />
+                      <label className="label">Nights {dayItems.length > 0 && <span className="text-[10px] font-normal text-blue-400 ml-1">(from itinerary)</span>}</label>
+                      <input
+                        name="durationNights"
+                        type="number"
+                        min="0"
+                        value={form.durationNights}
+                        onChange={handleChange}
+                        readOnly={dayItems.length > 0}
+                        className={`input ${dayItems.length > 0 ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                      />
                     </div>
                   </div>
 
@@ -2229,7 +2311,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
               </div>
 
               {/* Hotels & Accommodation */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className={`bg-white rounded-2xl p-5 shadow-sm border transition-colors ${!form.starCategory ? 'border-gray-100 opacity-60' : 'border-gray-100'}`}>
                 <input ref={hotelCsvInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleHotelCsvImport} />
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -2237,15 +2319,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                     <h3 className="font-bold text-gray-900 text-sm">Hotels & Accommodation</h3>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={downloadSampleHotelCsv} className="text-[10px] text-gray-400 hover:text-gray-600 underline">Sample CSV</button>
-                    <button onClick={() => hotelCsvInputRef.current?.click()} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg">
+                    <button onClick={downloadSampleHotelCsv} disabled={!form.starCategory} className="text-[10px] text-gray-400 hover:text-gray-600 underline disabled:pointer-events-none">Sample CSV</button>
+                    <button onClick={() => hotelCsvInputRef.current?.click()} disabled={!form.starCategory} className="flex items-center gap-1 text-xs text-emerald-600 font-semibold hover:text-emerald-800 border border-emerald-200 bg-emerald-50 px-2 py-1 rounded-lg disabled:pointer-events-none">
                       <Upload className="w-3 h-3" /> Import CSV
                     </button>
-                    <button onClick={addHotelEntry} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700">
+                    <button onClick={addHotelEntry} disabled={!form.starCategory} className="flex items-center gap-1.5 text-xs text-blue-500 font-bold hover:text-blue-700 disabled:pointer-events-none">
                       <Plus className="w-3.5 h-3.5" /> Add Hotel
                     </button>
                   </div>
                 </div>
+
+                {!form.starCategory ? (
+                  <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-xl">
+                    <p className="text-sm text-gray-400">Choose a star category to enable this section</p>
+                  </div>
+                ) : (
+                  <>
                 {hotelCsvMsg && (
                   <p className={`text-xs mb-3 px-3 py-2 rounded-lg ${hotelCsvMsg.startsWith('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{hotelCsvMsg}</p>
                 )}
@@ -2329,6 +2418,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
                       </tbody>
                     </table>
                   </div>
+                )}
+                  </>
                 )}
               </div>
 
@@ -2599,17 +2690,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
           <div className="flex items-center justify-end px-5 py-3 bg-white border-t border-gray-100 shadow-[0_-2px_12px_rgba(0,0,0,0.07)] flex-shrink-0 gap-2">
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+              disabled={saving || !hasChanges}
+              title={!hasChanges ? 'No changes to save' : undefined}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
             >
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               {saving ? 'Saving…' : 'Save'}
             </button>
 
             <button
-              onClick={handleSaveAs}
-              disabled={saving}
-              className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 text-gray-700 hover:text-indigo-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+              onClick={openSaveAsModal}
+              disabled={saving || !hasChanges}
+              title={!hasChanges ? 'No changes to save' : undefined}
+              className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-40 disabled:cursor-not-allowed text-gray-700 hover:text-indigo-700 text-xs font-bold px-4 py-2 rounded-xl transition-colors"
             >
               <Save className="w-3.5 h-3.5" /> Save As
             </button>
@@ -2624,6 +2717,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1
         </div>
         )
       })()}
+
+      {/* ── Save As Modal ─────────────────────────────────────────────────── */}
+      {showSaveAsModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="font-bold text-gray-900 text-base mb-1">Save As New Package</h3>
+            <p className="text-xs text-gray-400 mb-4">Enter a name for the new package copy.</p>
+            <input
+              autoFocus
+              value={saveAsName}
+              onChange={e => setSaveAsName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveAs() }}
+              placeholder="Package name…"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 mb-4"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setShowSaveAsModal(false)}
+                className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAs}
+                disabled={saving || !saveAsName.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                {saving ? 'Saving…' : 'Save As'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Package Preview Modal ─────────────────────────────────────────── */}
       {previewPkg && (
