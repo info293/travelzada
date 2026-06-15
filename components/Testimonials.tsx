@@ -7,12 +7,12 @@ async function fetchTestimonials(): Promise<Testimonial[]> {
     {
       name: 'Sarah L.',
       rating: 5,
-      quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Flawless!',
+      quote: 'Travelzada made our anniversary trip unforgettable. The AI planner was spot-on, and the human touch made all the difference. Absolutely flawless!',
     },
     {
       name: 'Mark T.',
       rating: 5,
-      quote: 'As a solo traveler, I used to spend weeks planning. Now, I just tell Travelzada what I like, it creates the perfect itinerary in minutes. Game-changer!',
+      quote: 'As a solo traveler, I used to spend weeks planning. Now I just tell Travelzada what I like and it creates the perfect itinerary in minutes. Game-changer!',
     },
     {
       name: 'Emily C.',
@@ -33,7 +33,7 @@ async function fetchTestimonials(): Promise<Testimonial[]> {
         orderBy('createdAt', 'desc')
       )
       querySnapshot = await getDocs(featuredQuery)
-    } catch (orderError) {
+    } catch {
       const allQuery = query(collection(db, 'testimonials'))
       querySnapshot = await getDocs(allQuery)
     }
@@ -51,10 +51,7 @@ async function fetchTestimonials(): Promise<Testimonial[]> {
       })
     })
 
-    if (testimonialsData.length === 0) {
-      return fallbackTestimonials
-    }
-
+    if (testimonialsData.length === 0) return fallbackTestimonials
     return testimonialsData
   } catch (error) {
     console.error('Error fetching testimonials:', error)
@@ -66,44 +63,41 @@ export default async function Testimonials() {
   const testimonials = await fetchTestimonials()
 
   return (
-    <section className="py-24 px-4 md:px-8 lg:px-12 bg-gradient-to-b from-cream via-white to-cream relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+    <section className="py-20 md:py-28 bg-white relative overflow-hidden">
+      <div className="max-w-6xl mx-auto px-4 relative z-10">
 
-      <div className="max-w-7xl mx-auto text-center relative z-10">
-        <div className="inline-block mb-4">
-          <span className="text-xs uppercase tracking-[0.3em] text-primary font-semibold">Testimonials</span>
+        {/* Header */}
+        <div className="text-center mb-14">
+          <p className="font-serif italic text-primary text-lg mb-3">Customer Testimonials</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-ink">
+            What Our Travelers Say
+          </h2>
         </div>
-        <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-ink mb-6">
-          What Our Travelers Say
-        </h2>
-        <p className="text-lg text-gray-600 mb-16 max-w-2xl mx-auto">
-          Join thousands of satisfied travelers who've experienced the perfect trip
-        </p>
 
         <TestimonialsClient initialTestimonials={testimonials} />
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        {/* CTA buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
           <Link
             href="/reviews"
-            className="inline-flex items-center justify-center bg-white text-primary border-2 border-primary px-8 py-4 rounded-full text-base font-semibold shadow-lg hover:bg-primary hover:text-white hover:shadow-xl hover:scale-105 transition-all duration-300"
+            className="inline-flex items-center gap-2 text-primary border border-primary/30 bg-primary/5 hover:bg-primary hover:text-white px-7 py-3 rounded-full text-sm font-semibold transition-all duration-300"
           >
             View All Reviews
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
           <Link
             href="/tailored-travel"
-            className="inline-flex items-center justify-center bg-primary text-white px-10 py-5 rounded-full text-base font-semibold shadow-xl hover:bg-primary-dark hover:shadow-2xl hover:scale-105 transition-all duration-300"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-7 py-3 rounded-full text-sm font-semibold shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-105 transition-all duration-300"
           >
-            PLAN MY TRIP
-            <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            Plan My Trip
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
           </Link>
         </div>
+
       </div>
     </section>
   )

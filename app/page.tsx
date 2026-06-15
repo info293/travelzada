@@ -36,7 +36,6 @@ export default function Home() {
         <Header />
         <Hero />
         <HowItWorks />
-        <Testimonials />
 
         {/* India Destinations Rail */}
         <DestinationRail
@@ -54,10 +53,11 @@ export default function Home() {
           tagLabel="International"
         />
 
+        <Testimonials />
+
         {/* Dynamic Occasions */}
         <DynamicOccasionRails />
         <Packages />
-        {/* Testimonials moved up */}
         <WhyTravelzada />
         <FAQ />
         <Footer />
