@@ -1,5 +1,6 @@
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
+import TripTypeSelector from '@/components/TripTypeSelector'
 import HowItWorks from '@/components/HowItWorks'
 import Testimonials from '@/components/Testimonials'
 import WhyTravelzada from '@/components/WhyTravelzada'
@@ -11,6 +12,11 @@ import { faqs } from '@/data/faqs'
 import DynamicOccasionRails from '@/components/DynamicOccasionRails'
 import DestinationRail from '@/components/DestinationRail'
 import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
+import IndiaHoneymoonPackages from '@/components/IndiaHoneymoonPackages'
+import InternationalPackages from '@/components/InternationalPackages'
+import WorldForTwo from '@/components/WorldForTwo'
+import PricingBreakdown from '@/components/PricingBreakdown'
+import PromiseBanner from '@/components/PromiseBanner'
 
 export default function Home() {
   const websiteSchema = generateWebSiteSchema()
@@ -32,28 +38,34 @@ export default function Home() {
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <DestinationSlugCacheInitializer />
-      <main className="min-h-screen bg-cream pt-16 md:pt-24">
+      <main className="min-h-screen bg-cream pt-16 md:pt-24 overflow-x-hidden">
         <Header />
         <Hero />
+        <TripTypeSelector />
+        <IndiaHoneymoonPackages />
+        <InternationalPackages />
+        <WorldForTwo />
         <HowItWorks />
+        <PricingBreakdown />
 
         {/* India Destinations Rail */}
-        <DestinationRail
+        {/* <DestinationRail
           region="India"
           title="Explore India"
           subtitle="Handpicked luxury journeys across the country."
           tagLabel="Incredible India"
-        />
+        /> */}
 
         {/* International Destinations Rail */}
-        <DestinationRail
+        {/* <DestinationRail
           region="International"
           title="World Destinations"
           subtitle="Curated global adventures beyond borders."
           tagLabel="International"
-        />
+        /> */}
 
         <Testimonials />
+        <PromiseBanner />
 
         {/* Dynamic Occasions */}
         <DynamicOccasionRails />

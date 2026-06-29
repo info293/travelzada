@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "Bash(node -e \"const ts = require\\('typescript'\\); console.log\\('TS version:', ts.version\\)\")"
+      "Bash(node -e \"const ts = require\\('typescript'\\); console.log\\('TS version:', ts.version\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "Bash(cat next.config.js)",
+      "Bash(cat next.config.ts)",
+      "Bash(cat next.config.mjs)"
     ],
     "additionalDirectories": [
       "f:\\Freelacing Projects\\travelingproject\\app\\author"

@@ -2,13 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
+    // All external images (Unsplash, Firebase Storage) are already CDN-served with
+    // URL-based optimisation (?w=800&q=80). Proxying them through /_next/image adds
+    // latency, blocks the server on slow outbound connections, and causes
+    // ConnectTimeoutError in restricted network environments.
+    unoptimized: true,
   },
   async redirects() {
     return [

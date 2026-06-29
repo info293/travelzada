@@ -1,216 +1,364 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export interface Testimonial {
-    id?: string
-    name: string
-    rating: number
-    quote: string
-    featured?: boolean
-    createdAt?: string
-    updatedAt?: string
+  id?: string
+  name: string
+  rating: number
+  quote: string
+  image?: string
+  location?: string
+  trip?: string
+  featured?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
-interface TestimonialsClientProps {
-    initialTestimonials: Testimonial[]
-}
+// ─── Destination enrichment map ──────────────────────────────────────────────
 
-const avatarGradients = [
-    'from-purple-500 to-indigo-600',
-    'from-rose-400 to-pink-500',
-    'from-amber-400 to-orange-500',
-    'from-teal-400 to-cyan-600',
-    'from-emerald-400 to-green-500',
-    'from-blue-400 to-indigo-500',
+const DEST_MAP: { keywords: string[]; image: string; location: string }[] = [
+  {
+    keywords: ['bali', 'ubud', 'seminyak', 'indonesia', 'temple', 'rice terrace'],
+    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80',
+    location: 'BALI, INDONESIA',
+  },
+  {
+    keywords: ['maldives', 'overwater', 'water villa', 'atoll', 'lagoon'],
+    image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=800&q=80',
+    location: 'MALDIVES',
+  },
+  {
+    keywords: ['kerala', 'houseboat', 'backwater', 'alleppey', 'munnar', 'kochi', 'thekkady'],
+    image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80',
+    location: 'ALLEPPEY, KERALA',
+  },
+  {
+    keywords: ['kashmir', 'srinagar', 'gulmarg', 'pahalgam', 'shikara', 'dal lake', 'snow'],
+    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+    location: 'KASHMIR, INDIA',
+  },
+  {
+    keywords: ['rajasthan', 'udaipur', 'jaipur', 'jodhpur', 'palace', 'heritage', 'fort'],
+    image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&q=80',
+    location: 'UDAIPUR, RAJASTHAN',
+  },
+  {
+    keywords: ['dubai', 'uae', 'burj', 'desert safari', 'emirates'],
+    image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80',
+    location: 'DUBAI, UAE',
+  },
+  {
+    keywords: ['thailand', 'bangkok', 'phuket', 'chiang mai', 'koh samui', 'thai'],
+    image: 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&q=80',
+    location: 'THAILAND',
+  },
+  {
+    keywords: ['singapore', 'sentosa', 'marina bay', 'gardens by the bay'],
+    image: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=800&q=80',
+    location: 'SINGAPORE',
+  },
+  {
+    keywords: ['goa', 'beach', 'sunset cruise', 'north goa', 'south goa'],
+    image: 'https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&q=80',
+    location: 'GOA, INDIA',
+  },
+  {
+    keywords: ['andaman', 'havelock', 'neil island', 'port blair', 'scuba', 'coral'],
+    image: 'https://images.unsplash.com/photo-1559128010-7c1ad6e1b6a5?w=800&q=80',
+    location: 'ANDAMAN ISLANDS',
+  },
+  {
+    keywords: ['himachal', 'manali', 'shimla', 'spiti', 'rohtang', 'hills'],
+    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
+    location: 'HIMACHAL PRADESH',
+  },
+  {
+    keywords: ['vietnam', 'hanoi', 'ha long', 'hoi an', 'ho chi minh'],
+    image: 'https://images.unsplash.com/photo-1557750255-c76072a7aad1?w=800&q=80',
+    location: 'VIETNAM',
+  },
+  {
+    keywords: ['europe', 'paris', 'rome', 'italy', 'france', 'greece', 'santorini'],
+    image: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80',
+    location: 'SANTORINI, GREECE',
+  },
+  {
+    keywords: ['sri lanka', 'colombo', 'kandy', 'bentota', 'sigiriya'],
+    image: 'https://images.unsplash.com/photo-1566296314736-6eaac1ca0cb9?w=800&q=80',
+    location: 'SRI LANKA',
+  },
+  {
+    keywords: ['mauritius', 'seychelles', 'island', 'tropical'],
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80',
+    location: 'MAURITIUS',
+  },
 ]
 
-export default function TestimonialsClient({ initialTestimonials }: TestimonialsClientProps) {
-    const [currentIndex, setCurrentIndex] = useState(0)
-    const [isHovered, setIsHovered] = useState(false)
-    const [itemsPerView, setItemsPerView] = useState(3)
-    const scrollContainerRef = useRef<HTMLDivElement>(null)
-    const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const resumeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80'
 
-    const testimonials = initialTestimonials
+const FALLBACK_LIST: Testimonial[] = [
+  {
+    name: 'Aarav & Riya',
+    rating: 5,
+    quote: 'Travelzada planned our Bali honeymoon down to the sunset dinner. One perfect itinerary — zero stress.',
+    image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80',
+    location: 'UBUD, BALI',
+    trip: 'Bali · 6N/7D · Dec 2024 · ₹78k/person',
+  },
+  {
+    name: 'Meera & Sahil',
+    rating: 5,
+    quote: 'The Maldives plan felt hand-made for us. The human planner caught details the apps never would.',
+    image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=800&q=80',
+    location: 'NORTH MALÉ ATOLL, MALDIVES',
+    trip: 'Maldives · 5N/6D · Jan 2025 · ₹1.65L/person',
+  },
+  {
+    name: 'Kabir & Vanya',
+    rating: 5,
+    quote: 'We booked Rajasthan in a weekend. The reasoning for every choice meant we actually trusted it.',
+    image: 'https://images.unsplash.com/photo-1477587458883-47145ed94245?w=800&q=80',
+    location: 'UDAIPUR, RAJASTHAN',
+    trip: 'Rajasthan · 6N/7D · Nov 2024 · ₹41k/person',
+  },
+  {
+    name: 'Neel & Ishita',
+    rating: 5,
+    quote: 'Best anniversary surprise ever. Dubai was flawless — every transfer and dinner already sorted.',
+    image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=800&q=80',
+    location: 'DOWNTOWN, DUBAI',
+    trip: 'Dubai · 5N/6D · Feb 2025 · ₹85k/person',
+  },
+  {
+    name: 'Dev & Priya',
+    rating: 5,
+    quote: 'Felt like a personal concierge. We just shared our vibe and the houseboat plan arrived, ready to book.',
+    image: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&q=80',
+    location: 'ALLEPPEY, KERALA',
+    trip: 'Kerala · 5N/6D · Oct 2025 · ₹32k/person',
+  },
+]
 
-    useEffect(() => {
-        const handleResize = () => setItemsPerView(window.innerWidth >= 768 ? 3 : 1)
-        handleResize()
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
-    }, [])
+function enrichTestimonial(t: Testimonial): Testimonial {
+  if (t.image && t.location) return t
+  const text = `${t.quote} ${t.name}`.toLowerCase()
+  const match = DEST_MAP.find(d => d.keywords.some(k => text.includes(k)))
+  return {
+    ...t,
+    image:    t.image    || match?.image    || FALLBACK_IMAGE,
+    location: t.location || match?.location || undefined,
+  }
+}
 
-    useEffect(() => {
-        if (testimonials.length === 0 || isHovered) {
-            if (autoScrollIntervalRef.current) {
-                clearInterval(autoScrollIntervalRef.current)
-                autoScrollIntervalRef.current = null
-            }
-            return
+function getInitials(name: string): string {
+  const parts = name.split(/\s*&\s*|\s+and\s+/i)
+  if (parts.length >= 2) return `${parts[0][0]}&${parts[1][0]}`.toUpperCase()
+  return name.slice(0, 2).toUpperCase()
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function TestimonialsClient() {
+  const [list, setList] = useState<Testimonial[]>(FALLBACK_LIST)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        let snapshot
+        try {
+          snapshot = await getDocs(
+            query(collection(db, 'testimonials'), where('featured', '==', true), orderBy('createdAt', 'desc'))
+          )
+        } catch {
+          snapshot = await getDocs(
+            query(collection(db, 'testimonials'), orderBy('createdAt', 'desc'))
+          )
         }
 
-        const maxIndex = Math.max(0, testimonials.length - itemsPerView)
-        if (testimonials.length <= itemsPerView) return
+        const data: Testimonial[] = []
+        snapshot.forEach((doc) => {
+          const d = doc.data()
+          if (!d.name || !d.quote) return
+          data.push({
+            id:       doc.id,
+            name:     d.name,
+            rating:   d.rating || 5,
+            quote:    d.quote,
+            image:    d.image || d.imageUrl || undefined,
+            location: d.location || undefined,
+            trip:     d.trip || undefined,
+            featured: d.featured || false,
+          })
+        })
 
-        autoScrollIntervalRef.current = setInterval(() => {
-            setCurrentIndex((prev) => {
-                const next = prev >= maxIndex ? 0 : prev + 1
-                if (scrollContainerRef.current) {
-                    const cardWidth = scrollContainerRef.current.offsetWidth / itemsPerView
-                    scrollContainerRef.current.scrollTo({ left: next * cardWidth, behavior: 'smooth' })
-                }
-                return next
-            })
-        }, 2800)
+        if (data.length > 0) setList(data.map(enrichTestimonial))
+      } catch {
+        // keep fallback
+      }
+    })()
+  }, [])
 
-        return () => {
-            if (autoScrollIntervalRef.current) clearInterval(autoScrollIntervalRef.current)
-            if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
-        }
-    }, [testimonials.length, isHovered, itemsPerView])
+  useEffect(() => {
+    if (paused || list.length <= 1) return
+    timerRef.current = setInterval(() => {
+      setActiveIndex((prev) => (prev + 1) % list.length)
+    }, 4200)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [paused, list.length])
 
-    const scrollToIndex = (index: number) => {
-        if (scrollContainerRef.current) {
-            const cardWidth = scrollContainerRef.current.offsetWidth / itemsPerView
-            scrollContainerRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' })
-            setCurrentIndex(index)
-        }
-    }
+  const active = list[activeIndex]
+  if (!active) return null
 
-    const pauseAutoScroll = () => {
-        setIsHovered(true)
-        if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current)
-        resumeTimeoutRef.current = setTimeout(() => {
-            setIsHovered(false)
-            resumeTimeoutRef.current = null
-        }, 3000)
-    }
+  const initials = getInitials(active.name)
+  const imgSrc = active.image || FALLBACK_IMAGE
 
-    const handleScroll = () => {
-        if (scrollContainerRef.current) {
-            const cardWidth = scrollContainerRef.current.offsetWidth / itemsPerView
-            setCurrentIndex(Math.round(scrollContainerRef.current.scrollLeft / cardWidth))
-        }
-        pauseAutoScroll()
-    }
-
-    const nextSlide = () => {
-        const maxIndex = Math.max(0, testimonials.length - itemsPerView)
-        scrollToIndex(currentIndex < maxIndex ? currentIndex + 1 : 0)
-        pauseAutoScroll()
-    }
-
-    const prevSlide = () => {
-        const maxIndex = Math.max(0, testimonials.length - itemsPerView)
-        scrollToIndex(currentIndex > 0 ? currentIndex - 1 : maxIndex)
-        pauseAutoScroll()
-    }
-
-    // The center card in the current view gets the highlight
-    const centeredIndex = currentIndex + (itemsPerView === 3 ? 1 : 0)
-
-    return (
-        <div className="relative">
-
-            {/* Nav arrows */}
-            {testimonials.length > itemsPerView && (
-                <>
-                    <button
-                        onClick={prevSlide}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 md:-translate-x-10 z-20 w-9 h-9 bg-white border border-gray-200 rounded-full shadow flex items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-all"
-                        aria-label="Previous"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={nextSlide}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 md:translate-x-10 z-20 w-9 h-9 bg-white border border-gray-200 rounded-full shadow flex items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-all"
-                        aria-label="Next"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                </>
-            )}
-
-            {/* Scrollable row */}
-            <div
-                ref={scrollContainerRef}
-                onScroll={handleScroll}
-                onMouseEnter={() => setIsHovered(true)}
-                onMouseLeave={() => setIsHovered(false)}
-                className="flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-                {testimonials.map((t, index) => {
-                    const id = t.id || `t-${index}`
-                    const isFeatured = index === centeredIndex
-                    const initials = t.name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
-                    const gradient = avatarGradients[index % avatarGradients.length]
-
-                    return (
-                        <div key={id} className="flex-shrink-0 w-full md:w-1/3 snap-start">
-                            <div
-                                className={`rounded-2xl p-5 flex items-start gap-4 h-full transition-all duration-300 ${
-                                    isFeatured
-                                        ? 'bg-white border-2 border-primary/40 shadow-lg shadow-primary/10'
-                                        : 'bg-slate-50/80 border border-gray-100'
-                                }`}
-                            >
-                                {/* Avatar */}
-                                <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0 shadow-md`}>
-                                    <span className="text-white text-lg font-bold tracking-wide">{initials}</span>
-                                </div>
-
-                                {/* Content */}
-                                <div className="flex-1 min-w-0">
-                                    {/* Stars */}
-                                    <div className="flex gap-0.5 mb-2">
-                                        {[...Array(t.rating)].map((_, i) => (
-                                            <svg key={i} className={`w-3.5 h-3.5 fill-current ${isFeatured ? 'text-amber-400' : 'text-amber-300'}`} viewBox="0 0 20 20">
-                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                            </svg>
-                                        ))}
-                                    </div>
-
-                                    {/* Quote */}
-                                    <p className="text-gray-600 text-sm leading-relaxed mb-3">
-                                        {t.quote.length > 130 ? t.quote.substring(0, 130) + '…' : t.quote}
-                                    </p>
-
-                                    {/* Name & label */}
-                                    <p className="font-bold text-ink text-sm leading-tight">{t.name}</p>
-                                    <p className="text-gray-400 text-xs mt-0.5">Verified Traveler</p>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                })}
+  return (
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      {/* ── Main card ── */}
+      <div
+        className="flex flex-col md:flex-row overflow-hidden"
+        style={{
+          borderRadius: 16,
+          border: '1px solid #e9e5dd',
+          boxShadow: '0 12px 48px rgba(26,26,36,.08)',
+          minHeight: 420,
+        }}
+      >
+        {/* Left: destination image */}
+        <div className="relative flex-none w-full md:w-[360px]" style={{ minHeight: 260 }}>
+          <Image
+            src={imgSrc}
+            alt={active.location || active.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 360px"
+            className="object-cover"
+            style={{ transition: 'opacity .4s ease' }}
+            unoptimized
+          />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,9,16,.58) 0%, transparent 55%)' }} />
+          {active.location && (
+            <div className="absolute bottom-4 left-4 flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+              </svg>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#fff', textTransform: 'uppercase' }}>{active.location}</span>
             </div>
-
-            {/* Dot indicators */}
-            {testimonials.length > itemsPerView && (
-                <div className="flex justify-center gap-2 mt-6">
-                    {Array.from({ length: Math.ceil(testimonials.length / itemsPerView) }).map((_, i) => (
-                        <button
-                            key={i}
-                            onClick={() => { scrollToIndex(i); pauseAutoScroll() }}
-                            className={`h-2 rounded-full transition-all duration-300 ${
-                                Math.floor(currentIndex) === i
-                                    ? 'bg-primary w-8'
-                                    : 'bg-gray-200 w-2 hover:bg-gray-300'
-                            }`}
-                            aria-label={`Slide ${i + 1}`}
-                        />
-                    ))}
-                </div>
-            )}
-
+          )}
         </div>
-    )
+
+        {/* Right: quote content */}
+        <div
+          className="flex flex-col justify-center flex-1 px-8 py-10 md:px-12"
+          style={{ background: '#fff' }}
+        >
+          {/* Stars */}
+          <div className="flex gap-1 mb-6">
+            {Array.from({ length: active.rating ?? 5 }).map((_, i) => (
+              <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
+              </svg>
+            ))}
+          </div>
+
+          {/* Quote */}
+          <blockquote
+            style={{
+              margin: '0 0 32px',
+              fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+              fontSize: 'clamp(16px, 4.5vw, 26px)',
+              fontWeight: 400,
+              color: '#1a1a24',
+              lineHeight: 1.6,
+            }}
+          >
+            &ldquo;{active.quote}&rdquo;
+          </blockquote>
+
+          {/* Author */}
+          <div className="flex items-center gap-4">
+            <div
+              className="flex-none flex items-center justify-center rounded-full text-sm font-black"
+              style={{ width: 52, height: 52, background: '#1a1a24', color: '#fff', letterSpacing: '.03em' }}
+            >
+              {initials}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: '#1a1a24' }}>{active.name}</p>
+              {active.trip && (
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: '#9a9aa5' }}>{active.trip}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Avatar row ── */}
+      {list.length > 1 && (
+        <div className="flex justify-center gap-3 mt-8">
+          {list.map((t, i) => {
+            const isActive = i === activeIndex
+            return (
+              <button
+                key={t.id ?? i}
+                onClick={() => {
+                  setActiveIndex(i)
+                  setPaused(true)
+                  setTimeout(() => setPaused(false), 5000)
+                }}
+                className="flex-none flex items-center justify-center rounded-full font-black text-xs transition-all duration-300"
+                style={{
+                  width: 52,
+                  height: 52,
+                  background: isActive ? '#1a1a24' : '#d9d5ce',
+                  color: isActive ? '#fff' : '#6b6b76',
+                  border: 'none',
+                  cursor: 'pointer',
+                  letterSpacing: '.03em',
+                  transform: isActive ? 'scale(1.08)' : 'scale(1)',
+                  boxShadow: isActive
+                    ? '0 0 0 3px #faf8f5, 0 0 0 5px #4f46e5, 0 8px 20px rgba(26,26,36,.2)'
+                    : 'none',
+                }}
+                aria-label={t.name}
+              >
+                {getInitials(t.name)}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Bottom stats ── */}
+      <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8" style={{ fontSize: 14 }}>
+        <span style={{ color: '#6b6b76' }}>
+          Rated <strong style={{ color: '#1a1a24' }}>4.9/5</strong> from <strong style={{ color: '#1a1a24' }}>500+</strong> couples
+        </span>
+        <span style={{ color: '#e9e5dd' }}>|</span>
+        <Link href="/reviews" className="font-semibold hover:underline" style={{ color: '#4f46e5' }}>
+          Read All Reviews →
+        </Link>
+        <span style={{ color: '#e9e5dd' }}>|</span>
+        <Link
+          href="https://g.page/r/travelzada"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold hover:underline"
+          style={{ color: '#4f46e5' }}
+        >
+          Review us on Google
+        </Link>
+      </div>
+    </div>
+  )
 }
