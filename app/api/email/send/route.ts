@@ -7,6 +7,7 @@ import {
   buildTravelAgentSignupEmail,
   buildTravelAgentSignupNotifyDmcEmail,
   buildTravelAgentApprovedEmail,
+  buildLeadNotificationEmail,
 } from '@/lib/mailer'
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'
@@ -16,6 +17,19 @@ export async function POST(request: Request) {
     const { type, data } = await request.json()
 
     switch (type) {
+      case 'lead_notification': {
+        const mail = buildLeadNotificationEmail({
+          name: data.name,
+          mobile: data.mobile || data.phone,
+          packageName: data.packageName,
+          sourceUrl: data.sourceUrl,
+          message: data.message,
+          email: data.email,
+        })
+        await sendMail(mail)
+        break
+      }
+
       case 'customer_signup': {
         const mail = buildCustomerWelcomeEmail({ name: data.name })
         mail.to = data.email

@@ -96,29 +96,38 @@ export default function ContactPage() {
         read: false,
       })
 
-      // Send email notification via EmailJS
-      // Using the same configuration as LeadForm
+      // Send email notification to info@travelzada.com and ravindra@travelzada.com
+      fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lead_notification',
+          data: {
+            name: formData.name.trim(),
+            mobile: formData.phone.trim(),
+            email: formData.email.trim(),
+            packageName: `Contact Enquiry: ${formData.destination || 'General'}`,
+            message: formData.message.trim(),
+            sourceUrl: typeof window !== 'undefined' ? window.location.href : 'Contact Page',
+          },
+        }),
+      }).catch((emailError) => {
+        console.error('Failed to send lead notification email:', emailError)
+      })
+
+      // Backup EmailJS dispatch
       const templateParams = {
         name: formData.name.trim(),
         mobile: formData.phone.trim(),
         email: formData.email.trim(),
-        packageName: `Contact Enquiry: ${formData.destination}`, // Mapping destination to packageName
+        packageName: `Contact Enquiry: ${formData.destination}`,
         message: formData.message.trim(),
         sourceUrl: 'Contact Us Page',
       }
+      emailjs
+        .send('service_6e9dvlb', 'template_qz05lkd', templateParams, 'gIP99fUwF6iBneHVb')
+        .catch(() => {})
 
-      try {
-        await emailjs.send(
-          'service_6e9dvlb',
-          'template_qz05lkd',
-          templateParams,
-          'gIP99fUwF6iBneHVb'
-        )
-        console.log('Email sent successfully')
-      } catch (emailError) {
-        console.error('Failed to send email:', emailError)
-        // We don't block the success state if email fails
-      }
 
       setIsSubmitting(false)
       setSubmitted(true)

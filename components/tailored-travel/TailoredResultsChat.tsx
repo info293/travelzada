@@ -222,6 +222,21 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
                             read: false
                         })
                         console.log('Lead successfully saved to Firebase! Document ID:', docRef.id);
+                        
+                        // Notify info@travelzada.com and ravindra@travelzada.com
+                        fetch('/api/email/send', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'lead_notification',
+                                data: {
+                                    name: capturedLead.name || 'Unknown',
+                                    mobile: finalMobile,
+                                    sourceUrl: typeof window !== 'undefined' ? window.location.href : '',
+                                    packageName: enquirePackageName || wizardData?.destinations?.[0] || 'Custom Tailored Trip',
+                                },
+                            }),
+                        }).catch(() => {})
                     }
                 } catch (err) {
                     console.error('Failed to save lead to Firebase:', err)

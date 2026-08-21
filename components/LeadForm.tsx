@@ -77,27 +77,34 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
         read: false,
       })
 
-      // Send email notification via EmailJS
+      // Send email notification to info@travelzada.com and ravindra@travelzada.com
+      fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'lead_notification',
+          data: {
+            name: formData.name.trim(),
+            mobile: cleanMobile,
+            sourceUrl: pageUrl,
+            packageName: packageName || 'General Enquiry',
+          },
+        }),
+      }).catch((emailError) => {
+        console.error('Failed to send lead notification email:', emailError)
+      })
+
+      // Backup EmailJS dispatch
       const templateParams = {
         name: formData.name.trim(),
         mobile: cleanMobile,
         sourceUrl: pageUrl,
         packageName: packageName || 'General Enquiry',
       }
+      emailjs
+        .send('service_6e9dvlb', 'template_qz05lkd', templateParams, 'gIP99fUwF6iBneHVb')
+        .catch(() => {})
 
-      // EmailJS Configuration
-      try {
-        await emailjs.send(
-          'service_6e9dvlb',
-          'template_qz05lkd',
-          templateParams,
-          'gIP99fUwF6iBneHVb'
-        )
-        console.log('Email sent successfully')
-      } catch (emailError) {
-        console.error('Failed to send email:', emailError)
-        // We don't block the success state if email fails, but we log it
-      }
 
       setIsSubmitting(false)
       setSubmitted(true)
