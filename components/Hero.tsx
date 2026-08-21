@@ -112,74 +112,7 @@ export default function Hero() {
         </div>
       </section>
 
-      {/* ── TRUST STRIP ── */}
-      <div style={{ background: '#1a1a24', color: '#fff', padding: '36px 0' }}>
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/10">
-
-            <div className="flex items-start gap-3 pt-4 md:pt-0 md:px-6 first:pt-0 first:md:pl-0 last:md:pr-0">
-              <div className="flex-none w-10 h-10 rounded-full flex items-center justify-center border border-indigo-300/35" style={{ background: 'rgba(99,102,241,.16)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">AI + Human</div>
-                <div className="text-xs mt-0.5 text-white/50 leading-snug">Smart plans, expert-refined</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 pt-4 md:pt-0 md:px-6">
-              <div className="flex-none w-10 h-10 rounded-full flex items-center justify-center border border-amber-300/40" style={{ background: 'rgba(160,138,106,.16)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#c7b48a">
-                  <path d="M12 21s-7-4.5-9.5-8.5C.5 9 2.5 5.5 6 5.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5.5 3.5 3.5 7C19 16.5 12 21 12 21z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">Couples Only</div>
-                <div className="text-xs mt-0.5 text-white/50 leading-snug">Designed for two, always</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 pt-4 md:pt-0 md:px-6">
-              <div className="flex-none w-10 h-10 rounded-full flex items-center justify-center border border-indigo-300/35" style={{ background: 'rgba(99,102,241,.16)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M8 4v16" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">Clear Pricing</div>
-                <div className="text-xs mt-0.5 text-white/50 leading-snug">Full breakdown, no markups</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 pt-4 md:pt-0 md:px-6">
-              <div className="flex-none w-10 h-10 rounded-full flex items-center justify-center border border-indigo-300/35" style={{ background: 'rgba(99,102,241,.16)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">24/7 Support</div>
-                <div className="text-xs mt-0.5 text-white/50 leading-snug">A real planner on WhatsApp</div>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 pt-4 md:pt-0 md:px-6">
-              <div className="flex-none w-10 h-10 rounded-full flex items-center justify-center border border-indigo-300/35" style={{ background: 'rgba(99,102,241,.16)' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
-                </svg>
-              </div>
-              <div>
-                <div className="text-sm font-bold tracking-tight">Free Edits</div>
-                <div className="text-xs mt-0.5 text-white/50 leading-snug">Tweak it until it's perfect</div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
     </>
   )
 }
+
