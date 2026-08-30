@@ -222,7 +222,57 @@ export interface JobApplication {
     read: boolean
 }
 
-export type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records'
+export interface VendorQuestion {
+    question: string
+    options: string[] // 4 options
+    correctOptionIndex: number
+}
+
+export interface VendorReward {
+    id: string
+    title: string
+    description?: string
+    code: string
+    color: string
+    probability?: number
+}
+
+export interface Vendor {
+    id?: string
+    vendorKey: string
+    name: string
+    contactPerson: string
+    phone: string
+    email?: string
+    category?: string
+    address?: string
+    logoUrl?: string
+    active: boolean
+    questionData: VendorQuestion
+    rewards: VendorReward[] // exactly 5 rewards
+    totalScans: number
+    totalClaims?: number
+    createdAt: string
+    updatedAt?: string
+}
+
+export interface VendorLead {
+    id?: string
+    vendorId: string
+    vendorKey: string
+    vendorName: string
+    userName: string
+    userPhone: string
+    userEmail?: string
+    rewardTitle: string
+    rewardCode: string
+    claimCode: string
+    status: 'new' | 'contacted' | 'redeemed' | 'expired'
+    createdAt: any
+    notes?: string
+}
+
+export type TabType = 'packages' | 'blogs' | 'users' | 'destinations' | 'subscribers' | 'contacts' | 'leads' | 'careers' | 'testimonials' | 'dashboard' | 'ai-generator' | 'create-itinerary' | 'customer-records' | 'vendors' | 'vendor-leads'
 
 // Customer Itinerary CRM Types
 export interface FlightDetail {

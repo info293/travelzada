@@ -9,6 +9,7 @@ export { default as ContactsSection } from './ContactsSection'
 export { default as LeadsSection } from './LeadsSection'
 export { default as CareersSection } from './CareersSection'
 export { default as TestimonialsSection } from './TestimonialsSection'
+export { default as VendorsSection } from './VendorsSection'
 
 // Types
 export * from './types'
