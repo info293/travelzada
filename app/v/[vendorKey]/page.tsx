@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import SpinWheel from '@/components/vendor/SpinWheel'
 import { Vendor, VendorReward } from '@/components/admin/types'
-import { CheckCircle2, XCircle, Phone, MessageSquare, ArrowRight, User, Mail } from 'lucide-react'
+import { CheckCircle2, XCircle, Phone, MessageSquare, ArrowRight, User, Mail, Gift, MapPin, Award } from 'lucide-react'
 
 export default function VendorLandingPage() {
   const params = useParams()
@@ -168,10 +168,14 @@ export default function VendorLandingPage() {
   const correctIdx = vendor.questionData?.correctOptionIndex ?? 0
 
   return (
-    <div className="h-screen max-h-screen bg-[#fdf9f3] text-gray-900 flex flex-col justify-between p-3 sm:p-5 overflow-hidden select-none">
+    <div className="min-h-screen lg:h-screen lg:max-h-screen bg-[#fdf9f3] text-gray-900 flex flex-col justify-between p-3 sm:p-5 overflow-y-auto lg:overflow-hidden select-none relative">
       
-      {/* TOP HEADER: Travelzada Brand Logo Only */}
-      <header className="w-full max-w-md mx-auto text-center pt-1 pb-1 shrink-0">
+      {/* Background Ambient Blur Blobs for Laptop/Desktop */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-200/40 rounded-full blur-3xl pointer-events-none hidden lg:block" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-amber-200/40 rounded-full blur-3xl pointer-events-none hidden lg:block" />
+
+      {/* TOP HEADER */}
+      <header className="w-full max-w-md lg:max-w-5xl mx-auto text-center pt-1 pb-1 shrink-0 relative z-10">
         <img
           src="/images/logo/Travelzada Logo April (1).png"
           alt="Travelzada Logo"
@@ -179,247 +183,334 @@ export default function VendorLandingPage() {
         />
       </header>
 
-      {/* MAIN CONTAINER: Travelzada Standard Clean Box */}
-      <main className="w-full max-w-md bg-white border border-purple-100 rounded-3xl p-4 sm:p-6 shadow-xl my-auto mx-auto shrink-0">
-        
-        {/* STEP 1: QUIZ CHALLENGE */}
-        {step === 1 && (
-          <div className="space-y-3">
+      {/* MAIN CONTAINER GRID */}
+      <div className="w-full max-w-md lg:max-w-5xl mx-auto my-auto py-2 relative z-10 shrink-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+          
+          {/* LEFT COLUMN: Vendor & Offer Showcase (Desktop / Laptop Only) */}
+          <div className="hidden lg:flex lg:col-span-5 flex-col space-y-4 bg-white/90 backdrop-blur-md border border-purple-100 rounded-3xl p-6 lg:p-7 shadow-xl text-left">
             
-            <div className="text-center">
-              <span className="inline-block px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-semibold tracking-wider">
-                Answer & Win Rewards
-              </span>
-              <h2 className="text-base sm:text-lg font-bold text-gray-900 mt-1 leading-snug">
-                {safeQuestion}
-              </h2>
+            {/* Co-Brand Header Badge */}
+            <div className="flex items-center gap-2 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200/60 px-3 py-1 rounded-full w-fit">
+              <Award className="w-4 h-4 text-purple-600" /> Verified Partner Campaign
             </div>
 
-            {/* 4 Options Grid */}
-            <div className="space-y-2 pt-1">
-              {safeOptions.map((option, idx) => {
-                const isSelected = selectedOption === idx
-                const isCorrect = idx === correctIdx
-
-                let btnStyle = "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-800"
-                if (isSelected) {
-                  if (isCorrect) {
-                    btnStyle = "bg-emerald-600 border-emerald-700 text-white shadow"
-                  } else {
-                    btnStyle = "bg-rose-600 border-rose-700 text-white shadow"
-                  }
-                }
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleOptionSelect(idx)}
-                    disabled={quizPassed}
-                    className={`w-full py-2.5 px-3.5 rounded-xl border text-sm font-medium text-left transition flex items-center justify-between active:scale-[0.99] ${btnStyle}`}
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      <span>{option}</span>
-                    </span>
-                    {isSelected && isCorrect && <CheckCircle2 className="w-5 h-5 text-white" />}
-                    {isSelected && !isCorrect && <XCircle className="w-5 h-5 text-white" />}
-                  </button>
-                )
-              })}
+            {/* Vendor Details */}
+            <div className="flex items-start gap-4 pt-1">
+              {vendor.logoUrl ? (
+                <img
+                  src={vendor.logoUrl}
+                  alt={vendor.name}
+                  className="w-14 h-14 rounded-2xl object-cover border border-purple-100 shadow-sm shrink-0"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white font-black text-xl flex items-center justify-center shadow-md shrink-0">
+                  {vendor.name ? vendor.name.charAt(0).toUpperCase() : 'V'}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <span className="inline-block px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded-md uppercase tracking-wider mb-0.5">
+                  {vendor.category || 'Travel Partner'}
+                </span>
+                <h1 className="text-xl font-black text-gray-900 leading-tight truncate">
+                  {vendor.name}
+                </h1>
+                {vendor.address && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1 font-medium truncate">
+                    <MapPin className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                    <span className="truncate">{vendor.address}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Feedback Messages */}
-            {quizError && (
-              <p className="text-xs font-semibold text-rose-600 text-center pt-1">
-                {quizError}
-              </p>
-            )}
+            {/* Offer Highlights Card */}
+            <div className="bg-gradient-to-br from-purple-50/70 to-indigo-50/50 border border-purple-100 rounded-2xl p-4 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-purple-600" /> Exclusive Campaign Benefits
+              </h3>
+              
+              <ul className="space-y-2.5 text-xs text-gray-700 font-medium">
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">✓</div>
+                  <span><strong className="text-gray-900">Win Guaranteed Rewards:</strong> Spin the wheel to unlock exclusive discounts & gift vouchers.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">✓</div>
+                  <span><strong className="text-gray-900">Instant Digital Pass:</strong> Claim code generated instantly for quick redemption on WhatsApp.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">✓</div>
+                  <span><strong className="text-gray-900">100% Verified Deals:</strong> Powered by Travelzada&apos;s official partner network.</span>
+                </li>
+              </ul>
+            </div>
 
-            {quizPassed && (
-              <p className="text-xs font-bold text-emerald-600 text-center flex items-center justify-center gap-1 pt-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Correct Answer! Opening Spin Wheel...
-              </p>
-            )}
+            {/* Step Progress Visualizer for Desktop */}
+            <div className="pt-1">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Campaign Flow</p>
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                <div className={`p-2 rounded-xl text-[10px] font-bold transition ${step === 1 ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
+                  1. Quiz
+                </div>
+                <div className={`p-2 rounded-xl text-[10px] font-bold transition ${step === 2 ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
+                  2. Spin
+                </div>
+                <div className={`p-2 rounded-xl text-[10px] font-bold transition ${step === 3 ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
+                  3. Claim
+                </div>
+                <div className={`p-2 rounded-xl text-[10px] font-bold transition ${step === 4 ? 'bg-purple-600 text-white shadow-md' : 'bg-gray-100 text-gray-600'}`}>
+                  4. Voucher
+                </div>
+              </div>
+            </div>
 
           </div>
-        )}
 
-        {/* STEP 2: SPIN WHEEL */}
-        {step === 2 && (
-          <div className="space-y-2 text-center">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900">
-              Spin the Wheel to Claim Reward
-            </h2>
+          {/* RIGHT COLUMN: Interactive Card Container */}
+          <main className="w-full lg:col-span-7 bg-white border border-purple-100 rounded-3xl p-4 sm:p-6 shadow-xl my-auto">
+            
+            {/* STEP 1: QUIZ CHALLENGE */}
+            {step === 1 && (
+              <div className="space-y-3">
+                
+                <div className="text-center">
+                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-[11px] font-semibold tracking-wider">
+                    Answer & Win Rewards
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 mt-1 leading-snug">
+                    {safeQuestion}
+                  </h2>
+                </div>
 
-            <SpinWheel
-              rewards={vendor.rewards}
-              onSpinEnd={handleSpinEnd}
-            />
+                {/* 4 Options Grid */}
+                <div className="space-y-2 pt-1">
+                  {safeOptions.map((option, idx) => {
+                    const isSelected = selectedOption === idx
+                    const isCorrect = idx === correctIdx
 
-            {wonReward && (
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl animate-pulse mt-2">
-                <p className="text-xs text-purple-900 font-bold">Prize Won: {wonReward.title}</p>
-                <p className="text-[11px] text-gray-500">Opening Claim Form...</p>
+                    let btnStyle = "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-800"
+                    if (isSelected) {
+                      if (isCorrect) {
+                        btnStyle = "bg-emerald-600 border-emerald-700 text-white shadow"
+                      } else {
+                        btnStyle = "bg-rose-600 border-rose-700 text-white shadow"
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleOptionSelect(idx)}
+                        disabled={quizPassed}
+                        className={`w-full py-2.5 px-3.5 rounded-xl border text-sm font-medium text-left transition flex items-center justify-between active:scale-[0.99] ${btnStyle}`}
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-bold text-xs ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-800'
+                          }`}>
+                            {String.fromCharCode(65 + idx)}
+                          </span>
+                          <span>{option}</span>
+                        </span>
+                        {isSelected && isCorrect && <CheckCircle2 className="w-5 h-5 text-white" />}
+                        {isSelected && !isCorrect && <XCircle className="w-5 h-5 text-white" />}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Feedback Messages */}
+                {quizError && (
+                  <p className="text-xs font-semibold text-rose-600 text-center pt-1">
+                    {quizError}
+                  </p>
+                )}
+
+                {quizPassed && (
+                  <p className="text-xs font-bold text-emerald-600 text-center flex items-center justify-center gap-1 pt-1">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Correct Answer! Opening Spin Wheel...
+                  </p>
+                )}
+
               </div>
             )}
-          </div>
-        )}
 
-        {/* STEP 3: LEAD FORM */}
-        {step === 3 && wonReward && (
-          <div className="space-y-4">
-            
-            <div className="text-center">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                Claim Your Reward
-              </h2>
+            {/* STEP 2: SPIN WHEEL */}
+            {step === 2 && (
+              <div className="space-y-2 text-center">
+                <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                  Spin the Wheel to Claim Reward
+                </h2>
 
-              {/* Clear & Prominent Prize Card */}
-              <div className="mt-2 p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200 rounded-2xl text-left shadow-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[10px] text-purple-700 font-extrabold uppercase tracking-wider">You Won:</p>
-                    <p className="text-base sm:text-lg font-black text-gray-900 leading-tight">{wonReward.title}</p>
+                <SpinWheel
+                  rewards={vendor.rewards}
+                  onSpinEnd={handleSpinEnd}
+                />
+
+                {wonReward && (
+                  <div className="p-3 bg-purple-50 border border-purple-200 rounded-2xl animate-pulse mt-2">
+                    <p className="text-xs text-purple-900 font-bold">Prize Won: {wonReward.title}</p>
+                    <p className="text-[11px] text-gray-500">Opening Claim Form...</p>
                   </div>
-                  {wonReward.code && (
-                    <span className="px-3 py-1 bg-[#7c3aed] text-white font-mono font-bold text-xs rounded-lg shadow-sm shrink-0">
-                      {wonReward.code}
-                    </span>
+                )}
+              </div>
+            )}
+
+            {/* STEP 3: LEAD FORM */}
+            {step === 3 && wonReward && (
+              <div className="space-y-4">
+                
+                <div className="text-center">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    Claim Your Reward
+                  </h2>
+
+                  {/* Clear & Prominent Prize Card */}
+                  <div className="mt-2 p-3.5 bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200 rounded-2xl text-left shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] text-purple-700 font-extrabold uppercase tracking-wider">You Won:</p>
+                        <p className="text-base sm:text-lg font-black text-gray-900 leading-tight">{wonReward.title}</p>
+                      </div>
+                      {wonReward.code && (
+                        <span className="px-3 py-1 bg-[#7c3aed] text-white font-mono font-bold text-xs rounded-lg shadow-sm shrink-0">
+                          {wonReward.code}
+                        </span>
+                      )}
+                    </div>
+                    {wonReward.description && (
+                      <p className="text-xs text-gray-600 mt-1 font-medium">{wonReward.description}</p>
+                    )}
+                  </div>
+                </div>
+
+                <form onSubmit={handleClaimSubmit} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter your name"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Mobile / WhatsApp Number *</label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Enter 10-digit mobile number"
+                        value={userPhone}
+                        onChange={(e) => setUserPhone(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address (Optional)</label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="email"
+                        placeholder="Enter email address"
+                        value={userEmail}
+                        onChange={(e) => setUserEmail(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-sm rounded-xl transition shadow flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Submitting...' : <>Claim &quot;{wonReward.title}&quot; <ArrowRight className="w-4 h-4" /></>}
+                  </button>
+                </form>
+
+              </div>
+            )}
+
+            {/* STEP 4: DIGITAL VOUCHER PASS */}
+            {step === 4 && claimResult && wonReward && (
+              <div className="space-y-4 text-center">
+                
+                <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-7 h-7" />
+                </div>
+
+                <div>
+                  <span className="text-xs font-bold uppercase text-emerald-600">Claim Confirmed</span>
+                  <h2 className="text-xl font-bold text-gray-900 mt-0.5">Digital Reward Voucher</h2>
+                </div>
+
+                <div className="bg-gradient-to-b from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 text-left shadow-sm">
+                  <p className="text-[10px] font-bold text-purple-700 uppercase">Vendor</p>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{vendor.name}</h3>
+
+                  <div className="border-t border-b border-dashed border-purple-200 py-2 my-2">
+                    <p className="text-[10px] text-gray-500 uppercase font-semibold">Prize Won:</p>
+                    <p className="text-lg font-bold text-purple-800">{wonReward.title}</p>
+                    {wonReward.code && (
+                      <p className="text-xs text-gray-600 font-mono mt-0.5">Code: <span className="font-bold">{wonReward.code}</span></p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">Claim Code:</p>
+                      <p className="text-base font-mono font-bold text-emerald-600">{claimResult.claimCode}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">Claimed By:</p>
+                      <p className="text-xs font-bold text-gray-800">{userName}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {vendor.phone && (
+                    <a
+                      href={`https://wa.me/${vendor.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${vendor.name}, I claimed my reward "${wonReward.title}" (Claim Code: ${claimResult.claimCode}). How can I redeem it?`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Redeem via WhatsApp
+                    </a>
+                  )}
+
+                  {vendor.phone && (
+                    <a
+                      href={`tel:${vendor.phone}`}
+                      className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-2"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-purple-600" /> Call Vendor ({vendor.phone})
+                    </a>
                   )}
                 </div>
-                {wonReward.description && (
-                  <p className="text-xs text-gray-600 mt-1 font-medium">{wonReward.description}</p>
-                )}
+
               </div>
-            </div>
+            )}
 
-            <form onSubmit={handleClaimSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Full Name *</label>
-                <div className="relative">
-                  <User className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
-                  />
-                </div>
-              </div>
+          </main>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Mobile / WhatsApp Number *</label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Enter 10-digit mobile number"
-                    value={userPhone}
-                    onChange={(e) => setUserPhone(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Email Address (Optional)</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:border-purple-600"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold text-sm rounded-xl transition shadow flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-              >
-                {isSubmitting ? 'Submitting...' : <>Claim "{wonReward.title}" <ArrowRight className="w-4 h-4" /></>}
-              </button>
-            </form>
-
-          </div>
-        )}
-
-        {/* STEP 4: DIGITAL VOUCHER PASS */}
-        {step === 4 && claimResult && wonReward && (
-          <div className="space-y-4 text-center">
-            
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-7 h-7" />
-            </div>
-
-            <div>
-              <span className="text-xs font-bold uppercase text-emerald-600">Claim Confirmed</span>
-              <h2 className="text-xl font-bold text-gray-900 mt-0.5">Digital Reward Voucher</h2>
-            </div>
-
-            <div className="bg-gradient-to-b from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 text-left shadow-sm">
-              <p className="text-[10px] font-bold text-purple-700 uppercase">Vendor</p>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">{vendor.name}</h3>
-
-              <div className="border-t border-b border-dashed border-purple-200 py-2 my-2">
-                <p className="text-[10px] text-gray-500 uppercase font-semibold">Prize Won:</p>
-                <p className="text-lg font-bold text-purple-800">{wonReward.title}</p>
-                {wonReward.code && (
-                  <p className="text-xs text-gray-600 font-mono mt-0.5">Code: <span className="font-bold">{wonReward.code}</span></p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <div>
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Claim Code:</p>
-                  <p className="text-base font-mono font-bold text-emerald-600">{claimResult.claimCode}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-gray-400 uppercase font-semibold">Claimed By:</p>
-                  <p className="text-xs font-bold text-gray-800">{userName}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {vendor.phone && (
-                <a
-                  href={`https://wa.me/${vendor.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${vendor.name}, I claimed my reward "${wonReward.title}" (Claim Code: ${claimResult.claimCode}). How can I redeem it?`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow"
-                >
-                  <MessageSquare className="w-4 h-4" /> Redeem via WhatsApp
-                </a>
-              )}
-
-              {vendor.phone && (
-                <a
-                  href={`tel:${vendor.phone}`}
-                  className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-2"
-                >
-                  <Phone className="w-3.5 h-3.5 text-purple-600" /> Call Vendor ({vendor.phone})
-                </a>
-              )}
-            </div>
-
-          </div>
-        )}
-
-      </main>
+        </div>
+      </div>
 
       {/* FOOTER */}
-      <footer className="w-full max-w-md mx-auto text-center py-1 text-gray-400 text-[11px] shrink-0">
+      <footer className="w-full max-w-md lg:max-w-5xl mx-auto text-center py-1 text-gray-400 text-[11px] shrink-0 relative z-10">
         Powered by <span className="font-semibold text-gray-600">Travelzada</span>
       </footer>
 
