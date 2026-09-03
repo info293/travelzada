@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import SpinWheel from '@/components/vendor/SpinWheel'
+import CongratulationsModal from '@/components/vendor/CongratulationsModal'
 import { Vendor, VendorReward } from '@/components/admin/types'
 import { CheckCircle2, XCircle, Phone, MessageSquare, ArrowRight, User, Mail, Gift, MapPin, Award } from 'lucide-react'
 
@@ -21,6 +22,7 @@ export default function VendorLandingPage() {
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const [quizError, setQuizError] = useState<string | null>(null)
   const [quizPassed, setQuizPassed] = useState(false)
+  const [showCongratulationModal, setShowCongratulationModal] = useState(false)
 
   // Spin Wheel state
   const [wonReward, setWonReward] = useState<VendorReward | null>(null)
@@ -66,12 +68,15 @@ export default function VendorLandingPage() {
     const correctIndex = vendor.questionData.correctOptionIndex ?? 0
     if (index === correctIndex) {
       setQuizPassed(true)
-      setTimeout(() => {
-        setStep(2) // Move to Spin Wheel
-      }, 700)
+      setShowCongratulationModal(true)
     } else {
       setQuizError('Incorrect answer! Please try another option.')
     }
+  }
+
+  const handleProceedToSpin = () => {
+    setShowCongratulationModal(false)
+    setStep(2) // Move to Spin Wheel
   }
 
   const handleSpinEnd = (reward: VendorReward) => {
@@ -513,6 +518,13 @@ export default function VendorLandingPage() {
       <footer className="w-full max-w-md lg:max-w-5xl mx-auto text-center py-1 text-gray-400 text-[11px] shrink-0 relative z-10">
         Powered by <span className="font-semibold text-gray-600">Travelzada</span>
       </footer>
+
+      {/* CONGRATULATIONS CELEBRATION POPUP MODAL */}
+      <CongratulationsModal
+        isOpen={showCongratulationModal}
+        onProceed={handleProceedToSpin}
+        vendorName={vendor.name}
+      />
 
     </div>
   )
