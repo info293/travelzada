@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react'
 import { Vendor, VendorLead, VendorReward, VendorQuestion } from './types'
 import {
   Plus, Search, QrCode, Edit, Trash2, CheckCircle2, XCircle, Download, ExternalLink,
-  Users, Award, Eye, Filter, RefreshCw, Sparkles, Building2, Phone, Mail, HelpCircle, Gift
+  Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
+import ImageUploader from './ImageUploader'
 
 interface VendorsSectionProps {
   vendors: Vendor[]
@@ -86,6 +87,12 @@ export default function VendorsSection({
       questionData: {
         question: 'Which of the following is Travelzada\'s top beach destination?',
         options: ['Bali', 'Paris', 'Tokyo', 'Swiss Alps'],
+        optionImages: [
+          'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&q=80',
+          'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80',
+          'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80',
+          'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=500&q=80',
+        ],
         correctOptionIndex: 0
       },
       rewards: [...DEFAULT_REWARDS],
@@ -100,10 +107,16 @@ export default function VendorsSection({
     setEditingVendor(vendor)
     setFormData({
       ...vendor,
-      questionData: vendor.questionData || {
-        question: 'Sample Question?',
-        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-        correctOptionIndex: 0
+      questionData: {
+        question: vendor.questionData?.question || 'Which of the following is Travelzada\'s top beach destination?',
+        options: vendor.questionData?.options && vendor.questionData.options.length === 4 ? vendor.questionData.options : ['Bali', 'Paris', 'Tokyo', 'Swiss Alps'],
+        optionImages: vendor.questionData?.optionImages && vendor.questionData.optionImages.length === 4 ? vendor.questionData.optionImages : [
+          'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&q=80',
+          'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80',
+          'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80',
+          'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=500&q=80',
+        ],
+        correctOptionIndex: vendor.questionData?.correctOptionIndex ?? 0
       },
       rewards: vendor.rewards && vendor.rewards.length === 5 ? vendor.rewards : [...DEFAULT_REWARDS]
     })
@@ -708,31 +721,39 @@ export default function VendorsSection({
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Vendor Logo URL (Optional)</label>
-                    <input
-                      type="url"
-                      placeholder="https://example.com/logo.png"
-                      value={formData.logoUrl || ''}
-                      onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-amber-500"
-                    />
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Vendor Logo (Upload Photo or Paste URL)</label>
+                    <div className="space-y-2">
+                      <ImageUploader
+                        value={formData.logoUrl || ''}
+                        onChange={(url) => setFormData({ ...formData, logoUrl: url })}
+                        compact
+                        placeholder="Upload Vendor Logo Photo"
+                      />
+                      <input
+                        type="url"
+                        placeholder="Or paste direct logo URL (https://...)"
+                        value={formData.logoUrl || ''}
+                        onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 2: QUIZ QUESTION SETUP */}
+              {/* SECTION 2: QUIZ QUESTION & PHOTO OPTIONS SETUP */}
               <div className="border-t pt-4">
                 <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" /> 2. Quiz Question (4 Options, 1 Answer)
+                  <HelpCircle className="w-4 h-4" /> 2. Quiz Question & Option Photos (4 Options, 1 Answer)
                 </h4>
 
-                <div className="space-y-3 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                <div className="space-y-4 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">Question Text *</label>
                     <input
                       type="text"
                       required
-                      placeholder="Enter question for user e.g. Which destination is famous for Eiffel Tower?"
+                      placeholder="Enter question for user e.g. Which of the following is Travelzada's top beach destination?"
                       value={formData.questionData?.question || ''}
                       onChange={(e) =>
                         setFormData({
@@ -741,60 +762,108 @@ export default function VendorsSection({
                             ...formData.questionData!,
                             question: e.target.value,
                             options: formData.questionData?.options || ['', '', '', ''],
+                            optionImages: formData.questionData?.optionImages || ['', '', '', ''],
                             correctOptionIndex: formData.questionData?.correctOptionIndex ?? 0,
                           },
                         })
                       }
-                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500"
+                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium text-gray-900"
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[0, 1, 2, 3].map((idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="correctOption"
-                          checked={formData.questionData?.correctOptionIndex === idx}
-                          onChange={() =>
-                            setFormData({
-                              ...formData,
-                              questionData: {
-                                ...formData.questionData!,
-                                correctOptionIndex: idx,
-                              },
-                            })
-                          }
-                          className="w-4 h-4 text-blue-600"
-                          title="Mark as correct answer"
-                        />
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Option ${String.fromCharCode(65 + idx)}`}
-                          value={formData.questionData?.options?.[idx] || ''}
-                          onChange={(e) => {
-                            const newOptions = [...(formData.questionData?.options || ['', '', '', ''])]
-                            newOptions[idx] = e.target.value
-                            setFormData({
-                              ...formData,
-                              questionData: {
-                                ...formData.questionData!,
-                                options: newOptions,
-                              },
-                            })
-                          }}
-                          className={`w-full px-3 py-2 bg-white border rounded-xl text-sm focus:outline-none ${
-                            formData.questionData?.correctOptionIndex === idx
-                              ? 'border-emerald-500 ring-1 ring-emerald-500'
-                              : 'border-gray-200'
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[0, 1, 2, 3].map((idx) => {
+                      const optLetter = String.fromCharCode(65 + idx)
+                      const currentOptionText = formData.questionData?.options?.[idx] || ''
+                      const currentOptionImg = formData.questionData?.optionImages?.[idx] || ''
+                      const isCorrect = formData.questionData?.correctOptionIndex === idx
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3.5 bg-white border rounded-2xl space-y-2.5 shadow-sm transition ${
+                            isCorrect ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30' : 'border-gray-200'
                           }`}
-                        />
-                      </div>
-                    ))}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="w-7 h-7 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                                {optLetter}
+                              </span>
+                              <span className="text-xs font-bold text-gray-700">Option {optLetter}</span>
+                            </div>
+
+                            <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition">
+                              <input
+                                type="radio"
+                                name="correctOption"
+                                checked={isCorrect}
+                                onChange={() =>
+                                  setFormData({
+                                    ...formData,
+                                    questionData: {
+                                      ...formData.questionData!,
+                                      correctOptionIndex: idx,
+                                    },
+                                  })
+                                }
+                                className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500"
+                              />
+                              {isCorrect ? '✓ Correct Answer' : 'Set as Correct'}
+                            </label>
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              required
+                              placeholder={`Option ${optLetter} Title (e.g. Bali)`}
+                              value={currentOptionText}
+                              onChange={(e) => {
+                                const newOptions = [...(formData.questionData?.options || ['', '', '', ''])]
+                                newOptions[idx] = e.target.value
+                                setFormData({
+                                  ...formData,
+                                  questionData: {
+                                    ...formData.questionData!,
+                                    options: newOptions,
+                                    optionImages: formData.questionData?.optionImages || ['', '', '', ''],
+                                  },
+                                })
+                              }}
+                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Option Photo Upload */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-500 mb-1">
+                              Option {optLetter} Photo (Upload or URL)
+                            </label>
+                            <ImageUploader
+                              value={currentOptionImg}
+                              onChange={(url) => {
+                                const newImages = [...(formData.questionData?.optionImages || ['', '', '', ''])]
+                                newImages[idx] = url
+                                setFormData({
+                                  ...formData,
+                                  questionData: {
+                                    ...formData.questionData!,
+                                    optionImages: newImages,
+                                  },
+                                })
+                              }}
+                              compact
+                              placeholder={`Upload Option ${optLetter} Photo`}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
+
                   <p className="text-[11px] text-gray-500 italic">
-                    💡 Select the radio button next to the option that is the correct answer.
+                    💡 Upload destination photos for each option (A, B, C, D) to display image thumbnails on the customer quiz card!
                   </p>
                 </div>
               </div>

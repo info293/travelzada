@@ -225,6 +225,7 @@ export interface JobApplication {
 export interface VendorQuestion {
     question: string
     options: string[] // 4 options
+    optionImages?: string[] // 4 option photo URLs matching options
     correctOptionIndex: number
 }
 
