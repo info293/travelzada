@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Vendor, VendorLead, VendorReward, VendorQuestion } from './types'
 import {
   Plus, Search, QrCode, Edit, Trash2, CheckCircle2, XCircle, Download, ExternalLink,
-  Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift
+  Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift,
+  Clock, ArrowUp, ArrowDown, Image as ImageIcon
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
@@ -21,12 +22,50 @@ interface VendorsSectionProps {
   refreshData?: () => void
 }
 
+const EIGHT_SLICE_COLORS = [
+  '#FF7A00', // Orange
+  '#00B4D8', // Teal
+  '#FF4D6D', // Coral
+  '#E63946', // Crimson
+  '#70E000', // Lime
+  '#7B2CBF', // Purple
+  '#0077B6', // Cyan
+  '#D90429', // Magenta
+]
+
 const DEFAULT_REWARDS: VendorReward[] = [
-  { id: '1', title: '10% OFF Booking', code: 'OFF10', color: '#EF4444', description: '10% discount on next holiday package' },
-  { id: '2', title: 'Free Hotel Voucher', code: 'FREEPASS', color: '#F59E0B', description: 'Complimentary room upgrade' },
-  { id: '3', title: '₹1000 Discount', code: 'SAVE1000', color: '#10B981', description: 'Flat ₹1000 cashback' },
-  { id: '4', title: 'Surprise Gift Pass', code: 'GIFT2025', color: '#3B82F6', description: 'Special travel gift hamper' },
-  { id: '5', title: '20% OFF Package', code: 'LUCKY20', color: '#8B5CF6', description: '20% discount on luxury trips' },
+  { id: '1', title: '10% OFF Booking', code: 'OFF10', color: '#FF7A00', description: '10% discount on next holiday package' },
+  { id: '2', title: 'Free Hotel Pass', code: 'HOTELPASS', color: '#00B4D8', description: 'Complimentary room upgrade' },
+  { id: '3', title: '₹1000 Cashback', code: 'SAVE1000', color: '#FF4D6D', description: 'Flat ₹1000 cashback' },
+  { id: '4', title: 'Surprise Gift', code: 'GIFT2025', color: '#E63946', description: 'Special travel gift hamper' },
+  { id: '5', title: '20% OFF Package', code: 'LUCKY20', color: '#70E000', description: '20% discount on luxury trips' },
+  { id: '6', title: '₹500 Flight Off', code: 'FLY500', color: '#7B2CBF', description: 'Instant flight discount' },
+  { id: '7', title: 'Jackpot Pass', code: 'JACKPOT', color: '#0077B6', description: 'Exclusive VIP jackpot pass' },
+  { id: '8', title: 'Bonus Gift Pass', code: 'BONUS', color: '#D90429', description: 'Bonus voucher pass' },
+]
+
+const DEFAULT_QUESTIONS: VendorQuestion[] = [
+  {
+    id: '1',
+    question: "Which of the following is Travelzada's top beach destination?",
+    options: ['Bali', 'Paris', 'Tokyo', 'Swiss Alps'],
+    optionImages: [
+      'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&q=80',
+      'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80',
+      'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80',
+      'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=500&q=80',
+    ],
+    correctOptionIndex: 0,
+    timerSeconds: 15,
+  },
+  {
+    id: '2',
+    question: 'Which continent has the largest land area?',
+    options: ['Asia', 'Africa', 'Europe', 'North America'],
+    optionImages: ['', '', '', ''],
+    correctOptionIndex: 0,
+    timerSeconds: 15,
+  },
 ]
 
 export default function VendorsSection({
@@ -70,10 +109,13 @@ export default function VendorsSection({
     }
   }, [selectedQrVendor])
 
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0)
+
   // Open Form to create vendor
   const handleOpenAddForm = () => {
     setEditingVendor(null)
     const randomKey = `vnd_${Math.random().toString(36).substring(2, 8)}`
+    const initialQuestions = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS))
     setFormData({
       name: '',
       vendorKey: randomKey,
@@ -84,42 +126,36 @@ export default function VendorsSection({
       address: '',
       logoUrl: '',
       active: true,
-      questionData: {
-        question: 'Which of the following is Travelzada\'s top beach destination?',
-        options: ['Bali', 'Paris', 'Tokyo', 'Swiss Alps'],
-        optionImages: [
-          'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&q=80',
-          'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80',
-          'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80',
-          'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=500&q=80',
-        ],
-        correctOptionIndex: 0
-      },
+      questions: initialQuestions,
+      questionData: initialQuestions[0],
       rewards: [...DEFAULT_REWARDS],
       totalScans: 0,
       totalClaims: 0,
     })
+    setActiveQuestionIndex(0)
     setShowFormModal(true)
   }
 
   // Open Form to edit vendor
   const handleOpenEditForm = (vendor: Vendor) => {
     setEditingVendor(vendor)
+    let questionsList: VendorQuestion[] = []
+
+    if (vendor.questions && vendor.questions.length > 0) {
+      questionsList = vendor.questions
+    } else if (vendor.questionData) {
+      questionsList = [vendor.questionData]
+    } else {
+      questionsList = JSON.parse(JSON.stringify(DEFAULT_QUESTIONS))
+    }
+
     setFormData({
       ...vendor,
-      questionData: {
-        question: vendor.questionData?.question || 'Which of the following is Travelzada\'s top beach destination?',
-        options: vendor.questionData?.options && vendor.questionData.options.length === 4 ? vendor.questionData.options : ['Bali', 'Paris', 'Tokyo', 'Swiss Alps'],
-        optionImages: vendor.questionData?.optionImages && vendor.questionData.optionImages.length === 4 ? vendor.questionData.optionImages : [
-          'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=500&q=80',
-          'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=500&q=80',
-          'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500&q=80',
-          'https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?w=500&q=80',
-        ],
-        correctOptionIndex: vendor.questionData?.correctOptionIndex ?? 0
-      },
-      rewards: vendor.rewards && vendor.rewards.length === 5 ? vendor.rewards : [...DEFAULT_REWARDS]
+      questions: questionsList,
+      questionData: questionsList[0] || DEFAULT_QUESTIONS[0],
+      rewards: vendor.rewards && vendor.rewards.length >= 6 ? vendor.rewards : [...DEFAULT_REWARDS]
     })
+    setActiveQuestionIndex(0)
     setShowFormModal(true)
   }
 
@@ -131,12 +167,22 @@ export default function VendorsSection({
       return
     }
 
+    const currentQuestions = formData.questions && formData.questions.length > 0
+      ? formData.questions
+      : JSON.parse(JSON.stringify(DEFAULT_QUESTIONS))
+
+    const dataToSave = {
+      ...formData,
+      questions: currentQuestions,
+      questionData: currentQuestions[0], // fallback for legacy consumers
+    }
+
     setIsSaving(true)
     try {
       if (editingVendor?.id) {
-        await onUpdateVendor(editingVendor.id, formData)
+        await onUpdateVendor(editingVendor.id, dataToSave)
       } else {
-        await onAddVendor(formData)
+        await onAddVendor(dataToSave)
       }
       setShowFormModal(false)
       if (refreshData) refreshData()
@@ -741,162 +787,390 @@ export default function VendorsSection({
                 </div>
               </div>
 
-              {/* SECTION 2: QUIZ QUESTION & PHOTO OPTIONS SETUP */}
+              {/* SECTION 2: MULTI-QUESTION QUIZ SETUP */}
               <div className="border-t pt-4">
-                <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <HelpCircle className="w-4 h-4" /> 2. Quiz Question & Option Photos (4 Options, 1 Answer)
-                </h4>
-
-                <div className="space-y-4 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">Question Text *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Enter question for user e.g. Which of the following is Travelzada's top beach destination?"
-                      value={formData.questionData?.question || ''}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          questionData: {
-                            ...formData.questionData!,
-                            question: e.target.value,
-                            options: formData.questionData?.options || ['', '', '', ''],
-                            optionImages: formData.questionData?.optionImages || ['', '', '', ''],
-                            correctOptionIndex: formData.questionData?.correctOptionIndex ?? 0,
-                          },
-                        })
-                      }
-                      className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium text-gray-900"
-                    />
+                    <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4" /> 2. Quiz Questions Setup ({formData.questions?.length || 0} Questions)
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Add multiple quiz questions. Each question has a countdown timer, 4 choices & 1 correct answer.
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[0, 1, 2, 3].map((idx) => {
-                      const optLetter = String.fromCharCode(65 + idx)
-                      const currentOptionText = formData.questionData?.options?.[idx] || ''
-                      const currentOptionImg = formData.questionData?.optionImages?.[idx] || ''
-                      const isCorrect = formData.questionData?.correctOptionIndex === idx
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-3.5 bg-white border rounded-2xl space-y-2.5 shadow-sm transition ${
-                            isCorrect ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/30' : 'border-gray-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="w-7 h-7 rounded-xl bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                                {optLetter}
-                              </span>
-                              <span className="text-xs font-bold text-gray-700">Option {optLetter}</span>
-                            </div>
-
-                            <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition">
-                              <input
-                                type="radio"
-                                name="correctOption"
-                                checked={isCorrect}
-                                onChange={() =>
-                                  setFormData({
-                                    ...formData,
-                                    questionData: {
-                                      ...formData.questionData!,
-                                      correctOptionIndex: idx,
-                                    },
-                                  })
-                                }
-                                className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500"
-                              />
-                              {isCorrect ? '✓ Correct Answer' : 'Set as Correct'}
-                            </label>
-                          </div>
-
-                          <div>
-                            <input
-                              type="text"
-                              required
-                              placeholder={`Option ${optLetter} Title (e.g. Bali)`}
-                              value={currentOptionText}
-                              onChange={(e) => {
-                                const newOptions = [...(formData.questionData?.options || ['', '', '', ''])]
-                                newOptions[idx] = e.target.value
-                                setFormData({
-                                  ...formData,
-                                  questionData: {
-                                    ...formData.questionData!,
-                                    options: newOptions,
-                                    optionImages: formData.questionData?.optionImages || ['', '', '', ''],
-                                  },
-                                })
-                              }}
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold focus:outline-none focus:border-blue-500"
-                            />
-                          </div>
-
-                          {/* Option Photo Upload */}
-                          <div>
-                            <label className="block text-[11px] font-bold text-gray-500 mb-1">
-                              Option {optLetter} Photo (Upload or URL)
-                            </label>
-                            <ImageUploader
-                              value={currentOptionImg}
-                              onChange={(url) => {
-                                const newImages = [...(formData.questionData?.optionImages || ['', '', '', ''])]
-                                newImages[idx] = url
-                                setFormData({
-                                  ...formData,
-                                  questionData: {
-                                    ...formData.questionData!,
-                                    optionImages: newImages,
-                                  },
-                                })
-                              }}
-                              compact
-                              placeholder={`Upload Option ${optLetter} Photo`}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <p className="text-[11px] text-gray-500 italic">
-                    💡 Upload destination photos for each option (A, B, C, D) to display image thumbnails on the customer quiz card!
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newQuestions = [...(formData.questions || [])]
+                      const nextNum = newQuestions.length + 1
+                      newQuestions.push({
+                        id: `q_${Date.now()}`,
+                        question: `New Question ${nextNum}?`,
+                        options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                        optionImages: ['', '', '', ''],
+                        correctOptionIndex: 0,
+                        timerSeconds: 15,
+                        imageUrl: '',
+                      })
+                      setFormData({ ...formData, questions: newQuestions })
+                      setActiveQuestionIndex(newQuestions.length - 1)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Question
+                  </button>
                 </div>
+
+                {/* Question Tab Bar */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3">
+                  {(formData.questions || []).map((q, qIdx) => (
+                    <button
+                      key={qIdx}
+                      type="button"
+                      onClick={() => setActiveQuestionIndex(qIdx)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap border ${
+                        activeQuestionIndex === qIdx
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>Q{qIdx + 1}</span>
+                      <span className="max-w-[120px] truncate text-[11px] font-medium opacity-90">
+                        {q.question || 'Untitled Question'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Active Question Editor Card */}
+                {formData.questions && formData.questions[activeQuestionIndex] && (
+                  <div className="space-y-4 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100 relative">
+                    
+                    {/* Header Controls: Reorder & Delete */}
+                    <div className="flex items-center justify-between gap-2 border-b border-blue-200/60 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-blue-600 text-white font-black text-xs">
+                          Question {activeQuestionIndex + 1} of {formData.questions.length}
+                        </span>
+
+                        {/* Move Up */}
+                        <button
+                          type="button"
+                          disabled={activeQuestionIndex === 0}
+                          onClick={() => {
+                            const list = [...formData.questions!]
+                            const temp = list[activeQuestionIndex]
+                            list[activeQuestionIndex] = list[activeQuestionIndex - 1]
+                            list[activeQuestionIndex - 1] = temp
+                            setFormData({ ...formData, questions: list })
+                            setActiveQuestionIndex(activeQuestionIndex - 1)
+                          }}
+                          className="p-1 rounded bg-white text-gray-600 border hover:bg-gray-100 disabled:opacity-30"
+                          title="Move Question Up"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Move Down */}
+                        <button
+                          type="button"
+                          disabled={activeQuestionIndex === formData.questions.length - 1}
+                          onClick={() => {
+                            const list = [...formData.questions!]
+                            const temp = list[activeQuestionIndex]
+                            list[activeQuestionIndex] = list[activeQuestionIndex + 1]
+                            list[activeQuestionIndex + 1] = temp
+                            setFormData({ ...formData, questions: list })
+                            setActiveQuestionIndex(activeQuestionIndex + 1)
+                          }}
+                          className="p-1 rounded bg-white text-gray-600 border hover:bg-gray-100 disabled:opacity-30"
+                          title="Move Question Down"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Delete Question */}
+                      {formData.questions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Delete Question ${activeQuestionIndex + 1}?`)) {
+                              const list = formData.questions!.filter((_, i) => i !== activeQuestionIndex)
+                              setFormData({ ...formData, questions: list })
+                              setActiveQuestionIndex(Math.max(0, activeQuestionIndex - 1))
+                            }
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold hover:bg-rose-100 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove Question
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Question Text & Timer Settings */}
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                      <div className="sm:col-span-8">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Question Text *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Which of the following is Travelzada's top beach destination?"
+                          value={formData.questions[activeQuestionIndex].question || ''}
+                          onChange={(e) => {
+                            const list = [...formData.questions!]
+                            list[activeQuestionIndex] = { ...list[activeQuestionIndex], question: e.target.value }
+                            setFormData({ ...formData, questions: list })
+                          }}
+                          className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium text-gray-900"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-4">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-blue-600" /> Time Limit (Seconds)
+                        </label>
+                        <select
+                          value={formData.questions[activeQuestionIndex].timerSeconds || 15}
+                          onChange={(e) => {
+                            const list = [...formData.questions!]
+                            list[activeQuestionIndex] = { ...list[activeQuestionIndex], timerSeconds: parseInt(e.target.value) || 15 }
+                            setFormData({ ...formData, questions: list })
+                          }}
+                          className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value={10}>10 Seconds (Fast)</option>
+                          <option value={15}>15 Seconds (Standard)</option>
+                          <option value={20}>20 Seconds (Extended)</option>
+                          <option value={30}>30 Seconds (Relaxed)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Optional Question Header Image */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 mb-1 flex items-center gap-1">
+                        <ImageIcon className="w-3.5 h-3.5 text-blue-500" /> Question Banner Photo (Optional Header Photo)
+                      </label>
+                      <div className="space-y-2">
+                        {formData.questions[activeQuestionIndex].imageUrl && (
+                          <div className="relative w-full h-28 rounded-xl overflow-hidden border border-blue-200 bg-gray-100">
+                            <img
+                              src={formData.questions[activeQuestionIndex].imageUrl}
+                              alt="Question Banner Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <ImageUploader
+                          value={formData.questions[activeQuestionIndex].imageUrl || ''}
+                          onChange={(url) => {
+                            const list = [...formData.questions!]
+                            list[activeQuestionIndex] = { ...list[activeQuestionIndex], imageUrl: url }
+                            setFormData({ ...formData, questions: list })
+                          }}
+                          compact
+                          placeholder="Upload Question Banner Image"
+                        />
+                        <input
+                          type="url"
+                          placeholder="Or paste direct photo URL (https://...)"
+                          value={formData.questions[activeQuestionIndex].imageUrl || ''}
+                          onChange={(e) => {
+                            const list = [...formData.questions!]
+                            list[activeQuestionIndex] = { ...list[activeQuestionIndex], imageUrl: e.target.value }
+                            setFormData({ ...formData, questions: list })
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 4 Options Grid */}
+                    <div>
+                      <label className="block text-xs font-bold text-gray-800 mb-2">
+                        Options & Option Photos (Select 1 Correct Answer)
+                      </label>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {[0, 1, 2, 3].map((optIdx) => {
+                          const optLetter = String.fromCharCode(65 + optIdx)
+                          const currentOptText = formData.questions![activeQuestionIndex].options?.[optIdx] || ''
+                          const currentOptImg = formData.questions![activeQuestionIndex].optionImages?.[optIdx] || ''
+                          const isCorrect = formData.questions![activeQuestionIndex].correctOptionIndex === optIdx
+
+                          return (
+                            <div
+                              key={optIdx}
+                              className={`p-3 bg-white border rounded-2xl space-y-2 shadow-xs transition ${
+                                isCorrect ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/20' : 'border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-6 h-6 rounded-lg bg-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                                    {optLetter}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-800">Option {optLetter}</span>
+                                </div>
+
+                                <label className="flex items-center gap-1 text-[11px] font-bold cursor-pointer text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200 hover:bg-emerald-100 transition">
+                                  <input
+                                    type="radio"
+                                    name={`correctOption_${activeQuestionIndex}`}
+                                    checked={isCorrect}
+                                    onChange={() => {
+                                      const list = [...formData.questions!]
+                                      list[activeQuestionIndex] = { ...list[activeQuestionIndex], correctOptionIndex: optIdx }
+                                      setFormData({ ...formData, questions: list })
+                                    }}
+                                    className="w-3.5 h-3.5 text-emerald-600 focus:ring-emerald-500"
+                                  />
+                                  {isCorrect ? '✓ Correct' : 'Set Correct'}
+                                </label>
+                              </div>
+
+                              <div>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder={`Option ${optLetter} Title (e.g. Bali)`}
+                                  value={currentOptText}
+                                  onChange={(e) => {
+                                    const list = [...formData.questions!]
+                                    const newOpts = [...(list[activeQuestionIndex].options || ['', '', '', ''])]
+                                    newOpts[optIdx] = e.target.value
+                                    list[activeQuestionIndex] = { ...list[activeQuestionIndex], options: newOpts }
+                                    setFormData({ ...formData, questions: list })
+                                  }}
+                                  className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500"
+                                />
+                              </div>
+
+                              {/* Option Photo Upload & Live Thumbnail Preview */}
+                              <div className="space-y-1.5">
+                                <label className="block text-[10px] font-semibold text-gray-500">
+                                  Option {optLetter} Photo (Upload or Paste URL)
+                                </label>
+
+                                {currentOptImg ? (
+                                  <div className="relative w-full h-16 sm:h-20 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 group">
+                                    <img
+                                      src={currentOptImg}
+                                      alt={`Option ${optLetter} Preview`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const list = [...formData.questions!]
+                                        const newImgs = [...(list[activeQuestionIndex].optionImages || ['', '', '', ''])]
+                                        newImgs[optIdx] = ''
+                                        list[activeQuestionIndex] = { ...list[activeQuestionIndex], optionImages: newImgs }
+                                        setFormData({ ...formData, questions: list })
+                                      }}
+                                      className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black text-white rounded-full text-[10px] font-bold"
+                                      title="Remove Image"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <ImageUploader
+                                    value={currentOptImg}
+                                    onChange={(url) => {
+                                      const list = [...formData.questions!]
+                                      const newImgs = [...(list[activeQuestionIndex].optionImages || ['', '', '', ''])]
+                                      newImgs[optIdx] = url
+                                      list[activeQuestionIndex] = { ...list[activeQuestionIndex], optionImages: newImgs }
+                                      setFormData({ ...formData, questions: list })
+                                    }}
+                                    compact
+                                    placeholder={`Upload Option ${optLetter} Photo`}
+                                  />
+                                )}
+
+                                <input
+                                  type="url"
+                                  placeholder="Or paste direct image URL (https://...)"
+                                  value={currentOptImg}
+                                  onChange={(e) => {
+                                    const list = [...formData.questions!]
+                                    const newImgs = [...(list[activeQuestionIndex].optionImages || ['', '', '', ''])]
+                                    newImgs[optIdx] = e.target.value
+                                    list[activeQuestionIndex] = { ...list[activeQuestionIndex], optionImages: newImgs }
+                                    setFormData({ ...formData, questions: list })
+                                  }}
+                                  className="w-full px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-[11px] font-mono focus:outline-none focus:border-blue-500"
+                                />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-gray-500 italic pt-1">
+                      💡 Tip: Adding photos to options displays high-res image cards (like Image 1)! If left blank, options render as sleek pill choices.
+                    </p>
+
+                  </div>
+                )}
               </div>
 
-              {/* SECTION 3: 5 REWARDS SETUP */}
+              {/* SECTION 3: 6-8 REWARDS SETUP */}
               <div className="border-t pt-4">
-                <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Gift className="w-4 h-4" /> 3. Spin Wheel Rewards (Exactly 5 Rewards)
-                </h4>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
+                    <Gift className="w-4 h-4" /> 3. Spin Wheel Rewards ({formData.rewards?.length || 8} Offers)
+                  </h4>
+                  {(formData.rewards?.length || 0) < 8 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = formData.rewards || [...DEFAULT_REWARDS]
+                        if (current.length < 8) {
+                          const nextId = String(current.length + 1)
+                          const newReward: VendorReward = {
+                            id: nextId,
+                            title: `Offer ${nextId}`,
+                            code: `OFFER${nextId}`,
+                            color: EIGHT_SLICE_COLORS[current.length % EIGHT_SLICE_COLORS.length],
+                            description: 'Special spin wheel reward'
+                          }
+                          setFormData({ ...formData, rewards: [...current, newReward] })
+                        }
+                      }}
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Offer
+                    </button>
+                  )}
+                </div>
 
                 <div className="space-y-3">
-                  {[0, 1, 2, 3, 4].map((i) => {
-                    const currentReward = formData.rewards?.[i] || DEFAULT_REWARDS[i]
+                  {(formData.rewards || DEFAULT_REWARDS).map((currentReward, i) => {
                     return (
-                      <div key={i} className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl grid grid-cols-1 sm:grid-cols-4 gap-2 items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-purple-200 text-purple-800 text-xs font-bold flex items-center justify-center">
+                      <div key={i} className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                        <div className="sm:col-span-2 flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-purple-200 text-purple-800 text-xs font-bold flex items-center justify-center shrink-0">
                             {i + 1}
                           </span>
                           <input
                             type="color"
-                            value={currentReward.color || '#EF4444'}
+                            value={currentReward.color || EIGHT_SLICE_COLORS[i % EIGHT_SLICE_COLORS.length]}
                             onChange={(e) => {
                               const newRewards = [...(formData.rewards || [...DEFAULT_REWARDS])]
                               newRewards[i] = { ...newRewards[i], color: e.target.value }
                               setFormData({ ...formData, rewards: newRewards })
                             }}
-                            className="w-8 h-8 rounded border-none cursor-pointer"
+                            className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
                             title="Wheel Slice Color"
                           />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-3">
                           <input
                             type="text"
                             required
@@ -911,7 +1185,7 @@ export default function VendorsSection({
                           />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-3">
                           <input
                             type="text"
                             placeholder="Promo Code (e.g. BALI15)"
@@ -925,7 +1199,7 @@ export default function VendorsSection({
                           />
                         </div>
 
-                        <div>
+                        <div className="sm:col-span-3">
                           <input
                             type="text"
                             placeholder="Terms/Description"
@@ -937,6 +1211,22 @@ export default function VendorsSection({
                             }}
                             className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none"
                           />
+                        </div>
+
+                        <div className="sm:col-span-1 flex justify-end">
+                          {(formData.rewards || []).length > 6 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newRewards = (formData.rewards || []).filter((_, idx) => idx !== i)
+                                setFormData({ ...formData, rewards: newRewards })
+                              }}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                              title="Remove Offer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     )

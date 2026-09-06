@@ -223,10 +223,13 @@ export interface JobApplication {
 }
 
 export interface VendorQuestion {
+    id?: string
     question: string
     options: string[] // 4 options
     optionImages?: string[] // 4 option photo URLs matching options
     correctOptionIndex: number
+    timerSeconds?: number // timer limit in seconds (default 15)
+    imageUrl?: string // optional header photo for question
 }
 
 export interface VendorReward {
@@ -249,8 +252,9 @@ export interface Vendor {
     address?: string
     logoUrl?: string
     active: boolean
-    questionData: VendorQuestion
-    rewards: VendorReward[] // exactly 5 rewards
+    questionData?: VendorQuestion // legacy single question
+    questions?: VendorQuestion[] // multi-question quiz array
+    rewards: VendorReward[] // 6 to 8 rewards
     totalScans: number
     totalClaims?: number
     createdAt: string
