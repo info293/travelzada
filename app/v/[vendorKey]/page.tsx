@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import SpinWheel from '@/components/vendor/SpinWheel'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
@@ -52,6 +53,10 @@ export default function VendorLandingPage() {
   const [timerActive, setTimerActive] = useState(true)
   const [timeIsUp, setTimeIsUp] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
+
+  // Points and score state
+  const [totalPoints, setTotalPoints] = useState(0)
+  const [earnedPointsPopup, setEarnedPointsPopup] = useState<number | null>(null)
 
   // Spin Wheel state
   const [wonReward, setWonReward] = useState<VendorReward | null>(null)
@@ -201,6 +206,19 @@ export default function VendorLandingPage() {
     if (isCorrect) {
       setQuizError(null)
       triggerConfetti()
+
+      // Calculate points award (100 base PTS + 10 PTS per remaining second)
+      const basePoints = 100
+      const speedBonus = Math.max(0, timeLeft) * 10
+      const pointsAwarded = basePoints + speedBonus
+
+      setTotalPoints((prev) => prev + pointsAwarded)
+      setEarnedPointsPopup(pointsAwarded)
+
+      // Hide floating points popup after 1.2s
+      setTimeout(() => {
+        setEarnedPointsPopup(null)
+      }, 1200)
 
       // Delay transition to next question or completion
       setTimeout(() => {
@@ -364,85 +382,119 @@ export default function VendorLandingPage() {
         <HelpCircle className="w-full h-full transform rotate-12" />
       </div>
 
-      {/* TOP HEADER: BRAND LOGO & VENDOR BADGE */}
-      <header className="w-full max-w-xl mx-auto flex items-center justify-between gap-3 pt-2 pb-1 relative z-30 shrink-0">
-        <div className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/25 shadow-md">
+      {/* TOP HEADER: BRAND LOGO, LIVE POINTS COUNTER & QUESTION BADGE */}
+      <header className="w-full max-w-xl mx-auto flex items-center justify-between gap-2 pt-2 pb-1 relative z-30 shrink-0">
+        <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/25 shadow-md">
           {vendor.logoUrl ? (
             <img
               src={vendor.logoUrl}
               alt={vendor.name}
-              className="w-5 h-5 rounded-full object-cover border border-white/40"
+              className="w-4 h-4 rounded-full object-cover border border-white/40"
             />
           ) : (
-            <div className="w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-black text-[10px] flex items-center justify-center shadow-xs">
+            <div className="w-4 h-4 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-xs">
               {vendor.name ? vendor.name.charAt(0).toUpperCase() : 'T'}
             </div>
           )}
-          <span className="text-xs font-bold text-white tracking-wide truncate max-w-[140px] sm:max-w-[200px]">
+          <span className="text-[11px] sm:text-xs font-bold text-white tracking-wide truncate max-w-[100px] sm:max-w-[140px]">
             {vendor.name}
           </span>
         </div>
 
-        {/* Progress Pill */}
-        <div className="bg-white/20 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/25 text-xs font-bold text-white shadow-md flex items-center gap-1.5">
-          <span>Question</span>
+        {/* Live Points Counter Pill Badge */}
+        <motion.div
+          animate={earnedPointsPopup ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 px-3 py-1 rounded-full text-xs font-black shadow-lg border border-amber-300 shrink-0"
+        >
+          <Trophy className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+          <span>{totalPoints} PTS</span>
+        </motion.div>
+
+        {/* Question Counter Pill */}
+        <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/25 text-xs font-bold text-white shadow-md flex items-center gap-1 shrink-0">
+          <span className="hidden sm:inline">Question</span>
           <span className="bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full text-[10px] font-black">
             {currentQuestionIndex + 1} / {questionsList.length}
           </span>
         </div>
       </header>
 
+      {/* FLOATING "+POINTS!" EARNED POINTS ANIMATED POPUP */}
+      <AnimatePresence>
+        {earnedPointsPopup && (
+          <motion.div
+            initial={{ opacity: 0, y: 15, scale: 0.6 }}
+            animate={{ opacity: 1, y: -25, scale: 1.25 }}
+            exit={{ opacity: 0, y: -50, scale: 1 }}
+            transition={{ duration: 0.5, type: 'spring', stiffness: 350 }}
+            className="fixed top-16 right-4 sm:right-10 z-50 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 text-slate-950 font-black text-xs sm:text-sm px-3.5 py-1.5 rounded-full shadow-[0_10px_25px_rgba(245,158,11,0.6)] border-2 border-white flex items-center gap-1.5 pointer-events-none"
+          >
+            <Sparkles className="w-4 h-4 fill-slate-950 text-slate-950 animate-spin-slow" />
+            <span>+{earnedPointsPopup} POINTS!</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* MAIN CONTENT AREA */}
       <main className="w-full max-w-md sm:max-w-lg mx-auto my-auto py-1 relative z-10 shrink-0 flex flex-col items-center">
         
         {/* STEP 1: QUIZ GAME VIEW */}
         {step === 1 && (
-          <div className="w-full space-y-3 sm:space-y-4">
-            
-            {/* SPEECH BUBBLE WHITE QUESTION CARD WITH 3D "QUIZ TIME" & ANIMATIONS (MATCHING REFERENCE IMAGE) */}
-            <div className="w-full bg-[#faf8f5] text-gray-900 rounded-3xl p-4 sm:p-6 shadow-2xl border-4 border-white relative overflow-visible transform transition duration-300 mt-5 sm:mt-6">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentQuestionIndex}
+              initial={{ opacity: 0, x: 50, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -50, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+              className="w-full space-y-3 sm:space-y-4"
+            >
               
-              {/* Top-Left Animated 3D Megaphone / Horn (Positioned cleanly beside header) */}
-              <div className="absolute -top-6 -left-6 z-20 animate-bounce">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 via-blue-600 to-sky-400 rounded-2xl p-2.5 shadow-2xl border-3 border-white transform -rotate-12 flex items-center justify-center">
-                  <Megaphone className="w-8 h-8 sm:w-9 sm:h-9 text-white stroke-[2.5]" />
+              {/* SPEECH BUBBLE WHITE QUESTION CARD WITH 3D "QUIZ TIME" & ANIMATIONS (MATCHING REFERENCE IMAGE) */}
+              <div className="w-full bg-[#faf8f5] text-gray-900 rounded-3xl p-4 sm:p-6 shadow-2xl border-4 border-white relative overflow-visible transform transition duration-300 mt-5 sm:mt-6">
+                
+                {/* Top-Left Animated 3D Megaphone / Horn (Positioned cleanly beside header) */}
+                <div className="absolute -top-6 -left-6 z-20 animate-bounce">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-indigo-500 via-blue-600 to-sky-400 rounded-2xl p-2.5 shadow-2xl border-3 border-white transform -rotate-12 flex items-center justify-center">
+                    <Megaphone className="w-8 h-8 sm:w-9 sm:h-9 text-white stroke-[2.5]" />
+                  </div>
                 </div>
-              </div>
 
-              {/* Top-Right Floating 3D Question Mark Bubbles (Positioned cleanly beside header) */}
-              <div className="absolute -top-5 -right-3 z-20 flex items-center gap-1">
-                <div className="bg-gradient-to-br from-blue-500 to-sky-400 text-white font-black text-xs px-2 py-0.5 rounded-xl shadow-lg border-2 border-white transform rotate-6 animate-pulse">
-                  ?
+                {/* Top-Right Floating 3D Question Mark Bubbles (Positioned cleanly beside header) */}
+                <div className="absolute -top-5 -right-3 z-20 flex items-center gap-1">
+                  <div className="bg-gradient-to-br from-blue-500 to-sky-400 text-white font-black text-xs px-2 py-0.5 rounded-xl shadow-lg border-2 border-white transform rotate-6 animate-pulse">
+                    ?
+                  </div>
+                  <div className="bg-gradient-to-br from-sky-400 to-indigo-500 text-white font-black text-[10px] px-1.5 py-0.5 rounded-lg shadow-md border-2 border-white transform -rotate-6">
+                    ?
+                  </div>
                 </div>
-                <div className="bg-gradient-to-br from-sky-400 to-indigo-500 text-white font-black text-[10px] px-1.5 py-0.5 rounded-lg shadow-md border-2 border-white transform -rotate-6">
-                  ?
+
+                {/* Bold 3D Pop "QUIZ TIME" Title Header */}
+                <div className="text-center pt-1 pb-0.5">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#0b5cce] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)] font-serif italic">
+                    QUIZ TIME
+                  </h1>
                 </div>
-              </div>
 
-              {/* Bold 3D Pop "QUIZ TIME" Title Header */}
-              <div className="text-center pt-1 pb-0.5">
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#0b5cce] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)] font-serif italic">
-                  QUIZ TIME
-                </h1>
-              </div>
-
-              {/* Question Text */}
-              <div className="text-center pt-0.5">
-                <h2 className="text-base sm:text-xl font-bold tracking-tight text-gray-800 leading-snug">
-                  {currentQuestion?.question || 'Which of the following is Travelzada\'s top destination?'}
-                </h2>
-              </div>
-
-              {/* Optional Question Banner Image Header */}
-              {currentQuestion?.imageUrl && (
-                <div className="w-full h-32 sm:h-40 rounded-2xl overflow-hidden border border-gray-200 shadow-inner mt-3">
-                  <img
-                    src={currentQuestion.imageUrl}
-                    alt="Question Header"
-                    className="w-full h-full object-cover"
-                  />
+                {/* Question Text */}
+                <div className="text-center pt-0.5">
+                  <h2 className="text-base sm:text-xl font-bold tracking-tight text-gray-800 leading-snug">
+                    {currentQuestion?.question || 'Which of the following is Travelzada\'s top destination?'}
+                  </h2>
                 </div>
-              )}
+
+                {/* Optional Question Banner Image Header */}
+                {currentQuestion?.imageUrl && (
+                  <div className="w-full h-32 sm:h-40 rounded-2xl overflow-hidden border border-gray-200 shadow-inner mt-3">
+                    <img
+                      src={currentQuestion.imageUrl}
+                      alt="Question Header"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
 
               {/* Speech Bubble Tail Pointer at Bottom */}
               <div className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 w-7 h-7 bg-[#faf8f5] rotate-45 border-r-4 border-b-4 border-white shadow-sm" />
@@ -470,7 +522,7 @@ export default function VendorLandingPage() {
               /* OPTIONS AREA */
               <div className="w-full space-y-3 pt-2">
                 {hasOptionImages ? (
-                  /* 2x2 IMAGE CARDS GRID (EXACT MATCH TO REFERENCE SCREENSHOT) */
+                  /* 2x2 IMAGE CARDS GRID WITH ENTRANCE & HOVER ANIMATIONS */
                   <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {currentQuestion.options.map((optText, idx) => {
                       const letter = String.fromCharCode(65 + idx) // A, B, C, D
@@ -479,35 +531,53 @@ export default function VendorLandingPage() {
                       const rawImg = currentQuestion.optionImages?.[idx]
                       const photoUrl = rawImg && rawImg.trim() !== '' ? rawImg : DEFAULT_OPTION_IMAGES[idx % DEFAULT_OPTION_IMAGES.length]
 
-                      let cardBorder = "border-white/30 hover:border-amber-300"
+                      let cardBorder = "border-white/40 hover:border-amber-300 shadow-xl"
                       if (isSelected) {
                         if (isCorrect) {
-                          cardBorder = "border-emerald-400 ring-4 ring-emerald-400/60 scale-[1.03]"
+                          cardBorder = "border-emerald-400 ring-4 ring-emerald-400/60 shadow-[0_0_25px_rgba(16,185,129,0.5)]"
                         } else {
-                          cardBorder = "border-rose-500 ring-4 ring-rose-500/60"
+                          cardBorder = "border-rose-500 ring-4 ring-rose-500/60 shadow-[0_0_25px_rgba(244,63,94,0.5)]"
                         }
                       }
 
                       return (
-                        <button
+                        <motion.button
                           key={idx}
                           type="button"
                           onClick={() => handleOptionClick(idx)}
                           disabled={answerSubmitted}
-                          className={`relative aspect-[4/2.8] sm:aspect-[4/2.6] rounded-2xl sm:rounded-3xl overflow-hidden border-2 shadow-xl transition-all duration-200 text-left group flex flex-col justify-between p-2 sm:p-2.5 active:scale-95 cursor-pointer ${cardBorder}`}
+                          initial={{ opacity: 0, y: 20, scale: 0.92 }}
+                          animate={{
+                            opacity: 1,
+                            y: 0,
+                            scale: isSelected ? 1.04 : 1,
+                            x: isSelected && !isCorrect ? [-5, 5] : 0
+                          }}
+                          transition={{
+                            duration: 0.35,
+                            delay: idx * 0.08,
+                            type: 'spring',
+                            stiffness: 350,
+                            damping: 22
+                          }}
+                          whileHover={!answerSubmitted ? { scale: 1.04, y: -3 } : undefined}
+                          whileTap={!answerSubmitted ? { scale: 0.96 } : undefined}
+                          className={`relative aspect-[4/2.8] sm:aspect-[4/2.6] rounded-2xl sm:rounded-3xl overflow-hidden border-2 transition-all duration-300 text-left group flex flex-col justify-between p-2 sm:p-2.5 cursor-pointer ${cardBorder}`}
                         >
-                          {/* Option Image Background */}
+                          {/* Option Image Background with Smooth Zoom Animation */}
                           {photoUrl ? (
-                            <img
+                            <motion.img
                               src={photoUrl}
                               alt={optText}
-                              className="absolute inset-0 w-full h-full object-cover transition transform group-hover:scale-105"
+                              animate={{ scale: isSelected ? 1.12 : 1 }}
+                              transition={{ duration: 0.4 }}
+                              className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-110"
                             />
                           ) : (
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-900 to-indigo-900" />
                           )}
 
-                          {/* Gradient Overlay for Text Contrast */}
+                          {/* Gloss Overlay */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
 
                           {/* Top-Left Circular Black Letter Badge (A, B, C, D) */}
@@ -523,25 +593,35 @@ export default function VendorLandingPage() {
                             </span>
                           </div>
 
-                          {/* Bottom Center Black Translucent Title Badge (e.g. "A. Italy") */}
+                          {/* Bottom Center Black Translucent Title Badge */}
                           <div className="relative z-10 self-center max-w-full">
                             <div className="bg-black/75 backdrop-blur-md text-white font-bold text-[11px] sm:text-xs px-2.5 py-0.5 rounded-full border border-white/20 shadow-md text-center truncate max-w-[120px] sm:max-w-[150px]">
                               {letter}. {optText}
                             </div>
                           </div>
 
-                          {/* Success/Error Indicator Icons */}
+                          {/* Animated Success / Error Indicator Badges */}
                           {isSelected && isCorrect && (
-                            <div className="absolute top-2.5 right-2.5 z-20 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
-                              <CheckCircle2 className="w-5 h-5" />
-                            </div>
+                            <motion.div
+                              initial={{ scale: 0, rotate: -45 }}
+                              animate={{ scale: 1, rotate: 0 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                              className="absolute top-2.5 right-2.5 z-20 bg-emerald-500 text-white p-1 rounded-full shadow-xl"
+                            >
+                              <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                            </motion.div>
                           )}
                           {isSelected && !isCorrect && (
-                            <div className="absolute top-2.5 right-2.5 z-20 bg-rose-500 text-white p-1 rounded-full shadow-lg">
-                              <XCircle className="w-5 h-5" />
-                            </div>
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                              className="absolute top-2.5 right-2.5 z-20 bg-rose-500 text-white p-1 rounded-full shadow-xl"
+                            >
+                              <XCircle className="w-5 h-5 stroke-[2.5]" />
+                            </motion.div>
                           )}
-                        </button>
+                        </motion.button>
                       )
                     })}
                   </div>
@@ -592,6 +672,19 @@ export default function VendorLandingPage() {
                   </div>
                 )}
 
+                {/* SUCCESS ANIMATED TRANSITION BANNER */}
+                {answerSubmitted && selectedOption === (currentQuestion?.correctOptionIndex ?? 0) && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-white font-black text-xs sm:text-sm rounded-2xl shadow-xl flex items-center justify-center gap-2 border-2 border-emerald-300 tracking-wider uppercase text-center my-2"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300 animate-spin-slow" />
+                    <span>EXCELLENT! LOADING NEXT QUESTION...</span>
+                    <ArrowRight className="w-4 h-4 text-white animate-pulse" />
+                  </motion.div>
+                )}
+
                 {/* ERROR FEEDBACK BANNER */}
                 {quizError && (
                   <p className="text-xs font-bold text-rose-200 text-center bg-rose-950/80 border border-rose-500/50 py-2 px-3 rounded-full shadow-md animate-shake">
@@ -639,7 +732,8 @@ export default function VendorLandingPage() {
               </div>
             </div>
 
-          </div>
+          </motion.div>
+        </AnimatePresence>
         )}
 
         {/* STEP 2: SPIN WHEEL VIEW */}
@@ -647,7 +741,7 @@ export default function VendorLandingPage() {
           <div className="w-full space-y-4 text-center my-auto relative">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-bold shadow-sm">
-                <Gift className="w-4 h-4 text-amber-400" /> GUARANTEED REWARD SPIN
+                <Trophy className="w-4 h-4 text-amber-400 fill-amber-400" /> {totalPoints > 0 ? totalPoints : 250} POINTS EARNED! • GUARANTEED REWARD
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
                 Spin the Wheel & Claim Prize!
