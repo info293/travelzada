@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import { VendorReward } from '@/components/admin/types'
+import { selectWeightedRewardIndex } from '@/lib/rewardAlgorithm'
 import { Lock, Sparkles } from 'lucide-react'
 
 interface SpinWheelProps {
@@ -84,7 +85,7 @@ export default function SpinWheel({ rewards, onSpinEnd, disabled }: SpinWheelPro
     if (isSpinning || disabled || winner) return
 
     setIsSpinning(true)
-    const selectedIndex = Math.floor(Math.random() * totalSlices)
+    const selectedIndex = selectWeightedRewardIndex(safeRewards)
     const winningReward = safeRewards[selectedIndex]
 
     // Calculate exact target rotation so winning slice stops precisely under the top pointer (270deg / 12 o'clock)

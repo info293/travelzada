@@ -126,6 +126,7 @@ export default function VendorsSection({
       address: '',
       logoUrl: '',
       active: true,
+      rewardType: 'spinner',
       questions: initialQuestions,
       questionData: initialQuestions[0],
       rewards: [...DEFAULT_REWARDS],
@@ -151,6 +152,7 @@ export default function VendorsSection({
 
     setFormData({
       ...vendor,
+      rewardType: vendor.rewardType || 'spinner',
       questions: questionsList,
       questionData: questionsList[0] || DEFAULT_QUESTIONS[0],
       rewards: vendor.rewards && vendor.rewards.length >= 6 ? vendor.rewards : [...DEFAULT_REWARDS]
@@ -173,6 +175,7 @@ export default function VendorsSection({
 
     const dataToSave = {
       ...formData,
+      rewardType: formData.rewardType || 'spinner',
       questions: currentQuestions,
       questionData: currentQuestions[0], // fallback for legacy consumers
     }
@@ -397,6 +400,7 @@ export default function VendorsSection({
                   <th className="px-6 py-4">Contact Person</th>
                   <th className="px-6 py-4 text-center">QR Scans</th>
                   <th className="px-6 py-4 text-center">Rewards Claimed</th>
+                  <th className="px-6 py-4 text-center">Reward Game</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -450,6 +454,17 @@ export default function VendorsSection({
                       {/* Claims */}
                       <td className="px-6 py-4 text-center font-bold text-emerald-600">
                         {vendor.totalClaims || vendorLeads.filter(l => l.vendorKey === vendor.vendorKey || l.vendorId === vendor.id).length}
+                      </td>
+
+                      {/* Reward Game Badge */}
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${
+                          vendor.rewardType === 'scratch'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {vendor.rewardType === 'scratch' ? '🎫 Scratch Card' : '🎰 Spin Wheel'}
+                        </span>
                       </td>
 
                       {/* Status */}
@@ -787,6 +802,90 @@ export default function VendorsSection({
                 </div>
               </div>
 
+              {/* REWARD EXPERIENCE GAME TYPE SELECTION */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Gift className="w-4 h-4" /> Reward Experience / Game Type
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  Choose what reward game users see after completing the quiz on the vendor landing page.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label
+                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      (formData.rewardType || 'spinner') === 'spinner'
+                        ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rewardType"
+                      value="spinner"
+                      checked={(formData.rewardType || 'spinner') === 'spinner'}
+                      onChange={() => setFormData({ ...formData, rewardType: 'spinner' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white font-bold flex items-center justify-center text-lg shadow-sm">
+                          🎰
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-sm">Spin Wheel (Spinner)</h5>
+                          <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Spin Wheel Game
+                          </span>
+                        </div>
+                      </div>
+                      {(formData.rewardType || 'spinner') === 'spinner' && (
+                        <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2.5">
+                      Users spin an 8-slice arcade wheel to win guaranteed travel rewards.
+                    </p>
+                  </label>
+
+                  <label
+                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.rewardType === 'scratch'
+                        ? 'border-purple-600 bg-purple-50/50 shadow-md ring-2 ring-purple-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rewardType"
+                      value="scratch"
+                      checked={formData.rewardType === 'scratch'}
+                      onChange={() => setFormData({ ...formData, rewardType: 'scratch' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-purple-600 text-white font-bold flex items-center justify-center text-lg shadow-sm">
+                          🎫
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-sm">Scratch Card</h5>
+                          <span className="text-[10px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Golden Scratch Layer
+                          </span>
+                        </div>
+                      </div>
+                      {formData.rewardType === 'scratch' && (
+                        <CheckCircle2 className="w-5 h-5 text-purple-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2.5">
+                      Users swipe/drag across a golden canvas scratch layer to reveal their prize.
+                    </p>
+                  </label>
+                </div>
+              </div>
+
               {/* SECTION 2: MULTI-QUESTION QUIZ SETUP */}
               <div className="border-t pt-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -1119,12 +1218,17 @@ export default function VendorsSection({
                 )}
               </div>
 
-              {/* SECTION 3: 6-8 REWARDS SETUP */}
+              {/* SECTION 3: REWARDS SETUP WITH WEIGHTED PROBABILITY ALGORITHM */}
               <div className="border-t pt-4">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Gift className="w-4 h-4" /> 3. Spin Wheel Rewards ({formData.rewards?.length || 8} Offers)
-                  </h4>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div>
+                    <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
+                      <Gift className="w-4 h-4" /> 3. {formData.rewardType === 'scratch' ? 'Scratch Card' : 'Spin Wheel'} Reward Offers ({(formData.rewards || DEFAULT_REWARDS).length} Offers)
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      Configure offer titles, promo codes & win weights. Higher weight = higher chance of winning (e.g. Weight 1 out of 1000 = 1 in 1000 times).
+                    </p>
+                  </div>
                   {(formData.rewards?.length || 0) < 8 && (
                     <button
                       type="button"
@@ -1137,101 +1241,157 @@ export default function VendorsSection({
                             title: `Offer ${nextId}`,
                             code: `OFFER${nextId}`,
                             color: EIGHT_SLICE_COLORS[current.length % EIGHT_SLICE_COLORS.length],
-                            description: 'Special spin wheel reward'
+                            description: 'Special reward offer',
+                            probability: 10,
                           }
                           setFormData({ ...formData, rewards: [...current, newReward] })
                         }
                       }}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs"
+                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5" /> Add Offer
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  {(formData.rewards || DEFAULT_REWARDS).map((currentReward, i) => {
-                    return (
-                      <div key={i} className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                        <div className="sm:col-span-2 flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-full bg-purple-200 text-purple-800 text-xs font-bold flex items-center justify-center shrink-0">
-                            {i + 1}
-                          </span>
-                          <input
-                            type="color"
-                            value={currentReward.color || EIGHT_SLICE_COLORS[i % EIGHT_SLICE_COLORS.length]}
-                            onChange={(e) => {
-                              const newRewards = [...(formData.rewards || [...DEFAULT_REWARDS])]
-                              newRewards[i] = { ...newRewards[i], color: e.target.value }
-                              setFormData({ ...formData, rewards: newRewards })
-                            }}
-                            className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
-                            title="Wheel Slice Color"
-                          />
-                        </div>
+                {/* Calculate Total Weight for percentage preview */}
+                {(() => {
+                  const currentRewardsList = formData.rewards || DEFAULT_REWARDS
+                  const totalWeight = currentRewardsList.reduce((sum, r) => sum + (r.probability !== undefined && r.probability > 0 ? Number(r.probability) : 10), 0)
 
-                        <div className="sm:col-span-3">
-                          <input
-                            type="text"
-                            required
-                            placeholder="Reward Title (e.g. 15% OFF)"
-                            value={currentReward.title}
-                            onChange={(e) => {
-                              const newRewards = [...(formData.rewards || [...DEFAULT_REWARDS])]
-                              newRewards[i] = { ...newRewards[i], title: e.target.value }
-                              setFormData({ ...formData, rewards: newRewards })
-                            }}
-                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:outline-none"
-                          />
-                        </div>
+                  return (
+                    <div className="space-y-3 mt-3">
+                      {currentRewardsList.map((currentReward, i) => {
+                        const currentProb = currentReward.probability !== undefined && currentReward.probability > 0 ? Number(currentReward.probability) : 10
+                        const pctOdds = totalWeight > 0 ? ((currentProb / totalWeight) * 100).toFixed(1) : '0'
 
-                        <div className="sm:col-span-3">
-                          <input
-                            type="text"
-                            placeholder="Promo Code (e.g. BALI15)"
-                            value={currentReward.code || ''}
-                            onChange={(e) => {
-                              const newRewards = [...(formData.rewards || [...DEFAULT_REWARDS])]
-                              newRewards[i] = { ...newRewards[i], code: e.target.value.toUpperCase() }
-                              setFormData({ ...formData, rewards: newRewards })
-                            }}
-                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono focus:outline-none"
-                          />
-                        </div>
+                        return (
+                          <div key={i} className="p-3 bg-purple-50/50 border border-purple-100 rounded-xl space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                              {/* Index & Slice Color */}
+                              <div className="sm:col-span-2 flex items-center gap-2">
+                                <span className="w-6 h-6 rounded-full bg-purple-200 text-purple-800 text-xs font-bold flex items-center justify-center shrink-0">
+                                  {i + 1}
+                                </span>
+                                <input
+                                  type="color"
+                                  value={currentReward.color || EIGHT_SLICE_COLORS[i % EIGHT_SLICE_COLORS.length]}
+                                  onChange={(e) => {
+                                    const newRewards = [...currentRewardsList]
+                                    newRewards[i] = { ...newRewards[i], color: e.target.value }
+                                    setFormData({ ...formData, rewards: newRewards })
+                                  }}
+                                  className="w-8 h-8 rounded border-none cursor-pointer shrink-0"
+                                  title="Offer Slice / Card Color"
+                                />
+                              </div>
 
-                        <div className="sm:col-span-3">
-                          <input
-                            type="text"
-                            placeholder="Terms/Description"
-                            value={currentReward.description || ''}
-                            onChange={(e) => {
-                              const newRewards = [...(formData.rewards || [...DEFAULT_REWARDS])]
-                              newRewards[i] = { ...newRewards[i], description: e.target.value }
-                              setFormData({ ...formData, rewards: newRewards })
-                            }}
-                            className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none"
-                          />
-                        </div>
+                              {/* Title */}
+                              <div className="sm:col-span-3">
+                                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Offer Title *</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. ₹1000 Cashback"
+                                  value={currentReward.title}
+                                  onChange={(e) => {
+                                    const newRewards = [...currentRewardsList]
+                                    newRewards[i] = { ...newRewards[i], title: e.target.value }
+                                    setFormData({ ...formData, rewards: newRewards })
+                                  }}
+                                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
 
-                        <div className="sm:col-span-1 flex justify-end">
-                          {(formData.rewards || []).length > 6 && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newRewards = (formData.rewards || []).filter((_, idx) => idx !== i)
-                                setFormData({ ...formData, rewards: newRewards })
-                              }}
-                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
-                              title="Remove Offer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                              {/* Promo Code */}
+                              <div className="sm:col-span-3">
+                                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Promo Code</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. SAVE1000"
+                                  value={currentReward.code || ''}
+                                  onChange={(e) => {
+                                    const newRewards = [...currentRewardsList]
+                                    newRewards[i] = { ...newRewards[i], code: e.target.value.toUpperCase() }
+                                    setFormData({ ...formData, rewards: newRewards })
+                                  }}
+                                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              {/* Terms/Description */}
+                              <div className="sm:col-span-3">
+                                <label className="block text-[10px] font-bold text-gray-600 mb-0.5">Description</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Flat ₹1000 cashback"
+                                  value={currentReward.description || ''}
+                                  onChange={(e) => {
+                                    const newRewards = [...currentRewardsList]
+                                    newRewards[i] = { ...newRewards[i], description: e.target.value }
+                                    setFormData({ ...formData, rewards: newRewards })
+                                  }}
+                                  className="w-full px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              {/* Remove Button */}
+                              <div className="sm:col-span-1 flex justify-end">
+                                {currentRewardsList.length > 4 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newRewards = currentRewardsList.filter((_, idx) => idx !== i)
+                                      setFormData({ ...formData, rewards: newRewards })
+                                    }}
+                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                                    title="Remove Offer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Win Odds Weight & Calculated Odds Bar */}
+                            <div className="flex items-center gap-3 pt-1 border-t border-purple-100/60 text-xs">
+                              <div className="flex items-center gap-2">
+                                <label className="text-[11px] font-bold text-purple-900 shrink-0">
+                                  ⚖️ Win Weight (Odds):
+                                </label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={10000}
+                                  value={currentProb}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1)
+                                    const newRewards = [...currentRewardsList]
+                                    newRewards[i] = { ...newRewards[i], probability: val }
+                                    setFormData({ ...formData, rewards: newRewards })
+                                  }}
+                                  className="w-20 px-2 py-1 bg-white border border-purple-200 rounded-lg text-xs font-bold text-purple-900 focus:outline-none focus:border-purple-500"
+                                />
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-1">
+                                <div className="flex-1 h-2 bg-purple-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full transition-all duration-300"
+                                    style={{ width: `${Math.min(100, Math.max(1, Number(pctOdds)))}%` }}
+                                  />
+                                </div>
+                                <span className="text-[11px] font-bold text-purple-700 shrink-0">
+                                  {pctOdds}% odds ({currentProb}/{totalWeight})
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Submit Buttons */}

@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import SpinWheel from '@/components/vendor/SpinWheel'
+import ScratchCard from '@/components/vendor/ScratchCard'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
 import {
@@ -736,7 +737,7 @@ export default function VendorLandingPage() {
         </AnimatePresence>
         )}
 
-        {/* STEP 2: SPIN WHEEL VIEW */}
+        {/* STEP 2: REWARD GAME VIEW (SPIN WHEEL OR SCRATCH CARD DEPENDING ON VENDOR CONFIG) */}
         {step === 2 && (
           <div className="w-full space-y-4 text-center my-auto relative">
             <div className="space-y-1">
@@ -744,17 +745,26 @@ export default function VendorLandingPage() {
                 <Trophy className="w-4 h-4 text-amber-400 fill-amber-400" /> {totalPoints > 0 ? totalPoints : 250} POINTS EARNED! • GUARANTEED REWARD
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                Spin the Wheel & Claim Prize!
+                {vendor.rewardType === 'scratch' ? 'Scratch the Card & Claim Prize!' : 'Spin the Wheel & Claim Prize!'}
               </h2>
               <p className="text-xs text-blue-100 font-medium">
-                You passed the quiz! Every spin wins a guaranteed Travelzada reward pass.
+                {vendor.rewardType === 'scratch'
+                  ? 'You passed the quiz! Scratch the golden card below to reveal your guaranteed reward.'
+                  : 'You passed the quiz! Every spin wins a guaranteed Travelzada reward pass.'}
               </p>
             </div>
 
-            <SpinWheel
-              rewards={vendor.rewards}
-              onSpinEnd={handleSpinEnd}
-            />
+            {vendor.rewardType === 'scratch' ? (
+              <ScratchCard
+                rewards={vendor.rewards}
+                onScratchEnd={handleSpinEnd}
+              />
+            ) : (
+              <SpinWheel
+                rewards={vendor.rewards}
+                onSpinEnd={handleSpinEnd}
+              />
+            )}
 
             {wonReward && (
               <div className="p-3 bg-emerald-950/90 border border-emerald-500/50 rounded-2xl animate-pulse mt-2 shadow-xl">

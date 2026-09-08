@@ -255,6 +255,7 @@ export interface Vendor {
     questionData?: VendorQuestion // legacy single question
     questions?: VendorQuestion[] // multi-question quiz array
     rewards: VendorReward[] // 6 to 8 rewards
+    rewardType?: 'spinner' | 'scratch' // Game type shown to user after quiz (Spin Wheel or Scratch Card)
     totalScans: number
     totalClaims?: number
     createdAt: string
