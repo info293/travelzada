@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import SpinWheel from '@/components/vendor/SpinWheel'
 import ScratchCard from '@/components/vendor/ScratchCard'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
+import confetti from 'canvas-confetti'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
 import {
   CheckCircle2, XCircle, Phone, MessageSquare, ArrowRight, User, Mail, Gift, MapPin, Award,
@@ -150,20 +151,99 @@ export default function VendorLandingPage() {
     }
   }
 
-  // Confetti trigger
+  // Dense multi-wave birthday streamer & ribbon confetti rain (continuous shower from full top edge)
   const triggerConfetti = () => {
-    try {
-      const confetti = (window as any).confetti || require('canvas-confetti')
-      if (confetti) {
-        confetti({
-          particleCount: 90,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#0284C7', '#F59E0B', '#10B981', '#6366F1', '#FFFFFF'],
-        })
-      }
-    } catch (e) {
-      // Fallback
+    if (!confetti) return
+
+    const PARTY_COLORS = [
+      '#FF0055', '#FF7A00', '#FFD600', '#00E676',
+      '#00B0FF', '#7C4DFF', '#E040FB', '#FF4081',
+      '#00BCD4', '#FFC107', '#8BC34A', '#E91E63',
+    ]
+
+    // Fire a single wave of ribbon-like confetti from a random top position
+    const fireWave = () => {
+      const xPos = 0.1 + Math.random() * 0.8
+      confetti({
+        particleCount: 40,
+        spread: 70 + Math.random() * 50,
+        origin: { x: xPos, y: 0 },
+        colors: PARTY_COLORS,
+        startVelocity: 25 + Math.random() * 20,
+        gravity: 0.5 + Math.random() * 0.4,
+        drift: -1 + Math.random() * 2,
+        ticks: 400,
+        decay: 0.92,
+        scalar: 1.2 + Math.random() * 0.6,
+        shapes: ['square', 'circle'] as confetti.Shape[],
+      })
+    }
+
+    // Immediate dense opening burst — 3 wide showers across full width
+    confetti({
+      particleCount: 100,
+      spread: 160,
+      origin: { x: 0.5, y: 0 },
+      colors: PARTY_COLORS,
+      startVelocity: 35,
+      gravity: 0.6,
+      drift: 0,
+      ticks: 450,
+      decay: 0.91,
+      scalar: 1.5,
+      shapes: ['square', 'circle'] as confetti.Shape[],
+    })
+    confetti({
+      particleCount: 60,
+      angle: 70,
+      spread: 90,
+      origin: { x: 0.05, y: 0 },
+      colors: PARTY_COLORS,
+      startVelocity: 30,
+      gravity: 0.55,
+      ticks: 420,
+      scalar: 1.4,
+    })
+    confetti({
+      particleCount: 60,
+      angle: 110,
+      spread: 90,
+      origin: { x: 0.95, y: 0 },
+      colors: PARTY_COLORS,
+      startVelocity: 30,
+      gravity: 0.55,
+      ticks: 420,
+      scalar: 1.4,
+    })
+
+    // Staggered follow-up waves over ~1.5 seconds for continuous rain
+    const waveTimings = [120, 250, 400, 550, 700, 870, 1050, 1200, 1350, 1500]
+    waveTimings.forEach((delay) => {
+      setTimeout(fireWave, delay)
+    })
+  }
+
+  // Celebration sticker overlay state
+  const [showStickerCelebration, setShowStickerCelebration] = useState(false)
+  const [earnedPoints, setEarnedPoints] = useState(0)
+
+  // Advance to next question or directly to reward game (Spin Wheel / Scratch Card)
+  const advanceToNextOrRewardGame = () => {
+    setShowStickerCelebration(false)
+    if (currentQuestionIndex + 1 < questionsList.length) {
+      const nextIdx = currentQuestionIndex + 1
+      setCurrentQuestionIndex(nextIdx)
+      setSelectedOption(null)
+      setAnswerSubmitted(false)
+      setQuizError(null)
+      setTimeIsUp(false)
+      const nextQ = questionsList[nextIdx]
+      setTimeLeft(nextQ?.timerSeconds || 15)
+      setTimerActive(true)
+    } else {
+      // Completed all questions!
+      setQuizPassed(true)
+      setStep(2) // Move to Reward Game (Spin Wheel / Scratch Card)
     }
   }
 
@@ -177,7 +257,11 @@ export default function VendorLandingPage() {
           clearInterval(timer)
           setTimerActive(false)
           setTimeIsUp(true)
-          setQuizError("⏳ Time's up! Click retry to answer again.")
+          setAnswerSubmitted(true)
+          setQuizError("Time's up! Moving to next question...")
+          setTimeout(() => {
+            advanceToNextOrRewardGame()
+          }, 1200)
           return 0
         }
         if (prev <= 4) {
@@ -190,7 +274,7 @@ export default function VendorLandingPage() {
     return () => clearInterval(timer)
   }, [step, timerActive, currentQuestionIndex, quizPassed, timeIsUp, answerSubmitted])
 
-  // Handle Option Click
+  // Handle Option Click (Single attempt per question, then auto-advance)
   const handleOptionClick = (idx: number) => {
     if (answerSubmitted || timeIsUp || quizPassed) return
 
@@ -209,44 +293,19 @@ export default function VendorLandingPage() {
       const speedBonus = Math.max(0, timeLeft) * 10
       const pointsAwarded = basePoints + speedBonus
 
+      setEarnedPoints(pointsAwarded)
       setTotalPoints((prev) => prev + pointsAwarded)
+      setShowStickerCelebration(true)
 
-      // Delay transition to next question or completion
       setTimeout(() => {
-        if (currentQuestionIndex + 1 < questionsList.length) {
-          const nextIdx = currentQuestionIndex + 1
-          setCurrentQuestionIndex(nextIdx)
-          setSelectedOption(null)
-          setAnswerSubmitted(false)
-          const nextQ = questionsList[nextIdx]
-          setTimeLeft(nextQ?.timerSeconds || 15)
-          setTimerActive(true)
-          setTimeIsUp(false)
-        } else {
-          // Cleared all questions!
-          setQuizPassed(true)
-          setStep(2) // Move to Reward Game
-        }
-      }, 1100)
+        advanceToNextOrRewardGame()
+      }, 1600)
     } else {
-      setQuizError('Incorrect answer! Please choose another option.')
+      setQuizError('Incorrect answer!')
       setTimeout(() => {
-        setAnswerSubmitted(false)
-        setSelectedOption(null)
-        setTimerActive(true)
-      }, 1000)
+        advanceToNextOrRewardGame()
+      }, 1200)
     }
-  }
-
-  // Restart question if time ran out
-  const handleRestartQuestion = () => {
-    setSelectedOption(null)
-    setAnswerSubmitted(false)
-    setQuizError(null)
-    setTimeIsUp(false)
-    const currentQ = questionsList[currentQuestionIndex]
-    setTimeLeft(currentQ?.timerSeconds || 15)
-    setTimerActive(true)
   }
 
   const handleSpinEnd = (reward: VendorReward) => {
@@ -457,23 +516,16 @@ export default function VendorLandingPage() {
                 )}
               </div>
 
-              {/* RETRY OVERLAY IF TIMER EXPIRED */}
+              {/* TIME'S UP NOTICE */}
               {timeIsUp ? (
-                <div className="w-full bg-rose-950/80 border border-rose-500/40 rounded-3xl p-6 text-center space-y-4 shadow-2xl backdrop-blur-xl">
+                <div className="w-full bg-rose-950/80 border border-rose-500/40 rounded-3xl p-6 text-center space-y-2 shadow-2xl backdrop-blur-xl">
                   <div className="w-12 h-12 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto">
-                    <RotateCcw className="w-6 h-6" />
+                    <XCircle className="w-6 h-6" />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white uppercase tracking-wide">TIME&apos;S UP!</h3>
-                    <p className="text-xs text-rose-200 mt-1">You ran out of time on Question {currentQuestionIndex + 1}.</p>
+                    <p className="text-xs text-rose-200 mt-1 font-medium">Moving to next question...</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRestartQuestion}
-                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2 mx-auto cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4" /> Try Question Again
-                  </button>
                 </div>
               ) : (
                 /* OPTIONS AREA */
@@ -502,8 +554,23 @@ export default function VendorLandingPage() {
                             type="button"
                             onClick={() => handleOptionClick(idx)}
                             disabled={answerSubmitted}
-                            whileHover={!answerSubmitted ? { scale: 1.02 } : undefined}
-                            whileTap={!answerSubmitted ? { scale: 0.97 } : undefined}
+                            initial={{ opacity: 0, y: 22, scale: 0.94 }}
+                            animate={{
+                              opacity: 1,
+                              y: 0,
+                              scale: isSelected ? (isCorrect ? 1.04 : 1) : 1,
+                              x: isSelected && !isCorrect ? [-8, 8, -6, 6, -3, 3, 0] : 0,
+                            }}
+                            transition={{
+                              duration: 0.35,
+                              delay: idx * 0.08,
+                              type: 'spring',
+                              stiffness: 350,
+                              damping: 22,
+                              x: { type: 'keyframes', duration: 0.4 },
+                            }}
+                            whileHover={!answerSubmitted ? { scale: 1.03, y: -2 } : undefined}
+                            whileTap={!answerSubmitted ? { scale: 0.96 } : undefined}
                             className={`relative aspect-[4/2.7] rounded-2xl overflow-hidden border-2 transition-all duration-200 text-left group flex flex-col justify-between p-2.5 cursor-pointer bg-slate-900 ${cardBorder}`}
                           >
                             {/* Image Background */}
@@ -538,16 +605,28 @@ export default function VendorLandingPage() {
                               </div>
                             </div>
 
-                            {/* State Indicator */}
+                            {/* Correct State Indicator Badge */}
                             {isSelected && isCorrect && (
-                              <div className="absolute top-2.5 right-2.5 z-20 bg-emerald-500 text-white p-1 rounded-full shadow-lg">
-                                <CheckCircle2 className="w-4 h-4" />
-                              </div>
+                              <motion.div
+                                initial={{ scale: 0, rotate: 15 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                className="absolute top-2.5 right-2.5 z-20 bg-emerald-500 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1 border border-emerald-300"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Correct</span>
+                              </motion.div>
                             )}
+
+                            {/* Incorrect State Indicator Badge */}
                             {isSelected && !isCorrect && (
-                              <div className="absolute top-2.5 right-2.5 z-20 bg-rose-500 text-white p-1 rounded-full shadow-lg">
-                                <XCircle className="w-4 h-4" />
-                              </div>
+                              <motion.div
+                                initial={{ scale: 0, rotate: -15 }}
+                                animate={{ scale: 1, rotate: 0 }}
+                                className="absolute top-2.5 right-2.5 z-20 bg-rose-500 text-white px-2 py-0.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1 border border-rose-300"
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                <span>Incorrect</span>
+                              </motion.div>
                             )}
                           </motion.button>
                         )
@@ -571,11 +650,22 @@ export default function VendorLandingPage() {
                         }
 
                         return (
-                          <button
+                          <motion.button
                             key={idx}
                             type="button"
                             onClick={() => handleOptionClick(idx)}
                             disabled={answerSubmitted}
+                            initial={{ opacity: 0, y: 18 }}
+                            animate={{
+                              opacity: 1,
+                              y: 0,
+                              x: isSelected && !isCorrect ? [-8, 8, -6, 6, -3, 3, 0] : 0,
+                            }}
+                            transition={{
+                              duration: 0.3,
+                              delay: idx * 0.07,
+                              x: { type: 'keyframes', duration: 0.4 },
+                            }}
                             className={`w-full p-3.5 rounded-2xl border transition flex items-center justify-between shadow-md cursor-pointer ${pillStyle}`}
                           >
                             <div className="flex items-center gap-3">
@@ -584,9 +674,17 @@ export default function VendorLandingPage() {
                               </span>
                               <span className="font-bold text-sm truncate">{optText}</span>
                             </div>
-                            {isSelected && isCorrect && <CheckCircle2 className="w-5 h-5 text-white" />}
-                            {isSelected && !isCorrect && <XCircle className="w-5 h-5 text-white" />}
-                          </button>
+                            {isSelected && isCorrect && (
+                              <span className="flex items-center gap-1 text-xs font-bold text-emerald-200 bg-emerald-700/60 px-2.5 py-0.5 rounded-lg border border-emerald-400/40">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> Correct
+                              </span>
+                            )}
+                            {isSelected && !isCorrect && (
+                              <span className="flex items-center gap-1 text-xs font-bold text-rose-200 bg-rose-700/60 px-2.5 py-0.5 rounded-lg border border-rose-400/40">
+                                <XCircle className="w-3.5 h-3.5 text-rose-300" /> Incorrect
+                              </span>
+                            )}
+                          </motion.button>
                         )
                       })}
                     </div>
@@ -594,9 +692,14 @@ export default function VendorLandingPage() {
 
                   {/* ERROR FEEDBACK */}
                   {quizError && (
-                    <p className="text-xs font-bold text-rose-300 text-center bg-rose-950/80 border border-rose-500/40 py-2 px-3 rounded-xl">
-                      {quizError}
-                    </p>
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-xs font-bold text-rose-300 text-center bg-rose-950/90 border border-rose-500/40 py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{quizError}</span>
+                    </motion.div>
                   )}
                 </div>
               )}
@@ -815,6 +918,46 @@ export default function VendorLandingPage() {
           {vendor.name} • Official Reward Offer
         </p>
       </footer>
+
+      {/* CORRECT ANSWER STICKER CELEBRATION POPUP OVERLAY */}
+      <AnimatePresence>
+        {showStickerCelebration && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+              initial={{ scale: 0.2, rotate: -20, opacity: 0 }}
+              animate={{ scale: 1, rotate: 0, opacity: 1 }}
+              exit={{ scale: 0.3, rotate: 15, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 22 }}
+              className="bg-gradient-to-b from-amber-400 via-amber-500 to-amber-600 text-slate-950 px-8 py-6 rounded-3xl border-4 border-white shadow-[0_0_50px_rgba(245,158,11,0.85)] text-center relative overflow-hidden flex flex-col items-center gap-2 max-w-xs"
+            >
+              {/* Top Decorative Star Ribbon Tag */}
+              <div className="bg-slate-950 text-amber-400 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-amber-400 shadow-md flex items-center gap-1">
+                <Award className="w-3.5 h-3.5 text-amber-400" />
+                <span>SPOT ON!</span>
+              </div>
+
+              {/* Large Animated Victory Checkmark Badge */}
+              <motion.div
+                initial={{ scale: 0, rotate: -45 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 500 }}
+                className="w-16 h-16 rounded-full bg-white text-emerald-600 flex items-center justify-center shadow-xl border-2 border-emerald-400 my-1"
+              >
+                <CheckCircle2 className="w-10 h-10 fill-emerald-100 stroke-[2.5]" />
+              </motion.div>
+
+              <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 leading-none">
+                CORRECT ANSWER!
+              </h3>
+
+              <div className="bg-slate-950/90 text-emerald-400 text-xs font-black px-4 py-1.5 rounded-full border border-emerald-400 shadow-inner flex items-center gap-1.5">
+                <Trophy className="w-4 h-4 text-amber-400 fill-amber-400" />
+                <span>+{earnedPoints} PTS AWARDED</span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* WINNER PRIZE CELEBRATION MODAL POPUP */}
       <PrizeCelebrationModal
