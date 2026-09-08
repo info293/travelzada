@@ -5,7 +5,7 @@ import { Vendor, VendorLead, VendorReward, VendorQuestion } from './types'
 import {
   Plus, Search, QrCode, Edit, Trash2, CheckCircle2, XCircle, Download, ExternalLink,
   Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift,
-  Clock, ArrowUp, ArrowDown, Image as ImageIcon
+  Clock, ArrowUp, ArrowDown, Image as ImageIcon, Gamepad2, Brain, Target, Wind
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
@@ -127,6 +127,9 @@ export default function VendorsSection({
       logoUrl: '',
       active: true,
       rewardType: 'spinner',
+      gameType: 'quiz',
+      gameTimerSeconds: 60,
+      gameImages: ['', '', '', '', '', ''],
       questions: initialQuestions,
       questionData: initialQuestions[0],
       rewards: [...DEFAULT_REWARDS],
@@ -153,6 +156,9 @@ export default function VendorsSection({
     setFormData({
       ...vendor,
       rewardType: vendor.rewardType || 'spinner',
+      gameType: vendor.gameType || 'quiz',
+      gameTimerSeconds: vendor.gameTimerSeconds || 60,
+      gameImages: vendor.gameImages || ['', '', '', '', '', ''],
       questions: questionsList,
       questionData: questionsList[0] || DEFAULT_QUESTIONS[0],
       rewards: vendor.rewards && vendor.rewards.length >= 6 ? vendor.rewards : [...DEFAULT_REWARDS]
@@ -176,6 +182,9 @@ export default function VendorsSection({
     const dataToSave = {
       ...formData,
       rewardType: formData.rewardType || 'spinner',
+      gameType: formData.gameType || 'quiz',
+      gameTimerSeconds: formData.gameTimerSeconds || 60,
+      gameImages: formData.gameImages || [],
       questions: currentQuestions,
       questionData: currentQuestions[0], // fallback for legacy consumers
     }
@@ -400,7 +409,8 @@ export default function VendorsSection({
                   <th className="px-6 py-4">Contact Person</th>
                   <th className="px-6 py-4 text-center">QR Scans</th>
                   <th className="px-6 py-4 text-center">Rewards Claimed</th>
-                  <th className="px-6 py-4 text-center">Reward Game</th>
+                  <th className="px-6 py-4 text-center">Primary Game</th>
+                  <th className="px-6 py-4 text-center">Reward Claim</th>
                   <th className="px-6 py-4 text-center">Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -408,8 +418,8 @@ export default function VendorsSection({
               <tbody className="divide-y divide-gray-100">
                 {filteredVendors.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-gray-400">
-                      No vendors found. Click "+ Add Vendor" to create your first vendor campaign.
+                    <td colSpan={9} className="text-center py-12 text-gray-400">
+                      No vendors found. Click &quot;+ Add Vendor&quot; to create your first vendor campaign.
                     </td>
                   </tr>
                 ) : (
@@ -454,6 +464,27 @@ export default function VendorsSection({
                       {/* Claims */}
                       <td className="px-6 py-4 text-center font-bold text-emerald-600">
                         {vendor.totalClaims || vendorLeads.filter(l => l.vendorKey === vendor.vendorKey || l.vendorId === vendor.id).length}
+                      </td>
+
+                      {/* Primary Interactive Game Badge */}
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${
+                          vendor.gameType === 'memory'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : vendor.gameType === 'taptarget'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : vendor.gameType === 'balloon'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        }`}>
+                          {vendor.gameType === 'memory'
+                            ? '🧠 Memory Match'
+                            : vendor.gameType === 'taptarget'
+                            ? '🎯 Tap Target'
+                            : vendor.gameType === 'balloon'
+                            ? '💨 Balloon Pop'
+                            : '❓ Travel Quiz'}
+                        </span>
                       </td>
 
                       {/* Reward Game Badge */}
@@ -802,13 +833,231 @@ export default function VendorsSection({
                 </div>
               </div>
 
+              {/* PRIMARY GAME SELECTION (Quiz, Memory Match, Tap Target, Balloon Pop) */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Gamepad2 className="w-4 h-4" /> 1. Interactive Game Type
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  Choose the primary game users play on your landing page before unlocking rewards.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Quiz Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      (formData.gameType || 'quiz') === 'quiz'
+                        ? 'border-indigo-600 bg-indigo-50/50 shadow-md ring-2 ring-indigo-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="quiz"
+                      checked={(formData.gameType || 'quiz') === 'quiz'}
+                      onChange={() => setFormData({ ...formData, gameType: 'quiz' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <HelpCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Travel Quiz</h5>
+                          <span className="text-[10px] text-indigo-700 font-bold bg-indigo-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Questions & Answers
+                          </span>
+                        </div>
+                      </div>
+                      {(formData.gameType || 'quiz') === 'quiz' && (
+                        <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Multiple choice travel questions with countdown timers.
+                    </p>
+                  </label>
+
+                  {/* Memory Match Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'memory'
+                        ? 'border-emerald-600 bg-emerald-50/50 shadow-md ring-2 ring-emerald-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="memory"
+                      checked={formData.gameType === 'memory'}
+                      onChange={() => setFormData({ ...formData, gameType: 'memory' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Brain className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Memory Match</h5>
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Card Pair Flipping
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'memory' && (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Flip and match 6 pairs of travel destination cards before time runs out.
+                    </p>
+                  </label>
+
+                  {/* Tap Target Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'taptarget'
+                        ? 'border-amber-600 bg-amber-50/50 shadow-md ring-2 ring-amber-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="taptarget"
+                      checked={formData.gameType === 'taptarget'}
+                      onChange={() => setFormData({ ...formData, gameType: 'taptarget' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Target className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Tap the Target</h5>
+                          <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Fast Target Popping
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'taptarget' && (
+                        <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Fast-paced target popping game — tap circles before they vanish!
+                    </p>
+                  </label>
+
+                  {/* Balloon Pop Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'balloon'
+                        ? 'border-rose-600 bg-rose-50/50 shadow-md ring-2 ring-rose-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="balloon"
+                      checked={formData.gameType === 'balloon'}
+                      onChange={() => setFormData({ ...formData, gameType: 'balloon' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-rose-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Wind className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Balloon Pop</h5>
+                          <span className="text-[10px] text-rose-700 font-bold bg-rose-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Hold to Inflate
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'balloon' && (
+                        <CheckCircle2 className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Hold to inflate balloon for points, but don&apos;t let it pop!
+                    </p>
+                  </label>
+                </div>
+
+                {/* GAME TIME DURATION & CUSTOM GAME IMAGES CONFIGURATION */}
+                <div className="mt-4 p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100 space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-indigo-600" /> Game Duration Limit (Time Allowed)
+                    </label>
+                    <p className="text-[11px] text-gray-500 mb-2">
+                      Set how much time the user gets to complete this game (up to 5 minutes).
+                    </p>
+                    <select
+                      value={formData.gameTimerSeconds || 60}
+                      onChange={(e) => setFormData({ ...formData, gameTimerSeconds: Number(e.target.value) })}
+                      className="w-full sm:w-64 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:border-indigo-500 shadow-2xs"
+                    >
+                      <option value={30}>30 Seconds (Fast)</option>
+                      <option value={45}>45 Seconds (Standard)</option>
+                      <option value={60}>60 Seconds (1 Minute)</option>
+                      <option value={120}>120 Seconds (2 Minutes)</option>
+                      <option value={180}>180 Seconds (3 Minutes)</option>
+                      <option value={300}>300 Seconds (5 Minutes MAX)</option>
+                    </select>
+                  </div>
+
+                  {/* CUSTOM GAME PHOTOS (For Memory Match / Tap Target) */}
+                  {formData.gameType && formData.gameType !== 'quiz' && (
+                    <div className="border-t border-indigo-100 pt-3 space-y-2">
+                      <label className="block text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-indigo-600" /> Custom Game Images (Optional - Up to 6 Photos)
+                      </label>
+                      <p className="text-[11px] text-gray-500">
+                        Upload custom photos for your game (e.g. Memory Match card pairs or Target icons). If left blank, default destination photos will be used.
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                        {[0, 1, 2, 3, 4, 5].map((imgIdx) => {
+                          const currentImgs = formData.gameImages || ['', '', '', '', '', '']
+                          return (
+                            <div key={imgIdx} className="bg-white p-2 rounded-xl border border-gray-200 space-y-1">
+                              <span className="text-[10px] font-bold text-gray-500 block">
+                                {formData.gameType === 'memory' ? `Card Pair #${imgIdx + 1}` : `Photo #${imgIdx + 1}`}
+                              </span>
+                              <ImageUploader
+                                value={currentImgs[imgIdx] || ''}
+                                onChange={(url) => {
+                                  const updated = [...currentImgs]
+                                  updated[imgIdx] = url
+                                  setFormData({ ...formData, gameImages: updated })
+                                }}
+                                folder="game_images"
+                                placeholder={`Photo ${imgIdx + 1}`}
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* REWARD EXPERIENCE GAME TYPE SELECTION */}
               <div className="border-t pt-4">
                 <h4 className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Gift className="w-4 h-4" /> Reward Experience / Game Type
+                  <Gift className="w-4 h-4" /> Reward Claim Game (After Winning)
                 </h4>
                 <p className="text-xs text-gray-500 mb-3">
-                  Choose what reward game users see after completing the quiz on the vendor landing page.
+                  Choose what reward game users see after completing the primary game.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -886,60 +1135,40 @@ export default function VendorsSection({
                 </div>
               </div>
 
-              {/* SECTION 2: MULTI-QUESTION QUIZ SETUP */}
-              <div className="border-t pt-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
-                      <HelpCircle className="w-4 h-4" /> 2. Quiz Questions Setup ({formData.questions?.length || 0} Questions)
-                    </h4>
-                    <p className="text-xs text-gray-500">
-                      Add multiple quiz questions. Each question has a countdown timer, 4 choices & 1 correct answer.
-                    </p>
-                  </div>
+              {/* SECTION 2: MULTI-QUESTION QUIZ SETUP (Only if Game Type is Quiz) */}
+              {(formData.gameType || 'quiz') === 'quiz' && (
+                <div className="border-t pt-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+                        <HelpCircle className="w-4 h-4" /> 2. Quiz Questions Setup ({formData.questions?.length || 0} Questions)
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        Add multiple quiz questions. Each question has a countdown timer, 4 choices & 1 correct answer.
+                      </p>
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newQuestions = [...(formData.questions || [])]
-                      const nextNum = newQuestions.length + 1
-                      newQuestions.push({
-                        id: `q_${Date.now()}`,
-                        question: `New Question ${nextNum}?`,
-                        options: ['Option A', 'Option B', 'Option C', 'Option D'],
-                        optionImages: ['', '', '', ''],
-                        correctOptionIndex: 0,
-                        timerSeconds: 15,
-                        imageUrl: '',
-                      })
-                      setFormData({ ...formData, questions: newQuestions })
-                      setActiveQuestionIndex(newQuestions.length - 1)
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Question
-                  </button>
-                </div>
-
-                {/* Question Tab Bar */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3">
-                  {(formData.questions || []).map((q, qIdx) => (
                     <button
-                      key={qIdx}
                       type="button"
-                      onClick={() => setActiveQuestionIndex(qIdx)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap border ${
-                        activeQuestionIndex === qIdx
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
+                      onClick={() => {
+                        const newQuestions = [...(formData.questions || [])]
+                        const nextNum = newQuestions.length + 1
+                        newQuestions.push({
+                          id: `q_${Date.now()}`,
+                          question: `New Question ${nextNum}?`,
+                          options: ['Option A', 'Option B', 'Option C', 'Option D'],
+                          optionImages: ['', '', '', ''],
+                          correctOptionIndex: 0,
+                          timerSeconds: 15,
+                          imageUrl: '',
+                        })
+                        setFormData({ ...formData, questions: newQuestions })
+                        setActiveQuestionIndex(newQuestions.length - 1)
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 shrink-0"
                     >
-                      <span>Q{qIdx + 1}</span>
-                      <span className="max-w-[120px] truncate text-[11px] font-medium opacity-90">
-                        {q.question || 'Untitled Question'}
-                      </span>
+                      <Plus className="w-3.5 h-3.5" /> Add Question
                     </button>
-                  ))}
                 </div>
 
                 {/* Active Question Editor Card */}
@@ -1217,6 +1446,7 @@ export default function VendorsSection({
                   </div>
                 )}
               </div>
+              )}
 
               {/* SECTION 3: REWARDS SETUP WITH WEIGHTED PROBABILITY ALGORITHM */}
               <div className="border-t pt-4">

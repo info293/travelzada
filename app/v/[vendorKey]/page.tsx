@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import SpinWheel from '@/components/vendor/SpinWheel'
 import ScratchCard from '@/components/vendor/ScratchCard'
+import MemoryMatchGame from '@/components/vendor/MemoryMatchGame'
+import TapTargetGame from '@/components/vendor/TapTargetGame'
+import BalloonPopGame from '@/components/vendor/BalloonPopGame'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
 import confetti from 'canvas-confetti'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
@@ -49,7 +52,7 @@ export default function VendorLandingPage() {
 
   // Countdown timer state
   const [timeLeft, setTimeLeft] = useState(15)
-  const [timerActive, setTimerActive] = useState(true)
+  const [timerActive, setTimerActive] = useState(false)
   const [timeIsUp, setTimeIsUp] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
 
@@ -81,9 +84,15 @@ export default function VendorLandingPage() {
       const data = await res.json()
       if (data.success && data.vendor) {
         setVendor(data.vendor)
-        const qList = getNormalizedQuestions(data.vendor)
-        if (qList.length > 0) {
-          setTimeLeft(qList[0].timerSeconds || 15)
+        const isQuiz = !data.vendor.gameType || data.vendor.gameType === 'quiz'
+        if (isQuiz) {
+          const qList = getNormalizedQuestions(data.vendor)
+          if (qList.length > 0) {
+            setTimeLeft(qList[0].timerSeconds || 15)
+          }
+          setTimerActive(true)
+        } else {
+          setTimerActive(false)
         }
       } else {
         setError(data.error || 'Vendor profile not found.')
@@ -247,9 +256,30 @@ export default function VendorLandingPage() {
     }
   }
 
-  // Timer Countdown Effect
+  // Handle non-quiz mini-game completion (Memory Match, Tap Target, Balloon Pop)
+  const handleOtherGameComplete = (pts: number) => {
+    setTotalPoints(pts)
+    setEarnedPoints(pts)
+    triggerConfetti()
+    setShowStickerCelebration(true)
+    setTimeout(() => {
+      setShowStickerCelebration(false)
+      setQuizPassed(true)
+      setStep(2) // Move to Reward Game (Spin Wheel / Scratch Card)
+    }, 1800)
+  }
+
+  // Timer Countdown Effect (For Travel Quiz only)
   useEffect(() => {
-    if (step !== 1 || !timerActive || quizPassed || timeIsUp || answerSubmitted) return
+    const isQuizMode = vendor && (!vendor.gameType || vendor.gameType === 'quiz')
+    if (
+      !isQuizMode ||
+      step !== 1 ||
+      !timerActive ||
+      quizPassed ||
+      timeIsUp ||
+      answerSubmitted
+    ) return
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -272,7 +302,7 @@ export default function VendorLandingPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [step, timerActive, currentQuestionIndex, quizPassed, timeIsUp, answerSubmitted])
+  }, [step, timerActive, currentQuestionIndex, quizPassed, timeIsUp, answerSubmitted, vendor])
 
   // Handle Option Click (Single attempt per question, then auto-advance)
   const handleOptionClick = (idx: number) => {
@@ -455,9 +485,35 @@ export default function VendorLandingPage() {
       {/* MAIN CONTENT AREA */}
       <main className="w-full max-w-md sm:max-w-lg mx-auto my-auto py-2 relative z-10 shrink-0 flex flex-col items-center">
         
-        {/* STEP 1: QUIZ GAME VIEW */}
+        {/* STEP 1: INTERACTIVE GAME VIEW */}
         {step === 1 && (
-          <AnimatePresence mode="wait">
+          <>
+            {vendor.gameType === 'memory' && (
+              <MemoryMatchGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'taptarget' && (
+              <TapTargetGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'balloon' && (
+              <BalloonPopGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {(!vendor.gameType || vendor.gameType === 'quiz') && (
+              <AnimatePresence mode="wait">
             <motion.div
               key={currentQuestionIndex}
               initial={{ opacity: 0, y: 15, scale: 0.98 }}
@@ -706,6 +762,8 @@ export default function VendorLandingPage() {
 
             </motion.div>
           </AnimatePresence>
+          )}
+          </>
         )}
 
         {/* STEP 2: REWARD GAME VIEW */}
