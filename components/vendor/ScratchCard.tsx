@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { VendorReward } from '@/components/admin/types'
 import { selectWeightedReward } from '@/lib/rewardAlgorithm'
-import { Gift, Sparkles, Trophy, MousePointerClick, RefreshCw, CheckCircle2 } from 'lucide-react'
+import { Gift, Ticket, Trophy, MousePointerClick, RefreshCw, CheckCircle2 } from 'lucide-react'
 
 interface ScratchCardProps {
   rewards: VendorReward[]
@@ -273,26 +273,18 @@ export default function ScratchCard({ rewards, onScratchEnd, disabled }: Scratch
 
   return (
     <div className="w-full flex flex-col items-center justify-center select-none py-1 font-sans">
-      <div className="w-full max-w-sm sm:max-w-md bg-gradient-to-b from-[#1b093c] via-[#14062e] to-[#0c021d] border-2 border-amber-500/30 rounded-3xl p-4 sm:p-6 shadow-[0_12px_50px_rgba(0,0,0,0.9)] flex flex-col items-center text-center relative overflow-hidden">
+      <div className="w-full max-w-sm sm:max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
         
-        {/* Background Sparkles & Glow */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <span className="absolute top-6 left-6 text-amber-300 text-base opacity-80 animate-ping">✦</span>
-          <span className="absolute top-12 right-8 text-yellow-200 text-lg opacity-80">✨</span>
-          <span className="absolute bottom-10 left-10 text-amber-400 text-xl opacity-75">⭐</span>
-          <span className="absolute bottom-6 right-12 text-amber-300 text-sm opacity-90 animate-pulse">✦</span>
-        </div>
-
         {/* Card Header Title */}
         <div className="relative z-10 space-y-1 mb-4">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-300 text-xs font-black shadow-sm tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" /> LUCKY SCRATCH CARD
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black tracking-widest uppercase">
+            <Ticket className="w-3.5 h-3.5 text-amber-400" /> SCRATCH CARD REWARD
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">
-            Scratch to Reveal Prize!
+            Scratch to Reveal Prize
           </h3>
-          <p className="text-xs text-blue-100 font-medium">
-            Use your finger or mouse to scratch the golden cover below.
+          <p className="text-xs text-slate-300 font-medium">
+            Swipe or drag across the golden card surface below.
           </p>
         </div>
 

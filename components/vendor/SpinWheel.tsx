@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react'
 import { VendorReward } from '@/components/admin/types'
 import { selectWeightedRewardIndex } from '@/lib/rewardAlgorithm'
-import { Lock, Sparkles } from 'lucide-react'
+import { Lock } from 'lucide-react'
 
 interface SpinWheelProps {
   rewards: VendorReward[]
@@ -131,41 +131,16 @@ export default function SpinWheel({ rewards, onSpinEnd, disabled }: SpinWheelPro
   return (
     <div className="w-full flex flex-col items-center justify-center select-none py-1 font-sans">
       
-      {/* Outer Container matching deep midnight violet background from media_1788717179530.png */}
-      <div className="w-full max-w-sm sm:max-w-md bg-gradient-to-b from-[#1b093c] via-[#14062e] to-[#0c021d] border-2 border-purple-500/30 rounded-3xl p-4 sm:p-6 shadow-[0_12px_50px_rgba(0,0,0,0.9)] flex flex-col items-center text-center relative overflow-hidden">
+      {/* Outer Container */}
+      <div className="w-full max-w-sm sm:max-w-md bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 rounded-3xl p-4 sm:p-6 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
         
-        {/* Animated Background Confetti Ribbons & Glowing Star Sparkles */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          
-          {/* Confetti Ribbon Shapes */}
-          <span className="absolute top-6 left-6 w-3 h-7 bg-[#E02470] rotate-12 rounded-sm opacity-80 animate-pulse" />
-          <span className="absolute top-12 right-8 w-4 h-6 bg-[#00A896] -rotate-45 rounded-sm opacity-80" />
-          <span className="absolute top-28 left-4 w-5 h-3 bg-[#FF9500] rotate-45 rounded-sm opacity-75" />
-          <span className="absolute top-36 right-6 w-3 h-8 bg-[#48BB78] rotate-30 rounded-sm opacity-80" />
-          <span className="absolute bottom-24 left-8 w-4 h-6 bg-[#6B21A8] -rotate-12 rounded-sm opacity-80" />
-          <span className="absolute bottom-16 right-10 w-6 h-3 bg-[#FF5A00] rotate-45 rounded-sm opacity-75" />
-          <span className="absolute bottom-8 left-14 w-3 h-7 bg-[#0077B6] rotate-75 rounded-sm opacity-80" />
-          
-          {/* Glowing 4-Point Golden Stars */}
-          <span className="absolute top-10 left-12 text-amber-300 text-base opacity-90 animate-ping">✦</span>
-          <span className="absolute top-20 right-14 text-yellow-200 text-lg opacity-85">✨</span>
-          <span className="absolute top-44 left-6 text-amber-400 text-xl opacity-90">★</span>
-          <span className="absolute top-48 right-8 text-yellow-300 text-sm opacity-85 animate-pulse">✦</span>
-          <span className="absolute bottom-32 left-10 text-amber-300 text-lg opacity-80">✨</span>
-          <span className="absolute bottom-28 right-12 text-yellow-400 text-xl opacity-90">★</span>
-          <span className="absolute bottom-12 right-20 text-amber-200 text-sm opacity-85">✦</span>
-
-          {/* Radial Light Flare behind Wheel */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-500/25 via-amber-600/10 to-transparent pointer-events-none" />
-        </div>
-
-        {/* Header Title & Subtitle matching media_1788717179530.png */}
+        {/* Header Title */}
         <div className="mb-3 space-y-1 relative z-10">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide drop-shadow-[0_4px_10px_rgba(0,0,0,0.9)] font-sans">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wide font-sans">
             Spin the Wheel
           </h2>
-          <p className="text-xs sm:text-sm font-semibold text-purple-200/90 tracking-wide">
-            Let fate decide your next move!
+          <p className="text-xs sm:text-sm font-semibold text-slate-300 tracking-wide">
+            Spin to reveal your guaranteed reward offer!
           </p>
         </div>
 
@@ -357,10 +332,8 @@ export default function SpinWheel({ rewards, onSpinEnd, disabled }: SpinWheelPro
         >
           {/* Top Gloss Light Reflection */}
           <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/25 rounded-t-full pointer-events-none" />
-          <span className="relative z-10 drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.6)] flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-300" />
+          <span className="relative z-10 font-black tracking-widest flex items-center justify-center gap-2">
             {isSpinning ? 'SPINNING...' : winner ? 'PRIZE CLAIMED!' : 'SPIN NOW!'}
-            <Sparkles className="w-4 h-4 text-amber-300" />
           </span>
         </button>
 

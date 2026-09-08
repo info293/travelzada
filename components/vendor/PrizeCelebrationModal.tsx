@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
-import { Trophy, ArrowRight, Sparkles, Gift, RotateCcw, Lock } from 'lucide-react'
+import { Trophy, ArrowRight, Gift, RotateCcw, Lock } from 'lucide-react'
 import { VendorReward } from '@/components/admin/types'
 
 interface PrizeCelebrationModalProps {
@@ -97,27 +97,18 @@ export default function PrizeCelebrationModal({
         {/* Soft Ambient Radial Light Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/30 rounded-full blur-3xl pointer-events-none" />
 
-        {/* ULTRA-PREMIUM ARCADE POPUP CARD */}
+        {/* MODERN WINNER CARD */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: 20 }}
+          initial={{ opacity: 0, scale: 0.9, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 10 }}
-          transition={{ type: 'spring', damping: 22, stiffness: 340 }}
-          className="relative z-10 w-full max-w-sm sm:max-w-md bg-gradient-to-b from-[#180938] via-[#11052b] to-[#0a021c] border-2 border-amber-300/80 rounded-3xl p-5 sm:p-6 shadow-[0_0_60px_rgba(245,158,11,0.45)] text-center overflow-hidden text-white"
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          transition={{ duration: 0.3 }}
+          className="relative z-10 w-full max-w-sm sm:max-w-md bg-slate-900/95 border border-slate-700/80 rounded-3xl p-6 sm:p-7 shadow-2xl text-center overflow-hidden text-white"
         >
-          {/* Subtle Starburst Sparks Background */}
-          <div className="absolute inset-0 pointer-events-none opacity-20">
-            <span className="absolute top-4 left-6 text-amber-300 text-base animate-ping">✦</span>
-            <span className="absolute top-10 right-8 text-yellow-200 text-lg">✨</span>
-            <span className="absolute bottom-16 left-6 text-amber-400 text-xl">★</span>
-            <span className="absolute bottom-10 right-10 text-yellow-300 text-base">✦</span>
-          </div>
-
-          {/* Top Arcade Pill Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] font-black uppercase tracking-widest mb-3 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+          {/* Top Pill Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-widest mb-3">
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
             <span>{isTryAgain ? 'SPIN AGAIN' : 'REWARD UNLOCKED'}</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
           </div>
 
           {/* Central 3D Metallic Badge */}
