@@ -8,6 +8,8 @@ import ScratchCard from '@/components/vendor/ScratchCard'
 import MemoryMatchGame from '@/components/vendor/MemoryMatchGame'
 import TapTargetGame from '@/components/vendor/TapTargetGame'
 import BalloonPopGame from '@/components/vendor/BalloonPopGame'
+import LuckySlotsGame from '@/components/vendor/LuckySlotsGame'
+import TreasureChestGame from '@/components/vendor/TreasureChestGame'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
 import confetti from 'canvas-confetti'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
@@ -506,6 +508,22 @@ export default function VendorLandingPage() {
 
             {vendor.gameType === 'balloon' && (
               <BalloonPopGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'slots' && (
+              <LuckySlotsGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'treasure' && (
+              <TreasureChestGame
                 onGameComplete={handleOtherGameComplete}
                 timerSeconds={vendor.gameTimerSeconds}
                 customImages={vendor.gameImages}

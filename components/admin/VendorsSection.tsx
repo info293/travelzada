@@ -5,7 +5,7 @@ import { Vendor, VendorLead, VendorReward, VendorQuestion } from './types'
 import {
   Plus, Search, QrCode, Edit, Trash2, CheckCircle2, XCircle, Download, ExternalLink,
   Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift,
-  Clock, ArrowUp, ArrowDown, Image as ImageIcon, Gamepad2, Brain, Target, Wind
+  Clock, ArrowUp, ArrowDown, Image as ImageIcon, Gamepad2, Brain, Target, Wind, Dices, Sparkles
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
@@ -475,6 +475,10 @@ export default function VendorsSection({
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
                             : vendor.gameType === 'balloon'
                             ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : vendor.gameType === 'slots'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : vendor.gameType === 'treasure'
+                            ? 'bg-teal-50 text-teal-700 border-teal-200'
                             : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                         }`}>
                           {vendor.gameType === 'memory'
@@ -483,6 +487,10 @@ export default function VendorsSection({
                             ? '🎯 Tap Target'
                             : vendor.gameType === 'balloon'
                             ? '💨 Balloon Pop'
+                            : vendor.gameType === 'slots'
+                            ? '🎰 Lucky Slots'
+                            : vendor.gameType === 'treasure'
+                            ? '🎁 Treasure Chest'
                             : '❓ Travel Quiz'}
                         </span>
                       </td>
@@ -988,6 +996,80 @@ export default function VendorsSection({
                     </div>
                     <p className="text-[11px] text-gray-600 mt-2">
                       Hold to inflate balloon for points, but don&apos;t let it pop!
+                    </p>
+                  </label>
+
+                  {/* Lucky Slots Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'slots'
+                        ? 'border-purple-600 bg-purple-50/50 shadow-md ring-2 ring-purple-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="slots"
+                      checked={formData.gameType === 'slots'}
+                      onChange={() => setFormData({ ...formData, gameType: 'slots' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Dices className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Lucky Slots</h5>
+                          <span className="text-[10px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            3-Reel Slot Machine
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'slots' && (
+                        <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Spin 3 travel reels for 3x matching jackpot combinations!
+                    </p>
+                  </label>
+
+                  {/* Mystery Treasure Chest Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'treasure'
+                        ? 'border-teal-600 bg-teal-50/50 shadow-md ring-2 ring-teal-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="treasure"
+                      checked={formData.gameType === 'treasure'}
+                      onChange={() => setFormData({ ...formData, gameType: 'treasure' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-teal-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Treasure Chest</h5>
+                          <span className="text-[10px] text-teal-700 font-bold bg-teal-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Mystery Unboxing
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'treasure' && (
+                        <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Unbox 3 mystery island treasure chests to reveal hidden rewards!
                     </p>
                   </label>
                 </div>
