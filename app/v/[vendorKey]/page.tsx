@@ -10,6 +10,9 @@ import TapTargetGame from '@/components/vendor/TapTargetGame'
 import BalloonPopGame from '@/components/vendor/BalloonPopGame'
 import LuckySlotsGame from '@/components/vendor/LuckySlotsGame'
 import TreasureChestGame from '@/components/vendor/TreasureChestGame'
+import WhackAMoleGame from '@/components/vendor/WhackAMoleGame'
+import HighLowGame from '@/components/vendor/HighLowGame'
+import FortuneWheelGame from '@/components/vendor/FortuneWheelGame'
 import PrizeCelebrationModal from '@/components/vendor/PrizeCelebrationModal'
 import confetti from 'canvas-confetti'
 import { Vendor, VendorReward, VendorQuestion } from '@/components/admin/types'
@@ -524,6 +527,30 @@ export default function VendorLandingPage() {
 
             {vendor.gameType === 'treasure' && (
               <TreasureChestGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'whack' && (
+              <WhackAMoleGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'highlow' && (
+              <HighLowGame
+                onGameComplete={handleOtherGameComplete}
+                timerSeconds={vendor.gameTimerSeconds}
+                customImages={vendor.gameImages}
+              />
+            )}
+
+            {vendor.gameType === 'wheel' && (
+              <FortuneWheelGame
                 onGameComplete={handleOtherGameComplete}
                 timerSeconds={vendor.gameTimerSeconds}
                 customImages={vendor.gameImages}

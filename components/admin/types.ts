@@ -256,7 +256,7 @@ export interface Vendor {
     questions?: VendorQuestion[] // multi-question quiz array
     rewards: VendorReward[] // 6 to 8 rewards
     rewardType?: 'spinner' | 'scratch' // Game type shown to user after quiz (Spin Wheel or Scratch Card)
-    gameType?: 'quiz' | 'memory' | 'taptarget' | 'balloon' | 'slots' | 'treasure' // Interactive game before reward (default: quiz)
+    gameType?: 'quiz' | 'memory' | 'taptarget' | 'balloon' | 'slots' | 'treasure' | 'whack' | 'highlow' | 'wheel' // Interactive game before reward (default: quiz)
     gameTimerSeconds?: number // Game time limit in seconds (30s, 60s, 120s, 180s, 300s / 5 min)
     gameImages?: string[] // Optional custom images uploaded by vendor for mini-games
     totalScans: number

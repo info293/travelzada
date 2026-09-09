@@ -5,7 +5,7 @@ import { Vendor, VendorLead, VendorReward, VendorQuestion } from './types'
 import {
   Plus, Search, QrCode, Edit, Trash2, CheckCircle2, XCircle, Download, ExternalLink,
   Users, Award, Eye, Filter, RefreshCw, Building2, Phone, Mail, HelpCircle, Gift,
-  Clock, ArrowUp, ArrowDown, Image as ImageIcon, Gamepad2, Brain, Target, Wind, Dices, Sparkles
+  Clock, ArrowUp, ArrowDown, Image as ImageIcon, Gamepad2, Brain, Target, Wind, Dices, Sparkles, Zap
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
@@ -479,6 +479,12 @@ export default function VendorsSection({
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
                             : vendor.gameType === 'treasure'
                             ? 'bg-teal-50 text-teal-700 border-teal-200'
+                            : vendor.gameType === 'whack'
+                            ? 'bg-orange-50 text-orange-700 border-orange-200'
+                            : vendor.gameType === 'highlow'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : vendor.gameType === 'wheel'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
                             : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                         }`}>
                           {vendor.gameType === 'memory'
@@ -491,6 +497,12 @@ export default function VendorsSection({
                             ? '🎰 Lucky Slots'
                             : vendor.gameType === 'treasure'
                             ? '🎁 Treasure Chest'
+                            : vendor.gameType === 'whack'
+                            ? '🔨 Whack-A-Luggage'
+                            : vendor.gameType === 'highlow'
+                            ? '🎴 Higher or Lower'
+                            : vendor.gameType === 'wheel'
+                            ? '🎡 Fortune Wheel'
                             : '❓ Travel Quiz'}
                         </span>
                       </td>
@@ -1070,6 +1082,117 @@ export default function VendorsSection({
                     </div>
                     <p className="text-[11px] text-gray-600 mt-2">
                       Unbox 3 mystery island treasure chests to reveal hidden rewards!
+                    </p>
+                  </label>
+
+                  {/* Whack-A-Suitcase Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'whack'
+                        ? 'border-orange-600 bg-orange-50/50 shadow-md ring-2 ring-orange-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="whack"
+                      checked={formData.gameType === 'whack'}
+                      onChange={() => setFormData({ ...formData, gameType: 'whack' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-orange-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Zap className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Whack-A-Suitcase</h5>
+                          <span className="text-[10px] text-orange-700 font-bold bg-orange-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Fast Reflex Arcade
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'whack' && (
+                        <CheckCircle2 className="w-4 h-4 text-orange-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Tap popping suitcases, passports & trophies before they disappear!
+                    </p>
+                  </label>
+
+                  {/* Higher or Lower Card Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'highlow'
+                        ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="highlow"
+                      checked={formData.gameType === 'highlow'}
+                      onChange={() => setFormData({ ...formData, gameType: 'highlow' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <ArrowUp className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Higher or Lower</h5>
+                          <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Card Rank Predictor
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'highlow' && (
+                        <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Predict if the next travel card is Higher or Lower for streak multipliers!
+                    </p>
+                  </label>
+
+                  {/* Fortune Wheel Option */}
+                  <label
+                    className={`relative p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.gameType === 'wheel'
+                        ? 'border-amber-600 bg-amber-50/50 shadow-md ring-2 ring-amber-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="gameType"
+                      value="wheel"
+                      checked={formData.gameType === 'wheel'}
+                      onChange={() => setFormData({ ...formData, gameType: 'wheel' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-xs sm:text-sm">Fortune Wheel</h5>
+                          <span className="text-[10px] text-amber-700 font-bold bg-amber-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Arcade Luck Wheel
+                          </span>
+                        </div>
+                      </div>
+                      {formData.gameType === 'wheel' && (
+                        <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-600 mt-2">
+                      Spin 8-slice fortune wheel to land points & 1000 PTS jackpot!
                     </p>
                   </label>
                 </div>
