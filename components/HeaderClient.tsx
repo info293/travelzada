@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useEffect, ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface NavItem {
@@ -20,6 +21,7 @@ export default function HeaderClient({ children, navItems }: HeaderClientProps) 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [scrollY, setScrollY] = useState(0)
     const { currentUser, isAdmin, logout } = useAuth()
+    const pathname = usePathname()
 
     // Add admin link if user is admin
     const allNavItems = isAdmin
@@ -47,11 +49,27 @@ export default function HeaderClient({ children, navItems }: HeaderClientProps) 
         }
     }, [isMobileMenuOpen])
 
-    const SparkleIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
-        <span
-            className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
-        />
-    )
+    const isLinkActive = (href: string) => {
+        if (!pathname) return false
+        if (href === '/') return pathname === '/'
+        if (href === '/tailored-travel') {
+            return (
+                pathname === '/tailored-travel' ||
+                pathname.startsWith('/tailored-travel/') ||
+                pathname === '/ai-trip-planner' ||
+                pathname.startsWith('/ai-trip-planner/')
+            )
+        }
+        if (href === '/destinations') {
+            return (
+                pathname === '/destinations' ||
+                pathname.startsWith('/destinations/') ||
+                pathname === '/packages' ||
+                pathname.startsWith('/packages/')
+            )
+        }
+        return pathname === href || pathname.startsWith(`${href}/`)
+    }
 
     const headerHeight = isScrolled ? 'py-2.5' : 'py-4'
     const logoScale = isScrolled ? 'scale-95' : 'scale-100'
@@ -78,70 +96,43 @@ export default function HeaderClient({ children, navItems }: HeaderClientProps) 
                 </div>
 
                 {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+                <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
                     {allNavItems.map((item) => {
-                        const isAI = item.isAI
+                        const active = isLinkActive(item.href)
                         return (
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`header-nav-item relative transition-all duration-300 ${isAI
-                                    ? 'ai-planner-btn inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-700 border border-purple-200 shadow-sm hover:shadow-md hover:scale-105 overflow-hidden group/ai'
-                                    : 'text-gray-600 hover:text-primary group'
-                                    }`}
+                                className={`relative py-1.5 transition-colors duration-300 ${
+                                    active
+                                        ? 'text-primary font-semibold'
+                                        : 'text-gray-600 hover:text-primary font-medium group'
+                                }`}
                             >
-                                {!isAI && (
-                                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 group-hover:w-full"></span>
-                                )}
-                                {isAI && (
-                                    <>
-                                        <SparkleIcon className="w-3.5 h-3.5 relative z-10" />
-                                        <div className="relative z-10 overflow-hidden min-w-[100px] h-5">
-                                            <div className="relative h-full">
-                                                <span className="ai-text-original absolute left-0 top-0 inline-block">
-                                                    {item.label}
-                                                </span>
-                                                <span className="ai-text-new absolute left-0 top-0 inline-block opacity-0 translate-y-full">
-                                                    {item.label}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {!isAI && <span className="relative z-10">{item.label}</span>}
+                                <span>{item.label}</span>
+                                <span
+                                    className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 ${
+                                        active ? 'w-full' : 'w-0 group-hover:w-full'
+                                    }`}
+                                />
                             </Link>
                         )
                     })}
                 </nav>
 
-                {/* Auth Buttons and Mobile Menu Toggle */}
+                {/* Auth Section */}
                 <div className="flex items-center gap-3">
-                    {currentUser ? (
+                    {currentUser && (
                         <>
-                            <span className="hidden sm:inline-block text-sm text-gray-600">
+                            <span className="hidden sm:inline-block text-sm text-gray-600 font-medium">
                                 {currentUser.email}
                             </span>
                             <button
                                 onClick={logout}
-                                className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                                className="hidden sm:inline-block px-4 py-1.5 rounded-full text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
                             >
                                 Sign Out
                             </button>
-                        </>
-                    ) : (
-                        <>
-                            <Link
-                                href="/login"
-                                className="hidden sm:inline-block text-sm font-medium text-gray-600 hover:text-primary"
-                            >
-                                Sign In
-                            </Link>
-                            <Link
-                                href="/signup"
-                                className="hidden sm:inline-block px-5 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-primary to-primary-dark hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 transform hover:scale-105 active:scale-95"
-                            >
-                                Sign Up
-                            </Link>
                         </>
                     )}
 
@@ -174,62 +165,41 @@ export default function HeaderClient({ children, navItems }: HeaderClientProps) 
                     <div className={`fixed left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-200 shadow-lg z-40 md:hidden transition-all duration-300 ${isScrolled ? 'top-[65px]' : 'top-[73px]'}`}>
                         <nav className="flex flex-col py-4">
                             {allNavItems.map((item) => {
-                                const isAI = item.isAI
+                                const active = isLinkActive(item.href)
                                 return (
                                     <Link
                                         key={item.href}
                                         href={item.href}
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className={`px-6 py-3 text-base font-medium transition-colors ${isAI
-                                            ? 'text-purple-700 bg-purple-50/60 border-y border-purple-100 flex items-center gap-2'
-                                            : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
-                                            }`}
+                                        className={`px-6 py-3 text-base font-medium transition-colors flex items-center justify-between ${
+                                            active
+                                                ? 'text-primary bg-primary/5 font-semibold border-l-4 border-primary'
+                                                : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                                        }`}
                                     >
-                                        {isAI && <SparkleIcon className="w-4 h-4" />}
-                                        {item.label}
-                                        {isAI && (
-                                            <span className="ml-2 text-[11px] uppercase tracking-wide text-purple-500 font-semibold">
-                                                AI
-                                            </span>
+                                        <span>{item.label}</span>
+                                        {active && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                                         )}
                                     </Link>
                                 )
                             })}
-                            <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
-                                {currentUser ? (
-                                    <>
-                                        <div className="py-2 text-base font-medium text-gray-700">
-                                            {currentUser.email}
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                logout()
-                                                setIsMobileMenuOpen(false)
-                                            }}
-                                            className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
-                                        >
-                                            Sign Out
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Link
-                                            href="/login"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                            className="block py-2 text-base font-medium text-gray-700 hover:text-primary transition-colors"
-                                        >
-                                            Sign In
-                                        </Link>
-                                        <Link
-                                            href="/signup"
-                                            onClick={() => setIsMobileMenuOpen(false)}
-                                            className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-primary hover:bg-primary-dark transition-colors"
-                                        >
-                                            Sign Up
-                                        </Link>
-                                    </>
-                                )}
-                            </div>
+                            {currentUser && (
+                                <div className="border-t border-gray-200 mt-2 pt-2 px-6 space-y-2">
+                                    <div className="py-2 text-base font-medium text-gray-700 truncate">
+                                        {currentUser.email}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            logout()
+                                            setIsMobileMenuOpen(false)
+                                        }}
+                                        className="block w-full text-center py-2 px-4 rounded-full text-base font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors"
+                                    >
+                                        Sign Out
+                                    </button>
+                                </div>
+                            )}
                         </nav>
                     </div>
                 </>
@@ -237,3 +207,4 @@ export default function HeaderClient({ children, navItems }: HeaderClientProps) 
         </header>
     )
 }
+
