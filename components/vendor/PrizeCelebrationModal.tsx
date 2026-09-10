@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React, { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -279,7 +279,7 @@ export default function PrizeCelebrationModal({
                 {/* Trust line */}
                 <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Verified reward � Free to claim</span>
+                  <span>Verified reward · Free to claim</span>
                 </div>
               </div>
             )}
