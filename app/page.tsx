@@ -17,6 +17,7 @@ import InternationalPackages from '@/components/InternationalPackages'
 import WorldForTwo from '@/components/WorldForTwo'
 import PricingBreakdown from '@/components/PricingBreakdown'
 import PromiseBanner from '@/components/PromiseBanner'
+import PartnerLogos from '@/components/PartnerLogos'
 
 export default function Home() {
   const websiteSchema = generateWebSiteSchema()
@@ -45,6 +46,7 @@ export default function Home() {
         <IndiaHoneymoonPackages />
         <InternationalPackages />
         {/* <WorldForTwo /> */}
+        <PartnerLogos />
         <HowItWorks />
         <PricingBreakdown />
 
