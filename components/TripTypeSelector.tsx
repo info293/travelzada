@@ -76,7 +76,7 @@ export default function TripTypeSelector() {
   }
 
   return (
-    <section style={{ background: '#fff', padding: '96px 24px' }}>
+    <section style={{ background: '#fff', padding: '40px 24px 64px' }}>
       <div className="max-w-5xl mx-auto">
 
         {/* Header */}

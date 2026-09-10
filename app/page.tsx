@@ -38,13 +38,13 @@ export default function Home() {
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <DestinationSlugCacheInitializer />
-      <main className="min-h-screen bg-cream pt-16 md:pt-24 overflow-x-hidden">
+      <main className="min-h-screen bg-cream overflow-x-hidden">
         <Header />
         <Hero />
         <TripTypeSelector />
         <IndiaHoneymoonPackages />
         <InternationalPackages />
-        <WorldForTwo />
+        {/* <WorldForTwo /> */}
         <HowItWorks />
         <PricingBreakdown />
 
