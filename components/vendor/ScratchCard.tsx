@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { VendorReward } from '@/components/admin/types'
+import { VendorReward, VendorRewardCustomSettings } from '@/components/admin/types'
 import { selectWeightedReward } from '@/lib/rewardAlgorithm'
 import { Gift, Ticket, Trophy, MousePointerClick, RefreshCw, CheckCircle2 } from 'lucide-react'
 
 interface ScratchCardProps {
   rewards: VendorReward[]
   onScratchEnd: (winningReward: VendorReward) => void
+  customSettings?: VendorRewardCustomSettings
   disabled?: boolean
 }
 
@@ -19,7 +20,7 @@ const DEFAULT_REWARDS: VendorReward[] = [
   { id: '4', title: 'Surprise Gift', code: 'GIFT2025', color: '#E63946', description: 'Special travel gift hamper' },
 ]
 
-export default function ScratchCard({ rewards, onScratchEnd, disabled }: ScratchCardProps) {
+export default function ScratchCard({ rewards, onScratchEnd, customSettings, disabled }: ScratchCardProps) {
   const safeRewards = rewards && rewards.length > 0 ? rewards : DEFAULT_REWARDS
 
   const [winningReward, setWinningReward] = useState<VendorReward | null>(null)
@@ -61,13 +62,27 @@ export default function ScratchCard({ rewards, onScratchEnd, disabled }: Scratch
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
-    // Draw luxury metallic gold/amber scratch surface
+    // Draw metallic scratch surface based on customSettings
     const grad = ctx.createLinearGradient(0, 0, width, height)
-    grad.addColorStop(0, '#F59E0B') // Amber 500
-    grad.addColorStop(0.3, '#FCD34D') // Yellow 300
-    grad.addColorStop(0.5, '#D97706') // Amber 600
-    grad.addColorStop(0.8, '#FBBF24') // Amber 400
-    grad.addColorStop(1, '#92400E') // Amber 800
+    if (customSettings?.scratchPattern === 'silver') {
+      grad.addColorStop(0, '#94A3B8')
+      grad.addColorStop(0.3, '#F1F5F9')
+      grad.addColorStop(0.5, '#64748B')
+      grad.addColorStop(0.8, '#E2E8F0')
+      grad.addColorStop(1, '#334155')
+    } else if (customSettings?.scratchPattern === 'diamond') {
+      grad.addColorStop(0, '#7E22CE')
+      grad.addColorStop(0.3, '#E9D5FF')
+      grad.addColorStop(0.5, '#A855F7')
+      grad.addColorStop(0.8, '#FCD34D')
+      grad.addColorStop(1, '#581C87')
+    } else {
+      grad.addColorStop(0, '#F59E0B') // Amber 500
+      grad.addColorStop(0.3, '#FCD34D') // Yellow 300
+      grad.addColorStop(0.5, '#D97706') // Amber 600
+      grad.addColorStop(0.8, '#FBBF24') // Amber 400
+      grad.addColorStop(1, '#92400E') // Amber 800
+    }
 
     ctx.fillStyle = grad
     ctx.fillRect(0, 0, width, height)
@@ -96,7 +111,7 @@ export default function ScratchCard({ rewards, onScratchEnd, disabled }: Scratch
     ctx.font = '900 18px sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('✨ SCRATCH HERE ✨', width / 2, height / 2 - 12)
+    ctx.fillText('🎫 SCRATCH HERE 🎫', width / 2, height / 2 - 12)
 
     ctx.fillStyle = '#312E81'
     ctx.font = '700 12px sans-serif'

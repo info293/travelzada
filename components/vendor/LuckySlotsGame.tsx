@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Sparkles, Dices, Play, RefreshCw, Award } from 'lucide-react'
+import { Trophy, Dices, Play, RefreshCw, Award } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 interface LuckySlotsGameProps {
@@ -117,7 +117,7 @@ export default function LuckySlotsGame({
       } else if (final1 === final2 || final2 === final3 || final1 === final3) {
         const matchedItem = final1 === final2 ? item1 : item3
         award = matchedItem.points * 2
-        msg = `✨ DOUBLE MATCH! (+${award} PTS)`
+        msg = `🎉 DOUBLE MATCH! (+${award} PTS)`
       } else {
         award = Math.max(item1.points, item2.points, item3.points)
         msg = `Nice Spin! (+${award} PTS)`
@@ -245,7 +245,7 @@ export default function LuckySlotsGame({
           className="p-2.5 bg-emerald-950/90 border border-emerald-500/50 rounded-xl text-center mb-4 shadow-lg"
         >
           <p className="text-xs font-black text-emerald-300 flex items-center justify-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Trophy className="w-4 h-4 text-amber-400" />
             <span>{winMessage}</span>
           </p>
         </motion.div>

@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { VendorReward } from '@/components/admin/types'
+import { VendorReward, VendorRewardCustomSettings } from '@/components/admin/types'
 import { selectWeightedRewardIndex } from '@/lib/rewardAlgorithm'
 import { Lock } from 'lucide-react'
 
 interface SpinWheelProps {
   rewards: VendorReward[]
   onSpinEnd: (winningReward: VendorReward) => void
+  customSettings?: VendorRewardCustomSettings
   disabled?: boolean
 }
 
@@ -34,7 +35,7 @@ const DEFAULT_REWARDS: VendorReward[] = [
   { id: '8', title: 'You Win!', code: 'YOUWIN', color: '#E02470', description: 'Flat discount voucher' },
 ]
 
-export default function SpinWheel({ rewards, onSpinEnd, disabled }: SpinWheelProps) {
+export default function SpinWheel({ rewards, onSpinEnd, customSettings, disabled }: SpinWheelProps) {
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotationAngle, setRotationAngle] = useState(0)
   const [winner, setWinner] = useState<VendorReward | null>(null)
@@ -333,7 +334,7 @@ export default function SpinWheel({ rewards, onSpinEnd, disabled }: SpinWheelPro
           {/* Top Gloss Light Reflection */}
           <div className="absolute top-0 left-0 right-0 h-1/2 bg-white/25 rounded-t-full pointer-events-none" />
           <span className="relative z-10 font-black tracking-widest flex items-center justify-center gap-2">
-            {isSpinning ? 'SPINNING...' : winner ? 'PRIZE CLAIMED!' : 'SPIN NOW!'}
+            {isSpinning ? 'SPINNING...' : winner ? 'PRIZE CLAIMED!' : customSettings?.spinnerText || 'SPIN NOW!'}
           </span>
         </button>
 

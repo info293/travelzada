@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Trophy, Gift, Award, CheckCircle2, Lock, Key } from 'lucide-react'
+import { Trophy, Gift, Award, CheckCircle2, Lock, Key } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 interface TreasureChestGameProps {
@@ -215,7 +215,7 @@ export default function TreasureChestGame({
       {picksLeft > 0 ? (
         <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl text-center shadow-inner">
           <p className="text-xs font-bold text-amber-400 flex items-center justify-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Trophy className="w-4 h-4 text-amber-400" />
             <span>Select any {picksLeft} treasure chest{picksLeft > 1 ? 's' : ''} to unlock!</span>
           </p>
         </div>

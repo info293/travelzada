@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowUp, ArrowDown, Sparkles, Trophy, Award, RefreshCw } from 'lucide-react'
+import { ArrowUp, ArrowDown, Trophy, Award, RefreshCw } from 'lucide-react'
 import confetti from 'canvas-confetti'
 
 interface HighLowGameProps {
@@ -93,7 +93,7 @@ export default function HighLowGame({
         const base = 150
         const pointsWon = base * newStreak
         setTotalPoints((prev) => prev + pointsWon)
-        setResultMessage(`✨ CORRECT! ${drawn.label} is ${isHigher ? 'HIGHER' : 'LOWER'}! (+${pointsWon} PTS)`)
+        setResultMessage(`🎉 CORRECT! ${drawn.label} is ${isHigher ? 'HIGHER' : 'LOWER'}! (+${pointsWon} PTS)`)
 
         if (typeof confetti === 'function') {
           confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } })

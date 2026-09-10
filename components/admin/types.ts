@@ -241,6 +241,25 @@ export interface VendorReward {
     probability?: number
 }
 
+export interface VendorRewardCustomSettings {
+    // Spin Wheel
+    spinnerText?: string
+    wheelCenterText?: string
+    // Scratch Card
+    scratchPattern?: 'gold' | 'silver' | 'diamond'
+    scratchInstructionText?: string
+    // Flip Card
+    flipCardTheme?: 'gold' | 'cyber' | 'blue' | 'emerald'
+    flipCardText?: string
+    // Gift Box
+    giftBoxTheme?: 'red_gold' | 'blue_silver' | 'emerald_gold' | 'black_gold'
+    giftBoxInstructionText?: string
+    // Golden Ticket
+    ticketBadgeText?: string
+    ticketTheme?: 'gold' | 'silver' | 'rosegold' | 'emerald'
+    ticketTearText?: string
+}
+
 export interface Vendor {
     id?: string
     vendorKey: string
@@ -255,7 +274,8 @@ export interface Vendor {
     questionData?: VendorQuestion // legacy single question
     questions?: VendorQuestion[] // multi-question quiz array
     rewards: VendorReward[] // 6 to 8 rewards
-    rewardType?: 'spinner' | 'scratch' // Game type shown to user after quiz (Spin Wheel or Scratch Card)
+    rewardType?: 'spinner' | 'scratch' | 'flipcard' | 'giftbox' | 'ticket' // Game type shown to user after quiz/game
+    rewardCustomSettings?: VendorRewardCustomSettings // Individual customization parameters for chosen reveal game
     gameType?: 'quiz' | 'memory' | 'taptarget' | 'balloon' | 'slots' | 'treasure' | 'whack' | 'highlow' | 'wheel' // Interactive game before reward (default: quiz)
     gameTimerSeconds?: number // Game time limit in seconds (30s, 60s, 120s, 180s, 300s / 5 min)
     gameImages?: string[] // Optional custom images uploaded by vendor for mini-games

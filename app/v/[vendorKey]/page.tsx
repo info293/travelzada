@@ -5,6 +5,9 @@ import { useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import SpinWheel from '@/components/vendor/SpinWheel'
 import ScratchCard from '@/components/vendor/ScratchCard'
+import FlipCardReward from '@/components/vendor/FlipCardReward'
+import GiftBoxReward from '@/components/vendor/GiftBoxReward'
+import GoldenTicketReward from '@/components/vendor/GoldenTicketReward'
 import MemoryMatchGame from '@/components/vendor/MemoryMatchGame'
 import TapTargetGame from '@/components/vendor/TapTargetGame'
 import BalloonPopGame from '@/components/vendor/BalloonPopGame'
@@ -819,11 +822,25 @@ export default function VendorLandingPage() {
                 <Trophy className="w-4 h-4 text-amber-400" /> {totalPoints > 0 ? totalPoints : 250} POINTS • GUARANTEED REWARD
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">
-                {vendor.rewardType === 'scratch' ? 'Scratch to Reveal Prize!' : 'Spin the Wheel to Win!'}
+                {vendor.rewardType === 'scratch'
+                  ? 'Scratch to Reveal Prize!'
+                  : vendor.rewardType === 'flipcard'
+                  ? 'Pick a Card to Reveal Prize!'
+                  : vendor.rewardType === 'giftbox'
+                  ? 'Unbox Your Mystery Prize!'
+                  : vendor.rewardType === 'ticket'
+                  ? 'Tear Your Golden Ticket!'
+                  : 'Spin the Wheel to Win!'}
               </h2>
               <p className="text-xs text-slate-300 font-medium">
                 {vendor.rewardType === 'scratch'
                   ? 'Swipe across the card below to unlock your reward voucher.'
+                  : vendor.rewardType === 'flipcard'
+                  ? 'Select one of the golden cards below to flip and reveal your voucher.'
+                  : vendor.rewardType === 'giftbox'
+                  ? 'Tap the glowing gift box to unwrap your special reward.'
+                  : vendor.rewardType === 'ticket'
+                  ? 'Pull or tap the perforated tear strip to unlock your VIP pass.'
                   : 'Spin the wheel below to unlock your reward voucher.'}
               </p>
             </div>
@@ -831,11 +848,31 @@ export default function VendorLandingPage() {
             {vendor.rewardType === 'scratch' ? (
               <ScratchCard
                 rewards={vendor.rewards}
+                customSettings={vendor.rewardCustomSettings}
+                onScratchEnd={handleSpinEnd}
+              />
+            ) : vendor.rewardType === 'flipcard' ? (
+              <FlipCardReward
+                rewards={vendor.rewards}
+                customSettings={vendor.rewardCustomSettings}
+                onScratchEnd={handleSpinEnd}
+              />
+            ) : vendor.rewardType === 'giftbox' ? (
+              <GiftBoxReward
+                rewards={vendor.rewards}
+                customSettings={vendor.rewardCustomSettings}
+                onScratchEnd={handleSpinEnd}
+              />
+            ) : vendor.rewardType === 'ticket' ? (
+              <GoldenTicketReward
+                rewards={vendor.rewards}
+                customSettings={vendor.rewardCustomSettings}
                 onScratchEnd={handleSpinEnd}
               />
             ) : (
               <SpinWheel
                 rewards={vendor.rewards}
+                customSettings={vendor.rewardCustomSettings}
                 onSpinEnd={handleSpinEnd}
               />
             )}

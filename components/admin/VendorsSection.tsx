@@ -512,9 +512,23 @@ export default function VendorsSection({
                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1 border ${
                           vendor.rewardType === 'scratch'
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : vendor.rewardType === 'flipcard'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : vendor.rewardType === 'giftbox'
+                            ? 'bg-pink-50 text-pink-700 border-pink-200'
+                            : vendor.rewardType === 'ticket'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}>
-                          {vendor.rewardType === 'scratch' ? '🎫 Scratch Card' : '🎰 Spin Wheel'}
+                          {vendor.rewardType === 'scratch'
+                            ? '🎫 Scratch Card'
+                            : vendor.rewardType === 'flipcard'
+                            ? '🎴 Flip Card'
+                            : vendor.rewardType === 'giftbox'
+                            ? '🎁 Gift Box'
+                            : vendor.rewardType === 'ticket'
+                            ? '🎟️ Golden Ticket'
+                            : '🎰 Spin Wheel'}
                         </span>
                       </td>
 
@@ -1265,7 +1279,7 @@ export default function VendorsSection({
                   Choose what reward game users see after completing the primary game.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <label
                     className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
                       (formData.rewardType || 'spinner') === 'spinner'
@@ -1337,6 +1351,365 @@ export default function VendorsSection({
                       Users swipe/drag across a golden canvas scratch layer to reveal their prize.
                     </p>
                   </label>
+
+                  <label
+                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.rewardType === 'flipcard'
+                        ? 'border-blue-600 bg-blue-50/50 shadow-md ring-2 ring-blue-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rewardType"
+                      value="flipcard"
+                      checked={formData.rewardType === 'flipcard'}
+                      onChange={() => setFormData({ ...formData, rewardType: 'flipcard' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-bold flex items-center justify-center text-lg shadow-sm">
+                          🎴
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-sm">Flip Card Reveal</h5>
+                          <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            3 Golden Mystery Cards
+                          </span>
+                        </div>
+                      </div>
+                      {formData.rewardType === 'flipcard' && (
+                        <CheckCircle2 className="w-5 h-5 text-blue-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2.5">
+                      3 golden cards face down; user flips 1 to reveal the weighted prize with 3D flip animation.
+                    </p>
+                  </label>
+
+                  <label
+                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.rewardType === 'giftbox'
+                        ? 'border-pink-600 bg-pink-50/50 shadow-md ring-2 ring-pink-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rewardType"
+                      value="giftbox"
+                      checked={formData.rewardType === 'giftbox'}
+                      onChange={() => setFormData({ ...formData, rewardType: 'giftbox' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-pink-600 text-white font-bold flex items-center justify-center text-lg shadow-sm">
+                          🎁
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-sm">Surprise Gift Box</h5>
+                          <span className="text-[10px] text-pink-700 font-bold bg-pink-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Unbox Mystery Gift
+                          </span>
+                        </div>
+                      </div>
+                      {formData.rewardType === 'giftbox' && (
+                        <CheckCircle2 className="w-5 h-5 text-pink-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2.5">
+                      Animated ribbon unties and 3D gift box pops open with sparkles to reveal the voucher.
+                    </p>
+                  </label>
+
+                  <label
+                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                      formData.rewardType === 'ticket'
+                        ? 'border-emerald-600 bg-emerald-50/50 shadow-md ring-2 ring-emerald-400/30'
+                        : 'border-gray-200 bg-gray-50/50 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rewardType"
+                      value="ticket"
+                      checked={formData.rewardType === 'ticket'}
+                      onChange={() => setFormData({ ...formData, rewardType: 'ticket' })}
+                      className="sr-only"
+                    />
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center text-lg shadow-sm">
+                          🎟️
+                        </div>
+                        <div>
+                          <h5 className="font-bold text-gray-900 text-sm">Golden Ticket Tear</h5>
+                          <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                            Perforated Ticket Tear
+                          </span>
+                        </div>
+                      </div>
+                      {formData.rewardType === 'ticket' && (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 mt-2.5">
+                      VIP golden ticket with perforated tear line that rips open to reveal the voucher pass.
+                    </p>
+                  </label>
+                </div>
+
+                {/* REWARD GAME INDIVIDUAL CUSTOMIZATION PANEL */}
+                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                    🎨 Custom Settings for {
+                      (formData.rewardType || 'spinner') === 'flipcard' ? '🎴 Flip Card Reveal' :
+                      formData.rewardType === 'giftbox' ? '🎁 Surprise Gift Box' :
+                      formData.rewardType === 'ticket' ? '🎟️ Golden Ticket Tear' :
+                      formData.rewardType === 'scratch' ? '🎫 Scratch Card' : '🎰 Spin Wheel'
+                    }
+                  </h5>
+
+                  {/* 🎴 FLIP CARD CUSTOM FIELDS */}
+                  {(formData.rewardType || 'spinner') === 'flipcard' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Card Back Color Theme
+                        </label>
+                        <select
+                          value={formData.rewardCustomSettings?.flipCardTheme || 'gold'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              flipCardTheme: e.target.value as any
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="gold">👑 Golden Luxe (Classic Gold & Yellow)</option>
+                          <option value="cyber">⚡ Neon Cyber (Purple & Pink Glow)</option>
+                          <option value="blue">✈️ Royal Blue Pass (Ocean Cyan & Navy)</option>
+                          <option value="emerald">💎 Emerald VIP (Deep Teal & Emerald)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Card Back Text Label
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. CARD #1, LUCKY PASS"
+                          value={formData.rewardCustomSettings?.flipCardText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              flipCardText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🎁 GIFT BOX CUSTOM FIELDS */}
+                  {formData.rewardType === 'giftbox' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Gift Box Color Theme
+                        </label>
+                        <select
+                          value={formData.rewardCustomSettings?.giftBoxTheme || 'red_gold'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              giftBoxTheme: e.target.value as any
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        >
+                          <option value="red_gold">🎁 Red Box & Gold Ribbon (Festive)</option>
+                          <option value="blue_silver">🎀 Royal Blue & Silver Ribbon (Sleek)</option>
+                          <option value="emerald_gold">🍾 Emerald & Gold Ribbon (Luxury)</option>
+                          <option value="black_gold">⭐ Midnight Black & Gold (VIP)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Unboxing Instruction Text
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Untie the ribbon to unbox your voucher!"
+                          value={formData.rewardCustomSettings?.giftBoxInstructionText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              giftBoxInstructionText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🎟️ GOLDEN TICKET CUSTOM FIELDS */}
+                  {formData.rewardType === 'ticket' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Ticket Badge Header
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. TRAVELZADA VIP TICKET"
+                          value={formData.rewardCustomSettings?.ticketBadgeText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              ticketBadgeText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Ticket Metallic Theme
+                        </label>
+                        <select
+                          value={formData.rewardCustomSettings?.ticketTheme || 'gold'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              ticketTheme: e.target.value as any
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          <option value="gold">🏆 Classic Gold Foil</option>
+                          <option value="silver">🥈 Platinum Silver Foil</option>
+                          <option value="rosegold">🌹 Rose Gold Deluxe</option>
+                          <option value="emerald">💎 Emerald Deluxe</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Tear Strip Text
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. TAP TO TEAR PERFORATION"
+                          value={formData.rewardCustomSettings?.ticketTearText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              ticketTearText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🎫 SCRATCH CARD CUSTOM FIELDS */}
+                  {formData.rewardType === 'scratch' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Scratch Surface Pattern
+                        </label>
+                        <select
+                          value={formData.rewardCustomSettings?.scratchPattern || 'gold'}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              scratchPattern: e.target.value as any
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="gold">🌟 Golden Metallic Theme</option>
+                          <option value="silver">🪩 Silver Holographic Foil</option>
+                          <option value="diamond">💎 Diamond Purple Luxury</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Scratch Surface Prompt
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Swipe across to unlock voucher!"
+                          value={formData.rewardCustomSettings?.scratchInstructionText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              scratchInstructionText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🎰 SPIN WHEEL CUSTOM FIELDS */}
+                  {(formData.rewardType || 'spinner') === 'spinner' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Spin Button Label
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. SPIN NOW! / TRY YOUR LUCK!"
+                          value={formData.rewardCustomSettings?.spinnerText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              spinnerText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                          Wheel Hub Center Text (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. SPIN TO WIN"
+                          value={formData.rewardCustomSettings?.wheelCenterText || ''}
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            rewardCustomSettings: {
+                              ...formData.rewardCustomSettings,
+                              wheelCenterText: e.target.value
+                            }
+                          })}
+                          className="w-full px-3 py-1.5 bg-white border border-gray-300 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1658,7 +2031,12 @@ export default function VendorsSection({
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div>
                     <h4 className="text-sm font-bold text-purple-600 uppercase tracking-wider flex items-center gap-1.5">
-                      <Gift className="w-4 h-4" /> 3. {formData.rewardType === 'scratch' ? 'Scratch Card' : 'Spin Wheel'} Reward Offers ({(formData.rewards || DEFAULT_REWARDS).length} Offers)
+                      <Gift className="w-4 h-4" /> 3. {
+                        formData.rewardType === 'scratch' ? 'Scratch Card' :
+                        formData.rewardType === 'flipcard' ? 'Flip Card' :
+                        formData.rewardType === 'giftbox' ? 'Gift Box' :
+                        formData.rewardType === 'ticket' ? 'Golden Ticket' : 'Spin Wheel'
+                      } Reward Offers ({(formData.rewards || DEFAULT_REWARDS).length} Offers)
                     </h4>
                     <p className="text-xs text-gray-500">
                       Configure offer titles, promo codes & win weights. Higher weight = higher chance of winning (e.g. Weight 1 out of 1000 = 1 in 1000 times).
