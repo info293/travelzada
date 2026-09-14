@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Outfit, Playfair_Display } from 'next/font/google'
 import { Suspense } from 'react'
 import Script from 'next/script'
 import './globals.css'
@@ -7,7 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import GoogleAnalytics from '@/components/GoogleAnalytics'
 import HreflangTags from '@/components/HreflangTags'
 
-const inter = Inter({ subsets: ['latin'] })
+const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
@@ -50,7 +50,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} ${playfair.variable}`}>
+      <body className={`${outfit.className} ${outfit.variable} ${playfair.variable}`}>
         <GoogleAnalytics />
         <Script
           id="microsoft-clarity"

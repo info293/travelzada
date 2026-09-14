@@ -7,6 +7,11 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['var(--font-outfit)', '"Outfit"', 'sans-serif'],
+        display: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
+        serif: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
+      },
       colors: {
         primary: {
           DEFAULT: '#7c3aed',

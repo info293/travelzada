@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { collection, getDocs } from 'firebase/firestore'
@@ -80,7 +80,7 @@ function getImg(p: RawPkg): string {
 }
 
 function getStar(p: RawPkg): string {
-  return p.starCategory || p.Star_Category || ''
+  return p.starCategory || p.Star_Category || '4★ Luxury'
 }
 
 function getTravelType(p: RawPkg): string {
@@ -98,28 +98,13 @@ function isIndia(p: RawPkg): boolean {
   return INDIA_KEYWORDS.some(k => name.includes(k) || id.includes(k))
 }
 
-function getInclusions(p: RawPkg): string[] {
-  // Real inclusions array from new schema
-  if (p.inclusions && p.inclusions.length > 0) {
-    return p.inclusions.slice(0, 4)
-  }
-  // Fallback: derive from star category + travel type
-  const star = getStar(p)
-  const starLabel = star ? `${star} hotels` : '4★ hotels'
-  const extras = getTravelType(p).includes('honeymoon') ? 'Couple experiences' : 'Daily breakfast'
-  return [starLabel, 'Transfers', 'Sightseeing', extras]
-}
-
 function getItineraryLine(p: RawPkg): string {
-  // Best: build from hotels array (new schema)
   if (p.hotels && p.hotels.length > 0) {
     return p.hotels.map(h => `${h.destination} ${h.nights}N`).join(' · ')
   }
-  // Second: use first highlight
   if (p.highlights && p.highlights.length > 0) {
     return p.highlights[0]
   }
-  // Fallback: name-based city mapping
   const n = getName(p).toLowerCase()
   if (n.includes('kashmir'))  return 'Srinagar 3N · Gulmarg 2N · Pahalgam 1N'
   if (n.includes('kerala') || n.includes('alleppey') || n.includes('munnar'))
@@ -145,22 +130,31 @@ function formatINR(n: number): string {
 
 function SkeletonCard() {
   return (
-    <div className="flex-none w-[78vw] sm:w-auto snap-start">
-      <div style={{ borderRadius: 10, height: 280, background: '#e9e5dd' }} />
-      <div style={{ paddingTop: 20 }}>
-        <div style={{ height: 28, background: '#e9e5dd', borderRadius: 4, width: '70%', marginBottom: 8 }} />
-        <div style={{ height: 14, background: '#e9e5dd', borderRadius: 4, width: '90%', marginBottom: 6 }} />
-        <div style={{ height: 14, background: '#e9e5dd', borderRadius: 4, width: '80%' }} />
+    <div className="w-[320px] sm:w-[350px] bg-white rounded-[28px] p-4 shadow-md flex-none animate-pulse">
+      <div className="rounded-[22px] h-[220px] bg-slate-200 mb-4" />
+      <div className="h-6 bg-slate-200 rounded w-3/4 mb-3" />
+      <div className="h-4 bg-slate-200 rounded w-1/2 mb-4" />
+      <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 mb-4">
+        <div className="h-8 bg-slate-100 rounded" />
+        <div className="h-8 bg-slate-100 rounded" />
+        <div className="h-8 bg-slate-100 rounded" />
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="h-8 bg-slate-200 rounded w-1/3" />
+        <div className="w-10 h-10 rounded-full bg-slate-200" />
       </div>
     </div>
   )
 }
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function IndiaHoneymoonPackages() {
   const [packages, setPackages] = useState<RawPkg[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isHovered, setIsHovered] = useState(false)
+  const touchStartX = useRef<number | null>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -170,7 +164,6 @@ export default function IndiaHoneymoonPackages() {
 
         snap.forEach((doc) => {
           const data = doc.data() as Omit<RawPkg, 'id' | '_slug' | '_packageId'>
-          // Skip explicitly inactive packages
           if (data.isActive === false) return
           const pkg: RawPkg = {
             ...data,
@@ -181,10 +174,13 @@ export default function IndiaHoneymoonPackages() {
           if (isIndia(pkg)) all.push(pkg)
         })
 
-        // Honeymoon-tagged first, then fill up to 6
         const honey = all.filter(p => getOccasion(p).includes('honeymoon'))
         const rest  = all.filter(p => !getOccasion(p).includes('honeymoon'))
-        setPackages([...honey, ...rest].slice(0, 6))
+        const finalPkgs = [...honey, ...rest].slice(0, 6)
+        setPackages(finalPkgs)
+        if (finalPkgs.length > 0) {
+          setActiveIndex(Math.floor(finalPkgs.length / 2))
+        }
       } catch (e) {
         console.error('IndiaHoneymoonPackages:', e)
       } finally {
@@ -193,169 +189,323 @@ export default function IndiaHoneymoonPackages() {
     })()
   }, [])
 
+  const nextSlide = useCallback(() => {
+    if (packages.length === 0) return
+    setActiveIndex(prev => (prev + 1) % packages.length)
+  }, [packages.length])
+
+  const prevSlide = useCallback(() => {
+    if (packages.length === 0) return
+    setActiveIndex(prev => (prev - 1 + packages.length) % packages.length)
+  }, [packages.length])
+
+  // Autoplay effect
+  useEffect(() => {
+    if (loading || packages.length === 0 || isHovered) return
+    const timer = setInterval(() => {
+      nextSlide()
+    }, 3800)
+    return () => clearInterval(timer)
+  }, [loading, packages.length, isHovered, nextSlide])
+
+  // Relative 3D offset calculation with circular looping
+  const getOffset = (index: number) => {
+    const total = packages.length
+    if (total === 0) return 0
+    let diff = (index - activeIndex) % total
+    if (diff < -Math.floor(total / 2)) diff += total
+    if (diff > Math.floor(total / 2)) diff -= total
+    return diff
+  }
+
+  // Touch Swipe Handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return
+    const diffX = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) nextSlide()
+      else prevSlide()
+    }
+    touchStartX.current = null
+  }
+
   return (
-    <section style={{ background: '#faf8f5', padding: '96px 24px' }}>
-      <div className="max-w-6xl mx-auto">
+    <section className="relative overflow-hidden bg-[#fbf9f6] py-10 sm:py-14 px-4 sm:px-8 select-none">
+      {/* Background ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-amber-100/40 via-purple-100/30 to-indigo-100/40 blur-3xl pointer-events-none rounded-full" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
 
         {/* ── Header ── */}
-        <div className="text-center mb-14">
-          <div className="text-xs font-bold tracking-[0.22em] uppercase mb-5" style={{ color: '#a08a6a' }}>
+        <div className="text-center mb-2 sm:mb-3 max-w-3xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 text-amber-800 text-xs font-bold tracking-[0.2em] uppercase mb-2 border border-amber-500/20">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+            </svg>
             Incredible India
           </div>
-          <h2
-            style={{
-              margin: '0 auto 20px',
-              fontSize: 'clamp(22px, 3.4vw, 46px)',
-              fontFamily: 'var(--font-playfair), "Playfair Display", serif',
-              fontWeight: 700,
-              letterSpacing: '-0.015em',
-              color: '#1a1a24',
-              lineHeight: 1.15,
-            }}
-          >
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-2 leading-tight">
             Best Honeymoon Tour Packages in India
           </h2>
-          <p style={{ margin: '0 auto 12px', fontSize: 16, color: '#6b6b76', lineHeight: 1.8, maxWidth: 620, textAlign: 'center' }}>
-            Every couple deserves a honeymoon that feels like a dream. From houseboat sunsets in Kerala to snow-dusted mornings in Kashmir — each package includes a personalized day-by-day itinerary, handpicked couple-friendly hotels, all transfers, and your own dedicated travel planner on WhatsApp.
+          <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-1 max-w-2xl mx-auto">
+            Every couple deserves a honeymoon that feels like a dream. From houseboat sunsets in Kerala to snow-dusted mornings in Kashmir — each package includes handpicked stays & dedicated WhatsApp support.
           </p>
-          <p style={{ margin: 0, fontSize: 13, color: '#a08a6a', fontStyle: 'italic', textAlign: 'center' }}>
-            Showing packages across all budgets — visit the packages page to filter.
+          <p className="text-xs font-semibold text-amber-700/80 italic">
+            Showing packages across all budgets — click any card to explore itinerary.
           </p>
         </div>
 
-        {/* ── Grid ── */}
-        <div className="flex sm:grid overflow-x-auto sm:overflow-x-visible sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 pb-4 sm:pb-0 snap-x snap-mandatory sm:snap-none" style={{ scrollbarWidth: 'none' }}>
-          {loading
-            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
-            : packages.map((pkg, i) => {
-                const badge    = BADGES[i % 3]
-                const rating   = RATINGS[i % RATINGS.length]
-                const reviews  = REVIEWS[i % REVIEWS.length]
+        {/* ── 3D Coverflow Container ── */}
+        {loading ? (
+          <div className="flex justify-center gap-6 overflow-hidden py-4">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : (
+          <div
+            className="relative h-[440px] sm:h-[460px] flex items-start justify-center mt-2 mb-2 perspective-[1200px]"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
+            {/* Cards Stage */}
+            <div className="relative w-full max-w-6xl h-full flex items-start justify-center">
+              {packages.map((pkg, i) => {
+                const offset = getOffset(i)
+                const isCenter = offset === 0
+                const badge = BADGES[i % BADGES.length]
+                const rating = RATINGS[i % RATINGS.length]
+                const reviews = REVIEWS[i % REVIEWS.length]
                 const discount = DISCOUNTS[i % DISCOUNTS.length]
-                const price    = getPrice(pkg)
+                const price = getPrice(pkg)
                 const original = price ? Math.round(price / (1 - discount / 100) / 100) * 100 : 0
-                const name     = getName(pkg)
+                const name = getName(pkg)
                 const duration = getDuration(pkg)
-                const imgUrl   = getImg(pkg)
+                const imgUrl = getImg(pkg)
                 const itinLine = getItineraryLine(pkg)
-                const incl     = getInclusions(pkg)
+                const starCat = getStar(pkg)
+
+                // 3D positioning styles
+                let transformStyle = ''
+                let zIndex = 0
+                let opacity = 0
+                let filter = 'none'
+
+                if (offset === 0) {
+                  transformStyle = 'translateX(0px) scale(1.02) translateZ(0px) rotateY(0deg)'
+                  zIndex = 30
+                  opacity = 1
+                } else if (offset === 1) {
+                  transformStyle = 'translateX(clamp(160px, 32vw, 320px)) scale(0.85) translateZ(-80px) rotateY(-14deg)'
+                  zIndex = 20
+                  opacity = 0.8
+                  filter = 'brightness(0.9) contrast(0.95)'
+                } else if (offset === -1) {
+                  transformStyle = 'translateX(clamp(-320px, -32vw, -160px)) scale(0.85) translateZ(-80px) rotateY(14deg)'
+                  zIndex = 20
+                  opacity = 0.8
+                  filter = 'brightness(0.9) contrast(0.95)'
+                } else if (offset === 2) {
+                  transformStyle = 'translateX(clamp(280px, 58vw, 560px)) scale(0.7) translateZ(-160px) rotateY(-24deg)'
+                  zIndex = 10
+                  opacity = 0.45
+                  filter = 'brightness(0.75) contrast(0.9)'
+                } else if (offset === -2) {
+                  transformStyle = 'translateX(clamp(-560px, -58vw, -280px)) scale(0.7) translateZ(-160px) rotateY(24deg)'
+                  zIndex = 10
+                  opacity = 0.45
+                  filter = 'brightness(0.75) contrast(0.9)'
+                } else {
+                  transformStyle = `translateX(${offset > 0 ? 700 : -700}px) scale(0.5)`
+                  zIndex = 0
+                  opacity = 0
+                }
 
                 return (
-                  <Link
+                  <div
                     key={pkg.id}
-                    href={`/destinations/${encodeURIComponent(pkg._slug)}/${encodeURIComponent(pkg._packageId)}`}
-                    className="group block flex-none w-[78vw] sm:w-auto snap-start"
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    onClick={() => {
+                      if (!isCenter) setActiveIndex(i)
+                    }}
+                    className="absolute top-2 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] cursor-pointer"
+                    style={{
+                      transform: transformStyle,
+                      zIndex,
+                      opacity,
+                      filter,
+                      pointerEvents: Math.abs(offset) <= 2 ? 'auto' : 'none',
+                    }}
                   >
-                    {/* Image */}
-                    <div className="relative overflow-hidden" style={{ borderRadius: 10, height: 280 }}>
-                      <Image
-                        src={imgUrl}
-                        alt={name}
-                        fill
-                        sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,33vw"
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div
-                        className="absolute inset-0"
-                        style={{ background: 'linear-gradient(to top, rgba(10,9,16,.65) 0%, rgba(10,9,16,.15) 45%, transparent 70%)' }}
-                      />
+                    <div
+                      className={`w-[300px] sm:w-[340px] bg-white rounded-[28px] overflow-hidden border border-slate-100 transition-all duration-500 group ${
+                        isCenter
+                          ? 'shadow-[0_20px_50px_-12px_rgba(0,0,0,0.18),0_0_25px_rgba(124,58,237,0.08)] ring-1 ring-slate-900/5'
+                          : 'shadow-lg hover:shadow-xl'
+                      }`}
+                    >
+                      {/* Top Image Card */}
+                      <div className="relative h-[180px] sm:h-[195px] w-full overflow-hidden">
+                        <Image
+                          src={imgUrl}
+                          alt={name}
+                          fill
+                          sizes="350px"
+                          className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
 
-                      {/* Badge — white bg, dark text, rectangular */}
-                      <span
-                        className="absolute top-3.5 left-3.5 text-xs font-black px-3 py-1.5"
-                        style={{ background: '#fff', color: '#1a1a24', borderRadius: 4, letterSpacing: '0.1em' }}
-                      >
-                        {badge}
-                      </span>
+                        {/* Top Left Badge */}
+                        <div className="absolute top-4 left-4 z-10 px-3.5 py-1.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-white/95 backdrop-blur-md text-slate-900 shadow-md">
+                          {badge}
+                        </div>
 
-                      {/* Bottom: duration left · rating right */}
-                      <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4 pb-4">
-                        {duration && (
-                          <div className="flex items-center gap-1.5">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
-                            </svg>
-                            <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>{duration}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1.5">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b">
+                        {/* Top Right Rating */}
+                        <div className="absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-950/75 backdrop-blur-md text-white flex items-center gap-1 border border-white/10">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
                           </svg>
-                          <span style={{ color: '#fff', fontSize: 13, fontWeight: 700 }}>{rating}</span>
-                          <span style={{ color: 'rgba(255,255,255,.65)', fontSize: 12 }}>· {reviews}</span>
+                          <span>{rating}</span>
+                          <span className="text-white/60 font-normal text-[11px]">({reviews})</span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Card body */}
-                    <div className="pt-5 pb-2">
-                      <h3
-                        className="line-clamp-1 group-hover:text-indigo-700 transition-colors"
-                        style={{
-                          fontFamily: 'var(--font-playfair), "Playfair Display", serif',
-                          fontSize: 'clamp(18px, 5vw, 24px)',
-                          fontWeight: 700,
-                          color: '#1a1a24',
-                          margin: '0 0 6px',
-                        }}
-                      >
-                        {name}
-                      </h3>
-
-                      {/* Itinerary / city breakdown */}
-                      <p className="line-clamp-1" style={{ margin: '0 0 10px', fontSize: 13.5, color: '#9a9aa5' }}>
-                        {itinLine}
-                      </p>
-
-                      {/* Inclusions — real data or fallback */}
-                      <p className="line-clamp-1" style={{ margin: '0 0 16px', fontSize: 13, color: '#6b6b76' }}>
-                        {incl.join(' · ')}
-                      </p>
-
-                      {/* Price */}
-                      <div className="flex items-end justify-between pt-4" style={{ borderTop: '1px solid #e9e5dd' }}>
+                      {/* Content Section */}
+                      <div className="p-5 sm:p-6 flex flex-col justify-between">
+                        {/* Title */}
                         <div>
-                          {price ? (
-                            <>
-                              <div style={{ fontFamily: 'var(--font-playfair), "Playfair Display", serif', fontSize: 22, fontWeight: 700, color: '#1a1a24', lineHeight: 1 }}>
-                                {formatINR(price)}
-                              </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span style={{ fontSize: 13, color: '#9a9aa5', textDecoration: 'line-through' }}>{formatINR(original)}</span>
-                                <span style={{ fontSize: 11, color: '#059669', fontWeight: 700 }}>save {discount}%</span>
-                              </div>
-                              <div style={{ fontSize: 11, color: '#9a9aa5', marginTop: 2 }}>per person</div>
-                            </>
-                          ) : (
-                            <span style={{ fontSize: 15, color: '#6b6b76', fontWeight: 600 }}>On Request</span>
-                          )}
+                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-indigo-600 transition-colors font-display">
+                            {name}
+                          </h3>
+
+                          {/* Location Pin & Cities */}
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mt-1 line-clamp-1">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                              <circle cx="12" cy="10" r="3" />
+                            </svg>
+                            <span className="line-clamp-1">{itinLine}</span>
+                          </div>
+
+                          {/* Overview snippet */}
+                          <p className="text-xs text-slate-500 mt-2.5 line-clamp-2 leading-relaxed font-normal">
+                            Personalized romantic itinerary with curated luxury stays, couple transfers, & handpicked sightseeing experiences.
+                          </p>
                         </div>
-                        <span className="flex items-center gap-1 text-sm font-bold" style={{ color: '#4f46e5' }}>
-                          View itinerary
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                          </svg>
-                        </span>
+
+                        {/* Stat Metrics Grid (Reference Image Style) */}
+                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-slate-100 text-center bg-slate-50/70 p-2.5 rounded-2xl">
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Duration</div>
+                            <div className="text-xs font-extrabold text-sky-600 mt-0.5">{duration || '5N · 6D'}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Rating</div>
+                            <div className="text-xs font-extrabold text-amber-600 mt-0.5">{rating} / 5</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hotel</div>
+                            <div className="text-xs font-extrabold text-indigo-600 mt-0.5 line-clamp-1">{starCat}</div>
+                          </div>
+                        </div>
+
+                        {/* Bottom Price & Circular Action Button */}
+                        <div className="flex items-end justify-between mt-5 pt-3.5 border-t border-slate-100">
+                          <div>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              {original > 0 && (
+                                <span className="text-xs text-slate-400 line-through font-medium">
+                                  {formatINR(original)}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                                save {discount}%
+                              </span>
+                            </div>
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+                                {price ? formatINR(price) : 'On Request'}
+                              </span>
+                              {price > 0 && <span className="text-[11px] text-slate-400 font-medium">/ person</span>}
+                            </div>
+                          </div>
+
+                          {/* Round Floating Action Button */}
+                          <Link
+                            href={`/destinations/${encodeURIComponent(pkg._slug)}/${encodeURIComponent(pkg._packageId)}`}
+                            className="w-11 h-11 rounded-full bg-slate-900 group-hover:bg-indigo-600 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform group-hover:scale-110 shrink-0"
+                            aria-label={`View ${name} itinerary`}
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="5" y1="12" x2="19" y2="12" />
+                              <polyline points="12 5 19 12 12 19" />
+                            </svg>
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 )
               })}
-        </div>
+            </div>
 
-        {/* ── View all CTA ── */}
+            {/* Navigation Arrow Buttons */}
+            <button
+              onClick={prevSlide}
+              aria-label="Previous Package"
+              className="absolute left-2 sm:left-6 top-[200px] -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/90 backdrop-blur-md shadow-xl border border-slate-200/80 text-slate-800 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+
+            <button
+              onClick={nextSlide}
+              aria-label="Next Package"
+              className="absolute right-2 sm:right-6 top-[200px] -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/90 backdrop-blur-md shadow-xl border border-slate-200/80 text-slate-800 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* ── Indicator Dots ── */}
         {!loading && packages.length > 0 && (
-          <div className="text-center mt-14">
+          <div className="flex items-center justify-center gap-2.5 mt-8">
+            {packages.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveIndex(idx)}
+                aria-label={`Go to slide ${idx + 1}`}
+                className={`transition-all duration-500 rounded-full ${
+                  activeIndex === idx
+                    ? 'w-8 h-2.5 bg-indigo-600 shadow-md shadow-indigo-600/30'
+                    : 'w-2.5 h-2.5 bg-slate-300 hover:bg-slate-400'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── View All Packages CTA ── */}
+        {!loading && packages.length > 0 && (
+          <div className="text-center mt-12">
             <Link
               href="/packages?type=honeymoon"
-              className="inline-flex items-center gap-2 text-base font-bold"
-              style={{ color: '#4f46e5', textDecoration: 'none' }}
+              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-slate-900 text-white font-bold text-sm hover:bg-indigo-600 transition-all duration-300 shadow-lg hover:shadow-indigo-500/25 transform hover:-translate-y-0.5"
             >
               View all 50+ India honeymoon packages
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
               </svg>
             </Link>
           </div>
@@ -365,3 +515,4 @@ export default function IndiaHoneymoonPackages() {
     </section>
   )
 }
+

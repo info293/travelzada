@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getDestinationSlugFromPackage, getPackageIdFromPackage } from '@/lib/destinationSlugMapper'
 
 interface FirestorePackage {
@@ -18,6 +19,18 @@ interface FirestorePackage {
 
 const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80'
 
+function getImageUrl(url: string | undefined): string {
+    if (!url) return FALLBACK_IMAGE
+    return url.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
+}
+
+function formatPrice(priceRange: string | number | undefined): string {
+    if (!priceRange) return 'On Request'
+    const clean = String(priceRange).split('-')[0].replace(/,/g, '')
+    const match = clean.match(/(\d+)/)
+    return match ? `₹${parseInt(match[1]).toLocaleString('en-IN')}` : String(priceRange)
+}
+
 export default function OccasionSectionClient({
     occasion,
     packages,
@@ -27,158 +40,293 @@ export default function OccasionSectionClient({
     packages: FirestorePackage[]
     index: number
 }) {
-    const scrollContainerRef = useRef<HTMLDivElement>(null)
+    const [activeIndex, setActiveIndex] = useState(0)
     const [isHovered, setIsHovered] = useState(false)
-
-    const getImageUrl = (url: string | undefined) =>
-        url ? url.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim() : FALLBACK_IMAGE
-
-    const formatPrice = (priceRange: string | number | undefined): string => {
-        if (!priceRange) return 'Contact us'
-        const clean = String(priceRange).split('-')[0].replace(/,/g, '')
-        const match = clean.match(/(\d+)/)
-        return match ? `₹${parseInt(match[1]).toLocaleString('en-IN')}` : String(priceRange)
-    }
+    const touchStartX = useRef<number | null>(null)
 
     useEffect(() => {
-        let id: NodeJS.Timeout
-        if (!isHovered && packages.length > 0) {
-            id = setInterval(() => {
-                const c = scrollContainerRef.current
-                if (!c) return
-                if (c.scrollLeft + c.clientWidth >= c.scrollWidth - 10) {
-                    c.scrollTo({ left: 0, behavior: 'smooth' })
-                } else {
-                    c.scrollBy({ left: 300, behavior: 'smooth' })
-                }
-            }, 4000)
+        if (packages.length > 0) {
+            setActiveIndex(Math.floor(packages.length / 2))
         }
-        return () => { if (id) clearInterval(id) }
-    }, [isHovered, packages.length])
+    }, [packages.length])
 
-    const scroll = (dir: 'left' | 'right') => {
-        scrollContainerRef.current?.scrollBy({ left: dir === 'left' ? -300 : 300, behavior: 'smooth' })
+    const nextSlide = useCallback(() => {
+        if (packages.length === 0) return
+        setActiveIndex(prev => (prev + 1) % packages.length)
+    }, [packages.length])
+
+    const prevSlide = useCallback(() => {
+        if (packages.length === 0) return
+        setActiveIndex(prev => (prev - 1 + packages.length) % packages.length)
+    }, [packages.length])
+
+    // Autoplay effect
+    useEffect(() => {
+        if (packages.length === 0 || isHovered) return
+        const timer = setInterval(() => {
+            nextSlide()
+        }, 3800)
+        return () => clearInterval(timer)
+    }, [packages.length, isHovered, nextSlide])
+
+    const getOffset = (idx: number) => {
+        const total = packages.length
+        if (total === 0) return 0
+        let diff = (idx - activeIndex) % total
+        if (diff < -Math.floor(total / 2)) diff += total
+        if (diff > Math.floor(total / 2)) diff -= total
+        return diff
     }
 
-    const bgClass = index % 2 !== 0 ? 'bg-gray-50/60' : 'bg-white'
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX
+    }
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (touchStartX.current === null) return
+        const diffX = touchStartX.current - e.changedTouches[0].clientX
+        if (Math.abs(diffX) > 40) {
+            if (diffX > 0) nextSlide()
+            else prevSlide()
+        }
+        touchStartX.current = null
+    }
+
+    const bgClass = index % 2 !== 0 ? 'bg-[#faf8f5]' : 'bg-white'
+
+    if (!packages || packages.length === 0) return null
 
     return (
         <section
-            className={`py-14 px-4 md:px-8 lg:px-12 relative overflow-hidden ${bgClass}`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            className={`relative overflow-hidden ${bgClass} py-10 sm:py-14 px-4 sm:px-8 select-none`}
         >
-            <div className="max-w-7xl mx-auto">
+            {/* Background ambient glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[450px] bg-gradient-to-tr from-pink-100/30 via-purple-100/30 to-amber-100/30 blur-3xl pointer-events-none rounded-full" />
 
-                {/* Section header */}
-                <div className="flex items-end justify-between mb-8 px-1">
-                    <div>
-                        <p className="font-serif italic text-primary text-base mb-1">Curated Collection</p>
-                        <h2 className="text-2xl md:text-3xl font-bold text-ink leading-tight">
-                            {occasion} Specials
-                        </h2>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Explore our exclusive {occasion.toLowerCase()} packages
-                        </p>
+            <div className="max-w-7xl mx-auto relative z-10">
+
+                {/* ── Header ── */}
+                <div className="text-center mb-2 sm:mb-3 max-w-3xl mx-auto">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/10 text-pink-800 text-xs font-bold tracking-[0.2em] uppercase mb-2 border border-pink-500/20">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="currentColor"/>
+                        </svg>
+                        Curated Collection
+                    </div>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-2 leading-tight">
+                        {occasion} Specials
+                    </h2>
+                    <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-1 max-w-2xl mx-auto">
+                        Explore our exclusive handpicked {occasion.toLowerCase()} trip packages designed for couples.
+                    </p>
+                </div>
+
+                {/* ── 3D Coverflow Container ── */}
+                <div
+                    className="relative h-[440px] sm:h-[460px] flex items-start justify-center mt-2 mb-2 perspective-[1200px]"
+                    onMouseEnter={() => setIsHovered(true)}
+                    onMouseLeave={() => setIsHovered(false)}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    {/* Cards Stage */}
+                    <div className="relative w-full max-w-6xl h-full flex items-start justify-center">
+                        {packages.map((pkg, i) => {
+                            const offset = getOffset(i)
+                            const isCenter = offset === 0
+                            const imageUrl = getImageUrl(pkg.Primary_Image_URL)
+                            const destinationSlug = getDestinationSlugFromPackage(pkg)
+                            const packageId = getPackageIdFromPackage(pkg)
+                            const badge = pkg.Travel_Type || pkg.Star_Category || 'Couple Special'
+                            const priceText = formatPrice(pkg.Price_Range_INR)
+
+                            // 3D positioning styles
+                            let transformStyle = ''
+                            let zIndex = 0
+                            let opacity = 0
+                            let filter = 'none'
+
+                            if (offset === 0) {
+                                transformStyle = 'translateX(0px) scale(1.02) translateZ(0px) rotateY(0deg)'
+                                zIndex = 30
+                                opacity = 1
+                            } else if (offset === 1) {
+                                transformStyle = 'translateX(clamp(160px, 32vw, 320px)) scale(0.85) translateZ(-80px) rotateY(-14deg)'
+                                zIndex = 20
+                                opacity = 0.8
+                                filter = 'brightness(0.9) contrast(0.95)'
+                            } else if (offset === -1) {
+                                transformStyle = 'translateX(clamp(-320px, -32vw, -160px)) scale(0.85) translateZ(-80px) rotateY(14deg)'
+                                zIndex = 20
+                                opacity = 0.8
+                                filter = 'brightness(0.9) contrast(0.95)'
+                            } else if (offset === 2) {
+                                transformStyle = 'translateX(clamp(280px, 58vw, 560px)) scale(0.7) translateZ(-160px) rotateY(-24deg)'
+                                zIndex = 10
+                                opacity = 0.45
+                                filter = 'brightness(0.75) contrast(0.9)'
+                            } else if (offset === -2) {
+                                transformStyle = 'translateX(clamp(-560px, -58vw, -280px)) scale(0.7) translateZ(-160px) rotateY(24deg)'
+                                zIndex = 10
+                                opacity = 0.45
+                                filter = 'brightness(0.75) contrast(0.9)'
+                            } else {
+                                transformStyle = `translateX(${offset > 0 ? 700 : -700}px) scale(0.5)`
+                                zIndex = 0
+                                opacity = 0
+                            }
+
+                            return (
+                                <div
+                                    key={pkg.id || `${packageId}-${i}`}
+                                    onClick={() => {
+                                        if (!isCenter) setActiveIndex(i)
+                                    }}
+                                    className="absolute top-2 transition-all duration-700 ease-[cubic-bezier(0.25,1,0.5,1)] cursor-pointer"
+                                    style={{
+                                        transform: transformStyle,
+                                        zIndex,
+                                        opacity,
+                                        filter,
+                                        pointerEvents: Math.abs(offset) <= 2 ? 'auto' : 'none',
+                                    }}
+                                >
+                                    <div
+                                        className={`w-[300px] sm:w-[340px] bg-white rounded-[28px] overflow-hidden border border-slate-100 transition-all duration-500 group ${
+                                            isCenter
+                                                ? 'shadow-[0_20px_50px_-12px_rgba(0,0,0,0.18),0_0_25px_rgba(219,39,119,0.1)] ring-1 ring-slate-900/5'
+                                                : 'shadow-lg hover:shadow-xl'
+                                        }`}
+                                    >
+                                        {/* Top Image Card */}
+                                        <div className="relative h-[180px] sm:h-[195px] w-full overflow-hidden">
+                                            <Image
+                                                src={imageUrl}
+                                                alt={pkg.Destination_Name}
+                                                fill
+                                                sizes="350px"
+                                                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
+
+                                            {/* Top Left Badge */}
+                                            <div className="absolute top-3.5 left-3.5 z-10 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-white/95 backdrop-blur-md text-slate-900 shadow-md">
+                                                {badge}
+                                            </div>
+
+                                            {/* Top Right Duration */}
+                                            {pkg.Duration && (
+                                                <div className="absolute top-3.5 right-3.5 z-10 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase bg-slate-950/75 backdrop-blur-md text-white shadow-md border border-white/10">
+                                                    {pkg.Duration}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Content Section */}
+                                        <div className="p-5 sm:p-6 flex flex-col justify-between">
+                                            {/* Title */}
+                                            <div>
+                                                <div className="inline-block bg-pink-50 text-pink-700 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full mb-1.5 border border-pink-200/60">
+                                                    {occasion}
+                                                </div>
+                                                <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-pink-600 transition-colors font-display">
+                                                    {pkg.Destination_Name}
+                                                </h3>
+                                                <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed font-normal">
+                                                    Exclusive couple getaway package with handpicked luxury stays, transfers & romantic setups.
+                                                </p>
+                                            </div>
+
+                                            {/* Stat Metrics Grid */}
+                                            <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-slate-100 text-center bg-slate-50/70 p-2.5 rounded-2xl">
+                                                <div>
+                                                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Duration</div>
+                                                    <div className="text-xs font-extrabold text-sky-600 mt-0.5 line-clamp-1">{pkg.Duration || 'Custom'}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Occasion</div>
+                                                    <div className="text-xs font-extrabold text-pink-600 mt-0.5 line-clamp-1">{occasion}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Category</div>
+                                                    <div className="text-xs font-extrabold text-indigo-600 mt-0.5 line-clamp-1">{pkg.Star_Category || '4★ Luxury'}</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Bottom Price & Circular Action Button */}
+                                            <div className="flex items-end justify-between mt-4 pt-3 border-t border-slate-100">
+                                                <div>
+                                                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium block">Starting from</span>
+                                                    <span className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+                                                        {priceText}
+                                                    </span>
+                                                </div>
+
+                                                {/* Round Floating Action Button */}
+                                                <Link
+                                                    href={`/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageId)}`}
+                                                    className="w-11 h-11 rounded-full bg-slate-900 group-hover:bg-pink-600 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform group-hover:scale-110 shrink-0"
+                                                    aria-label={`View ${pkg.Destination_Name} details`}
+                                                >
+                                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                                        <polyline points="12 5 19 12 12 19" />
+                                                    </svg>
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
 
-                    {/* Nav arrows */}
-                    {packages.length > 3 && (
-                        <div className="hidden md:flex gap-2 mb-1">
+                    {/* Navigation Arrow Buttons */}
+                    {packages.length > 1 && (
+                        <>
                             <button
-                                onClick={() => scroll('left')}
-                                className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:border-primary hover:text-primary transition-all shadow-sm"
-                                aria-label="Previous"
+                                onClick={prevSlide}
+                                aria-label="Previous Package"
+                                className="absolute left-2 sm:left-6 top-[200px] -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/90 backdrop-blur-md shadow-xl border border-slate-200/80 text-slate-800 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 18 9 12 15 6" />
                                 </svg>
                             </button>
+
                             <button
-                                onClick={() => scroll('right')}
-                                className="w-9 h-9 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:border-primary hover:text-primary transition-all shadow-sm"
-                                aria-label="Next"
+                                onClick={nextSlide}
+                                aria-label="Next Package"
+                                className="absolute right-2 sm:right-6 top-[200px] -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-white/90 backdrop-blur-md shadow-xl border border-slate-200/80 text-slate-800 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-all duration-300 transform hover:scale-110 active:scale-95"
                             >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="9 18 15 12 9 6" />
                                 </svg>
                             </button>
-                        </div>
+                        </>
                     )}
                 </div>
 
-                {/* Cards */}
-                <div
-                    ref={scrollContainerRef}
-                    className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory"
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                    {packages.map((pkg) => {
-                        const imageUrl = getImageUrl(pkg.Primary_Image_URL)
-                        const destinationSlug = getDestinationSlugFromPackage(pkg)
-                        const packageId = getPackageIdFromPackage(pkg)
-                        const badge = pkg.Travel_Type || pkg.Star_Category
-
-                        return (
-                            <Link
-                                key={pkg.id || packageId}
-                                href={`/destinations/${encodeURIComponent(destinationSlug)}/${encodeURIComponent(packageId)}`}
-                                className="flex-shrink-0 w-[255px] md:w-[275px] h-[330px] rounded-2xl overflow-hidden relative group shadow-md hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 snap-center block"
-                            >
-                                {/* Full-bleed image */}
-                                <img
-                                    src={imageUrl}
-                                    alt={pkg.Destination_Name}
-                                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = FALLBACK_IMAGE }}
-                                />
-
-                                {/* Gradient overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-
-                                {/* Top badges */}
-                                <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
-                                    {badge && (
-                                        <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-semibold px-2.5 py-1 rounded-full border border-white/25 leading-none">
-                                            {badge}
-                                        </span>
-                                    )}
-                                    {pkg.Duration && (
-                                        <span className="ml-auto bg-black/30 backdrop-blur-md text-white/90 text-[10px] font-medium px-2.5 py-1 rounded-full leading-none whitespace-nowrap">
-                                            {pkg.Duration}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Bottom info */}
-                                <div className="absolute inset-x-0 bottom-0 p-4">
-                                    {/* Occasion pill */}
-                                    <span className="inline-block bg-primary/80 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mb-2">
-                                        {occasion}
-                                    </span>
-
-                                    {/* Name */}
-                                    <h3 className="text-white font-bold text-base leading-tight mb-3 line-clamp-2 group-hover:text-purple-200 transition-colors">
-                                        {pkg.Destination_Name}
-                                    </h3>
-
-                                    {/* Price + CTA */}
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white text-[9px] uppercase tracking-widest font-medium">Starting from</p>
-                                            <p className="text-white font-bold text-sm leading-tight">{formatPrice(pkg.Price_Range_INR)}</p>
-                                        </div>
-                                        <span className="bg-white text-primary text-[11px] font-bold px-3.5 py-1.5 rounded-full group-hover:bg-primary group-hover:text-white transition-colors shadow-md whitespace-nowrap">
-                                            View Details
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
-                        )
-                    })}
-                </div>
+                {/* ── Indicator Dots ── */}
+                {packages.length > 1 && (
+                    <div className="flex items-center justify-center gap-2.5 mt-8">
+                        {packages.map((_, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => setActiveIndex(idx)}
+                                aria-label={`Go to slide ${idx + 1}`}
+                                className={`transition-all duration-500 rounded-full ${
+                                    activeIndex === idx
+                                        ? 'w-8 h-2.5 bg-pink-600 shadow-md shadow-pink-600/30'
+                                        : 'w-2.5 h-2.5 bg-slate-300 hover:bg-slate-400'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                )}
 
             </div>
         </section>
     )
 }
+
