@@ -357,14 +357,14 @@ export default function InternationalPackages() {
                     }}
                   >
                     <div
-                      className={`w-[300px] sm:w-[340px] bg-white rounded-[28px] overflow-hidden border border-slate-100 transition-all duration-500 group ${
+                      className={`w-[300px] sm:w-[340px] bg-white rounded-3xl overflow-hidden border border-slate-200/80 transition-all duration-500 group ${
                         isCenter
-                          ? 'shadow-[0_20px_50px_-12px_rgba(0,0,0,0.18),0_0_25px_rgba(14,165,233,0.1)] ring-1 ring-slate-900/5'
-                          : 'shadow-lg hover:shadow-xl'
+                          ? 'shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] ring-1 ring-slate-900/5'
+                          : 'shadow-md hover:shadow-xl'
                       }`}
                     >
                       {/* Top Image Card */}
-                      <div className="relative h-[180px] sm:h-[195px] w-full overflow-hidden">
+                      <div className="relative h-[185px] sm:h-[200px] w-full overflow-hidden">
                         <Image
                           src={imgUrl}
                           alt={name}
@@ -372,20 +372,20 @@ export default function InternationalPackages() {
                           sizes="350px"
                           className="object-cover transition-transform duration-700 group-hover:scale-105"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
 
                         {/* Top Left Type Badge */}
-                        <div className="absolute top-3.5 left-3.5 z-10 px-3 py-1 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-white/95 backdrop-blur-md text-slate-900 shadow-md">
+                        <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-900/90 text-white backdrop-blur-md shadow-sm border border-white/10">
                           {typeBadge}
                         </div>
 
                         {/* Top Right Visa Badge */}
-                        <div className={`absolute top-3.5 right-3.5 z-10 px-2.5 py-1 rounded-full text-[10px] font-black tracking-wider uppercase text-white shadow-md ${visaBadge.bg}`}>
+                        <div className="absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase bg-slate-950/80 backdrop-blur-md text-white shadow-sm border border-white/15">
                           {visaBadge.label}
                         </div>
 
                         {/* Rating Overlay */}
-                        <div className="absolute bottom-3 right-3 z-10 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-950/75 backdrop-blur-md text-white flex items-center gap-1 border border-white/10">
+                        <div className="absolute bottom-3 right-3 z-10 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-950/80 backdrop-blur-md text-white flex items-center gap-1 border border-white/15">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
                           </svg>
@@ -398,43 +398,45 @@ export default function InternationalPackages() {
                       <div className="p-5 sm:p-6 flex flex-col justify-between">
                         {/* Title */}
                         <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-sky-600 transition-colors font-display">
+                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
                             {name}
                           </h3>
 
                           {/* Location Pin & Cities */}
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mt-1 line-clamp-1">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 mt-1.5 line-clamp-1">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-400">
                               <circle cx="12" cy="12" r="10" />
                               <line x1="2" y1="12" x2="22" y2="12" />
                             </svg>
-                            <span className="line-clamp-1">{itinLine}</span>
+                            <span className="line-clamp-1 text-slate-600">{itinLine}</span>
                           </div>
 
                           {/* Flight note */}
-                          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-800 mt-2 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60 w-fit">
+                          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 mt-2 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/60 w-fit">
                             <span>✈</span> Flights booked separately by couple
                           </div>
                         </div>
 
-                        {/* Stat Metrics Grid */}
-                        <div className="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-slate-100 text-center bg-slate-50/70 p-2.5 rounded-2xl">
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Duration</div>
-                            <div className="text-xs font-extrabold text-sky-600 mt-0.5">{duration || '5N · 6D'}</div>
+                        {/* Minimal Metadata Pills (Clean, no background box clutter) */}
+                        <div className="flex items-center gap-2 mt-4 pt-3.5 border-t border-slate-100">
+                          <div className="inline-flex items-center gap-1.5 bg-slate-100/90 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            <span>{duration || '5N · 6D'}</span>
                           </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Rating</div>
-                            <div className="text-xs font-extrabold text-amber-600 mt-0.5">{rating} / 5</div>
-                          </div>
-                          <div>
-                            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Hotel</div>
-                            <div className="text-xs font-extrabold text-indigo-600 mt-0.5 line-clamp-1">{starCat}</div>
+
+                          <div className="inline-flex items-center gap-1.5 bg-slate-100/90 text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 21h18M3 7v14M21 7v14M6 3h12v4H6zM9 11h2v2H9zM13 11h2v2h-2zM9 15h2v2H9zM13 15h2v2h-2z" />
+                            </svg>
+                            <span className="line-clamp-1">{starCat}</span>
                           </div>
                         </div>
 
-                        {/* Bottom Price & Circular Action Button */}
-                        <div className="flex items-end justify-between mt-4 pt-3 border-t border-slate-100">
+                        {/* Bottom Price & Clear Action Button */}
+                        <div className="flex items-end justify-between mt-4 pt-3.5 border-t border-slate-100">
                           <div>
                             <div className="flex items-center gap-2 mb-0.5">
                               {original > 0 && (
@@ -442,25 +444,26 @@ export default function InternationalPackages() {
                                   {formatINR(original)}
                                 </span>
                               )}
-                              <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                                save {discount}%
+                              <span className="text-[10px] font-bold text-slate-800 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md">
+                                {discount}% OFF
                               </span>
                             </div>
                             <div className="flex items-baseline gap-1">
-                              <span className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
+                              <span className="text-xl sm:text-2xl font-extrabold text-indigo-600 font-display">
                                 {price ? formatINR(price) : 'On Request'}
                               </span>
                               {price > 0 && <span className="text-[11px] text-slate-400 font-medium">/ person</span>}
                             </div>
                           </div>
 
-                          {/* Round Floating Action Button */}
+                          {/* Explicit Luxury Action Button */}
                           <Link
                             href={`/destinations/${encodeURIComponent(pkg._slug)}/${encodeURIComponent(pkg._packageId)}`}
-                            className="w-11 h-11 rounded-full bg-slate-900 group-hover:bg-sky-600 text-white flex items-center justify-center shadow-lg transition-all duration-300 transform group-hover:scale-110 shrink-0"
+                            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all duration-300 shadow-sm hover:shadow-md shrink-0 group-hover:bg-slate-900"
                             aria-label={`View ${name} itinerary`}
                           >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <span>View Details</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="5" y1="12" x2="19" y2="12" />
                               <polyline points="12 5 19 12 12 19" />
                             </svg>
