@@ -3,10 +3,11 @@
  * Leads themselves are fetched live from Meta (see /api/facebook/meta-leads).
  * Everything the sales team does with a lead is stored in Firestore `meta_lead_crm/{metaLeadId}`.
  */
-import { db } from '@/lib/firebase'
+import { auth, db } from '@/lib/firebase'
 import { doc, setDoc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore'
 
 export const CRM_COLLECTION = 'meta_lead_crm'
+export const AD_COACH_COLLECTION = 'meta_ad_coach_reports'
 
 // ---------- Meta lead types ----------
 
@@ -56,6 +57,34 @@ export const STAGES = [
 ] as const
 
 export type StageId = (typeof STAGES)[number]['id']
+
+/**
+ * CRM stage → event name sent to Meta (Conversions API for CRM). "New" isn't sent: Meta already knows about the lead.
+ * In Events Manager, pick one of these (e.g. "Qualified Lead") as the conversion-leads optimisation event.
+ */
+export const META_STAGE_EVENTS: Partial<Record<StageId, string>> = {
+  contacted: 'Contacted',
+  qualified: 'Qualified Lead',
+  proposal_sent: 'Proposal Sent',
+  negotiation: 'Negotiation',
+  won: 'Converted',
+  lost: 'Lost',
+}
+
+/** Fire-and-forget: report a stage change to Meta. The server skips it unless META_CRM_DATASET_ID is configured. */
+export function sendStageToMeta(leadId: string, stage: StageId, value?: number) {
+  if (!META_STAGE_EVENTS[stage] || typeof window === 'undefined') return
+  auth?.currentUser
+    ?.getIdToken()
+    .then((idToken) =>
+      fetch('/api/facebook/crm-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ leadId, stage, value }),
+      })
+    )
+    .catch((err) => console.warn('Could not send stage to Meta:', err))
+}
 
 export const stageInfo = (id?: string) => STAGES.find((s) => s.id === id) || STAGES[0]
 
@@ -168,6 +197,8 @@ export interface CrmRecord {
   nextFollowUp?: string | null
   travel?: CrmTravel
   dealValue?: number // final booked amount when won
+  /** Stage events reported to Meta (Conversions API for CRM), keyed by stage */
+  metaEvents?: Partial<Record<StageId, { eventName: string; sentAt: string; ok: boolean; test?: boolean; error?: string }>>
   activities: CrmActivity[]
   proposals: CrmProposal[]
   createdAt: string
@@ -368,6 +399,7 @@ export async function changeStage(
     ),
     updatedAt: new Date().toISOString(),
   })
+  sendStageToMeta(record.leadId, stage, extra.dealValue)
 }
 
 export async function assignLead(record: CrmRecord, assignee: CrmUserRef | null, by: CrmUserRef) {
@@ -430,6 +462,7 @@ export async function addProposal(record: CrmRecord, proposal: Omit<CrmProposal,
     ),
     updatedAt: now,
   })
+  if (advance) sendStageToMeta(record.leadId, 'proposal_sent')
 }
 
 export async function setProposalStatus(record: CrmRecord, proposalId: string, status: ProposalStatusId, by: CrmUserRef) {

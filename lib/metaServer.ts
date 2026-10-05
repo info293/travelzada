@@ -59,3 +59,16 @@ export async function requireLeadsAccess(req: NextRequest): Promise<NextResponse
     ['admin@travelzada.com', 'admin@example.com'].includes(email) || email.split('@')[0].includes('admin')
   return isAdminEmail ? null : unauthorized('You do not have permission to view leads.', 403)
 }
+
+/** Meta reports leads under different action types depending on the campaign setup; use the first one present. */
+export function leadCountFromActions(actions?: { action_type: string; value: string }[]): number {
+  const list = actions || []
+  for (const type of ['lead', 'onsite_conversion.lead_grouped', 'offsite_complete_registration_add_meta_leads']) {
+    const hit = list.find((a) => a.action_type === type)
+    if (hit) return Number(hit.value) || 0
+  }
+  return 0
+}
+
+/** The system-user token used for Meta Marketing/Leads APIs. */
+export const metaToken = () => process.env.META_LEADS_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN || ''

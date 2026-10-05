@@ -19,6 +19,7 @@ import {
   BarChart3,
   List,
   Columns3,
+  Gauge,
   PhoneCall,
 } from 'lucide-react'
 import {
@@ -47,6 +48,7 @@ import {
 } from '@/lib/metaLeadsCrm'
 import { useCrmRecords, useCurrentUserRef, useMetaAds, useSalesTeam } from './meta-crm/useCrm'
 import MetaLeadsReports from './meta-crm/MetaLeadsReports'
+import AdInsights from './meta-crm/AdInsights'
 
 type Stats = ReturnType<typeof salesStats>
 
@@ -141,7 +143,7 @@ export default function MetaLeadsSection() {
   const [data, setData] = useState<MetaLeadsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ message: string; hint?: string } | null>(null)
-  const [view, setView] = useState<'leads' | 'reports'>('leads')
+  const [view, setView] = useState<'leads' | 'reports' | 'insights'>('leads')
 
   const [search, setSearch] = useState('')
   const [formFilter, setFormFilter] = useState('all')
@@ -412,6 +414,12 @@ export default function MetaLeadsSection() {
               >
                 <BarChart3 className="w-4 h-4" /> Reports
               </button>
+              <button
+                onClick={() => setView('insights')}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium ${view === 'insights' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                <Gauge className="w-4 h-4" /> Ad Insights
+              </button>
             </div>
             <button
               onClick={exportCsv}
@@ -472,6 +480,8 @@ export default function MetaLeadsSection() {
       )}
 
       {view === 'reports' && data && <MetaLeadsReports leads={data.leads} records={records} team={team} />}
+
+      {view === 'insights' && <AdInsights leads={data?.leads || []} records={records} />}
 
       {view === 'leads' && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">

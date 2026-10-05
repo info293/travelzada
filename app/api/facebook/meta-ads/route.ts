@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { GRAPH, metaErrorBody, requireLeadsAccess } from '@/lib/metaServer'
+import { GRAPH, leadCountFromActions, metaErrorBody, requireLeadsAccess } from '@/lib/metaServer'
 
 const CAMPAIGN_FIELDS = 'name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time,account_id'
 const AD_FIELDS = 'name,status,effective_status,campaign_id,creative{title,body,thumbnail_url,image_url}'
@@ -113,9 +113,6 @@ async function fetchInsights(
 }
 
 function toInsights(row: any) {
-  const actions: { action_type: string; value: string }[] = row.actions || []
-  const leadAction =
-    actions.find((a) => a.action_type === 'lead') || actions.find((a) => a.action_type === 'onsite_conversion.lead_grouped')
   return {
     spend: Number(row.spend) || 0,
     impressions: Number(row.impressions) || 0,
@@ -123,6 +120,6 @@ function toInsights(row: any) {
     reach: Number(row.reach) || 0,
     ctr: Number(row.ctr) || 0,
     cpm: Number(row.cpm) || 0,
-    metaLeads: Number(leadAction?.value) || 0,
+    metaLeads: leadCountFromActions(row.actions),
   }
 }
