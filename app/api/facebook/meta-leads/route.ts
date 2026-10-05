@@ -41,6 +41,28 @@ export async function GET(req: NextRequest) {
     if (pageData.access_token) pageAccessToken = pageData.access_token
     if (pageData.name) pageName = pageData.name
 
+    // Single lead mode (CRM detail page): GET /api/facebook/meta-leads?leadId=...
+    const leadId = req.nextUrl.searchParams.get('leadId')
+    if (leadId) {
+      if (!/^\d+$/.test(leadId)) return NextResponse.json({ error: 'Invalid lead ID.' }, { status: 400 })
+      let leadRes = await fetch(`${GRAPH}/${leadId}?fields=${FULL_LEAD_FIELDS}&access_token=${pageAccessToken}`)
+      let lead = await leadRes.json()
+      if (!leadRes.ok || lead.error) {
+        leadRes = await fetch(`${GRAPH}/${leadId}?fields=${BASIC_LEAD_FIELDS}&access_token=${pageAccessToken}`)
+        lead = await leadRes.json()
+      }
+      if (!leadRes.ok || lead.error) {
+        return NextResponse.json(metaErrorBody(lead.error), { status: 502 })
+      }
+      let form: any = null
+      if (lead.form_id) {
+        const formRes = await fetch(`${GRAPH}/${lead.form_id}?fields=${FORM_FIELDS}&access_token=${pageAccessToken}`)
+        const formJson = await formRes.json()
+        if (formRes.ok && !formJson.error) form = formJson
+      }
+      return NextResponse.json({ success: true, lead: { ...lead, form_name: form?.name }, form })
+    }
+
     // 2. Fetch all lead forms on the Page
     const forms = await fetchAllPages(
       `${GRAPH}/${pageId}/leadgen_forms?fields=${FORM_FIELDS}&limit=100&access_token=${pageAccessToken}`

@@ -1,0 +1,912 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  Phone,
+  Mail,
+  MessageCircle,
+  Megaphone,
+  FileText,
+  AlertTriangle,
+  RefreshCw,
+  Plus,
+  Send,
+  PhoneCall,
+  Users,
+  StickyNote,
+  ArrowRightLeft,
+  UserCheck,
+  CalendarClock,
+  Save,
+  X,
+} from 'lucide-react'
+import {
+  ACTIVITY_TYPES,
+  CALL_OUTCOMES,
+  LOST_REASONS,
+  PRIORITIES,
+  PROPOSAL_STATUSES,
+  STAGES,
+  addActivity,
+  addProposal,
+  assignLead,
+  changeStage,
+  ensureCrmRecord,
+  fieldValue,
+  formatDate,
+  formatDateTime,
+  formatINR,
+  humanize,
+  isFollowUpOverdue,
+  leadEmail,
+  leadName,
+  leadPhone,
+  setProposalStatus,
+  stageInfo,
+  updateCrmFields,
+  whatsappNumber,
+  type ActivityTypeId,
+  type CrmActivity,
+  type CrmTravel,
+  type MetaForm,
+  type MetaLead,
+  type PriorityId,
+  type ProposalStatusId,
+  type StageId,
+} from '@/lib/metaLeadsCrm'
+import { useCrmRecord, useCurrentUserRef, useSalesTeam } from './useCrm'
+
+/** ISO string -> value for <input type="datetime-local"> in local time. */
+const toLocalInput = (iso?: string | null) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
+const fromLocalInput = (value: string) => (value ? new Date(value).toISOString() : null)
+const toNumber = (v: string) => (v === '' ? undefined : Number(v))
+
+const inputClass =
+  'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none'
+const labelClass = 'block text-xs font-medium text-gray-600 mb-1'
+
+const ACTIVITY_ICONS: Record<ActivityTypeId, typeof Phone> = {
+  call: PhoneCall,
+  whatsapp: MessageCircle,
+  email: Mail,
+  meeting: Users,
+  note: StickyNote,
+  stage_change: ArrowRightLeft,
+  assignment: UserCheck,
+  proposal: Send,
+}
+
+export default function LeadCrmDetail({ leadId }: { leadId: string }) {
+  const { currentUser } = useAuth()
+  const me = useCurrentUserRef()
+  const team = useSalesTeam()
+  const { record, loading: recordLoading } = useCrmRecord(leadId)
+
+  const [lead, setLead] = useState<MetaLead | null>(null)
+  const [form, setForm] = useState<MetaForm | null>(null)
+  const [leadError, setLeadError] = useState<{ message: string; hint?: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Stage change needing extra input (won → deal value, lost → reason)
+  const [pendingStage, setPendingStage] = useState<StageId | null>(null)
+  const [lostReason, setLostReason] = useState(LOST_REASONS[0])
+  const [dealValue, setDealValue] = useState('')
+
+  const fetchLead = useCallback(async () => {
+    if (!currentUser) return
+    setLeadError(null)
+    try {
+      const idToken = await currentUser.getIdToken()
+      const res = await fetch(`/api/facebook/meta-leads?leadId=${leadId}`, { headers: { Authorization: `Bearer ${idToken}` } })
+      const json = await res.json()
+      if (!res.ok) {
+        setLeadError({ message: json.error || 'Failed to load lead from Meta', hint: json.hint })
+        return
+      }
+      setLead(json.lead)
+      setForm(json.form)
+    } catch (err: any) {
+      setLeadError({ message: err.message || 'Failed to load lead from Meta' })
+    }
+  }, [currentUser, leadId])
+
+  useEffect(() => {
+    fetchLead()
+  }, [fetchLead])
+
+  // First time a lead is opened, create its CRM record
+  useEffect(() => {
+    if (lead && !recordLoading && !record) {
+      ensureCrmRecord(lead).catch((err) => console.error('Failed to create CRM record:', err))
+    }
+  }, [lead, record, recordLoading])
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true)
+    try {
+      await action()
+    } catch (err: any) {
+      console.error('CRM update failed:', err)
+      alert(`Could not save: ${err.message || err}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onStageSelect = (stage: StageId) => {
+    if (!record || !me || stage === record.stage) return
+    if (stage === 'won' || stage === 'lost') {
+      setPendingStage(stage)
+      setDealValue(String(record.proposals?.slice(-1)[0]?.totalPrice ?? ''))
+      return
+    }
+    run(() => changeStage(record, stage, me))
+  }
+
+  const confirmPendingStage = () => {
+    if (!record || !me || !pendingStage) return
+    const stage = pendingStage
+    run(async () => {
+      await changeStage(record, stage, me, {
+        lostReason: stage === 'lost' ? lostReason : undefined,
+        dealValue: stage === 'won' ? toNumber(dealValue) : undefined,
+      })
+      setPendingStage(null)
+    })
+  }
+
+  const name = lead ? leadName(lead) : record?.name || 'Lead'
+  const phone = lead ? leadPhone(lead) : record?.phone || ''
+  const email = lead ? leadEmail(lead) : record?.email || ''
+
+  if (leadError && !record) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex gap-3">
+        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-semibold text-red-800">Could not load this lead from Meta</p>
+          <p className="text-red-700 mt-1">{leadError.message}</p>
+          {leadError.hint && <p className="text-red-700 mt-2">{leadError.hint}</p>}
+        </div>
+      </div>
+    )
+  }
+
+  if (!record) {
+    return (
+      <div className="flex items-center justify-center p-12 text-gray-500 gap-2">
+        <RefreshCw className="w-5 h-5 animate-spin" /> Loading lead...
+      </div>
+    )
+  }
+
+  const stage = stageInfo(record.stage)
+  const overdue = isFollowUpOverdue(record)
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold text-gray-900">{name}</h1>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${stage.color}`}>{stage.label}</span>
+              {record.stage === 'lost' && record.lostReason && (
+                <span className="text-xs text-red-600">({record.lostReason})</span>
+              )}
+              {record.stage === 'won' && record.dealValue ? (
+                <span className="text-xs font-semibold text-emerald-700">{formatINR(record.dealValue)}</span>
+              ) : null}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">
+              Lead received {formatDateTime(record.leadCreatedAt)}
+              {record.formName ? ` · ${record.formName}` : ''}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {phone && (
+              <>
+                <Link
+                  href={`/admin/whatsapp-chats?phone=${whatsappNumber(phone)}&name=${encodeURIComponent(name)}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  <MessageCircle className="w-4 h-4" /> WhatsApp
+                </Link>
+                <a
+                  href={`tel:${phone}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  <Phone className="w-4 h-4" /> {phone}
+                </a>
+              </>
+            )}
+            {email && (
+              <a
+                href={`mailto:${email}`}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                <Mail className="w-4 h-4" /> Email
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Pipeline controls */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+          <div>
+            <label className={labelClass}>Stage</label>
+            <select
+              value={record.stage}
+              disabled={busy}
+              onChange={(e) => onStageSelect(e.target.value as StageId)}
+              className={inputClass}
+            >
+              {STAGES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Assigned salesperson</label>
+            <select
+              value={record.assignedTo?.uid || ''}
+              disabled={busy}
+              onChange={(e) => {
+                if (!me) return
+                const assignee = team.find((t) => t.uid === e.target.value) || null
+                run(() => assignLead(record, assignee, me))
+              }}
+              className={inputClass}
+            >
+              <option value="">Unassigned</option>
+              {team.map((t) => (
+                <option key={t.uid} value={t.uid}>
+                  {t.name}
+                </option>
+              ))}
+              {record.assignedTo && !team.some((t) => t.uid === record.assignedTo?.uid) && (
+                <option value={record.assignedTo.uid}>{record.assignedTo.name}</option>
+              )}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Priority</label>
+            <select
+              value={record.priority || 'warm'}
+              disabled={busy}
+              onChange={(e) => run(() => updateCrmFields(record.leadId, { priority: e.target.value as PriorityId }))}
+              className={inputClass}
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={`${labelClass} ${overdue ? 'text-red-600' : ''}`}>
+              Next follow-up {overdue && '· OVERDUE'}
+            </label>
+            <input
+              type="datetime-local"
+              value={toLocalInput(record.nextFollowUp)}
+              disabled={busy}
+              onChange={(e) => run(() => updateCrmFields(record.leadId, { nextFollowUp: fromLocalInput(e.target.value) }))}
+              className={`${inputClass} ${overdue ? 'border-red-400 bg-red-50' : ''}`}
+            />
+          </div>
+        </div>
+
+        {pendingStage && (
+          <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-end gap-3">
+            {pendingStage === 'lost' ? (
+              <div className="flex-1">
+                <label className={labelClass}>Why was this lead lost?</label>
+                <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} className={inputClass}>
+                  {LOST_REASONS.map((r) => (
+                    <option key={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="flex-1">
+                <label className={labelClass}>Final booking amount (₹)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={dealValue}
+                  onChange={(e) => setDealValue(e.target.value)}
+                  className={inputClass}
+                  placeholder="e.g. 185000"
+                />
+              </div>
+            )}
+            <button
+              onClick={confirmPendingStage}
+              disabled={busy}
+              className={`px-4 py-2 text-sm font-medium rounded-lg text-white ${
+                pendingStage === 'won' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+              }`}
+            >
+              Mark as {pendingStage === 'won' ? 'Won' : 'Lost'}
+            </button>
+            <button
+              onClick={() => setPendingStage(null)}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-white"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: lead info + trip requirements */}
+        <div className="space-y-6">
+          <MetaInfoCard lead={lead} form={form} leadError={leadError} />
+          <TripRequirementsCard
+            key={`${lead?.id || 'loading'}-${JSON.stringify(record.travel || {})}`}
+            leadId={record.leadId}
+            travel={record.travel || {}}
+            lead={lead}
+            disabled={busy}
+            onSave={(travel) => run(() => updateCrmFields(record.leadId, { travel }))}
+          />
+        </div>
+
+        {/* Right: activity, proposals, timeline */}
+        <div className="lg:col-span-2 space-y-6">
+          <LogActivityCard
+            disabled={busy || !me}
+            onSave={(activity, nextFollowUp) =>
+              run(async () => {
+                await addActivity(record.leadId, { ...activity, by: me! })
+                if (nextFollowUp !== undefined) await updateCrmFields(record.leadId, { nextFollowUp })
+                if (record.stage === 'new' && activity.type !== 'note' && me) {
+                  await changeStage(record, 'contacted', me)
+                }
+              })
+            }
+          />
+
+          <ProposalsCard
+            proposals={record.proposals || []}
+            travel={record.travel || {}}
+            lead={lead}
+            disabled={busy || !me}
+            onAdd={(p) => run(() => addProposal(record, { ...p, by: me! }))}
+            onStatus={(id, status) => run(() => setProposalStatus(record, id, status, me!))}
+          />
+
+          <TimelineCard activities={record.activities || []} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Meta lead info ----------
+
+function MetaInfoCard({
+  lead,
+  form,
+  leadError,
+}: {
+  lead: MetaLead | null
+  form: MetaForm | null
+  leadError: { message: string } | null
+}) {
+  const label = (key: string) => form?.questions?.find((q) => q.key === key)?.label || humanize(key)
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-primary" /> Lead Form Answers
+        </h3>
+      </div>
+      {!lead ? (
+        <p className="p-5 text-sm text-gray-500">{leadError ? `Meta data unavailable: ${leadError.message}` : 'Loading from Meta...'}</p>
+      ) : (
+        <dl className="divide-y divide-gray-100">
+          {(lead.field_data || []).map((f) => (
+            <div key={f.name} className="px-5 py-2">
+              <dt className="text-xs text-gray-500">{label(f.name)}</dt>
+              <dd className="text-sm text-gray-900 break-words">{f.values.join(', ') || '—'}</dd>
+            </div>
+          ))}
+          <div className="px-5 py-3 bg-gray-50">
+            <div className="text-xs font-semibold text-gray-700 flex items-center gap-1 mb-2">
+              <Megaphone className="w-3 h-3 text-blue-600" /> Ad & Source
+            </div>
+            {(
+              [
+                ['Campaign', lead.campaign_name || lead.campaign_id],
+                ['Ad set', lead.adset_name || lead.adset_id],
+                ['Ad', lead.ad_name || lead.ad_id],
+                ['Form', lead.form_name || lead.form_id],
+                ['Platform', lead.platform === 'ig' ? 'Instagram' : lead.platform === 'fb' ? 'Facebook' : lead.platform],
+                ['Organic', lead.is_organic === undefined ? undefined : lead.is_organic ? 'Yes' : 'No (paid ad)'],
+                ['Lead ID', lead.id],
+              ] as [string, string | undefined][]
+            )
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 text-xs py-0.5">
+                  <span className="text-gray-500">{k}</span>
+                  <span className="text-gray-800 text-right break-all">{v}</span>
+                </div>
+              ))}
+          </div>
+        </dl>
+      )}
+    </div>
+  )
+}
+
+// ---------- Trip requirements ----------
+
+function TripRequirementsCard({
+  travel,
+  lead,
+  disabled,
+  onSave,
+}: {
+  leadId: string
+  travel: CrmTravel
+  lead: MetaLead | null
+  disabled: boolean
+  onSave: (travel: CrmTravel) => void
+}) {
+  // Pre-fill empty fields from the lead form answers
+  const [draft, setDraft] = useState<CrmTravel>(() => ({
+    ...travel,
+    travelDate: travel.travelDate ?? (lead ? fieldValue(lead, 'travel_date?', 'travel_date') : undefined),
+    destination: travel.destination ?? (lead?.form_name?.match(/bali/i) ? 'Bali' : undefined),
+  }))
+  const set = (patch: Partial<CrmTravel>) => setDraft((d) => ({ ...d, ...patch }))
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900">Trip Requirements</h3>
+      </div>
+      <div className="p-5 grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className={labelClass}>Destination</label>
+          <input value={draft.destination || ''} onChange={(e) => set({ destination: e.target.value })} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Travel date</label>
+          <input value={draft.travelDate || ''} onChange={(e) => set({ travelDate: e.target.value })} className={inputClass} placeholder="e.g. 15 Dec 2026" />
+        </div>
+        <div>
+          <label className={labelClass}>Nights</label>
+          <input type="number" min={0} value={draft.nights ?? ''} onChange={(e) => set({ nights: toNumber(e.target.value) })} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Adults</label>
+          <input type="number" min={0} value={draft.adults ?? ''} onChange={(e) => set({ adults: toNumber(e.target.value) })} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Children</label>
+          <input type="number" min={0} value={draft.children ?? ''} onChange={(e) => set({ children: toNumber(e.target.value) })} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Budget (₹)</label>
+          <input type="number" min={0} value={draft.budget ?? ''} onChange={(e) => set({ budget: toNumber(e.target.value) })} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>Hotel category</label>
+          <select value={draft.hotelCategory || ''} onChange={(e) => set({ hotelCategory: e.target.value || undefined })} className={inputClass}>
+            <option value="">—</option>
+            <option>3 Star</option>
+            <option>4 Star</option>
+            <option>5 Star</option>
+            <option>Luxury / Villa</option>
+          </select>
+        </div>
+        <div className="col-span-2">
+          <label className={labelClass}>Special requests / notes</label>
+          <textarea rows={2} value={draft.notes || ''} onChange={(e) => set({ notes: e.target.value })} className={inputClass} />
+        </div>
+        <button
+          onClick={() => onSave(draft)}
+          disabled={disabled}
+          className="col-span-2 inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+        >
+          <Save className="w-4 h-4" /> Save requirements
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Log activity ----------
+
+function LogActivityCard({
+  disabled,
+  onSave,
+}: {
+  disabled: boolean
+  onSave: (activity: Omit<CrmActivity, 'id' | 'by'>, nextFollowUp?: string | null) => void
+}) {
+  const [type, setType] = useState<ActivityTypeId>('call')
+  const [outcome, setOutcome] = useState(CALL_OUTCOMES[0])
+  const [at, setAt] = useState(() => toLocalInput(new Date().toISOString()))
+  const [notes, setNotes] = useState('')
+  const [followUp, setFollowUp] = useState('')
+
+  const submit = () => {
+    if (type !== 'call' && !notes.trim()) {
+      alert('Please add a note describing this activity.')
+      return
+    }
+    onSave(
+      {
+        type,
+        outcome: type === 'call' ? outcome : undefined,
+        notes: notes.trim() || undefined,
+        at: fromLocalInput(at) || new Date().toISOString(),
+      },
+      followUp ? fromLocalInput(followUp) : undefined
+    )
+    setNotes('')
+    setFollowUp('')
+    setAt(toLocalInput(new Date().toISOString()))
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900">Log Communication</h3>
+      </div>
+      <div className="p-5 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {ACTIVITY_TYPES.map((t) => {
+            const Icon = ACTIVITY_ICONS[t.id]
+            return (
+              <button
+                key={t.id}
+                onClick={() => setType(t.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border ${
+                  type === t.id ? 'border-primary bg-primary/10 text-primary font-medium' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" /> {t.label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {type === 'call' && (
+            <div>
+              <label className={labelClass}>Call outcome</label>
+              <select value={outcome} onChange={(e) => setOutcome(e.target.value)} className={inputClass}>
+                {CALL_OUTCOMES.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className={labelClass}>When</label>
+            <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Set next follow-up (optional)</label>
+            <input type="datetime-local" value={followUp} onChange={(e) => setFollowUp(e.target.value)} className={inputClass} />
+          </div>
+        </div>
+        <textarea
+          rows={3}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="What was discussed? Customer's feedback, objections, next steps..."
+          className={inputClass}
+        />
+        <button
+          onClick={submit}
+          disabled={disabled}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+        >
+          <Plus className="w-4 h-4" /> Save activity
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------- Proposals ----------
+
+interface ProposalDraft {
+  sentAt: string
+  destination: string
+  packageName: string
+  nights: string
+  adults: string
+  children: string
+  pricePerPerson: string
+  totalPrice: string
+  validUntil: string
+  channel: string
+  notes: string
+}
+
+function ProposalsCard({
+  proposals,
+  travel,
+  lead,
+  disabled,
+  onAdd,
+  onStatus,
+}: {
+  proposals: import('@/lib/metaLeadsCrm').CrmProposal[]
+  travel: CrmTravel
+  lead: MetaLead | null
+  disabled: boolean
+  onAdd: (p: Omit<import('@/lib/metaLeadsCrm').CrmProposal, 'id' | 'number' | 'status' | 'by'>) => void
+  onStatus: (id: string, status: ProposalStatusId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [totalTouched, setTotalTouched] = useState(false)
+  const last = proposals[proposals.length - 1]
+
+  const initialDraft = (): ProposalDraft => ({
+    sentAt: toLocalInput(new Date().toISOString()),
+    destination: last?.destination || travel.destination || (lead?.form_name?.match(/bali/i) ? 'Bali' : ''),
+    packageName: last?.packageName || lead?.form_name || '',
+    nights: String(last?.nights ?? travel.nights ?? ''),
+    adults: String(last?.adults ?? travel.adults ?? 2),
+    children: String(last?.children ?? travel.children ?? 0),
+    pricePerPerson: '',
+    totalPrice: '',
+    validUntil: '',
+    channel: 'WhatsApp',
+    notes: '',
+  })
+  const [draft, setDraft] = useState<ProposalDraft>(initialDraft)
+
+  const pax = (Number(draft.adults) || 0) + (Number(draft.children) || 0)
+  const computedTotal = (Number(draft.pricePerPerson) || 0) * pax
+  const total = totalTouched ? Number(draft.totalPrice) || 0 : computedTotal
+
+  const set = (patch: Partial<ProposalDraft>) => setDraft((d) => ({ ...d, ...patch }))
+
+  const submit = () => {
+    if (!draft.destination.trim() || !draft.pricePerPerson || pax === 0) {
+      alert('Destination, number of people and price per person are required.')
+      return
+    }
+    onAdd({
+      sentAt: fromLocalInput(draft.sentAt) || new Date().toISOString(),
+      destination: draft.destination.trim(),
+      packageName: draft.packageName.trim() || undefined,
+      nights: toNumber(draft.nights),
+      adults: Number(draft.adults) || 0,
+      children: Number(draft.children) || 0,
+      pricePerPerson: Number(draft.pricePerPerson),
+      totalPrice: total,
+      validUntil: draft.validUntil ? new Date(draft.validUntil).toISOString() : undefined,
+      channel: draft.channel,
+      notes: draft.notes.trim() || undefined,
+    })
+    setOpen(false)
+    setTotalTouched(false)
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+        <h3 className="text-sm font-semibold text-gray-900">Proposals / Quotes ({proposals.length})</h3>
+        {!open && (
+          <button
+            onClick={() => {
+              setDraft(initialDraft())
+              setTotalTouched(false)
+              setOpen(true)
+            }}
+            disabled={disabled}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
+          >
+            <Plus className="w-4 h-4" /> New proposal #{proposals.length + 1}
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="p-5 border-b border-gray-200 bg-purple-50/40 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="col-span-2">
+            <label className={labelClass}>Destination *</label>
+            <input value={draft.destination} onChange={(e) => set({ destination: e.target.value })} className={inputClass} />
+          </div>
+          <div className="col-span-2">
+            <label className={labelClass}>Package name</label>
+            <input value={draft.packageName} onChange={(e) => set({ packageName: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Nights</label>
+            <input type="number" min={0} value={draft.nights} onChange={(e) => set({ nights: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Adults *</label>
+            <input type="number" min={0} value={draft.adults} onChange={(e) => set({ adults: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Children</label>
+            <input type="number" min={0} value={draft.children} onChange={(e) => set({ children: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Price / person (₹) *</label>
+            <input type="number" min={0} value={draft.pricePerPerson} onChange={(e) => set({ pricePerPerson: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Total quoted (₹)</label>
+            <input
+              type="number"
+              min={0}
+              value={totalTouched ? draft.totalPrice : computedTotal || ''}
+              onChange={(e) => {
+                setTotalTouched(true)
+                set({ totalPrice: e.target.value })
+              }}
+              className={inputClass}
+            />
+            {!totalTouched && pax > 0 && <p className="text-[10px] text-gray-500 mt-0.5">Auto: price × {pax} people</p>}
+          </div>
+          <div>
+            <label className={labelClass}>Sent via</label>
+            <select value={draft.channel} onChange={(e) => set({ channel: e.target.value })} className={inputClass}>
+              <option>WhatsApp</option>
+              <option>Email</option>
+              <option>Call</option>
+              <option>In person</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Sent on</label>
+            <input type="datetime-local" value={draft.sentAt} onChange={(e) => set({ sentAt: e.target.value })} className={inputClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Valid until</label>
+            <input type="date" value={draft.validUntil} onChange={(e) => set({ validUntil: e.target.value })} className={inputClass} />
+          </div>
+          <div className="col-span-2 sm:col-span-4">
+            <label className={labelClass}>Inclusions / notes</label>
+            <textarea
+              rows={2}
+              value={draft.notes}
+              onChange={(e) => set({ notes: e.target.value })}
+              placeholder="Flights, hotels, transfers, meals, what changed from the last proposal..."
+              className={inputClass}
+            />
+          </div>
+          <div className="col-span-2 sm:col-span-4 flex gap-2">
+            <button
+              onClick={submit}
+              disabled={disabled}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
+            >
+              <Send className="w-4 h-4" /> Save proposal #{proposals.length + 1} ({formatINR(total)})
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-white"
+            >
+              <X className="w-4 h-4" /> Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {proposals.length === 0 && !open ? (
+        <p className="p-5 text-sm text-gray-500">No proposals sent yet.</p>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {[...proposals].reverse().map((p) => {
+            const st = PROPOSAL_STATUSES.find((s) => s.id === p.status) || PROPOSAL_STATUSES[0]
+            return (
+              <div key={p.id} className="p-5">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-900">Proposal #{p.number}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 mt-1">
+                      {p.destination}
+                      {p.packageName ? ` · ${p.packageName}` : ''}
+                      {p.nights ? ` · ${p.nights}N` : ''}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {p.adults} adults{p.children ? `, ${p.children} children` : ''} · {formatINR(p.pricePerPerson)}/person · via{' '}
+                      {p.channel} · {formatDateTime(p.sentAt)} by {p.by?.name}
+                      {p.validUntil ? ` · valid until ${formatDate(p.validUntil)}` : ''}
+                    </p>
+                    {p.notes && <p className="text-xs text-gray-600 mt-1 whitespace-pre-wrap">{p.notes}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-lg font-bold text-gray-900">{formatINR(p.totalPrice)}</div>
+                    <select
+                      value={p.status}
+                      disabled={disabled}
+                      onChange={(e) => onStatus(p.id, e.target.value as ProposalStatusId)}
+                      className="mt-1 px-2 py-1 text-xs border border-gray-300 rounded-lg bg-white"
+                    >
+                      {PROPOSAL_STATUSES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------- Timeline ----------
+
+function TimelineCard({ activities }: { activities: CrmActivity[] }) {
+  const sorted = useMemo(() => [...activities].sort((a, b) => b.at.localeCompare(a.at)), [activities])
+  const label = (type: ActivityTypeId) =>
+    ACTIVITY_TYPES.find((t) => t.id === type)?.label ||
+    { stage_change: 'Stage changed', assignment: 'Assignment', proposal: 'Proposal' }[type as string] ||
+    type
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <CalendarClock className="w-4 h-4 text-gray-500" /> Timeline ({activities.length})
+        </h3>
+      </div>
+      {sorted.length === 0 ? (
+        <p className="p-5 text-sm text-gray-500">No activity yet. Log the first call or WhatsApp above.</p>
+      ) : (
+        <ol className="p-5 space-y-4">
+          {sorted.map((a) => {
+            const Icon = ACTIVITY_ICONS[a.type] || StickyNote
+            const system = ['stage_change', 'assignment'].includes(a.type)
+            return (
+              <li key={a.id} className="flex gap-3">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    system ? 'bg-gray-100 text-gray-500' : a.type === 'proposal' ? 'bg-purple-100 text-purple-600' : 'bg-primary/10 text-primary'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-semibold text-gray-900">{label(a.type)}</span>
+                    {a.outcome && <span className="text-sm text-gray-700">{a.outcome}</span>}
+                  </div>
+                  {a.notes && <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{a.notes}</p>}
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {formatDateTime(a.at)} · {a.by?.name}
+                  </p>
+                </div>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+    </div>
+  )
+}
