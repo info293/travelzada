@@ -133,19 +133,18 @@ export default function WhatsAppChats() {
 
     setLoadingMessages(true)
     const messagesRef = collection(db, 'whatsapp_messages')
-    const q = query(
-      messagesRef,
-      where('senderPhone', '==', selectedChat.phone),
-      orderBy('timestamp', 'asc')
-    )
+    // Sorted client-side: where + orderBy on different fields would require a Firestore composite index
+    const q = query(messagesRef, where('senderPhone', '==', selectedChat.phone))
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const msgList: WhatsAppMessage[] = snapshot.docs.map((docSnap) => ({
+        const msgList: WhatsAppMessage[] = (snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data(),
-        })) as WhatsAppMessage[]
+        })) as WhatsAppMessage[]).sort((a, b) =>
+          String(a.timestamp).localeCompare(String(b.timestamp))
+        )
 
         setMessages(msgList)
         setLoadingMessages(false)

@@ -288,6 +288,27 @@ export default function AdminDashboard() {
   })
   const [leadDetailsError, setLeadDetailsError] = useState<string | null>(null)
   const [isLeadDetailsSaving, setIsLeadDetailsSaving] = useState(false)
+  const [isSyncingMetaLeads, setIsSyncingMetaLeads] = useState(false)
+
+  const handleSyncMetaLeads = async () => {
+    setIsSyncingMetaLeads(true)
+    try {
+      const res = await fetch('/api/facebook/sync-leads', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        await fetchLeads()
+        alert(data.message || `Successfully synced ${data.importedCount || 0} Meta leads!`)
+      } else {
+        alert(`Sync failed: ${data.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      console.error('Error syncing Meta leads:', err)
+      alert(`Error: ${err.message}`)
+    } finally {
+      setIsSyncingMetaLeads(false)
+    }
+  }
+
   const [jobApplications, setJobApplications] = useState<Array<{ id?: string; name: string; email: string; phone: string; linkedin: string; position: string; coverLetter: string; status: string; createdAt: any; read: boolean }>>([])
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [showTestimonialForm, setShowTestimonialForm] = useState(false)
@@ -5248,12 +5269,32 @@ export default function AdminDashboard() {
                       <option value="lost">Lost</option>
                     </select>
                   </div>
-                  <button
-                    onClick={fetchLeads}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
-                  >
-                    🔄 Refresh
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSyncMetaLeads}
+                      disabled={isSyncingMetaLeads}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      title="Fetch and import past Facebook/Instagram Lead Ad submissions"
+                    >
+                      {isSyncingMetaLeads ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Syncing Meta...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📥 Sync Meta Leads</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={fetchLeads}
+                      className="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-700 transition-colors"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
+
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
