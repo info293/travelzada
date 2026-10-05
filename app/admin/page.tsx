@@ -2787,6 +2787,25 @@ export default function AdminDashboard() {
               </button>
             )}
 
+            {hasPermission('leads') && (
+              <button
+                onClick={() => router.push('/admin/meta-leads')}
+                className="group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-700">
+                    Meta Leads
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">Ads</div>
+                </div>
+              </button>
+            )}
+
             {hasPermission('contacts') && (
               <button
                 onClick={() => setActiveTab('contacts')}
