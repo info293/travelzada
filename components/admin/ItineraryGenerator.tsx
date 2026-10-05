@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
+import { useState, useEffect, useRef } from 'react';
+import { collection, getDocs, addDoc, query, where, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import jsPDF from 'jspdf';
 import { DestinationPackage } from './types'; // Assuming types are exported or we redefine
@@ -47,29 +47,128 @@ interface ItineraryData {
     customItinerary?: any[]; // To allow modifying the day-wise plan
 }
 
-export default function ItineraryGenerator() {
+/** Optional values to pre-fill the builder with (e.g. from a Meta lead or an AI-drafted proposal). Applied on mount. */
+export interface ItineraryPrefill {
+    clientName?: string;
+    clientEmail?: string;
+    clientPhone?: string;
+    travelDate?: string;
+    adults?: number;
+    children?: number;
+    destinationName?: string; // matched against destination names to pre-select
+    packageDocId?: string; // Firestore id of the package to pre-select
+    totalCost?: number;
+    notes?: string;
+    customItinerary?: { day: string; title: string; description: string }[];
+    hotels?: HotelDetail[];
+    /** Values that replace the catalog package's fields on the PDF (e.g. an AI-revised inclusions list).
+     *  Used on its own as a custom package when there is no packageDocId. */
+    packageOverrides?: Partial<Package>;
+    /** Skip "Select Package" and open "Customize Details" once the package is applied */
+    autoAdvance?: boolean;
+}
+
+export interface GeneratedItinerarySummary {
+    packageName: string;
+    destinationName: string;
+    travelDate: string;
+    adults: number;
+    children: number;
+    totalCost: number;
+    advancePaid: number;
+    notes: string;
+    days: number;
+    fileName: string;
+}
+
+interface ItineraryGeneratorProps {
+    prefill?: ItineraryPrefill;
+    /** Called after the PDF is generated, e.g. to log it as a CRM proposal */
+    onGenerated?: (summary: GeneratedItinerarySummary) => void;
+}
+
+export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGeneratorProps = {}) {
     const [step, setStep] = useState(1);
     const [destinations, setDestinations] = useState<any[]>([]);
     const [packages, setPackages] = useState<Package[]>([]);
     const [selectedDestination, setSelectedDestination] = useState('');
     const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
     const [loading, setLoading] = useState(false);
+    const prefillApplied = useRef({ destination: false, package: false });
 
     // Form Data
     const [formData, setFormData] = useState<ItineraryData>({
-        clientName: '',
-        clientEmail: '',
-        clientPhone: '',
-        travelDate: '',
-        adults: 2,
-        children: 0,
+        clientName: prefill?.clientName || '',
+        clientEmail: prefill?.clientEmail || '',
+        clientPhone: prefill?.clientPhone || '',
+        travelDate: prefill?.travelDate || '',
+        adults: prefill?.adults ?? 2,
+        children: prefill?.children ?? 0,
         packageId: '',
         flights: [],
         hotels: [],
-        totalCost: 0,
+        totalCost: prefill?.totalCost || 0,
         advancePaid: 0,
-        notes: ''
+        notes: prefill?.notes || ''
     });
+
+    // Prefill: pick the destination once destinations are loaded
+    useEffect(() => {
+        if (prefillApplied.current.destination || !destinations.length) return;
+        const wanted = (prefill?.destinationName || '').toLowerCase().trim();
+        if (!wanted) return;
+        prefillApplied.current.destination = true;
+        const match = destinations.find((d) => {
+            const name = String(d.name || d.Destination_Name || '').toLowerCase().trim();
+            return name && (name === wanted || wanted.includes(name) || name.includes(wanted));
+        });
+        if (match) setSelectedDestination(match.id);
+    }, [destinations, prefill?.destinationName]);
+
+    // Prefill: select the package (loaded directly by id, so it works even if it isn't linked to the destination),
+    // apply overrides on top, or build a custom package from the overrides alone; then apply price/itinerary/hotels
+    useEffect(() => {
+        if (prefillApplied.current.package || !prefill || !destinations.length) return;
+        if (!prefill.packageDocId && !prefill.packageOverrides) return;
+        prefillApplied.current.package = true;
+
+        (async () => {
+            let pkg: Package | null = packages.find((p) => p.id === prefill.packageDocId) || null;
+            if (!pkg && prefill.packageDocId) {
+                try {
+                    const snap = await getDoc(doc(db, 'packages', prefill.packageDocId));
+                    if (snap.exists()) pkg = { id: snap.id, ...snap.data() } as Package;
+                } catch (error) {
+                    console.error('Error loading prefilled package', error);
+                }
+            }
+            const overrides = prefill.packageOverrides || {};
+            const finalPkg: Package = pkg
+                ? { ...pkg, ...overrides }
+                : ({
+                    id: 'custom',
+                    Destination_ID: String(overrides.Destination_Name || 'custom-trip').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                    Destination_Name: 'Custom Trip',
+                    Overview: '',
+                    Duration: '',
+                    Inclusions: '',
+                    Exclusions: '',
+                    Day_Wise_Itinerary: '',
+                    ...overrides,
+                } as Package);
+
+            setPackages((prev) => (prev.some((p) => p.id === finalPkg.id) ? prev.map((p) => (p.id === finalPkg.id ? finalPkg : p)) : [finalPkg, ...prev]));
+            handlePackageSelect(finalPkg);
+            setFormData((prev) => ({
+                ...prev,
+                ...(prefill.totalCost ? { totalCost: prefill.totalCost } : {}),
+                ...(prefill.customItinerary?.length ? { customItinerary: prefill.customItinerary } : {}),
+                ...(prefill.hotels?.length ? { hotels: prefill.hotels } : {}),
+            }));
+            if (prefill.autoAdvance) setStep(2);
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [destinations]);
 
     useEffect(() => {
         fetchDestinations();
@@ -1055,6 +1154,19 @@ export default function ItineraryGenerator() {
             } catch (saveError) {
                 console.error('Failed to save customer record:', saveError);
             }
+
+            onGenerated?.({
+                packageName: selectedPackage.Destination_Name,
+                destinationName: destinations.find((d) => d.id === selectedDestination)?.name || selectedPackage.Destination_Name,
+                travelDate: formData.travelDate,
+                adults: formData.adults,
+                children: formData.children,
+                totalCost: formData.totalCost,
+                advancePaid: formData.advancePaid,
+                notes: formData.notes,
+                days: formData.customItinerary?.length || 0,
+                fileName,
+            });
 
 
         } catch (error) {

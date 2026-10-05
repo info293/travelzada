@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -62,6 +62,70 @@ import {
   type StageId,
 } from '@/lib/metaLeadsCrm'
 import { useCrmRecord, useCurrentUserRef, useMetaAds, useSalesTeam } from './useCrm'
+import ItineraryGenerator, { type GeneratedItinerarySummary, type ItineraryPrefill } from '@/components/admin/ItineraryGenerator'
+import AiSalesAssistant, { type AiProposal } from './AiSalesAssistant'
+
+/** Form answers like "2", "2_people", "4 adults" → 2 / 4 */
+const parseCount = (v: string) => {
+  const n = parseInt(String(v).replace(/[^0-9]/g, ' ').trim().split(/\s+/)[0] || '', 10)
+  return isNaN(n) ? undefined : n
+}
+/** Only real YYYY-MM-DD dates can go into the builder's date input */
+const isoDateOrUndefined = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : undefined)
+
+const addDays = (isoDate: string, days: number) => {
+  const d = new Date(`${isoDate}T00:00:00`)
+  d.setDate(d.getDate() + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Everything Claude generated → itinerary builder: package (with Claude's name, duration, hotels category,
+ * overview, inclusions/exclusions and price replacing the catalog values on the PDF), day-wise plan, hotels
+ * with check-in/out dates, group size, travel date and notes.
+ */
+function aiProposalToPrefill(p: AiProposal, base: ItineraryPrefill): ItineraryPrefill {
+  const startDate = isoDateOrUndefined(p.travelDate) || base.travelDate
+  let offset = 0
+  const hotels = (p.hotels || []).map((h) => {
+    const checkIn = startDate ? addDays(startDate, offset) : ''
+    offset += h.nights || 0
+    return {
+      city: h.city,
+      hotelName: h.hotelName,
+      checkIn,
+      checkOut: startDate ? addDays(startDate, offset) : '',
+      roomType: h.roomType,
+      mealPlan: h.mealPlan,
+    }
+  })
+  const pax = (p.adults || 0) + (p.children || 0)
+
+  return {
+    ...base,
+    travelDate: startDate,
+    destinationName: p.destination,
+    packageDocId: p.packageDocId || undefined,
+    adults: p.adults,
+    children: p.children,
+    totalCost: p.totalPrice,
+    customItinerary: p.dayWisePlan,
+    hotels,
+    autoAdvance: true,
+    packageOverrides: {
+      Destination_Name: p.packageName || p.title,
+      ...(p.overview ? { Overview: p.overview } : {}),
+      ...(p.nights ? { Duration: `${p.nights} Nights / ${p.nights + 1} Days`, Duration_Nights: p.nights, Duration_Days: p.nights + 1 } : {}),
+      ...(p.hotelCategory ? { Star_Category: p.hotelCategory } : {}),
+      ...(p.inclusions?.length ? { Inclusions: p.inclusions.join('\n') } : {}),
+      ...(p.exclusions?.length ? { Exclusions: p.exclusions.join('\n') } : {}),
+      Price_Range_INR: `${formatINR(p.pricePerPerson)} per person${pax ? ` · ${formatINR(p.totalPrice)} for ${pax}` : ''}`,
+    },
+    notes: [p.title, p.priceNote, p.changesFromPrevious && `Changes: ${p.changesFromPrevious}`, base.notes]
+      .filter(Boolean)
+      .join('\n'),
+  }
+}
 
 /** ISO string -> value for <input type="datetime-local"> in local time. */
 const toLocalInput = (iso?: string | null) => {
@@ -102,6 +166,12 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
   const [pendingStage, setPendingStage] = useState<StageId | null>(null)
   const [lostReason, setLostReason] = useState(LOST_REASONS[0])
   const [dealValue, setDealValue] = useState('')
+
+  // Itinerary builder (the admin "Create Custom Itinerary" tool), pre-filled from this lead or an AI proposal
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [builderKey, setBuilderKey] = useState(0)
+  const [builderPrefill, setBuilderPrefill] = useState<ItineraryPrefill | null>(null)
+  const builderRef = useRef<HTMLDivElement>(null)
 
   const leadAsList = useMemo(() => (lead ? [lead] : null), [lead])
   const { campaigns: campaignInfo, ads: adInfo, error: adsError } = useMetaAds(leadAsList)
@@ -196,6 +266,77 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
 
   const stage = stageInfo(record.stage)
   const overdue = isFollowUpOverdue(record)
+
+  const leadPrefill = (): ItineraryPrefill => {
+    const travel = record.travel || {}
+    const formPeople = lead ? parseCount(fieldValue(lead, 'no_of_people_travelling?', 'no_of_people_travelling')) : undefined
+    const formDate = lead ? fieldValue(lead, 'travel_date?', 'travel_date') : ''
+    return {
+      clientName: name,
+      clientEmail: email,
+      clientPhone: phone,
+      travelDate: isoDateOrUndefined(travel.travelDate) || isoDateOrUndefined(formDate),
+      adults: travel.adults ?? formPeople ?? 2,
+      children: travel.children ?? 0,
+      destinationName: travel.destination || (lead?.form_name?.match(/bali/i) ? 'Bali' : undefined),
+      notes: [travel.notes, !isoDateOrUndefined(formDate) && formDate ? `Travel date (from form): ${formDate}` : '']
+        .filter(Boolean)
+        .join('\n'),
+    }
+  }
+
+  const openBuilder = (prefill: ItineraryPrefill) => {
+    setBuilderPrefill(prefill)
+    setBuilderKey((k) => k + 1) // remount so the new prefill is applied
+    setBuilderOpen(true)
+    setTimeout(() => builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  const saveAiProposal = (p: AiProposal) =>
+    run(() =>
+      addProposal(record, {
+        sentAt: new Date().toISOString(),
+        destination: p.destination,
+        packageName: p.packageName,
+        nights: p.nights || undefined,
+        adults: p.adults,
+        children: p.children,
+        pricePerPerson: p.pricePerPerson,
+        totalPrice: p.totalPrice,
+        channel: 'WhatsApp',
+        notes: [
+          p.title,
+          p.hotelCategory && `Hotels: ${p.hotelCategory}`,
+          p.inclusions.length && `Includes: ${p.inclusions.join(', ')}`,
+          p.changesFromPrevious && `Changes: ${p.changesFromPrevious}`,
+          'Drafted with AI assistant',
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        by: me!,
+      })
+    )
+
+  const onItineraryGenerated = (s: GeneratedItinerarySummary) => {
+    const pax = (s.adults || 0) + (s.children || 0)
+    run(() =>
+      addProposal(record, {
+        sentAt: new Date().toISOString(),
+        destination: s.destinationName,
+        packageName: s.packageName,
+        nights: s.days > 1 ? s.days - 1 : undefined,
+        adults: s.adults,
+        children: s.children,
+        pricePerPerson: pax ? Math.round(s.totalCost / pax) : s.totalCost,
+        totalPrice: s.totalCost,
+        channel: 'PDF itinerary',
+        notes: [`Itinerary PDF: ${s.fileName}`, s.advancePaid ? `Advance: ${formatINR(s.advancePaid)}` : '', s.notes]
+          .filter(Boolean)
+          .join('\n'),
+        by: me!,
+      })
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -356,6 +497,44 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
             >
               Cancel
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* AI assistant (Claude) */}
+      <AiSalesAssistant
+        lead={lead}
+        form={form}
+        record={record}
+        disabled={busy || !me}
+        onSaveProposal={saveAiProposal}
+        onOpenInBuilder={(p) => openBuilder(aiProposalToPrefill(p, leadPrefill()))}
+      />
+
+      {/* Itinerary / proposal PDF builder */}
+      <div ref={builderRef} className="scroll-mt-4">
+        {!builderOpen ? (
+          <button
+            onClick={() => openBuilder(leadPrefill())}
+            className="w-full flex items-center justify-between gap-3 px-6 py-4 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 text-left"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-blue-900">Create Custom Itinerary / Proposal PDF</span>
+              <span className="block text-xs text-blue-700">
+                Opens the itinerary builder pre-filled with this customer, destination and group size. The generated PDF is saved
+                as Proposal #{(record.proposals?.length || 0) + 1}.
+              </span>
+            </span>
+            <FileText className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <button onClick={() => setBuilderOpen(false)} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                <X className="w-3 h-3" /> Close itinerary builder
+              </button>
+            </div>
+            <ItineraryGenerator key={builderKey} prefill={builderPrefill || undefined} onGenerated={onItineraryGenerated} />
           </div>
         )}
       </div>
