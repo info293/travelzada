@@ -501,44 +501,6 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
         )}
       </div>
 
-      {/* AI assistant (Claude) */}
-      <AiSalesAssistant
-        lead={lead}
-        form={form}
-        record={record}
-        disabled={busy || !me}
-        onSaveProposal={saveAiProposal}
-        onOpenInBuilder={(p) => openBuilder(aiProposalToPrefill(p, leadPrefill()))}
-      />
-
-      {/* Itinerary / proposal PDF builder */}
-      <div ref={builderRef} className="scroll-mt-4">
-        {!builderOpen ? (
-          <button
-            onClick={() => openBuilder(leadPrefill())}
-            className="w-full flex items-center justify-between gap-3 px-6 py-4 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 text-left"
-          >
-            <span>
-              <span className="block text-sm font-semibold text-blue-900">Create Custom Itinerary / Proposal PDF</span>
-              <span className="block text-xs text-blue-700">
-                Opens the itinerary builder pre-filled with this customer, destination and group size. The generated PDF is saved
-                as Proposal #{(record.proposals?.length || 0) + 1}.
-              </span>
-            </span>
-            <FileText className="w-6 h-6 text-blue-600 flex-shrink-0" />
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex justify-end">
-              <button onClick={() => setBuilderOpen(false)} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
-                <X className="w-3 h-3" /> Close itinerary builder
-              </button>
-            </div>
-            <ItineraryGenerator key={builderKey} prefill={builderPrefill || undefined} onGenerated={onItineraryGenerated} />
-          </div>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: lead info + trip requirements */}
         <div className="space-y-6">
@@ -593,6 +555,44 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
 
           <TimelineCard activities={record.activities || []} />
         </div>
+      </div>
+
+      {/* AI assistant (Claude) */}
+      <AiSalesAssistant
+        lead={lead}
+        form={form}
+        record={record}
+        disabled={busy || !me}
+        onSaveProposal={saveAiProposal}
+        onOpenInBuilder={(p) => openBuilder(aiProposalToPrefill(p, leadPrefill()))}
+      />
+
+      {/* Itinerary / proposal PDF builder */}
+      <div ref={builderRef} className="scroll-mt-4">
+        {!builderOpen ? (
+          <button
+            onClick={() => openBuilder(leadPrefill())}
+            className="w-full flex items-center justify-between gap-3 px-6 py-4 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 text-left"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-blue-900">Create Custom Itinerary / Proposal PDF</span>
+              <span className="block text-xs text-blue-700">
+                Opens the itinerary builder pre-filled with this customer, destination and group size. The generated PDF is saved
+                as Proposal #{(record.proposals?.length || 0) + 1}.
+              </span>
+            </span>
+            <FileText className="w-6 h-6 text-blue-600 flex-shrink-0" />
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <button onClick={() => setBuilderOpen(false)} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">
+                <X className="w-3 h-3" /> Close itinerary builder
+              </button>
+            </div>
+            <ItineraryGenerator key={builderKey} prefill={builderPrefill || undefined} onGenerated={onItineraryGenerated} />
+          </div>
+        )}
       </div>
     </div>
   )
