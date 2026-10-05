@@ -4,7 +4,61 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
-import { CRM_COLLECTION, type CrmRecord, type CrmUserRef } from '@/lib/metaLeadsCrm'
+import {
+  CRM_COLLECTION,
+  type CrmRecord,
+  type CrmUserRef,
+  type MetaAdInfo,
+  type MetaCampaignInfo,
+  type MetaLead,
+} from '@/lib/metaLeadsCrm'
+
+/** Campaign details, ad creatives and spend for the given leads' campaigns/ads. */
+export function useMetaAds(leads: Pick<MetaLead, 'campaign_id' | 'ad_id'>[] | null) {
+  const { currentUser } = useAuth()
+  const [campaigns, setCampaigns] = useState<Record<string, MetaCampaignInfo>>({})
+  const [ads, setAds] = useState<Record<string, MetaAdInfo>>({})
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const campaignIds = useMemo(
+    () => Array.from(new Set((leads || []).map((l) => l.campaign_id).filter(Boolean))).sort().join(','),
+    [leads]
+  )
+  const adIds = useMemo(() => Array.from(new Set((leads || []).map((l) => l.ad_id).filter(Boolean))).sort().join(','), [leads])
+
+  useEffect(() => {
+    if (!currentUser || (!campaignIds && !adIds)) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    currentUser
+      .getIdToken()
+      .then((idToken) =>
+        fetch(`/api/facebook/meta-ads?campaignIds=${campaignIds}&adIds=${adIds}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        })
+      )
+      .then(async (res) => {
+        const json = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setError(json.error || 'Failed to load ad data')
+          return
+        }
+        setCampaigns(json.campaigns || {})
+        setAds(json.ads || {})
+        if (json.insightErrors?.length) setError(`Spend data incomplete: ${json.insightErrors[0]}`)
+      })
+      .catch((err) => !cancelled && setError(err.message || 'Failed to load ad data'))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [currentUser, campaignIds, adIds])
+
+  return { campaigns, ads, loading, error }
+}
 
 /** Live map of every CRM record, keyed by Meta lead ID. */
 export function useCrmRecords() {

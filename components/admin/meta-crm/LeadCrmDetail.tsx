@@ -37,7 +37,12 @@ import {
   fieldValue,
   formatDate,
   formatDateTime,
+  formatHours,
   formatINR,
+  salesStats,
+  type CrmRecord,
+  type MetaAdInfo,
+  type MetaCampaignInfo,
   humanize,
   isFollowUpOverdue,
   leadEmail,
@@ -56,7 +61,7 @@ import {
   type ProposalStatusId,
   type StageId,
 } from '@/lib/metaLeadsCrm'
-import { useCrmRecord, useCurrentUserRef, useSalesTeam } from './useCrm'
+import { useCrmRecord, useCurrentUserRef, useMetaAds, useSalesTeam } from './useCrm'
 
 /** ISO string -> value for <input type="datetime-local"> in local time. */
 const toLocalInput = (iso?: string | null) => {
@@ -97,6 +102,9 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
   const [pendingStage, setPendingStage] = useState<StageId | null>(null)
   const [lostReason, setLostReason] = useState(LOST_REASONS[0])
   const [dealValue, setDealValue] = useState('')
+
+  const leadAsList = useMemo(() => (lead ? [lead] : null), [lead])
+  const { campaigns: campaignInfo, ads: adInfo, error: adsError } = useMetaAds(leadAsList)
 
   const fetchLead = useCallback(async () => {
     if (!currentUser) return
@@ -307,6 +315,8 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
           </div>
         </div>
 
+        <SalesSummary record={record} />
+
         {pendingStage && (
           <div className="mt-4 p-4 rounded-lg border border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-end gap-3">
             {pendingStage === 'lost' ? (
@@ -354,6 +364,13 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
         {/* Left: lead info + trip requirements */}
         <div className="space-y-6">
           <MetaInfoCard lead={lead} form={form} leadError={leadError} />
+          {lead && (lead.ad_id || lead.campaign_id) && (
+            <AdCard
+              ad={lead.ad_id ? adInfo[lead.ad_id] : undefined}
+              campaign={lead.campaign_id ? campaignInfo[lead.campaign_id] : undefined}
+              error={adsError}
+            />
+          )}
           <TripRequirementsCard
             key={`${lead?.id || 'loading'}-${JSON.stringify(record.travel || {})}`}
             leadId={record.leadId}
@@ -368,10 +385,17 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
         <div className="lg:col-span-2 space-y-6">
           <LogActivityCard
             disabled={busy || !me}
+            followUpDue={
+              !!record.nextFollowUp &&
+              !['won', 'lost'].includes(record.stage) &&
+              new Date(record.nextFollowUp).getTime() < Date.now() + 864e5
+            }
             onSave={(activity, nextFollowUp) =>
               run(async () => {
                 await addActivity(record.leadId, { ...activity, by: me! })
+                // A completed follow-up clears the scheduled one unless a new date was given
                 if (nextFollowUp !== undefined) await updateCrmFields(record.leadId, { nextFollowUp })
+                else if (activity.followUp) await updateCrmFields(record.leadId, { nextFollowUp: null })
                 if (record.stage === 'new' && activity.type !== 'note' && me) {
                   await changeStage(record, 'contacted', me)
                 }
@@ -536,9 +560,11 @@ function TripRequirementsCard({
 
 function LogActivityCard({
   disabled,
+  followUpDue,
   onSave,
 }: {
   disabled: boolean
+  followUpDue: boolean
   onSave: (activity: Omit<CrmActivity, 'id' | 'by'>, nextFollowUp?: string | null) => void
 }) {
   const [type, setType] = useState<ActivityTypeId>('call')
@@ -546,6 +572,9 @@ function LogActivityCard({
   const [at, setAt] = useState(() => toLocalInput(new Date().toISOString()))
   const [notes, setNotes] = useState('')
   const [followUp, setFollowUp] = useState('')
+  const [isFollowUp, setIsFollowUp] = useState(followUpDue)
+
+  useEffect(() => setIsFollowUp(followUpDue), [followUpDue])
 
   const submit = () => {
     if (type !== 'call' && !notes.trim()) {
@@ -558,6 +587,7 @@ function LogActivityCard({
         outcome: type === 'call' ? outcome : undefined,
         notes: notes.trim() || undefined,
         at: fromLocalInput(at) || new Date().toISOString(),
+        followUp: type !== 'note' && isFollowUp ? true : undefined,
       },
       followUp ? fromLocalInput(followUp) : undefined
     )
@@ -615,6 +645,18 @@ function LogActivityCard({
           placeholder="What was discussed? Customer's feedback, objections, next steps..."
           className={inputClass}
         />
+        {type !== 'note' && (
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isFollowUp}
+              onChange={(e) => setIsFollowUp(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            This is a follow-up
+            {followUpDue && <span className="text-xs text-amber-600">(a follow-up is due now)</span>}
+          </label>
+        )}
         <button
           onClick={submit}
           disabled={disabled}
@@ -895,6 +937,9 @@ function TimelineCard({ activities }: { activities: CrmActivity[] }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span className="text-sm font-semibold text-gray-900">{label(a.type)}</span>
+                    {a.followUp && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">FOLLOW-UP</span>
+                    )}
                     {a.outcome && <span className="text-sm text-gray-700">{a.outcome}</span>}
                   </div>
                   {a.notes && <p className="text-sm text-gray-600 mt-0.5 whitespace-pre-wrap break-words">{a.notes}</p>}
@@ -906,6 +951,125 @@ function TimelineCard({ activities }: { activities: CrmActivity[] }) {
             )
           })}
         </ol>
+      )}
+    </div>
+  )
+}
+
+// ---------- Sales summary (the spreadsheet columns, calculated from the log) ----------
+
+function SalesSummary({ record }: { record: CrmRecord }) {
+  const s = salesStats(record)
+  const ageDays = (Date.now() - new Date(record.leadCreatedAt).getTime()) / 864e5
+
+  const items: { label: string; value: string; tone?: string; sub?: string }[] = [
+    { label: 'Call attempts', value: String(s.callAttempts) },
+    {
+      label: 'Call connected',
+      value: s.callAttempts ? (s.callConnected ? 'Yes' : 'No') : '—',
+      tone: s.callAttempts ? (s.callConnected ? 'text-emerald-700' : 'text-red-600') : undefined,
+      sub: s.callAttempts ? `${s.connectedCalls} of ${s.callAttempts} calls` : undefined,
+    },
+    {
+      label: 'Quote sent',
+      value: s.quoteSent ? 'Yes' : 'No',
+      tone: s.quoteSent ? 'text-emerald-700' : 'text-gray-500',
+      sub: s.lastQuoteDate ? formatDate(s.lastQuoteDate) : undefined,
+    },
+    { label: 'Latest quote', value: formatINR(s.latestQuote) },
+    { label: 'Modifications', value: String(s.modifications), sub: s.modifications ? 'revised quotes' : undefined },
+    {
+      label: 'Follow-ups done',
+      value: String(s.followUpsDone),
+      sub: s.followUpDates.length ? s.followUpDates.map((d) => formatDate(d)).join(', ') : undefined,
+    },
+    { label: 'First response', value: formatHours(s.firstResponseHours) },
+    { label: 'Lead age', value: ageDays < 1 ? `${Math.round(ageDays * 24)}h` : `${Math.floor(ageDays)}d` },
+  ]
+
+  return (
+    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-px bg-gray-200 rounded-lg overflow-hidden border border-gray-200">
+      {items.map((i) => (
+        <div key={i.label} className="bg-white px-3 py-2">
+          <div className="text-[11px] text-gray-500">{i.label}</div>
+          <div className={`text-base font-bold ${i.tone || 'text-gray-900'}`}>{i.value}</div>
+          {i.sub && <div className="text-[10px] text-gray-400 truncate" title={i.sub}>{i.sub}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ---------- The ad this lead came from ----------
+
+function AdCard({ ad, campaign, error }: { ad?: MetaAdInfo; campaign?: MetaCampaignInfo; error: string | null }) {
+  const insights = ad?.insights || campaign?.insights
+  const cpl = insights && insights.metaLeads ? insights.spend / insights.metaLeads : undefined
+  const budget = campaign?.daily_budget
+    ? `${formatINR(Number(campaign.daily_budget) / 100)}/day`
+    : campaign?.lifetime_budget
+      ? `${formatINR(Number(campaign.lifetime_budget) / 100)} lifetime`
+      : undefined
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+          <Megaphone className="w-4 h-4 text-blue-600" /> The Ad This Lead Came From
+        </h3>
+      </div>
+      {!ad && !campaign ? (
+        <p className="p-5 text-sm text-gray-500">{error ? `Ad data unavailable: ${error}` : 'Loading ad from Meta...'}</p>
+      ) : (
+        <div className="p-5 space-y-3">
+          {ad?.creative?.thumbnail_url || ad?.creative?.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={ad.creative.image_url || ad.creative.thumbnail_url}
+              alt={ad.creative.title || ad.name || 'Ad creative'}
+              className="w-full rounded-lg border border-gray-200 object-cover max-h-64"
+            />
+          ) : null}
+          {ad?.creative?.title && <p className="text-sm font-semibold text-gray-900">{ad.creative.title}</p>}
+          {ad?.creative?.body && <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-6">{ad.creative.body}</p>}
+
+          <dl className="text-xs space-y-1 pt-2 border-t border-gray-100">
+            {(
+              [
+                ['Ad', ad?.name],
+                ['Ad status', ad?.effective_status?.replace(/_/g, ' ').toLowerCase()],
+                ['Campaign', campaign?.name],
+                ['Campaign status', campaign?.effective_status?.replace(/_/g, ' ').toLowerCase()],
+                ['Budget', budget],
+                ['Started', campaign?.start_time ? formatDate(campaign.start_time) : undefined],
+              ] as [string, string | undefined][]
+            )
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="text-gray-800 text-right">{v}</dd>
+                </div>
+              ))}
+          </dl>
+
+          {insights && (
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100 text-center">
+              <div>
+                <div className="text-[10px] text-gray-500">{ad?.insights ? 'Ad spend' : 'Campaign spend'}</div>
+                <div className="text-sm font-bold text-gray-900">{formatINR(Math.round(insights.spend))}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500">Meta leads</div>
+                <div className="text-sm font-bold text-gray-900">{insights.metaLeads}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-gray-500">Cost / lead</div>
+                <div className="text-sm font-bold text-blue-700">{cpl ? formatINR(Math.round(cpl)) : '—'}</div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

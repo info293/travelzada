@@ -118,6 +118,7 @@ export interface CrmActivity {
   notes?: string
   at: string // when it happened (ISO)
   by: CrmUserRef
+  followUp?: boolean // logged as a scheduled follow-up
 }
 
 export interface CrmProposal {
@@ -213,6 +214,89 @@ export const formatINR = (n?: number) =>
 
 export const isFollowUpOverdue = (rec?: CrmRecord) =>
   !!rec?.nextFollowUp && !['won', 'lost'].includes(rec.stage) && new Date(rec.nextFollowUp).getTime() < Date.now()
+
+/** Call outcomes that count as "Call Connected" */
+export const isConnectedOutcome = (outcome?: string) => !!outcome && outcome.startsWith('Connected')
+
+const CONTACT_TYPES: ActivityTypeId[] = ['call', 'whatsapp', 'email', 'meeting']
+
+/**
+ * The numbers the sales team used to track by hand in the spreadsheet
+ * (Call Attempts, Call Connected, Quote Sent, Quote Date, Modifications, Follow ups, Remarks), derived from the CRM log.
+ */
+export function salesStats(rec?: CrmRecord, leadCreatedAt?: string) {
+  const activities = rec?.activities || []
+  const calls = activities.filter((a) => a.type === 'call')
+  const proposals = rec?.proposals || []
+  const contacts = activities.filter((a) => CONTACT_TYPES.includes(a.type) || a.type === 'proposal').map((a) => a.at).sort()
+  const remarks = activities
+    .filter((a) => !['stage_change', 'assignment'].includes(a.type) && a.notes && a.type !== 'proposal')
+    .sort((a, b) => b.at.localeCompare(a.at))
+  const followUps = activities.filter((a) => a.followUp).sort((a, b) => a.at.localeCompare(b.at))
+  const created = leadCreatedAt || rec?.leadCreatedAt
+
+  return {
+    callAttempts: calls.length,
+    callConnected: calls.some((c) => isConnectedOutcome(c.outcome)),
+    connectedCalls: calls.filter((c) => isConnectedOutcome(c.outcome)).length,
+    quoteSent: proposals.length > 0,
+    firstQuoteDate: proposals[0]?.sentAt,
+    lastQuoteDate: proposals[proposals.length - 1]?.sentAt,
+    latestQuote: proposals[proposals.length - 1]?.totalPrice,
+    modifications: Math.max(0, proposals.length - 1),
+    followUpsDone: followUps.length,
+    followUpDates: followUps.map((f) => f.at),
+    latestRemark: remarks[0]?.notes,
+    latestRemarkAt: remarks[0]?.at,
+    firstContactAt: contacts[0],
+    firstResponseHours:
+      contacts[0] && created ? (new Date(contacts[0]).getTime() - new Date(created).getTime()) / 36e5 : undefined,
+  }
+}
+
+export const formatHours = (h?: number | null) =>
+  h === null || h === undefined || isNaN(h)
+    ? '—'
+    : h < 1
+      ? `${Math.max(0, Math.round(h * 60))}m`
+      : h < 48
+        ? `${h.toFixed(1)}h`
+        : `${(h / 24).toFixed(1)}d`
+
+// ---------- Meta ads (spend & creative) ----------
+
+export interface AdInsights {
+  spend: number
+  impressions: number
+  clicks: number
+  reach: number
+  ctr: number
+  cpm: number
+  metaLeads: number // leads as counted by Meta Ads Manager
+}
+
+export interface MetaAdInfo {
+  id: string
+  name?: string
+  status?: string
+  effective_status?: string
+  campaign_id?: string
+  creative?: { title?: string; body?: string; thumbnail_url?: string; image_url?: string }
+  insights?: AdInsights
+}
+
+export interface MetaCampaignInfo {
+  id: string
+  name?: string
+  status?: string
+  effective_status?: string
+  objective?: string
+  daily_budget?: string
+  lifetime_budget?: string
+  start_time?: string
+  stop_time?: string
+  insights?: AdInsights
+}
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
 

@@ -9,10 +9,13 @@ import {
   formatINR,
   isFollowUpOverdue,
   leadName,
+  salesStats,
   type CrmRecord,
   type CrmUserRef,
   type MetaLead,
 } from '@/lib/metaLeadsCrm'
+import { useMetaAds } from './useCrm'
+import { AdRoiTable, LeadInsights } from './AdPerformance'
 
 interface Props {
   leads: MetaLead[]
@@ -68,6 +71,26 @@ const firstContactAt = (rec?: CrmRecord) =>
 const latestQuote = (rec?: CrmRecord) => rec?.proposals?.slice(-1)[0]?.totalPrice || 0
 
 export default function MetaLeadsReports({ leads, records, team }: Props) {
+  const { campaigns, ads, loading: adsLoading, error: adsError } = useMetaAds(leads)
+
+  const callTotals = useMemo(() => {
+    let attempts = 0
+    let connectedLeads = 0
+    let calledLeads = 0
+    let followUps = 0
+    let modifications = 0
+    for (const lead of leads) {
+      const s = salesStats(records[lead.id], lead.created_time)
+      attempts += s.callAttempts
+      if (s.callAttempts) calledLeads++
+      if (s.callConnected) connectedLeads++
+      followUps += s.followUpsDone
+      modifications += s.modifications
+    }
+    const spend = Object.values(campaigns).reduce((sum, c) => sum + (c.insights?.spend || 0), 0)
+    return { attempts, connectedLeads, calledLeads, followUps, modifications, spend }
+  }, [leads, records, campaigns])
+
   const report = useMemo(() => {
     const rows: Record<string, Row> = {}
     team.forEach((t) => (rows[t.uid] = emptyRow(t.uid, t.name)))
@@ -157,6 +180,14 @@ export default function MetaLeadsReports({ leads, records, team }: Props) {
     { label: 'Revenue won', value: formatINR(totals.wonValue) },
     { label: 'Avg first response', value: fmtHours(avg(totals.responseHours)) },
     { label: 'Overdue follow-ups', value: totals.overdue },
+    { label: 'Call attempts', value: `${callTotals.attempts} (${callTotals.calledLeads} leads)` },
+    { label: 'Call connect rate', value: pct(callTotals.connectedLeads, callTotals.calledLeads) },
+    { label: 'Follow-ups done', value: callTotals.followUps },
+    { label: 'Quote modifications', value: callTotals.modifications },
+    { label: 'Ad spend', value: callTotals.spend ? formatINR(Math.round(callTotals.spend)) : '—' },
+    { label: 'Cost per lead', value: callTotals.spend && totals.assigned ? formatINR(Math.round(callTotals.spend / totals.assigned)) : '—' },
+    { label: 'Cost per booking', value: callTotals.spend && totals.won ? formatINR(Math.round(callTotals.spend / totals.won)) : '—' },
+    { label: 'ROAS', value: callTotals.spend ? `${(totals.wonValue / callTotals.spend).toFixed(1)}x` : '—' },
   ]
 
   return (
@@ -210,6 +241,9 @@ export default function MetaLeadsReports({ leads, records, team }: Props) {
           )}
         </div>
       </div>
+
+      {/* Ad spend → bookings */}
+      <AdRoiTable leads={leads} records={records} campaigns={campaigns} ads={ads} loading={adsLoading} error={adsError} />
 
       {/* Salesperson performance */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -312,6 +346,9 @@ export default function MetaLeadsReports({ leads, records, team }: Props) {
           )}
         </div>
       </div>
+
+      {/* Form answers & daily trend */}
+      <LeadInsights leads={leads} records={records} />
     </div>
   )
 }

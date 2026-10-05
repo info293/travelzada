@@ -18,26 +18,66 @@ import {
   ChevronRight,
   BarChart3,
   List,
+  Columns3,
+  PhoneCall,
 } from 'lucide-react'
 import {
+  CALL_OUTCOMES,
   PRIORITIES,
   STAGES,
+  addActivity,
   assignLead,
+  changeStage,
   ensureCrmRecord,
+  formatDate,
   formatDateTime,
+  formatHours,
   formatINR,
+  humanize,
   isFollowUpOverdue,
   leadEmail,
   leadName,
   leadPhone,
+  salesStats,
   stageInfo,
   whatsappNumber,
   type CrmRecord,
   type MetaForm,
   type MetaLead,
 } from '@/lib/metaLeadsCrm'
-import { useCrmRecords, useCurrentUserRef, useSalesTeam } from './meta-crm/useCrm'
+import { useCrmRecords, useCurrentUserRef, useMetaAds, useSalesTeam } from './meta-crm/useCrm'
 import MetaLeadsReports from './meta-crm/MetaLeadsReports'
+
+type Stats = ReturnType<typeof salesStats>
+
+/** Optional table columns: the sales sheet columns (derived from the CRM log) and every raw Meta field. */
+const SHEET_COLUMNS: { id: string; label: string; render: (s: Stats, rec?: CrmRecord) => string }[] = [
+  { id: 'callAttempts', label: 'Call Attempts', render: (s) => String(s.callAttempts) },
+  { id: 'callConnected', label: 'Call Connected', render: (s) => (s.callAttempts ? (s.callConnected ? 'Yes' : 'No') : '—') },
+  { id: 'remarks', label: 'Remarks', render: (s) => s.latestRemark || '—' },
+  { id: 'quoteSent', label: 'Quote Sent', render: (s) => (s.quoteSent ? 'Yes' : 'No') },
+  { id: 'quoteDate', label: 'Quote Date', render: (s) => formatDate(s.lastQuoteDate) },
+  { id: 'latestQuote', label: 'Latest Quote', render: (s) => formatINR(s.latestQuote) },
+  { id: 'modifications', label: 'Modifications', render: (s) => String(s.modifications) },
+  { id: 'followUps', label: 'Follow-ups Done', render: (s) => String(s.followUpsDone) },
+  { id: 'firstResponse', label: 'First Response', render: (s) => formatHours(s.firstResponseHours) },
+  { id: 'priority', label: 'Priority', render: (_s, rec) => PRIORITIES.find((p) => p.id === rec?.priority)?.label || '—' },
+  { id: 'lostReason', label: 'Lost Reason', render: (_s, rec) => rec?.lostReason || '—' },
+]
+
+const META_COLUMNS: { id: keyof MetaLead; label: string }[] = [
+  { id: 'id', label: 'Lead ID' },
+  { id: 'ad_name', label: 'Ad Name' },
+  { id: 'ad_id', label: 'Ad ID' },
+  { id: 'adset_name', label: 'Ad Set Name' },
+  { id: 'adset_id', label: 'Ad Set ID' },
+  { id: 'campaign_id', label: 'Campaign ID' },
+  { id: 'form_id', label: 'Form ID' },
+  { id: 'is_organic', label: 'Organic' },
+]
+
+const DEFAULT_COLUMNS = ['callAttempts', 'callConnected', 'quoteDate', 'followUps', 'remarks']
+const COLUMNS_STORAGE_KEY = 'metaLeadsCrm.columns'
 
 interface MetaLeadsResponse {
   page: { id: string; name: string }
@@ -72,6 +112,25 @@ const lastActivity = (rec?: CrmRecord) =>
     ?.filter((a) => !['stage_change', 'assignment'].includes(a.type))
     .sort((a, b) => b.at.localeCompare(a.at))[0]
 
+const columnLabel = (id: string) =>
+  SHEET_COLUMNS.find((c) => c.id === id)?.label ||
+  META_COLUMNS.find((c) => `meta:${c.id}` === id)?.label ||
+  (id.startsWith('answer:') ? humanize(id.slice(7)) : id)
+
+const columnValue = (id: string, lead: MetaLead, rec?: CrmRecord): string => {
+  const sheet = SHEET_COLUMNS.find((c) => c.id === id)
+  if (sheet) return sheet.render(salesStats(rec, lead.created_time), rec)
+  if (id.startsWith('meta:')) {
+    const v = lead[id.slice(5) as keyof MetaLead]
+    return typeof v === 'boolean' ? (v ? 'Yes' : 'No') : v ? String(v) : '—'
+  }
+  if (id.startsWith('answer:')) {
+    const key = id.slice(7)
+    return lead.field_data?.find((f) => f.name === key)?.values.join(', ') || '—'
+  }
+  return '—'
+}
+
 export default function MetaLeadsSection() {
   const router = useRouter()
   const { currentUser, isAdmin } = useAuth()
@@ -93,6 +152,53 @@ export default function MetaLeadsSection() {
   const [ownerFilter, setOwnerFilter] = useState<string>(isAdmin ? 'all' : 'mine')
   const [followUpFilter, setFollowUpFilter] = useState<FollowUpFilter>('all')
   const [assigning, setAssigning] = useState<string | null>(null)
+  const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(COLUMNS_STORAGE_KEY)
+      if (saved) setVisibleColumns(JSON.parse(saved))
+    } catch {}
+  }, [])
+
+  const toggleColumn = (id: string) =>
+    setVisibleColumns((cols) => {
+      const next = cols.includes(id) ? cols.filter((c) => c !== id) : [...cols, id]
+      try {
+        localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next))
+      } catch {}
+      return next
+    })
+
+  const { campaigns: campaignInfo } = useMetaAds(data?.leads || null)
+
+  // Every form question across all forms, so each answer can be shown as its own column
+  const answerKeys = useMemo(
+    () => Array.from(new Set((data?.leads || []).flatMap((l) => (l.field_data || []).map((f) => f.name)))),
+    [data]
+  )
+
+  const quickLogCall = async (lead: MetaLead, outcome: string) => {
+    if (!me || !outcome) return
+    setAssigning(lead.id)
+    try {
+      await ensureCrmRecord(lead)
+      await addActivity(lead.id, { type: 'call', outcome, at: new Date().toISOString(), by: me })
+      const rec = records[lead.id]
+      if (!rec || rec.stage === 'new') {
+        await changeStage(
+          rec || ({ leadId: lead.id, stage: 'new', activities: [], proposals: [] } as unknown as CrmRecord),
+          'contacted',
+          me
+        )
+      }
+    } catch (err: any) {
+      alert(`Could not log call: ${err.message || err}`)
+    } finally {
+      setAssigning(null)
+    }
+  }
 
   const fetchLeads = useCallback(async () => {
     if (!currentUser) return
@@ -194,8 +300,9 @@ export default function MetaLeadsSection() {
       proposals: recs.filter((r) => r?.proposals?.length).length,
       won: recs.filter((r) => r?.stage === 'won').length,
       revenue: recs.reduce((sum, r) => sum + (r?.stage === 'won' ? r.dealValue || r.proposals?.slice(-1)[0]?.totalPrice || 0 : 0), 0),
+      spend: Object.values(campaignInfo).reduce((sum, c) => sum + (c.insights?.spend || 0), 0),
     }
-  }, [data, records])
+  }, [data, records, campaignInfo])
 
   const quickAssign = async (lead: MetaLead, uid: string) => {
     if (!me) return
@@ -215,26 +322,41 @@ export default function MetaLeadsSection() {
 
   const exportCsv = () => {
     const fieldKeys = Array.from(new Set(filteredLeads.flatMap((l) => (l.field_data || []).map((f) => f.name))))
+    // Same order as the sales team's sheet: Meta fields, form answers, then sales tracking columns
     const metaCols = [
-      'id', 'created_time', 'form_name', 'campaign_name', 'adset_name', 'ad_name', 'platform', 'is_organic',
+      'id', 'created_time', 'ad_id', 'ad_name', 'adset_id', 'adset_name', 'campaign_id', 'campaign_name',
+      'form_id', 'form_name', 'is_organic', 'platform',
     ] as const
-    const crmCols = ['stage', 'assigned_to', 'priority', 'next_follow_up', 'proposals', 'latest_quote', 'deal_value', 'lost_reason', 'activities']
+    const crmCols = [
+      'Stage', 'Assigned To', 'Priority', 'Remarks', 'Call Connected', 'Call Attempts', 'Quote Sent', 'Quote Date',
+      'Latest Quote', 'Modifications', 'Follow-ups Done', 'Follow-up Dates', 'Next Follow-up', 'First Response',
+      'Deal Value', 'Lost Reason', 'Total Activities',
+    ]
     const escape = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const header = [...metaCols, ...crmCols, ...fieldKeys].map(escape).join(',')
+    const header = [...metaCols, ...fieldKeys, ...crmCols].map(escape).join(',')
     const rows = filteredLeads.map((lead) => {
       const rec = records[lead.id]
+      const s = salesStats(rec, lead.created_time)
       return [
         ...metaCols.map((c) => lead[c]),
+        ...fieldKeys.map((k) => lead.field_data?.find((f) => f.name === k)?.values.join(' | ')),
         stageInfo(rec?.stage).label,
         rec?.assignedTo?.name,
         rec?.priority,
-        rec?.nextFollowUp,
-        rec?.proposals?.length || 0,
-        rec?.proposals?.slice(-1)[0]?.totalPrice,
+        s.latestRemark,
+        s.callAttempts ? (s.callConnected ? 'Yes' : 'No') : '',
+        s.callAttempts,
+        s.quoteSent ? 'Yes' : 'No',
+        s.lastQuoteDate ? formatDate(s.lastQuoteDate) : '',
+        s.latestQuote,
+        s.modifications,
+        s.followUpsDone,
+        s.followUpDates.map((d) => formatDate(d)).join(' | '),
+        rec?.nextFollowUp ? formatDateTime(rec.nextFollowUp) : '',
+        s.firstResponseHours !== undefined ? formatHours(s.firstResponseHours) : '',
         rec?.dealValue,
         rec?.lostReason,
         rec?.activities?.length || 0,
-        ...fieldKeys.map((k) => lead.field_data?.find((f) => f.name === k)?.values.join(' | ')),
       ]
         .map(escape)
         .join(',')
@@ -255,6 +377,8 @@ export default function MetaLeadsSection() {
     { label: 'Overdue Follow-ups', value: stats.overdue, className: 'text-red-600', onClick: () => { setFollowUpFilter('overdue'); setStageFilter('all'); setView('leads') } },
     { label: 'Proposals Sent', value: stats.proposals, className: 'text-purple-600' },
     { label: 'Won', value: `${stats.won} · ${formatINR(stats.revenue)}`, className: 'text-emerald-700' },
+    { label: 'Ad Spend', value: stats.spend ? formatINR(Math.round(stats.spend)) : '—', className: 'text-blue-700', onClick: () => setView('reports') },
+    { label: 'Cost / Lead', value: stats.spend && stats.total ? formatINR(Math.round(stats.spend / stats.total)) : '—', className: 'text-blue-700', onClick: () => setView('reports') },
   ]
 
   const selectClass = 'px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white'
@@ -307,7 +431,7 @@ export default function MetaLeadsSection() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px bg-gray-200">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-px bg-gray-200">
           {statCards.map((s) => (
             <button
               key={s.label}
@@ -370,7 +494,42 @@ export default function MetaLeadsSection() {
                 {s.label} {stageCounts[s.id] || 0}
               </button>
             ))}
+            <button
+              onClick={() => setShowColumnPicker((v) => !v)}
+              className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${showColumnPicker ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <Columns3 className="w-4 h-4" /> Columns ({visibleColumns.length})
+            </button>
           </div>
+
+          {showColumnPicker && (
+            <div className="mx-4 mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              {(
+                [
+                  ['Sales tracking', SHEET_COLUMNS.map((c) => ({ id: c.id, label: c.label }))],
+                  ['Ad details', META_COLUMNS.map((c) => ({ id: `meta:${c.id}`, label: c.label }))],
+                  ['Form answers', answerKeys.map((k) => ({ id: `answer:${k}`, label: humanize(k) }))],
+                ] as [string, { id: string; label: string }[]][]
+              ).map(([group, cols]) => (
+                <div key={group}>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">{group}</div>
+                  <div className="space-y-1">
+                    {cols.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 cursor-pointer text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns.includes(c.id)}
+                          onChange={() => toggleColumn(c.id)}
+                          className="rounded border-gray-300"
+                        />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Filters */}
           <div className="p-4 border-b border-gray-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
@@ -442,20 +601,25 @@ export default function MetaLeadsSection() {
                   <th className="px-4 py-3 text-left">Salesperson</th>
                   <th className="px-4 py-3 text-left">Follow-up</th>
                   <th className="px-4 py-3 text-left">Last activity</th>
+                  {visibleColumns.map((id) => (
+                    <th key={id} className="px-4 py-3 text-left whitespace-nowrap">
+                      {columnLabel(id)}
+                    </th>
+                  ))}
                   <th className="px-4 py-3 text-right"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading && !data && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={8 + visibleColumns.length} className="px-4 py-12 text-center text-gray-500">
                       <RefreshCw className="w-5 h-5 animate-spin inline mr-2" /> Loading leads from Meta...
                     </td>
                   </tr>
                 )}
                 {data && filteredLeads.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                    <td colSpan={8 + visibleColumns.length} className="px-4 py-12 text-center text-gray-500">
                       {data.leads.length === 0 ? 'No leads found on your Meta lead forms yet.' : 'No leads match these filters.'}
                     </td>
                   </tr>
@@ -556,8 +720,45 @@ export default function MetaLeadsSection() {
                           <span className="text-gray-400">No activity</span>
                         )}
                       </td>
+                      {visibleColumns.map((id) => {
+                        const value = columnValue(id, lead, rec)
+                        return (
+                          <td
+                            key={id}
+                            className={`px-4 py-3 text-xs text-gray-700 ${id === 'remarks' ? 'max-w-[16rem]' : 'whitespace-nowrap max-w-[14rem]'} ${
+                              value === 'Yes' ? 'text-emerald-700 font-semibold' : value === 'No' ? 'text-red-600' : ''
+                            }`}
+                          >
+                            <div className={id === 'remarks' ? 'line-clamp-2' : 'truncate'} title={value}>
+                              {value}
+                            </div>
+                          </td>
+                        )
+                      })}
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
+                          <div
+                            className={`relative p-2 rounded-lg text-blue-600 hover:bg-blue-50 ${assigning === lead.id ? 'opacity-50' : ''}`}
+                            title="Log a call attempt"
+                          >
+                            <PhoneCall className="w-4 h-4" />
+                            <select
+                              value=""
+                              disabled={assigning === lead.id || !me}
+                              onChange={(e) => quickLogCall(lead, e.target.value)}
+                              className="absolute inset-0 opacity-0 cursor-pointer"
+                              aria-label="Log call outcome"
+                            >
+                              <option value="" disabled>
+                                Log call outcome…
+                              </option>
+                              {CALL_OUTCOMES.map((o) => (
+                                <option key={o} value={o}>
+                                  {o}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                           {phone && (
                             <Link
                               href={`/admin/whatsapp-chats?phone=${whatsappNumber(phone)}&name=${encodeURIComponent(name)}`}
