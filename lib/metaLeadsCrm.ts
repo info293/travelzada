@@ -8,6 +8,40 @@ import { doc, setDoc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore'
 
 export const CRM_COLLECTION = 'meta_lead_crm'
 export const AD_COACH_COLLECTION = 'meta_ad_coach_reports'
+/** Every email (and its reply) exchanged with a Meta lead */
+export const LEAD_MESSAGES_COLLECTION = 'meta_lead_messages'
+/** Single doc 'meta-leads' holding the automation settings and last-run status */
+export const AUTOMATION_COLLECTION = 'automation_settings'
+
+export interface LeadMessage {
+  id?: string
+  leadId: string
+  channel: 'email'
+  direction: 'outbound' | 'inbound'
+  subject: string
+  from: string
+  to: string
+  text: string
+  html?: string
+  messageId?: string
+  inReplyTo?: string
+  at: string
+  auto?: boolean
+  test?: boolean
+  by?: { uid: string; name: string }
+}
+
+export interface AutomationSettings {
+  enabled: boolean
+  /** Only leads created after this moment get the automatic email (prevents mass-mailing old leads) */
+  startAt?: string
+  /** When set, automatic emails go to this address instead of the customer (for testing) */
+  testRecipient?: string
+  lastRunAt?: string
+  lastRunSummary?: string
+  lastInboxCheckAt?: string
+  lastError?: string
+}
 
 // ---------- Meta lead types ----------
 
@@ -201,6 +235,15 @@ export interface CrmRecord {
   metaEvents?: Partial<Record<StageId, { eventName: string; sentAt: string; ok: boolean; test?: boolean; error?: string }>>
   activities: CrmActivity[]
   proposals: CrmProposal[]
+  /** Digits-only phone with country code, used to match WhatsApp messages */
+  phoneNorm?: string
+  /** Automatic "options for your trip" email */
+  autoEmail?: { sentAt: string; to: string; messageId?: string; packageIds?: string[]; test?: boolean; error?: string }
+  /** Customer replies (email or WhatsApp) not yet seen in the CRM */
+  unreadReplies?: number
+  lastReplyAt?: string
+  lastReplyChannel?: 'email' | 'whatsapp'
+  lastReplySnippet?: string
   createdAt: string
   updatedAt: string
 }
@@ -345,6 +388,7 @@ export async function ensureCrmRecord(lead: MetaLead): Promise<void> {
     leadId: lead.id,
     name: leadName(lead),
     phone: leadPhone(lead),
+    phoneNorm: whatsappNumber(leadPhone(lead)),
     email: leadEmail(lead),
     formName: lead.form_name || '',
     campaignName: lead.campaign_name || '',

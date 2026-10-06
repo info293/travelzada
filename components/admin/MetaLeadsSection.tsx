@@ -19,6 +19,7 @@ import {
   BarChart3,
   List,
   Columns3,
+  Zap,
   Sheet,
   Gauge,
   PhoneCall,
@@ -50,6 +51,7 @@ import {
 import { useCrmRecords, useCurrentUserRef, useMetaAds, useSalesTeam } from './meta-crm/useCrm'
 import MetaLeadsReports from './meta-crm/MetaLeadsReports'
 import AdInsights from './meta-crm/AdInsights'
+import AutomationPanel, { useAutomationHeartbeat } from './meta-crm/AutomationPanel'
 import LeadsSheet, { STANDARD_ANSWERS, buildColumns } from './meta-crm/LeadsSheet'
 
 type Stats = ReturnType<typeof salesStats>
@@ -92,7 +94,7 @@ interface MetaLeadsResponse {
 }
 
 type DateRange = 'all' | 'today' | '7d' | '30d'
-type FollowUpFilter = 'all' | 'overdue' | 'today' | 'none'
+type FollowUpFilter = 'all' | 'overdue' | 'today' | 'none' | 'replies'
 
 const PlatformBadge = ({ platform }: { platform?: string }) => {
   const p = (platform || '').toLowerCase()
@@ -145,7 +147,10 @@ export default function MetaLeadsSection() {
   const [data, setData] = useState<MetaLeadsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ message: string; hint?: string } | null>(null)
-  const [view, setView] = useState<'leads' | 'reports' | 'insights'>('leads')
+  const [view, setView] = useState<'leads' | 'reports' | 'insights' | 'automation'>('leads')
+
+  // New-lead emails + reply check every 3 minutes while the CRM is open
+  useAutomationHeartbeat()
 
   const [search, setSearch] = useState('')
   const [formFilter, setFormFilter] = useState('all')
@@ -307,6 +312,7 @@ export default function MetaLeadsSection() {
         if (!(t < endOfToday) || ['won', 'lost'].includes(rec?.stage || '')) return false
       }
       if (followUpFilter === 'none' && (rec?.nextFollowUp || ['won', 'lost'].includes(rec?.stage || ''))) return false
+      if (followUpFilter === 'replies' && !rec?.unreadReplies) return false
 
       if (!q) return true
       const haystack = [
@@ -349,6 +355,7 @@ export default function MetaLeadsSection() {
       overdue: recs.filter((r) => isFollowUpOverdue(r)).length,
       proposals: recs.filter((r) => r?.proposals?.length).length,
       won: recs.filter((r) => r?.stage === 'won').length,
+      replies: recs.filter((r) => r?.unreadReplies).length,
       revenue: recs.reduce((sum, r) => sum + (r?.stage === 'won' ? r.dealValue || r.proposals?.slice(-1)[0]?.totalPrice || 0 : 0), 0),
       spend: Object.values(campaignInfo).reduce((sum, c) => sum + (c.insights?.spend || 0), 0),
     }
@@ -425,6 +432,7 @@ export default function MetaLeadsSection() {
     { label: 'New Today', value: stats.today, className: 'text-emerald-600' },
     { label: 'Untouched', value: stats.untouched, className: 'text-amber-600', onClick: () => { setStageFilter('new'); setView('leads') } },
     { label: 'Overdue Follow-ups', value: stats.overdue, className: 'text-red-600', onClick: () => { setFollowUpFilter('overdue'); setStageFilter('all'); setView('leads') } },
+    { label: 'New Replies', value: stats.replies, className: 'text-fuchsia-600', onClick: () => { setFollowUpFilter('replies'); setStageFilter('all'); setView('leads') } },
     { label: 'Proposals Sent', value: stats.proposals, className: 'text-purple-600' },
     { label: 'Won', value: `${stats.won} · ${formatINR(stats.revenue)}`, className: 'text-emerald-700' },
     { label: 'Ad Spend', value: stats.spend ? formatINR(Math.round(stats.spend)) : '—', className: 'text-blue-700', onClick: () => setView('reports') },
@@ -468,6 +476,12 @@ export default function MetaLeadsSection() {
               >
                 <Gauge className="w-4 h-4" /> Ad Insights
               </button>
+              <button
+                onClick={() => setView('automation')}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium ${view === 'automation' ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                <Zap className="w-4 h-4" /> Automation
+              </button>
             </div>
             <button
               onClick={exportCsv}
@@ -487,7 +501,7 @@ export default function MetaLeadsSection() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-px bg-gray-200">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-px bg-gray-200">
           {statCards.map((s) => (
             <button
               key={s.label}
@@ -530,6 +544,8 @@ export default function MetaLeadsSection() {
       {view === 'reports' && data && <MetaLeadsReports leads={data.leads} records={records} team={team} />}
 
       {view === 'insights' && <AdInsights leads={data?.leads || []} records={records} />}
+
+      {view === 'automation' && <AutomationPanel />}
 
       {view === 'leads' && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -645,6 +661,7 @@ export default function MetaLeadsSection() {
               <option value="overdue">Overdue</option>
               <option value="today">Due today (incl. overdue)</option>
               <option value="none">No follow-up set</option>
+              <option value="replies">New customer replies</option>
             </select>
             <select value={formFilter} onChange={(e) => setFormFilter(e.target.value)} className={selectClass}>
               <option value="all">All forms</option>
@@ -730,6 +747,14 @@ export default function MetaLeadsSection() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-gray-900">{name}</span>
+                          {!!rec?.unreadReplies && (
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-fuchsia-100 text-fuchsia-700"
+                              title={`New ${rec.lastReplyChannel === 'whatsapp' ? 'WhatsApp' : 'email'} reply: ${rec.lastReplySnippet || ''}`}
+                            >
+                              ↩ {rec.unreadReplies} new {rec.lastReplyChannel === 'whatsapp' ? 'WA' : 'email'}
+                            </span>
+                          )}
                           {priority && rec && (
                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${priority.color}`}>{priority.label}</span>
                           )}

@@ -64,6 +64,7 @@ import {
 import { useCrmRecord, useCurrentUserRef, useMetaAds, useSalesTeam } from './useCrm'
 import ItineraryGenerator, { type GeneratedItinerarySummary, type ItineraryPrefill } from '@/components/admin/ItineraryGenerator'
 import AiSalesAssistant, { type AiProposal } from './AiSalesAssistant'
+import LeadConversation from './LeadConversation'
 
 /** Form answers like "2", "2_people", "4 adults" → 2 / 4 */
 const parseCount = (v: string) => {
@@ -524,6 +525,8 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
 
         {/* Right: activity, proposals, timeline */}
         <div className="lg:col-span-2 space-y-6">
+          <LeadConversation record={record} me={me} />
+
           <LogActivityCard
             disabled={busy || !me}
             followUpDue={

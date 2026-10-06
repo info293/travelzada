@@ -15,6 +15,7 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { formatPhoneNumber } from '@/lib/whatsapp'
+import { markWhatsAppReply, processNewLeadById } from '@/lib/leadAutomation'
 
 /**
  * GET: Webhook Verification Endpoint required by Meta Dashboard setup.
@@ -126,6 +127,11 @@ export async function POST(req: NextRequest) {
                 },
                 { merge: true }
               )
+
+              // Link the message to the Meta lead with this phone number (shows as a new reply in the CRM)
+              await markWhatsAppReply(senderPhone, messageText, messageTimestamp).catch((e) =>
+                console.error('[CRM] Could not link WhatsApp reply:', e)
+              )
             }
           }
 
@@ -164,6 +170,11 @@ export async function POST(req: NextRequest) {
             const pageId = change.value?.page_id
 
             console.log(`[Facebook Lead Ad Event] New lead received! Leadgen ID: ${leadgenId}`)
+
+            // Automatic trip-options email (only when enabled in Meta Leads → Automation)
+            if (leadgenId) {
+              await processNewLeadById(String(leadgenId)).catch((e) => console.error('[Lead Automation] webhook send failed:', e))
+            }
 
             if (leadgenId && accessToken) {
               const graphUrl = `https://graph.facebook.com/v20.0/${leadgenId}?access_token=${accessToken}`

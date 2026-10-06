@@ -9,9 +9,16 @@ export interface MailPayload {
   subject: string
   html: string
   fromName?: string
+  /** Optional extras for threaded conversations (e.g. CRM lead emails) */
+  text?: string
+  replyTo?: string
+  messageId?: string
+  inReplyTo?: string
+  references?: string[]
 }
 
-export async function sendMail(payload: MailPayload): Promise<void> {
+/** Returns the sent message's Message-ID, or undefined when SMTP is not configured. */
+export async function sendMail(payload: MailPayload): Promise<string | undefined> {
   const host = process.env.SMTP_HOST
   const port = Number(process.env.SMTP_PORT || 587)
   const user = process.env.SMTP_USER
@@ -30,7 +37,18 @@ export async function sendMail(payload: MailPayload): Promise<void> {
 
   const fromLabel = payload.fromName || process.env.SMTP_FROM_NAME || ''
   const fromField = fromLabel ? `${fromLabel} <${FROM}>` : FROM
-  await transporter.sendMail({ from: fromField, to: payload.to, subject: payload.subject, html: payload.html })
+  const info = await transporter.sendMail({
+    from: fromField,
+    to: payload.to,
+    subject: payload.subject,
+    html: payload.html,
+    ...(payload.text ? { text: payload.text } : {}),
+    ...(payload.replyTo ? { replyTo: payload.replyTo } : {}),
+    ...(payload.messageId ? { messageId: payload.messageId } : {}),
+    ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}),
+    ...(payload.references?.length ? { references: payload.references } : {}),
+  })
+  return info.messageId
 }
 
 // ─── Design Helpers ───────────────────────────────────────────────────────────

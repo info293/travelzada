@@ -251,8 +251,10 @@ export function buildColumns(extraAnswerKeys: string[]): Column[] {
       group: 'sales',
       value: ({ rec }) => {
         const n = (rec?.activities || []).filter((a) => a.type === 'email').length
-        return n ? `Yes (${n})` : ''
+        const fresh = !!rec?.unreadReplies && rec.lastReplyChannel === 'email'
+        return n ? `Yes (${n})${fresh ? ' ↩ new reply' : ''}` : ''
       },
+      tone: ({ rec }) => (rec?.unreadReplies && rec.lastReplyChannel === 'email' ? 'text-fuchsia-700 font-semibold' : ''),
       edit: { type: 'select', options: [{ value: 'log', label: 'Log an email sent' }], current: () => '' },
     },
     {
@@ -262,8 +264,10 @@ export function buildColumns(extraAnswerKeys: string[]): Column[] {
       group: 'sales',
       value: ({ rec }) => {
         const n = (rec?.activities || []).filter((a) => a.type === 'whatsapp').length
-        return n ? `Yes (${n})` : ''
+        const fresh = !!rec?.unreadReplies && rec.lastReplyChannel === 'whatsapp'
+        return n ? `Yes (${n})${fresh ? ' ↩ new reply' : ''}` : ''
       },
+      tone: ({ rec }) => (rec?.unreadReplies && rec.lastReplyChannel === 'whatsapp' ? 'text-fuchsia-700 font-semibold' : ''),
       edit: { type: 'select', options: [{ value: 'log', label: 'Log a WhatsApp chat' }], current: () => '' },
     },
   ]
