@@ -28,7 +28,7 @@ import {
 
 type Stats = ReturnType<typeof salesStats>
 
-interface Ctx {
+export interface Ctx {
   lead: MetaLead
   rec?: CrmRecord
   s: Stats
@@ -39,7 +39,7 @@ type EditKind =
   | { type: 'select'; options: { value: string; label: string }[]; current: (c: Ctx) => string }
   | { type: 'datetime'; current: (c: Ctx) => string }
 
-interface Column {
+export interface Column {
   key: string
   header: string
   width: number
@@ -80,7 +80,7 @@ const followUpCell = (c: Ctx, n: number) => {
   return ''
 }
 
-const STANDARD_ANSWERS = [
+export const STANDARD_ANSWERS = [
   'traveling_from_jaipur?',
   'no_of_people_travelling?',
   'occasion_for_your_trip?',
@@ -93,7 +93,7 @@ const STANDARD_ANSWERS = [
   'city',
 ]
 
-function buildColumns(extraAnswerKeys: string[]): Column[] {
+export function buildColumns(extraAnswerKeys: string[]): Column[] {
   const meta = (key: keyof MetaLead, width = 140, fmt?: (v: any) => string): Column => ({
     key,
     header: key,

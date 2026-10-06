@@ -50,7 +50,7 @@ import {
 import { useCrmRecords, useCurrentUserRef, useMetaAds, useSalesTeam } from './meta-crm/useCrm'
 import MetaLeadsReports from './meta-crm/MetaLeadsReports'
 import AdInsights from './meta-crm/AdInsights'
-import LeadsSheet from './meta-crm/LeadsSheet'
+import LeadsSheet, { STANDARD_ANSWERS, buildColumns } from './meta-crm/LeadsSheet'
 
 type Stats = ReturnType<typeof salesStats>
 
@@ -80,8 +80,8 @@ const META_COLUMNS: { id: keyof MetaLead; label: string }[] = [
   { id: 'is_organic', label: 'Organic' },
 ]
 
-const DEFAULT_COLUMNS = ['callAttempts', 'callConnected', 'quoteDate', 'followUps', 'remarks']
-const COLUMNS_STORAGE_KEY = 'metaLeadsCrm.columns'
+const EXTRA_COLUMN_IDS = ['latestQuote', 'followUps', 'firstResponse', 'lostReason']
+const COLUMNS_STORAGE_KEY = 'metaLeadsCrm.tableColumns.v2'
 
 interface MetaLeadsResponse {
   page: { id: string; name: string }
@@ -116,7 +116,7 @@ const lastActivity = (rec?: CrmRecord) =>
     ?.filter((a) => !['stage_change', 'assignment'].includes(a.type))
     .sort((a, b) => b.at.localeCompare(a.at))[0]
 
-const columnLabel = (id: string) =>
+const legacyColumnLabel = (id: string) =>
   SHEET_COLUMNS.find((c) => c.id === id)?.label ||
   META_COLUMNS.find((c) => `meta:${c.id}` === id)?.label ||
   (id.startsWith('answer:') ? humanize(id.slice(7)) : id)
@@ -172,17 +172,27 @@ export default function MetaLeadsSection() {
       localStorage.setItem('metaLeadsCrm.layout', l)
     } catch {}
   }
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
+  // null = every sheet column (default); otherwise the ids the user picked
+  const [pickedColumns, setPickedColumns] = useState<string[] | null>(null)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(COLUMNS_STORAGE_KEY)
-      if (saved) setVisibleColumns(JSON.parse(saved))
+      if (saved) setPickedColumns(JSON.parse(saved))
     } catch {}
   }, [])
 
+  const saveColumns = (next: string[] | null) => {
+    setPickedColumns(next)
+    try {
+      if (next) localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next))
+      else localStorage.removeItem(COLUMNS_STORAGE_KEY)
+    } catch {}
+  }
+
   const toggleColumn = (id: string) =>
-    setVisibleColumns((cols) => {
+    setPickedColumns((picked) => {
+      const cols = picked || sheetColumns.map((c) => `sheet:${c.key}`)
       const next = cols.includes(id) ? cols.filter((c) => c !== id) : [...cols, id]
       try {
         localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(next))
@@ -197,6 +207,27 @@ export default function MetaLeadsSection() {
     () => Array.from(new Set((data?.leads || []).flatMap((l) => (l.field_data || []).map((f) => f.name)))),
     [data]
   )
+
+  // Same columns, in the same order, as the Excel sheet view
+  const sheetColumns = useMemo(
+    () => buildColumns(answerKeys.filter((k) => !STANDARD_ANSWERS.some((a) => a.replace(/\?$/, '') === k.replace(/\?$/, '')))),
+    [answerKeys]
+  )
+  const visibleColumns = pickedColumns || sheetColumns.map((c) => `sheet:${c.key}`)
+
+  const columnLabel = (id: string) =>
+    id.startsWith('sheet:') ? sheetColumns.find((c) => `sheet:${c.key}` === id)?.header || id : legacyColumnLabel(id)
+
+  const columnCell = (id: string, lead: MetaLead, rec?: CrmRecord) => {
+    if (!id.startsWith('sheet:')) {
+      const value = columnValue(id, lead, rec)
+      return { value, tone: value === 'Yes' ? 'text-emerald-700 font-semibold' : value === 'No' ? 'text-red-600' : '' }
+    }
+    const col = sheetColumns.find((c) => `sheet:${c.key}` === id)
+    if (!col) return { value: '', tone: '' }
+    const ctx = { lead, rec, s: salesStats(rec, lead.created_time) }
+    return { value: col.value(ctx) || '—', tone: col.tone?.(ctx) || '' }
+  }
 
   const quickLogCall = async (lead: MetaLead, outcome: string) => {
     if (!me || !outcome) return
@@ -541,12 +572,29 @@ export default function MetaLeadsSection() {
           </div>
 
           {layout === 'table' && showColumnPicker && (
-            <div className="mx-4 mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="mx-4 mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm">
+              <div className="flex gap-3 mb-3 text-xs">
+                <button onClick={() => saveColumns(null)} className="font-medium text-primary hover:underline">
+                  Show all sheet columns
+                </button>
+                <button onClick={() => saveColumns([])} className="font-medium text-gray-600 hover:underline">
+                  Hide all
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
               {(
                 [
-                  ['Sales tracking', SHEET_COLUMNS.map((c) => ({ id: c.id, label: c.label }))],
-                  ['Ad details', META_COLUMNS.map((c) => ({ id: `meta:${c.id}`, label: c.label }))],
-                  ['Form answers', answerKeys.map((k) => ({ id: `answer:${k}`, label: humanize(k) }))],
+                  ['Meta ad fields', sheetColumns.filter((c) => c.group === 'meta').map((c) => ({ id: `sheet:${c.key}`, label: c.header }))],
+                  ['Form answers', sheetColumns.filter((c) => c.group === 'answer').map((c) => ({ id: `sheet:${c.key}`, label: c.header }))],
+                  [
+                    'Sales tracking',
+                    [
+                      ...sheetColumns
+                        .filter((c) => c.group === 'sales')
+                        .map((c) => ({ id: `sheet:${c.key}`, label: c.key.startsWith('follow_up_') ? `Follow up ${c.key.slice(-1)}` : c.header })),
+                      ...SHEET_COLUMNS.filter((c) => EXTRA_COLUMN_IDS.includes(c.id)).map((c) => ({ id: c.id, label: c.label })),
+                    ],
+                  ],
                 ] as [string, { id: string; label: string }[]][]
               ).map(([group, cols]) => (
                 <div key={group}>
@@ -566,6 +614,7 @@ export default function MetaLeadsSection() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           )}
 
@@ -643,7 +692,7 @@ export default function MetaLeadsSection() {
                   <th className="px-4 py-3 text-left">Follow-up</th>
                   <th className="px-4 py-3 text-left">Last activity</th>
                   {visibleColumns.map((id) => (
-                    <th key={id} className="px-4 py-3 text-left whitespace-nowrap">
+                    <th key={id} className="px-3 py-3 text-left whitespace-nowrap normal-case tracking-normal">
                       {columnLabel(id)}
                     </th>
                   ))}
@@ -762,15 +811,14 @@ export default function MetaLeadsSection() {
                         )}
                       </td>
                       {visibleColumns.map((id) => {
-                        const value = columnValue(id, lead, rec)
+                        const { value, tone } = columnCell(id, lead, rec)
+                        const wide = id === 'remarks' || id === 'sheet:remarks'
                         return (
                           <td
                             key={id}
-                            className={`px-4 py-3 text-xs text-gray-700 ${id === 'remarks' ? 'max-w-[16rem]' : 'whitespace-nowrap max-w-[14rem]'} ${
-                              value === 'Yes' ? 'text-emerald-700 font-semibold' : value === 'No' ? 'text-red-600' : ''
-                            }`}
+                            className={`px-3 py-3 text-xs text-gray-700 ${wide ? 'min-w-[14rem] max-w-[18rem]' : 'whitespace-nowrap max-w-[14rem]'}`}
                           >
-                            <div className={id === 'remarks' ? 'line-clamp-2' : 'truncate'} title={value}>
+                            <div className={`${wide ? 'line-clamp-2' : 'truncate'} ${tone}`} title={value}>
                               {value}
                             </div>
                           </td>
