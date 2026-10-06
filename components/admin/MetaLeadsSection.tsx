@@ -19,6 +19,7 @@ import {
   BarChart3,
   List,
   Columns3,
+  Sheet,
   Gauge,
   PhoneCall,
 } from 'lucide-react'
@@ -49,6 +50,7 @@ import {
 import { useCrmRecords, useCurrentUserRef, useMetaAds, useSalesTeam } from './meta-crm/useCrm'
 import MetaLeadsReports from './meta-crm/MetaLeadsReports'
 import AdInsights from './meta-crm/AdInsights'
+import LeadsSheet from './meta-crm/LeadsSheet'
 
 type Stats = ReturnType<typeof salesStats>
 
@@ -155,6 +157,21 @@ export default function MetaLeadsSection() {
   const [followUpFilter, setFollowUpFilter] = useState<FollowUpFilter>('all')
   const [assigning, setAssigning] = useState<string | null>(null)
   const [showColumnPicker, setShowColumnPicker] = useState(false)
+  const [layout, setLayout] = useState<'sheet' | 'table'>('sheet')
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('metaLeadsCrm.layout')
+      if (saved === 'sheet' || saved === 'table') setLayout(saved)
+    } catch {}
+  }, [])
+
+  const changeLayout = (l: 'sheet' | 'table') => {
+    setLayout(l)
+    try {
+      localStorage.setItem('metaLeadsCrm.layout', l)
+    } catch {}
+  }
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
 
   useEffect(() => {
@@ -504,15 +521,26 @@ export default function MetaLeadsSection() {
                 {s.label} {stageCounts[s.id] || 0}
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-2">
+              <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden text-xs font-semibold">
+                {(['sheet', 'table'] as const).map((l) => (
+                  <button key={l} onClick={() => changeLayout(l)} className={`inline-flex items-center gap-1 px-3 py-1.5 ${layout === l ? 'bg-emerald-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}>
+                    {l === 'sheet' ? <Sheet className="w-4 h-4" /> : <List className="w-4 h-4" />} {l === 'sheet' ? 'Excel sheet' : 'Table'}
+                  </button>
+                ))}
+              </div>
+              {layout === 'table' && (
             <button
               onClick={() => setShowColumnPicker((v) => !v)}
-              className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${showColumnPicker ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${showColumnPicker ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
             >
               <Columns3 className="w-4 h-4" /> Columns ({visibleColumns.length})
             </button>
+              )}
+            </div>
           </div>
 
-          {showColumnPicker && (
+          {layout === 'table' && showColumnPicker && (
             <div className="mx-4 mt-3 p-4 rounded-lg border border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               {(
                 [
@@ -600,6 +628,9 @@ export default function MetaLeadsSection() {
             </div>
           </div>
 
+          {layout === 'sheet' && <LeadsSheet leads={filteredLeads} records={records} me={me} />}
+
+          {layout === 'table' && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
@@ -793,6 +824,7 @@ export default function MetaLeadsSection() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
       )}
     </div>
