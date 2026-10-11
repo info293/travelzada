@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
+import { requireUser } from '@/lib/aiImagesAuth'
 import { NextResponse } from 'next/server'
 import { claudeJson, imageBlock, AiImagesError } from '@/lib/aiImagesClaude'
 import { ALL_ITEM_IDS } from '@/lib/aiImagesCatalog'
@@ -49,6 +50,9 @@ Rules:
 - If the photo is not a venue, still fill every field honestly and say so in "summary".`
 
 export async function POST(request: Request) {
+  const user = await requireUser(request)
+  if (user instanceof Response) return user
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'Missing ANTHROPIC_API_KEY' }, { status: 500 })
   }

@@ -1,20 +1,34 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import {
-  Check, ChevronDown, Download, Eye, ImagePlus, Loader2, RefreshCw, ScanSearch, Sparkles, Star, Wand2, X,
+  Check, ChevronDown, Download, FolderOpen, Share2, Gem, ImagePlus, Loader2, Maximize2, RefreshCw, ScanSearch, Send, Sparkles, Star,
+  Undo2, Wand2, Wrench, X,
 } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import { DECOR_CATEGORIES, DECOR_STYLES, EVENT_TYPES } from '@/lib/aiImagesCatalog'
+import CompareSlider from '@/components/ai-images/CompareSlider'
+import CatalogPanel from '@/components/ai-images/CatalogPanel'
+import ShareDesign from '@/components/ai-images/ShareDesign'
+import { useAuth } from '@/contexts/AuthContext'
+import { ALL_ITEM_IDS, DECOR_CATEGORIES, DECOR_STYLES, EVENT_TYPES } from '@/lib/aiImagesCatalog'
+import { designTotal, formatINR, listCatalog, type CatalogItem, type DesignItem } from '@/lib/decorStore'
+
+const ITEM_LABELS = new Map(DECOR_CATEGORIES.flatMap((c) => c.items.map((i) => [i.id, { name: i.label, category: c.label }] as const)))
 
 const MAX_IMAGES = 4
 const MAX_EDGE = 2048
+// Claude only needs to understand the room, so it gets a smaller copy (about 70% fewer image tokens)
+const ANALYSIS_EDGE = 1024
+// Wait for the user to finish adding photos before paying for an analysis
+const ANALYSIS_DEBOUNCE_MS = 1200
 
 interface UploadedImage {
   id: string
   name: string
   dataUrl: string
+  smallUrl: string
   aspect: number
 }
 
@@ -42,9 +56,20 @@ interface Variant {
   prompt: string
   url?: string
   error?: string
-  status?: 'checking' | 'fixing' | 'done'
-  checks?: { itemId: string; label: string; present: boolean; note: string }[]
+  status?: 'checking' | 'done'
+  checks?: Check[]
+  hd?: boolean
+  /** Label of the action running on this design */
+  busy?: string
+  notice?: string
+  /** Snapshot taken before the last action, for Undo */
+  previous?: Pick<Variant, 'url' | 'checks' | 'hd' | 'prompt'>
 }
+
+type Check = { itemId: string; label: string; present: boolean; note: string }
+type Action = 'regenerate' | 'fix' | 'hd' | 'refine'
+
+const presentCount = (checks?: Check[]) => checks?.filter((c) => c.present).length ?? 0
 
 /** Downscale + re-encode so uploads stay small and every format becomes a JPEG both APIs accept. */
 function loadImage(file: File): Promise<UploadedImage> {
@@ -55,15 +80,19 @@ function loadImage(file: File): Promise<UploadedImage> {
       const img = new Image()
       img.onerror = () => reject(new Error(`${file.name} is not a supported image`))
       img.onload = () => {
-        const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.round(img.width * scale)
-        canvas.height = Math.round(img.height * scale)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const encode = (maxEdge: number, quality: number) => {
+          const scale = Math.min(1, maxEdge / Math.max(img.width, img.height))
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.round(img.width * scale)
+          canvas.height = Math.round(img.height * scale)
+          canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+          return canvas.toDataURL('image/jpeg', quality)
+        }
         resolve({
           id: `${file.name}-${file.size}-${file.lastModified}`,
           name: file.name,
-          dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+          dataUrl: encode(MAX_EDGE, 0.9),
+          smallUrl: encode(ANALYSIS_EDGE, 0.85),
           aspect: img.width / img.height,
         })
       }
@@ -110,6 +139,7 @@ export default function AiImagesPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [analysisOpen, setAnalysisOpen] = useState(true)
   const analysisRun = useRef(0)
+  const analysisCache = useRef(new Map<string, VenueAnalysis>())
 
   const [selected, setSelected] = useState<string[]>([])
   const [eventType, setEventType] = useState('wedding')
@@ -123,8 +153,49 @@ export default function AiImagesPage() {
   const [variants, setVariants] = useState<Variant[]>([])
   const [error, setError] = useState<string | null>(null)
   const [openPrompt, setOpenPrompt] = useState<number | null>(null)
-  const [compare, setCompare] = useState<number | null>(null)
-  const [lightbox, setLightbox] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<number | null>(null)
+  const [refineText, setRefineText] = useState<Record<number, string>>({})
+  // The items the current designs were generated with (the picker may change afterwards)
+  const [appliedItems, setAppliedItems] = useState<string[]>([])
+
+  const { currentUser, loading: authLoading } = useAuth()
+  // The vendor's own catalogue and which of its items are in this design (id → quantity)
+  const [catalog, setCatalog] = useState<CatalogItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [customSelected, setCustomSelected] = useState<Record<string, number>>({})
+  const [appliedCustom, setAppliedCustom] = useState<Record<string, number>>({})
+  const [sharing, setSharing] = useState(false)
+
+  useEffect(() => {
+    if (!currentUser) return
+    setCatalogLoading(true)
+    listCatalog(currentUser.uid)
+      .then(setCatalog)
+      .catch(() => setError('Could not load your catalogue.'))
+      .finally(() => setCatalogLoading(false))
+  }, [currentUser])
+
+  /** Every decor-studio API call costs money, so each one carries the signed-in user's token. */
+  const authFetch = async (url: string, init: RequestInit) =>
+    fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${await currentUser?.getIdToken()}` } })
+
+  const customPayload = (picked: Record<string, number>) =>
+    catalog
+      .filter((c) => picked[c.id])
+      .map((c) => ({ id: c.id, name: c.name, category: c.category, description: c.description, imageUrl: c.imageUrl, qty: picked[c.id] }))
+
+  /** The priced item list for a selection: real catalogue items first, then unpriced generic ideas. */
+  const designItems = (picked: Record<string, number>, builtIn: string[]): DesignItem[] => [
+    ...catalog
+      .filter((c) => picked[c.id])
+      .map((c) => ({ id: `c-${c.id}`, name: c.name, category: c.category, qty: picked[c.id], price: c.price || null, imageUrl: c.imageUrl })),
+    ...builtIn
+      .filter((id) => ALL_ITEM_IDS.includes(id))
+      .map((id) => ({ id, name: ITEM_LABELS.get(id)!.name, category: ITEM_LABELS.get(id)!.category, qty: 1, price: null })),
+  ]
+  const customCount = Object.keys(customSelected).length
+  const itemCount = selected.length + customCount
+  const liveTotal = designTotal(designItems(customSelected, selected))
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
@@ -132,34 +203,46 @@ export default function AiImagesPage() {
   const baseImage = images.find((i) => i.id === baseId) ?? images[0]
   const suggested = new Set(analysis?.suggestedItemIds ?? [])
 
-  // Re-analyse whenever the photo set or the base photo changes; stale runs are discarded.
+  // Analyse when the photo set or the base photo changes. Results are cached per photo set, and the
+  // call waits until the user stops adding photos, so each set is only ever paid for once.
   const orderedKey = baseImage ? [baseImage.id, ...images.filter((i) => i.id !== baseImage.id).map((i) => i.id)].join('|') : ''
   useEffect(() => {
-    if (!baseImage) {
+    const run = ++analysisRun.current
+    setError(null)
+    if (!baseImage || !currentUser) {
       setAnalysis(null)
+      setAnalyzing(false)
       return
     }
-    const run = ++analysisRun.current
+    const cached = analysisCache.current.get(orderedKey)
+    if (cached) {
+      setAnalysis(cached)
+      setAnalyzing(false)
+      return
+    }
     const ordered = [baseImage, ...images.filter((i) => i.id !== baseImage.id)]
     setAnalyzing(true)
     setAnalysis(null)
-    setError(null)
-    fetch('/api/ai-images/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: ordered.map((i) => i.dataUrl) }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}))
-        if (run !== analysisRun.current) return
-        if (!res.ok) throw new Error(data.error || 'Analysis failed')
-        setAnalysis(data.analysis)
-        setAnalysisOpen(true)
+    const timer = setTimeout(() => {
+      authFetch('/api/ai-images/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: ordered.map((i) => i.smallUrl) }),
       })
-      .catch((err) => run === analysisRun.current && setError(err.message))
-      .finally(() => run === analysisRun.current && setAnalyzing(false))
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data.error || 'Analysis failed')
+          analysisCache.current.set(orderedKey, data.analysis)
+          if (run !== analysisRun.current) return
+          setAnalysis(data.analysis)
+          setAnalysisOpen(true)
+        })
+        .catch((err) => run === analysisRun.current && setError(err.message))
+        .finally(() => run === analysisRun.current && setAnalyzing(false))
+    }, ANALYSIS_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderedKey])
+  }, [orderedKey, currentUser])
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     const list = Array.from(files).filter((f) => f.type.startsWith('image/'))
@@ -190,12 +273,19 @@ export default function AiImagesPage() {
     setVariants([])
   }
 
+  // Designs belong to the photo they were made from
+  const chooseBase = (id: string) => {
+    if (id === baseImage?.id) return
+    setBaseId(id)
+    setVariants([])
+  }
+
   const toggleItem = (id: string) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
   const applySuggestions = () => setSelected((prev) => Array.from(new Set([...prev, ...suggested])))
 
-  const canApply = !!baseImage && !!analysis && selected.length > 0 && !generating && !analyzing
+  const canApply = !!baseImage && !!analysis && itemCount > 0 && !generating && !analyzing
 
   const handleApply = async () => {
     if (!canApply || !baseImage) return
@@ -204,18 +294,23 @@ export default function AiImagesPage() {
     setError(null)
     setVariants([])
     setOpenPrompt(null)
-    setCompare(null)
+    setLightbox(null)
+    setRefineText({})
+    setAppliedItems(selected)
+    setAppliedCustom(customSelected)
     setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
 
     try {
-      const res = await fetch('/api/ai-images/generate', {
+      const res = await authFetch('/api/ai-images/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: baseImage.dataUrl,
+          imageSmall: baseImage.smallUrl,
           aspect: baseImage.aspect,
           analysis,
           itemIds: selected,
+          customItems: customPayload(customSelected),
           eventType,
           style,
           palette,
@@ -245,8 +340,6 @@ export default function AiImagesPage() {
             setStage('images')
           } else if (event.type === 'image') {
             setVariants((prev) => prev.map((v, i) => (i === event.index ? { ...v, url: event.url, status: event.status, checks: event.checks ?? v.checks } : v)))
-          } else if (event.type === 'prompt') {
-            setVariants((prev) => prev.map((v, i) => (i === event.index ? { ...v, prompt: event.prompt } : v)))
           } else if (event.type === 'image-error') {
             setVariants((prev) => prev.map((v, i) => (i === event.index ? { ...v, error: event.error } : v)))
           } else if (event.type === 'error') {
@@ -262,6 +355,64 @@ export default function AiImagesPage() {
     }
   }
 
+  const patchVariant = (i: number, patch: Partial<Variant>) =>
+    setVariants((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)))
+
+  /** One paid action on one design: regenerate, fix missing items, upgrade to HD, or apply a typed change. */
+  const runAction = async (i: number, mode: Action, label: string) => {
+    const v = variants[i]
+    if (!v || !baseImage || v.busy || generating) return
+    const instruction = (refineText[i] ?? '').trim()
+    if (mode === 'refine' && !instruction) return
+    const missingIds = v.checks?.filter((c) => !c.present).map((c) => c.itemId) ?? []
+    const fromDesign = mode === 'hd' || mode === 'refine'
+
+    patchVariant(i, { busy: label, notice: undefined })
+    try {
+      const res = await authFetch('/api/ai-images/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          image: fromDesign ? undefined : baseImage.dataUrl,
+          source: fromDesign ? v.url : undefined,
+          prompt: v.prompt,
+          aspect: baseImage.aspect,
+          itemIds: appliedItems,
+          customItems: customPayload(appliedCustom),
+          missingIds,
+          instruction,
+          hd: v.hd,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'That did not work. Please try again.')
+
+      // A fix is only kept when it actually shows more of the selected items
+      if (mode === 'fix' && presentCount(data.checks) <= presentCount(v.checks)) {
+        patchVariant(i, { busy: undefined, notice: 'The new attempt was not better, so the current design was kept.' })
+        return
+      }
+      patchVariant(i, {
+        busy: undefined,
+        url: data.url,
+        checks: data.checks ?? v.checks,
+        prompt: data.prompt ?? v.prompt,
+        hd: !!data.hd,
+        error: undefined,
+        previous: v.url ? { url: v.url, checks: v.checks, hd: v.hd, prompt: v.prompt } : undefined,
+      })
+      if (mode === 'refine') setRefineText((prev) => ({ ...prev, [i]: '' }))
+    } catch (err: any) {
+      patchVariant(i, { busy: undefined, notice: err.message })
+    }
+  }
+
+  const undo = (i: number) => {
+    const v = variants[i]
+    if (v?.previous) patchVariant(i, { ...v.previous, previous: undefined, notice: undefined })
+  }
+
   const download = (url: string, title: string) => {
     const a = document.createElement('a')
     a.href = url
@@ -270,6 +421,34 @@ export default function AiImagesPage() {
   }
 
   const placeholderCount = stage === 'prompts' ? 3 : 0
+  const shareOptions = variants.filter((v) => v.url && !v.busy).map((v) => ({ title: v.title, concept: v.concept, url: v.url!, hd: !!v.hd }))
+
+  if (authLoading || !currentUser) {
+    return (
+      <main className="min-h-screen bg-cream">
+        <Header />
+        <div className="flex min-h-[70vh] items-center justify-center px-4 pt-24">
+          {authLoading ? (
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          ) : (
+            <div className="max-w-md rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-xl shadow-primary/5">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                <Sparkles className="h-7 w-7 text-primary" />
+              </div>
+              <h1 className="mb-2 font-display text-3xl text-ink">AI Venue Decor Studio</h1>
+              <p className="mb-6 text-sm text-gray-500">
+                Log in to design a venue with your own decor catalogue and share it with your customer for approval.
+              </p>
+              <Link href="/login" className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-primary to-primary-dark px-6 py-3 font-semibold text-white shadow-lg shadow-primary/30">
+                Log in to continue
+              </Link>
+            </div>
+          )}
+        </div>
+        <Footer />
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-cream">
@@ -287,6 +466,9 @@ export default function AiImagesPage() {
             <p className="mx-auto max-w-2xl text-lg text-gray-500">
               Upload your banquet hall or venue, choose the decor, and see your actual space styled in three designer looks.
             </p>
+            <Link href="/ai-images/designs" className="mt-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-ink shadow-sm hover:border-primary/40">
+              <FolderOpen className="h-4 w-4 text-primary" /> My designs
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -333,7 +515,7 @@ export default function AiImagesPage() {
                         <div key={img.id} className="group relative">
                           <button
                             type="button"
-                            onClick={() => setBaseId(img.id)}
+                            onClick={() => chooseBase(img.id)}
                             title={isBase ? 'This photo will be styled' : 'Style this photo instead'}
                             className={`block h-20 w-24 overflow-hidden rounded-xl border-2 transition ${
                               isBase ? 'border-accent ring-2 ring-accent/30' : 'border-transparent opacity-80 hover:opacity-100'
@@ -459,8 +641,8 @@ export default function AiImagesPage() {
               <div className="flex flex-col gap-5 rounded-3xl border border-gray-200 bg-white p-6 shadow-xl shadow-primary/5 lg:sticky lg:top-24">
                 <div className="flex items-center justify-between">
                   <h2 className="text-base font-semibold text-ink">2. Choose your decor</h2>
-                  <span className={`text-xs ${selected.length > 8 ? 'text-amber-600' : 'text-gray-400'}`}>
-                    {selected.length} selected{selected.length > 8 ? ' · fewer items = more accurate' : ''}
+                  <span className={`text-xs ${itemCount > 8 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {itemCount} selected{itemCount > 8 ? ' · fewer items = more accurate' : ''}
                   </span>
                 </div>
 
@@ -481,6 +663,17 @@ export default function AiImagesPage() {
                     ))}
                   </div>
                 </div>
+
+                <CatalogPanel
+                  vendorId={currentUser.uid}
+                  catalog={catalog}
+                  setCatalog={setCatalog}
+                  selected={customSelected}
+                  setSelected={setCustomSelected}
+                  loading={catalogLoading}
+                />
+
+                <p className="-mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Generic ideas (no price)</p>
 
                 {suggested.size > 0 && (
                   <button
@@ -537,6 +730,18 @@ export default function AiImagesPage() {
                   </label>
                 </div>
 
+                {itemCount > 0 && (
+                  <div className="rounded-xl bg-gray-50 px-3 py-2.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Decor total</span>
+                      <span className="font-semibold text-ink">{formatINR(liveTotal.total)}</span>
+                    </div>
+                    {liveTotal.unpriced > 0 && (
+                      <p className="mt-0.5 text-xs text-gray-400">+ {liveTotal.unpriced} generic item{liveTotal.unpriced > 1 ? 's' : ''} to be quoted</p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleApply}
@@ -572,10 +777,19 @@ export default function AiImagesPage() {
                       {stage === 'prompts'
                         ? 'Our AI designer is planning three looks for your space…'
                         : generating
-                          ? 'Styling your venue — each design takes about a minute.'
-                          : 'Tap a design to view full size. Hold “Before” to compare with the original.'}
+                          ? 'Styling your venue — each design takes under a minute.'
+                          : 'Drag the slider on any design to compare with your original. These are fast drafts — use “Make HD” on the one you love.'}
                     </p>
                   </div>
+                  {!generating && shareOptions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSharing(true)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
+                    >
+                      <Share2 className="h-4 w-4" /> Share with customer
+                    </button>
+                  )}
                   {!generating && variants.length > 0 && (
                     <button
                       type="button"
@@ -583,7 +797,7 @@ export default function AiImagesPage() {
                       disabled={!canApply}
                       className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-primary/40 disabled:opacity-50"
                     >
-                      <RefreshCw className="h-4 w-4" /> Regenerate
+                      <RefreshCw className="h-4 w-4" /> Regenerate all
                     </button>
                   )}
                 </div>
@@ -592,14 +806,8 @@ export default function AiImagesPage() {
                   {(variants.length ? variants : Array.from({ length: placeholderCount }, () => null)).map((v, i) => (
                     <article key={i} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-lg shadow-primary/5">
                       <div className="relative aspect-[4/3] bg-gray-100">
-                        {v?.url ? (
-                          <button type="button" className="block h-full w-full" onClick={() => setLightbox(v.url!)}>
-                            <img
-                              src={compare === i && baseImage ? baseImage.dataUrl : v.url}
-                              alt={v.title}
-                              className="h-full w-full object-cover"
-                            />
-                          </button>
+                        {v?.url && baseImage ? (
+                          <CompareSlider before={baseImage.dataUrl} after={v.url} alt={v.title} fill />
                         ) : v?.error ? (
                           <div className="flex h-full flex-col items-center justify-center p-6 text-center text-sm text-red-600">
                             <X className="mb-2 h-6 w-6" /> {v.error}
@@ -610,22 +818,28 @@ export default function AiImagesPage() {
                             {v ? 'Styling…' : 'Planning…'}
                           </div>
                         )}
-                        {v?.url && v.status && v.status !== 'done' && (
-                          <div className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-ink/80 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            {v.status === 'checking' ? 'Checking every item…' : 'Adding missing items…'}
+                        {v?.url && (
+                          <div className="absolute left-3 top-3 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setLightbox(i)}
+                              title="View full size"
+                              className="rounded-full bg-white/90 p-1.5 text-ink shadow backdrop-blur hover:bg-white"
+                            >
+                              <Maximize2 className="h-4 w-4" />
+                            </button>
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold shadow backdrop-blur ${v.hd ? 'bg-accent text-ink' : 'bg-white/90 text-gray-600'}`}>
+                              {v.hd ? 'HD' : 'Draft'}
+                            </span>
                           </div>
                         )}
-                        {v?.url && (
-                          <button
-                            type="button"
-                            onPointerDown={() => setCompare(i)}
-                            onPointerUp={() => setCompare(null)}
-                            onPointerLeave={() => setCompare(null)}
-                            className="absolute bottom-3 left-3 inline-flex select-none items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-ink shadow backdrop-blur"
-                          >
-                            <Eye className="h-3.5 w-3.5" /> {compare === i ? 'Original' : 'Hold: Before'}
-                          </button>
+                        {v?.url && (v.busy || v.status === 'checking') && (
+                          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-end p-3">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/80 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              {v.busy ?? 'Checking every item…'}
+                            </span>
+                          </div>
                         )}
                       </div>
 
@@ -648,25 +862,94 @@ export default function AiImagesPage() {
                             ))}
                           </ul>
                         )}
-                        {v && (
-                          <div className="mt-4 flex items-center gap-2">
-                            {v.url && (
+                        {v?.notice && <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-700">{v.notice}</p>}
+
+                        {v && v.status === 'done' && (
+                          <>
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              {v.url && !v.hd && (
+                                <button
+                                  type="button"
+                                  disabled={!!v.busy || generating}
+                                  onClick={() => runAction(i, 'hd', 'Rendering in HD…')}
+                                  title="Re-render this design at full quality"
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-primary to-primary-dark px-3 py-2 text-xs font-semibold text-white shadow hover:shadow-md disabled:opacity-50"
+                                >
+                                  <Gem className="h-3.5 w-3.5" /> Make HD
+                                </button>
+                              )}
+                              {v.url && (
+                                <button
+                                  type="button"
+                                  onClick={() => download(v.url!, v.title)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-ink px-3 py-2 text-xs font-medium text-white hover:bg-ink/90"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> Download
+                                </button>
+                              )}
+                              {v.checks?.some((c) => !c.present) && (
+                                <button
+                                  type="button"
+                                  disabled={!!v.busy || generating}
+                                  onClick={() => runAction(i, 'fix', 'Adding missing items…')}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                >
+                                  <Wrench className="h-3.5 w-3.5" /> Fix missing
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => download(v.url!, v.title)}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-ink px-3 py-2 text-xs font-medium text-white hover:bg-ink/90"
+                                disabled={!!v.busy || generating}
+                                onClick={() => runAction(i, 'regenerate', 'Creating a new version…')}
+                                title="Create a new version of this design"
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:border-primary/40 disabled:opacity-50"
                               >
-                                <Download className="h-3.5 w-3.5" /> Download
+                                <RefreshCw className="h-3.5 w-3.5" /> Redo
                               </button>
+                              {v.previous && (
+                                <button
+                                  type="button"
+                                  disabled={!!v.busy}
+                                  onClick={() => undo(i)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:border-primary/40 disabled:opacity-50"
+                                >
+                                  <Undo2 className="h-3.5 w-3.5" /> Undo
+                                </button>
+                              )}
+                            </div>
+
+                            {v.url && (
+                              <form
+                                className="mt-3 flex items-center gap-2"
+                                onSubmit={(e) => { e.preventDefault(); runAction(i, 'refine', 'Applying your change…') }}
+                              >
+                                <input
+                                  value={refineText[i] ?? ''}
+                                  onChange={(e) => setRefineText((prev) => ({ ...prev, [i]: e.target.value }))}
+                                  disabled={!!v.busy || generating}
+                                  maxLength={500}
+                                  placeholder="Change something — e.g. make the flowers red"
+                                  className="min-w-0 flex-1 rounded-xl border border-gray-200 px-3 py-2 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-gray-50"
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={!!v.busy || generating || !(refineText[i] ?? '').trim()}
+                                  title="Apply this change"
+                                  className="rounded-xl bg-primary p-2 text-white hover:bg-primary-dark disabled:bg-gray-300"
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                </button>
+                              </form>
                             )}
+
                             <button
                               type="button"
                               onClick={() => setOpenPrompt(openPrompt === i ? null : i)}
-                              className="rounded-xl border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:border-primary/40"
+                              className="mt-3 text-xs text-gray-400 underline-offset-2 hover:text-primary hover:underline"
                             >
                               {openPrompt === i ? 'Hide prompt' : 'View prompt'}
                             </button>
-                          </div>
+                          </>
                         )}
                         {v && openPrompt === i && (
                           <p className="mt-3 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-xs leading-relaxed text-gray-600">
@@ -683,13 +966,27 @@ export default function AiImagesPage() {
         </div>
       </div>
 
-      {lightbox && (
+      {lightbox !== null && variants[lightbox]?.url && baseImage && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4" onClick={() => setLightbox(null)}>
           <button type="button" className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
             <X className="h-6 w-6" />
           </button>
-          <img src={lightbox} alt="Design full size" className="max-h-full max-w-full rounded-xl object-contain" />
+          <CompareSlider before={baseImage.dataUrl} after={variants[lightbox].url!} alt={variants[lightbox].title} />
         </div>
+      )}
+
+      {sharing && baseImage && (
+        <ShareDesign
+          vendorId={currentUser.uid}
+          defaultVendorName={currentUser.displayName || ''}
+          hallDataUrl={baseImage.dataUrl}
+          aspect={baseImage.aspect}
+          options={shareOptions}
+          items={designItems(appliedCustom, appliedItems)}
+          eventLabel={EVENT_TYPES.find((e) => e.id === eventType)?.label ?? ''}
+          styleLabel={DECOR_STYLES.find((d) => d.id === style)?.label ?? ''}
+          onClose={() => setSharing(false)}
+        />
       )}
 
       <Footer />
