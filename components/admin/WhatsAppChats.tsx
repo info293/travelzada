@@ -16,25 +16,6 @@ import {
 import { db } from '@/lib/firebase'
 import { formatPhoneNumber } from '@/lib/whatsapp'
 import { useAuth } from '@/contexts/AuthContext'
-
-const LOG = '%c[WhatsApp]'
-const LOG_OK = 'background:#059669;color:#fff;padding:1px 6px;border-radius:3px'
-const LOG_ERR = 'background:#dc2626;color:#fff;padding:1px 6px;border-radius:3px'
-const LOG_WARN = 'background:#d97706;color:#fff;padding:1px 6px;border-radius:3px'
-
-/** Prints the server's WhatsApp setup check in the browser console (F12 → Console) */
-function logDiagnostics(diag: any) {
-  const style = diag?.ok ? LOG_OK : LOG_WARN
-  console.groupCollapsed(`${LOG} Server setup check: ${diag?.ok ? 'OK' : `${diag?.problems?.length || 0} problem(s)`}`, style)
-  console.log('Deployment:', diag?.env?.deployment, diag?.env?.commit ? `(commit ${diag.env.commit})` : '')
-  console.log('Phone number ID in use:', diag?.env?.phoneNumberId)
-  console.log('Token loaded:', diag?.env?.tokenFingerprint || 'NOT SET')
-  console.log('Token check:', diag?.checks?.token)
-  console.log('Phone number check:', diag?.checks?.phoneNumber)
-  if (diag?.problems?.length) diag.problems.forEach((p: string) => console.warn('Problem:', p))
-  console.log('Full result:', diag)
-  console.groupEnd()
-}
 import {
   MessageSquare,
   Send,
@@ -98,25 +79,6 @@ function failureReason(msg: WhatsAppMessage) {
 
 export default function WhatsAppChats() {
   const { currentUser } = useAuth()
-
-  // On page load, check the server's WhatsApp setup and print it in the console.
-  // Also available any time as window.whatsappDiagnostics() in the console.
-  useEffect(() => {
-    if (!currentUser) return
-    const run = async () => {
-      try {
-        const token = await currentUser.getIdToken()
-        const res = await fetch('/api/whatsapp/diagnostics', { headers: { Authorization: `Bearer ${token}` } })
-        const diag = await res.json()
-        logDiagnostics(diag)
-        return diag
-      } catch (err) {
-        console.error(`${LOG} Could not run the server setup check`, LOG_ERR, err)
-      }
-    }
-    ;(window as any).whatsappDiagnostics = run
-    run()
-  }, [currentUser])
 
   const searchParams = useSearchParams()
   const phoneParam = searchParams.get('phone')
@@ -247,7 +209,6 @@ export default function WhatsAppChats() {
 
     try {
       const idToken = await currentUser?.getIdToken()
-      const started = performance.now()
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -258,24 +219,9 @@ export default function WhatsAppChats() {
       })
 
       const data = await res.json().catch(() => ({ error: `Server returned HTTP ${res.status} with no JSON body` }))
-      const ms = Math.round(performance.now() - started)
       if (!res.ok) {
-        // Full details in the browser console (F12 → Console)
-        console.group(`${LOG} Send FAILED (HTTP ${res.status}, ${ms} ms)`, LOG_ERR)
-        console.log('To:', selectedChat.phone, '| Text length:', textToSend.length)
-        console.error('Error:', data.error)
-        if (data.hint) console.warn('What to do:', data.hint)
-        if (data.meta) console.log('Meta error:', data.meta)
-        if (data.server) console.log('This server is using:', data.server)
-        console.log('Full response:', data)
-        console.groupEnd()
-        alert(
-          `Failed to send WhatsApp message: ${data.error || 'Unknown error'}` +
-            (data.hint ? `\n\n${data.hint}` : '') +
-            '\n\nFull details are in the browser console (press F12 → Console).'
-        )
+        alert(`Failed to send WhatsApp message: ${data.error || 'Unknown error'}${data.hint ? `\n\n${data.hint}` : ''}`)
       } else {
-        console.log(`${LOG} Sent to ${selectedChat.phone} in ${ms} ms`, LOG_OK, { messageId: data.whatsappMessageId, response: data.data })
         // Ensure chat entry exists in whatsapp_chats collection with customer name
         if (selectedChat.customerName) {
           await setDoc(

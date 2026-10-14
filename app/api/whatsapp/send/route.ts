@@ -7,7 +7,7 @@ import {
   formatPhoneNumber,
   WhatsAppApiError,
 } from '@/lib/whatsapp'
-import { serverWhatsAppEnv, whatsappErrorHint } from '@/lib/whatsappDiagnostics'
+import { whatsappErrorHint } from '@/lib/whatsappDiagnostics'
 import { requireLeadsAccess } from '@/lib/metaServer'
 import { db } from '@/lib/firebase'
 import {
@@ -106,8 +106,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: any) {
     console.error('[WhatsApp Outbound Send Error]:', err)
-    // Full details for the browser console: Meta's error, a plain-language hint, and the settings this
-    // deployment is running with (token fingerprint only, never the token)
+    // Meta's error details plus a plain-language hint for the person sending
     const meta = err instanceof WhatsAppApiError ? err.meta : undefined
     return NextResponse.json(
       {
@@ -125,7 +124,6 @@ export async function POST(req: NextRequest) {
               httpStatus: err.httpStatus,
             }
           : undefined,
-        server: serverWhatsAppEnv(),
       },
       { status: 500 }
     )
