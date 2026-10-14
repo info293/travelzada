@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic'
+// Lead webhooks generate a proposal PDF and send WhatsApp messages, which can take several seconds
+export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
@@ -15,7 +17,8 @@ import {
   updateDoc,
 } from 'firebase/firestore'
 import { formatPhoneNumber } from '@/lib/whatsapp'
-import { markWhatsAppReply, processNewLeadById } from '@/lib/leadAutomation'
+import { fetchLead, markWhatsAppReply, processNewLeadById } from '@/lib/leadAutomation'
+import { handleWhatsAppButton, processNewLeadWhatsApp } from '@/lib/whatsappAutomation'
 
 /**
  * GET: Webhook Verification Endpoint required by Meta Dashboard setup.
@@ -132,6 +135,13 @@ export async function POST(req: NextRequest) {
               await markWhatsAppReply(senderPhone, messageText, messageTimestamp).catch((e) =>
                 console.error('[CRM] Could not link WhatsApp reply:', e)
               )
+
+              // Template quick-reply buttons: "Show me options" / "Call me back" / "Not interested"
+              if (messageType === 'button' || messageType === 'interactive' || messageType === 'text') {
+                await handleWhatsAppButton(senderPhone, messageText).catch((e) =>
+                  console.error('[WhatsApp Automation] button handling failed:', e)
+                )
+              }
             }
           }
 
@@ -147,8 +157,17 @@ export async function POST(req: NextRequest) {
               )
               const querySnapshot = await getDocs(q)
               querySnapshot.forEach(async (docSnap) => {
+                // Keep Meta's reason for failed messages so the inbox can explain it
+                const err = statusObj.errors?.[0]
                 await updateDoc(doc(db, 'whatsapp_messages', docSnap.id), {
                   status: newStatus,
+                  ...(err
+                    ? {
+                        errorCode: err.code ?? null,
+                        errorTitle: err.title || err.message || null,
+                        errorDetails: err.error_data?.details || null,
+                      }
+                    : {}),
                   updatedAt: serverTimestamp(),
                 })
               })
@@ -174,6 +193,9 @@ export async function POST(req: NextRequest) {
             // Automatic trip-options email (only when enabled in Meta Leads → Automation)
             if (leadgenId) {
               await processNewLeadById(String(leadgenId)).catch((e) => console.error('[Lead Automation] webhook send failed:', e))
+              await fetchLead(String(leadgenId))
+                .then((lead) => processNewLeadWhatsApp(lead))
+                .catch((e) => console.error('[WhatsApp Automation] webhook welcome failed:', e))
             }
 
             if (leadgenId && accessToken) {

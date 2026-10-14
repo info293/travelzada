@@ -59,6 +59,7 @@ export async function saveAutomationSettings(patch: Partial<AutomationSettings>)
   const next: Partial<AutomationSettings> = { ...patch }
   // Turning it on starts the clock: only leads arriving from now on are emailed automatically
   if (patch.enabled && !current.enabled) next.startAt = new Date().toISOString()
+  if (patch.whatsappEnabled && !current.whatsappEnabled) next.whatsappStartAt = new Date().toISOString()
   await setDoc(settingsRef(), stripUndefined(next), { merge: true })
   return getAutomationSettings()
 }
@@ -181,9 +182,34 @@ interface PackageOption {
   image?: string
   hotels?: string
   url: string
+  inclusions?: string[]
+  exclusions?: string[]
+  dayWise?: { day: string; title: string; description: string }[]
 }
 
-export async function pickPackages(lead: MetaLead, count = 3): Promise<{ destination: string; options: PackageOption[] }> {
+/** Package list fields are stored as arrays, newline- or comma-separated text */
+function toList(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean)
+  const t = String(v ?? '').trim()
+  if (!t) return []
+  return (t.includes('\n') ? t.split('\n') : t.split(/[,;|]/)).map((x) => x.replace(/^[-•*\s]+/, '').trim()).filter(Boolean)
+}
+
+/** "Day 1: Arrival | Day 2: Ubud tour" → structured days */
+function toDays(v: unknown): { day: string; title: string; description: string }[] {
+  const items = String(v ?? '').split('|').map((x) => x.trim()).filter(Boolean)
+  return items.map((item, i) => {
+    const m = item.match(/^Day\s*(\d+)\s*[:-]\s*(.+)$/i)
+    const rest = m ? m[2] : item
+    const [title, ...desc] = rest.split(/[:\-–]\s+/)
+    return { day: `Day ${m ? m[1] : i + 1}`, title: title.trim(), description: desc.join(' - ').trim() || title.trim() }
+  })
+}
+
+export async function pickPackages(
+  lead: MetaLead,
+  count = 3
+): Promise<{ destination: string; options: PackageOption[]; destSlug?: string }> {
   const hint = [lead.form_name, lead.campaign_name, ...(lead.field_data || []).filter((f) => /destination|place|where/i.test(f.name)).flatMap((f) => f.values)]
     .filter(Boolean)
     .join(' ')
@@ -234,6 +260,9 @@ export async function pickPackages(lead: MetaLead, count = 3): Promise<{ destina
       image: p.Primary_Image_URL || undefined,
       hotels: p.Star_Category ? `${p.Star_Category} stays${p.Meal_Plan ? ` · ${p.Meal_Plan}` : ''}` : undefined,
       url: slug ? `${APP_URL}/destinations/${slug}/${p.Slug || p.docId}` : `${APP_URL}/destinations`,
+      inclusions: toList(p.Inclusions),
+      exclusions: toList(p.Exclusions),
+      dayWise: toDays(p.Day_Wise_Itinerary),
     }
   })
 
@@ -241,7 +270,7 @@ export async function pickPackages(lead: MetaLead, count = 3): Promise<{ destina
     matchingDest?.name ||
     (tokens[0] ? tokens[0].charAt(0).toUpperCase() + tokens[0].slice(1) : '') ||
     'your dream destination'
-  return { destination, options }
+  return { destination, options, destSlug: (matchingDest?.slug as string | undefined) || undefined }
 }
 
 /** "59000" → "Starting ₹59,000"; ranges and text are kept, with ₹ added if missing */
@@ -258,18 +287,25 @@ const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 
 
-export function buildOptionsEmail(lead: MetaLead, destination: string, options: PackageOption[]) {
+/** The customer's form answers as readable label/value pairs (contact details left out) */
+export function leadFacts(lead: MetaLead) {
   const pretty = (v: string) => v.replace(/_/g, ' ').replace(/\s+/g, ' ').trim().replace(/^./, (c) => c.toUpperCase())
-  const facts = (lead.field_data || [])
+  return (lead.field_data || [])
     .filter((f) => !['full_name', 'first_name', 'last_name', 'phone_number', 'email', 'city'].includes(f.name.toLowerCase()) && !/^conditional/i.test(f.name))
     .map((f) => ({
       label: (lead as LabeledLead).questionLabels?.[f.name]?.replace(/\?$/, '') || humanize(f.name),
       value: (lead as LabeledLead).answerLabels?.[f.name] || pretty(f.values.join(', ')),
     }))
     .filter((x) => x.value)
+}
+
+export const leadFirstName = (lead: MetaLead) => (leadName(lead).split(' ')[0] || 'there').replace(/^./, (c) => c.toUpperCase())
+
+export function buildOptionsEmail(lead: MetaLead, destination: string, options: PackageOption[]) {
+  const facts = leadFacts(lead)
   return renderOptionsEmail({
     leadId: lead.id,
-    firstName: (leadName(lead).split(' ')[0] || 'there').replace(/^./, (c) => c.toUpperCase()),
+    firstName: leadFirstName(lead),
     destination,
     platform: lead.platform,
     facts,

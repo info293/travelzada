@@ -41,6 +41,13 @@ export interface AutomationSettings {
   lastRunSummary?: string
   lastInboxCheckAt?: string
   lastError?: string
+  /** WhatsApp welcome (template + proposal PDF) for new leads */
+  whatsappEnabled?: boolean
+  whatsappStartAt?: string
+  /** When set, automatic WhatsApp messages go to this number instead of the customer (digits with country code) */
+  whatsappTestPhone?: string
+  /** Lead used for the last test send, so button taps from the test phone can be answered */
+  whatsappTestLeadId?: string
 }
 
 // ---------- Meta lead types ----------
@@ -239,6 +246,17 @@ export interface CrmRecord {
   phoneNorm?: string
   /** Automatic "options for your trip" email */
   autoEmail?: { sentAt: string; to: string; messageId?: string; packageIds?: string[]; test?: boolean; error?: string }
+  /** Automatic WhatsApp welcome (template with proposal PDF) and the 2-day follow-up */
+  whatsappAuto?: {
+    sentAt: string
+    to: string
+    messageId?: string
+    destination?: string
+    test?: boolean
+    error?: string
+    followUpSentAt?: string
+    followUpError?: string
+  }
   /** Customer replies (email or WhatsApp) not yet seen in the CRM */
   unreadReplies?: number
   lastReplyAt?: string

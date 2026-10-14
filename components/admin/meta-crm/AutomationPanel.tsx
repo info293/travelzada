@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { CheckCircle2, XCircle, RefreshCw, Zap, Mail, Inbox, Radio, Clock, Play } from 'lucide-react'
+import { MessageCircle, CheckCircle2, XCircle, RefreshCw, Zap, Mail, Inbox, Radio, Clock, Play } from 'lucide-react'
 import { formatDateTime, type AutomationSettings } from '@/lib/metaLeadsCrm'
 
 interface Status {
@@ -12,6 +12,8 @@ interface Status {
   replyTo: string | null
   cronConfigured: boolean
   pageSubscribed: boolean
+  whatsappConfigured?: boolean
+  templates?: Record<string, { status: string; reason?: string }> | { error: string }
 }
 
 const AUTO_RUN_EVERY_MS = 3 * 60 * 1000
@@ -74,6 +76,7 @@ export default function AutomationPanel() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [testRecipient, setTestRecipient] = useState('')
+  const [waTestPhone, setWaTestPhone] = useState('')
   const [result, setResult] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -81,6 +84,7 @@ export default function AutomationPanel() {
       const s: Status = await api('GET')
       setStatus(s)
       setTestRecipient(s.settings.testRecipient || '')
+      setWaTestPhone(s.settings.whatsappTestPhone || '')
       setError(null)
     } catch (err: any) {
       setError(err.message)
@@ -240,6 +244,8 @@ export default function AutomationPanel() {
         </div>
       </div>
 
+      <WhatsAppCard status={status} busy={busy} act={act} waTestPhone={waTestPhone} setWaTestPhone={setWaTestPhone} />
+
       {/* Status + run */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 divide-y divide-gray-100">
@@ -266,7 +272,7 @@ export default function AutomationPanel() {
           <button
             onClick={() =>
               act('run', { action: 'run' }, (j) =>
-                `${j.newLeads} new lead(s) checked · ${j.emailed} emailed · ${j.failed} failed · ${j.repliesFound} new email repl${j.repliesFound === 1 ? 'y' : 'ies'}${j.errors?.length ? ` · ${j.errors[0]}` : ''}`
+                `${j.newLeads} new lead(s) checked · ${j.emailed} emailed · ${j.failed} failed · ${j.repliesFound} new email repl${j.repliesFound === 1 ? 'y' : 'ies'}${j.whatsapp ? ` · WhatsApp: ${j.whatsapp.welcomed} welcomed, ${j.whatsapp.followedUp} follow-ups` : ''}${j.errors?.length ? ` · ${j.errors[0]}` : ''}`
               )
             }
             disabled={!!busy}
@@ -280,6 +286,165 @@ export default function AutomationPanel() {
             scheduled job if set up. Each lead is emailed only once.
           </p>
         </div>
+      </div>
+    </div>
+  )
+}
+
+const TEMPLATE_LABELS: Record<string, string> = {
+  tz_lead_welcome: 'Welcome + proposal PDF (sent to every new lead)',
+  tz_followup: 'Follow-up (sent once if no reply in 2 days)',
+}
+
+function WhatsAppCard({
+  status,
+  busy,
+  act,
+  waTestPhone,
+  setWaTestPhone,
+}: {
+  status: Status
+  busy: string | null
+  act: (key: string, body: unknown, done?: (json: any) => string) => Promise<void>
+  waTestPhone: string
+  setWaTestPhone: (v: string) => void
+}) {
+  const s = status.settings
+  const templates: Record<string, { status: string; reason?: string }> =
+    status.templates && !('error' in status.templates) ? (status.templates as Record<string, { status: string; reason?: string }>) : {}
+  const templateError = status.templates && 'error' in status.templates ? String(status.templates.error) : null
+  const welcomeApproved = templates.tz_lead_welcome?.status === 'APPROVED'
+  const testMode = !!s.whatsappTestPhone
+
+  const toggle = () => {
+    const enabling = !s.whatsappEnabled
+    if (
+      enabling &&
+      !window.confirm(
+        'Turn on automatic WhatsApp messages?\n\nEvery NEW Meta lead from now on will get the WhatsApp welcome with their personalised proposal PDF.' +
+          (testMode ? `\n\nTest mode is ON: messages go to ${s.whatsappTestPhone} instead of customers.` : '\n\nMessages will go to real customers.')
+      )
+    )
+      return
+    act('waToggle', { action: 'saveWhatsApp', settings: { whatsappEnabled: enabling } })
+  }
+
+  const tone = (st?: string) =>
+    st === 'APPROVED'
+      ? 'bg-emerald-100 text-emerald-700'
+      : st === 'REJECTED'
+        ? 'bg-red-100 text-red-700'
+        : st
+          ? 'bg-amber-100 text-amber-700'
+          : 'bg-gray-100 text-gray-600'
+
+  return (
+    <div className="bg-white rounded-xl shadow-lg border border-emerald-200 overflow-hidden">
+      <div className="px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.whatsappEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+            <MessageCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Automatic WhatsApp welcome + proposal PDF</h3>
+            <p className="text-sm text-gray-600 mt-0.5 max-w-2xl">
+              Every new lead gets a WhatsApp message from your business number with a personalised proposal PDF (3 package options
+              for their destination) and buttons. &ldquo;Show me options&rdquo; sends the options automatically, &ldquo;Call me
+              back&rdquo; marks the lead Hot, &ldquo;Not interested&rdquo; closes it. No reply in 2 days: one follow-up.
+            </p>
+            {s.whatsappEnabled && s.whatsappStartAt && (
+              <p className="text-xs text-gray-500 mt-1">Active for leads received since {formatDateTime(s.whatsappStartAt)}.</p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={toggle}
+          disabled={!!busy || (!s.whatsappEnabled && !welcomeApproved)}
+          title={!welcomeApproved ? 'Available once Meta approves the welcome template' : ''}
+          className={`relative inline-flex h-8 w-14 flex-shrink-0 items-center rounded-full transition-colors ${s.whatsappEnabled ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
+          aria-label="Toggle WhatsApp automation"
+        >
+          <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform ${s.whatsappEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+        </button>
+      </div>
+
+      <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 text-sm space-y-2">
+        <div className="font-medium text-gray-800">Message templates (approved by Meta)</div>
+        {templateError && <p className="text-xs text-red-600">{templateError}</p>}
+        {Object.entries(TEMPLATE_LABELS).map(([name, label]) => {
+          const t = templates[name]
+          return (
+            <div key={name} className="flex flex-wrap items-center gap-2 text-xs">
+              <code className="bg-white border border-gray-200 rounded px-1.5 py-0.5">{name}</code>
+              <span className={`px-2 py-0.5 rounded-full font-semibold ${tone(t?.status)}`}>{t?.status || 'NOT SUBMITTED'}</span>
+              <span className="text-gray-600">{label}</span>
+              {t?.reason && <span className="text-red-600">Reason: {t.reason}</span>}
+            </div>
+          )
+        })}
+        {Object.keys(templates).length < 2 && (
+          <button
+            onClick={() =>
+              act('waSubmit', { action: 'submitTemplates' }, (j) =>
+                `Templates: ${Object.entries(j.results || {})
+                  .map(([k, v]) => `${k} ${v}`)
+                  .join(', ')}`
+              )
+            }
+            disabled={!!busy}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {busy === 'waSubmit' ? 'Submitting…' : 'Submit templates to Meta'}
+          </button>
+        )}
+        <p className="text-[11px] text-gray-500">
+          Approval usually takes minutes (max 24 hours). Sending templates also needs a payment method on your WhatsApp account in
+          Meta Billing.
+        </p>
+      </div>
+
+      <div className={`px-6 py-3 border-t text-sm ${testMode ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
+        <div className="flex flex-col md:flex-row md:items-center gap-2">
+          <span className="font-medium text-gray-800">WhatsApp test mode:</span>
+          <span className="text-gray-600 text-xs md:text-sm">send automatic WhatsApp messages to this number instead of customers</span>
+          <div className="flex gap-2 md:ml-auto">
+            <input
+              value={waTestPhone}
+              onChange={(e) => setWaTestPhone(e.target.value)}
+              placeholder="e.g. 919354156323 (empty = customers)"
+              className="w-64 max-w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg"
+            />
+            <button
+              onClick={() =>
+                act('waTest', { action: 'saveWhatsApp', settings: { whatsappTestPhone: waTestPhone } }, () =>
+                  waTestPhone ? `WhatsApp test mode on: messages go to ${waTestPhone}.` : 'WhatsApp test mode off: messages go to customers.'
+                )
+              }
+              disabled={!!busy || waTestPhone === (s.whatsappTestPhone || '')}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-900 text-white disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            onClick={() =>
+              act('waSample', { action: 'sendWhatsAppSample' }, (j) => `Sample WhatsApp sent to ${j.to} (${j.destination} proposal, from a "${j.formName}" lead).`)
+            }
+            disabled={!!busy || !testMode || !welcomeApproved}
+            title={!testMode ? 'Save a test number first' : !welcomeApproved ? 'Waiting for template approval' : ''}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50 disabled:opacity-40"
+          >
+            {busy === 'waSample' ? 'Sending…' : 'Send me a sample WhatsApp'}
+          </button>
+          <span className="text-[11px] text-gray-500">
+            Sends the welcome + proposal PDF for your newest lead to the test number. Tap its buttons to test the automatic replies.
+          </span>
+        </div>
+        {testMode && (
+          <p className="text-xs text-amber-700 mt-1">Test mode is ON. Customers will not receive WhatsApp messages until you clear this field.</p>
+        )}
       </div>
     </div>
   )

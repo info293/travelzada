@@ -15,6 +15,13 @@ import {
   sendLeadReply,
   sendOptionsEmail,
 } from '@/lib/leadAutomation'
+import {
+  getTemplateStatuses,
+  runWhatsAppAutomation,
+  sendWhatsAppSample,
+  sendWhatsAppWelcome,
+  submitTemplates,
+} from '@/lib/whatsappAutomation'
 
 const PAGE_ID = process.env.META_PAGE_ID || '341298722393022'
 
@@ -30,7 +37,7 @@ const isCron = (req: NextRequest) => {
  */
 export async function GET(req: NextRequest) {
   try {
-    if (isCron(req)) return NextResponse.json({ success: true, ...(await runAutomation('scheduled')) })
+    if (isCron(req)) return NextResponse.json({ success: true, ...(await runAll('scheduled')) })
     const authError = await requireLeadsAccess(req)
     if (authError) return authError
     const settings = await getAutomationSettings()
@@ -40,6 +47,8 @@ export async function GET(req: NextRequest) {
       imapUser: process.env.IMAP_USER || process.env.SMTP_USER || null,
       replyTo: process.env.LEAD_REPLY_TO || process.env.IMAP_USER || process.env.SMTP_USER || null,
       cronConfigured: !!process.env.CRON_SECRET,
+      whatsappConfigured: !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+      templates: await getTemplateStatuses().catch((e) => ({ error: String(e.message || e) })),
       pageSubscribed: await pageSubscribedToLeads(),
     })
   } catch (err: any) {
@@ -66,7 +75,7 @@ export async function POST(req: NextRequest) {
 
     switch (body.action) {
       case 'run':
-        return NextResponse.json({ success: true, ...(await runAutomation('manual')) })
+        return NextResponse.json({ success: true, ...(await runAll('manual')) })
 
       case 'save': {
         const s = body.settings || {}
@@ -123,6 +132,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, ...sent })
       }
 
+      case 'saveWhatsApp': {
+        const s = body.settings || {}
+        const testPhone = typeof s.whatsappTestPhone === 'string' ? s.whatsappTestPhone.replace(/\D/g, '') : undefined
+        if (testPhone && (testPhone.length < 10 || testPhone.length > 15)) {
+          return NextResponse.json({ error: 'Enter the test number with country code, e.g. 919354156323.' }, { status: 400 })
+        }
+        const settings = await saveAutomationSettings({
+          ...(typeof s.whatsappEnabled === 'boolean' ? { whatsappEnabled: s.whatsappEnabled } : {}),
+          ...(testPhone !== undefined ? { whatsappTestPhone: testPhone.length === 10 ? `91${testPhone}` : testPhone } : {}),
+        })
+        return NextResponse.json({ success: true, settings })
+      }
+
+      case 'submitTemplates':
+        return NextResponse.json({ success: true, results: await submitTemplates() })
+
+      case 'sendWhatsAppSample':
+        return NextResponse.json({ success: true, ...(await sendWhatsAppSample()) })
+
+      case 'sendWhatsAppWelcome': {
+        // Manual send from a lead page (respects WhatsApp test mode)
+        if (!validLead) return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
+        const settings = await getAutomationSettings()
+        const result = await sendWhatsAppWelcome(await fetchLead(leadId), { force: true, testPhone: settings.whatsappTestPhone || undefined })
+        if ('error' in result) return NextResponse.json({ error: result.error }, { status: 502 })
+        return NextResponse.json({ success: true, ...result })
+      }
+
       case 'markRead':
         if (!validLead) return NextResponse.json({ error: 'Invalid lead ID' }, { status: 400 })
         await updateDoc(doc(db, CRM_COLLECTION, leadId), { unreadReplies: 0 })
@@ -159,4 +196,11 @@ async function pageSubscribedToLeads(): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+/** Email automation + inbox check, then the WhatsApp welcome / follow-ups */
+async function runAll(trigger: string) {
+  const email = await runAutomation(trigger)
+  const whatsapp = await runWhatsAppAutomation().catch((e) => ({ welcomed: 0, followedUp: 0, failed: 0, errors: [String(e.message || e)] }))
+  return { ...email, whatsapp, errors: [...email.errors, ...whatsapp.errors.map((e) => `WhatsApp: ${e}`)] }
 }

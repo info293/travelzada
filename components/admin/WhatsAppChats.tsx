@@ -49,6 +49,31 @@ interface WhatsAppMessage {
   text: string
   status?: 'sent' | 'delivered' | 'read' | 'received' | 'failed'
   timestamp: string
+  errorCode?: number | null
+  errorTitle?: string | null
+  errorDetails?: string | null
+}
+
+/** Plain-language explanation for the WhatsApp delivery errors the team actually runs into */
+function failureReason(msg: WhatsAppMessage) {
+  switch (msg.errorCode) {
+    case 131047:
+      return 'Not delivered: the customer has not messaged you in the last 24 hours. Send an approved template first, or ask them to message you.'
+    case 131026:
+      return 'Not delivered: this number is not on WhatsApp, or cannot receive messages right now.'
+    case 131042:
+      return 'Not delivered: payment problem on the WhatsApp account. Add a payment method in Meta Billing.'
+    case 131030:
+      return 'Not delivered: this number is not on the allowed list of the test number.'
+    case 131049:
+      return 'Not delivered: Meta limited marketing messages to this customer to keep engagement healthy. Try again later.'
+    case 130472:
+      return "Not delivered: the customer's number is part of a Meta experiment. Try again later."
+    case 131021:
+      return 'Not delivered: you cannot message your own business number.'
+    default:
+      return `Not delivered${msg.errorTitle ? `: ${msg.errorTitle}` : ''}${msg.errorDetails ? ` (${msg.errorDetails})` : ''}${msg.errorCode ? ` [code ${msg.errorCode}]` : ''}`
+  }
 }
 
 export default function WhatsAppChats() {
@@ -383,7 +408,9 @@ export default function WhatsAppChats() {
                             <span>{formatTime(msg.timestamp)}</span>
                             {isOutbound && (
                               <span>
-                                {msg.status === 'read' ? (
+                                {msg.status === 'failed' ? (
+                                  <span className="font-semibold text-red-200">✕ Failed</span>
+                                ) : msg.status === 'read' ? (
                                   <CheckCheck className="w-3.5 h-3.5 text-blue-200" />
                                 ) : msg.status === 'delivered' ? (
                                   <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />
@@ -393,6 +420,11 @@ export default function WhatsAppChats() {
                               </span>
                             )}
                           </div>
+                          {isOutbound && msg.status === 'failed' && (
+                            <p className="mt-1.5 rounded-md bg-red-50 px-2 py-1 text-[11px] leading-snug text-red-700">
+                              {failureReason(msg)}
+                            </p>
+                          )}
                         </div>
                       </div>
                     )

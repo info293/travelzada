@@ -116,6 +116,7 @@ export default function LeadConversation({ record, me }: { record: CrmRecord; me
   }
 
   const auto = record.autoEmail
+  const wa = record.whatsappAuto
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-fuchsia-200 overflow-hidden">
@@ -134,6 +135,20 @@ export default function LeadConversation({ record, me }: { record: CrmRecord; me
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-fuchsia-300 text-fuchsia-700 hover:bg-fuchsia-50 disabled:opacity-50"
             >
               <Mail className="w-3.5 h-3.5" /> {busy === 'options' ? 'Sending…' : auto?.sentAt && !auto.error ? 'Resend options email' : 'Send options email'}
+            </button>
+          )}
+          {phone && (
+            <button
+              onClick={() =>
+                (!wa?.sentAt || wa.error || window.confirm('The WhatsApp proposal was already sent. Send it again?')) &&
+                call('waWelcome', { action: 'sendWhatsAppWelcome' }, 'WhatsApp welcome + proposal PDF sent.')
+              }
+              disabled={!!busy || !me}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+              title="Sends the approved WhatsApp template with this lead's proposal PDF (works even outside the 24-hour window)"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />{' '}
+              {busy === 'waWelcome' ? 'Sending…' : wa?.sentAt && !wa.error ? 'Resend WhatsApp proposal' : 'Send WhatsApp proposal'}
             </button>
           )}
           {phone && (
@@ -160,6 +175,21 @@ export default function LeadConversation({ record, me }: { record: CrmRecord; me
         ) : (
           <span>This lead has no email address. Use WhatsApp or a call.</span>
         )}
+        <span className="block mt-0.5">
+          {wa?.error ? (
+            <span className="text-red-600">
+              WhatsApp proposal failed ({formatDateTime(wa.sentAt)}): {wa.error}
+            </span>
+          ) : wa?.sentAt ? (
+            <>
+              WhatsApp welcome + {wa.destination || ''} proposal PDF sent {formatDateTime(wa.sentAt)} to +{wa.to}
+              {wa.test ? ' (test number)' : ''}
+              {wa.followUpSentAt ? ` · follow-up ${wa.followUpError ? 'failed' : 'sent'} ${formatDateTime(wa.followUpSentAt)}` : ''}.
+            </>
+          ) : phone ? (
+            'WhatsApp proposal not sent yet.'
+          ) : null}
+        </span>
       </div>
 
       {testRecipient && (
