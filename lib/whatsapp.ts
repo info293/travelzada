@@ -20,6 +20,14 @@ export function formatPhoneNumber(phone: string): string {
   return cleaned
 }
 
+/** Error from the WhatsApp Cloud API, keeping Meta's full error object for diagnostics */
+export class WhatsAppApiError extends Error {
+  constructor(message: string, public meta: any, public httpStatus: number) {
+    super(message)
+    this.name = 'WhatsAppApiError'
+  }
+}
+
 /**
  * POST to the Cloud API, retrying up to 2 times (after 1s, then 3s) when Meta reports a
  * temporary outage (`is_transient`, e.g. "(#2) Service temporarily unavailable").
@@ -68,7 +76,7 @@ export async function sendWhatsAppTextMessage(to: string, text: string) {
 
   if (!response.ok) {
     console.error('[WhatsApp Cloud API Error]:', data)
-    throw new Error(data.error?.message || 'Failed to send WhatsApp text message')
+    throw new WhatsAppApiError(data.error?.message || 'Failed to send WhatsApp text message', data.error, response.status)
   }
 
   return data
@@ -114,7 +122,7 @@ export async function sendWhatsAppTemplateMessage(
 
   if (!response.ok) {
     console.error('[WhatsApp Cloud API Error]:', data)
-    throw new Error(data.error?.message || 'Failed to send WhatsApp template message')
+    throw new WhatsAppApiError(data.error?.message || 'Failed to send WhatsApp template message', data.error, response.status)
   }
 
   return data
@@ -158,7 +166,7 @@ export async function sendWhatsAppImageMessage(to: string, imageUrl: string, cap
   })
   if (!response.ok) {
     console.error('[WhatsApp Cloud API Error]:', data)
-    throw new Error(data.error?.message || 'Failed to send WhatsApp image message')
+    throw new WhatsAppApiError(data.error?.message || 'Failed to send WhatsApp image message', data.error, response.status)
   }
   return data
 }

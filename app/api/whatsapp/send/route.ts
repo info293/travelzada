@@ -5,7 +5,10 @@ import {
   sendWhatsAppTextMessage,
   sendWhatsAppTemplateMessage,
   formatPhoneNumber,
+  WhatsAppApiError,
 } from '@/lib/whatsapp'
+import { serverWhatsAppEnv, whatsappErrorHint } from '@/lib/whatsappDiagnostics'
+import { requireLeadsAccess } from '@/lib/metaServer'
 import { db } from '@/lib/firebase'
 import {
   collection,
@@ -27,6 +30,10 @@ import {
  * }
  */
 export async function POST(req: NextRequest) {
+  // Only logged-in staff may send WhatsApp messages from the business number
+  const authError = await requireLeadsAccess(req)
+  if (authError) return authError
+
   try {
     const body = await req.json()
     const { to, text, templateName, languageCode, components } = body
@@ -99,8 +106,27 @@ export async function POST(req: NextRequest) {
     })
   } catch (err: any) {
     console.error('[WhatsApp Outbound Send Error]:', err)
+    // Full details for the browser console: Meta's error, a plain-language hint, and the settings this
+    // deployment is running with (token fingerprint only, never the token)
+    const meta = err instanceof WhatsAppApiError ? err.meta : undefined
     return NextResponse.json(
-      { error: err.message || 'Failed to send WhatsApp message' },
+      {
+        error: err.message || 'Failed to send WhatsApp message',
+        hint: whatsappErrorHint(meta?.code, meta?.error_subcode),
+        meta: meta
+          ? {
+              code: meta.code,
+              subcode: meta.error_subcode,
+              type: meta.type,
+              message: meta.message,
+              details: meta.error_data?.details,
+              isTransient: meta.is_transient,
+              fbtraceId: meta.fbtrace_id,
+              httpStatus: err.httpStatus,
+            }
+          : undefined,
+        server: serverWhatsAppEnv(),
+      },
       { status: 500 }
     )
   }
