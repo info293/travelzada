@@ -103,7 +103,7 @@ export default function Header() {
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
-  const isDarkHero = (pathname === '/' || pathname === '/destinations' || pathname === '/contact') && !isScrolled
+  const isDarkHero = (pathname === '/' || pathname === '/contact') && !isScrolled
   const headerHeight = isScrolled ? 'py-2.5' : 'py-4'
   const logoScale = isScrolled ? 'scale-95' : 'scale-100'
   const shadowIntensity = Math.min(scrollY / 10, 1)

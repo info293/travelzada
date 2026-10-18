@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState, useRef } from 'react'
+import { use, useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -29,6 +29,8 @@ interface DestinationPackage {
   Price_Range_INR: string
   Primary_Image_URL: string
   Inclusions: string
+  Location_Breakup?: string
+  Slug?: string
   [key: string]: any
 }
 
@@ -36,6 +38,42 @@ interface PageProps {
   params: Promise<{ slug: string }> | { slug: string }
   initialDestination?: any
   initialPackages?: DestinationPackage[]
+}
+
+const COUNTRY_FLAGS: Record<string, { flag: string; region: string; bestTime: string }> = {
+  bali: { flag: '🇮🇩', region: 'Indonesia · Southeast Asia', bestTime: 'Apr - Oct' },
+  thailand: { flag: '🇹🇭', region: 'Thailand · Southeast Asia', bestTime: 'Nov - Apr' },
+  kashmir: { flag: '🇮🇳', region: 'India · North Highlands', bestTime: 'All Year' },
+  kerala: { flag: '🇮🇳', region: 'India · South Coast', bestTime: 'Sep - Mar' },
+  rajasthan: { flag: '🇮🇳', region: 'India · Royal Heritage', bestTime: 'Oct - Mar' },
+  andaman: { flag: '🇮🇳', region: 'India · Island Paradise', bestTime: 'Oct - May' },
+  singapore: { flag: '🇸🇬', region: 'Singapore · Southeast Asia', bestTime: 'All Year' },
+  baku: { flag: '🇦🇿', region: 'Azerbaijan · Caucasus', bestTime: 'Apr - Oct' },
+  dubai: { flag: '🇦🇪', region: 'United Arab Emirates · Middle East', bestTime: 'Nov - Mar' },
+  maldives: { flag: '🇲🇻', region: 'Maldives · Indian Ocean', bestTime: 'Nov - Apr' },
+  vietnam: { flag: '🇻🇳', region: 'Vietnam · Southeast Asia', bestTime: 'Dec - May' },
+  srilanka: { flag: '🇱🇰', region: 'Sri Lanka · Indian Ocean', bestTime: 'Dec - Apr' }
+}
+
+function getDestinationMeta(slug: string, name: string) {
+  const s = slug.toLowerCase()
+  const n = name.toLowerCase()
+  for (const [k, v] of Object.entries(COUNTRY_FLAGS)) {
+    if (s.includes(k) || n.includes(k)) return v
+  }
+  return { flag: '✈️', region: 'Curated Romantic Journey', bestTime: 'Oct - Apr' }
+}
+
+function formatPackagePrice(val: any): string {
+  if (!val) return 'Custom Quote'
+  const str = String(val).replace(/,/g, '').trim()
+  const num = parseInt(str.replace(/[^0-9]/g, ''), 10)
+  return num ? `₹${num.toLocaleString('en-IN')}` : String(val)
+}
+
+function getPackageImage(url?: string): string {
+  if (!url) return 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=80'
+  return url.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
 }
 
 export default function DestinationDetailClient({ params, initialDestination, initialPackages }: PageProps) {
@@ -48,13 +86,20 @@ export default function DestinationDetailClient({ params, initialDestination, in
   const [reviewRefresh, setReviewRefresh] = useState(0)
   const reviewFormRef = useRef<HTMLDivElement>(null)
 
+  // Atlys Filter States
+  const [durationFilter, setDurationFilter] = useState<'All' | '3-5 Nights' | '6-8 Nights' | '9+ Nights'>('All')
+  const [budgetFilter, setBudgetFilter] = useState<'All' | 'Under ₹35k' | '₹35k - ₹60k' | '₹60k+'>('All')
+  const [categoryFilter, setCategoryFilter] = useState<'All' | '4 Star' | '5 Star' | 'Villa'>('All')
+  const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'duration'>('featured')
+  const [searchQuery, setSearchQuery] = useState('')
+
   useEffect(() => {
-    if (initialDestination) return;
+    if (initialDestination) return
     const fetchDestinationAndPackages = async () => {
       if (typeof window === 'undefined' || !db) {
-        // Fallback to JSON
         const foundDestination = travelData.destinations.find(
-          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+          (d: any) =>
+            d.name.toLowerCase() === destinationName.toLowerCase() ||
             d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
         )
         setDestination(foundDestination)
@@ -65,8 +110,6 @@ export default function DestinationDetailClient({ params, initialDestination, in
       try {
         setLoading(true)
         const normalizedDestination = destinationName.toLowerCase()
-
-        // First, try to fetch destination from Firestore
         const destinationsRef = collection(db, 'destinations')
         const destinationsSnapshot = await getDocs(destinationsRef)
         let foundDestination: any = null
@@ -76,30 +119,30 @@ export default function DestinationDetailClient({ params, initialDestination, in
           const destSlug = data.slug?.toLowerCase() || ''
           const destName = data.name?.toLowerCase() || ''
 
-          if (destSlug === normalizedDestination ||
+          if (
+            destSlug === normalizedDestination ||
             destName === normalizedDestination ||
             destSlug.includes(normalizedDestination) ||
-            normalizedDestination.includes(destSlug)) {
+            normalizedDestination.includes(destSlug)
+          ) {
             foundDestination = { id: doc.id, ...data }
           }
         })
 
-        // If not found in Firestore, fallback to JSON
         if (!foundDestination) {
           foundDestination = travelData.destinations.find(
-            (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+            (d: any) =>
+              d.name.toLowerCase() === destinationName.toLowerCase() ||
               d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
           )
         }
 
         setDestination(foundDestination)
 
-        // Fetch packages from Firestore
         const packagesRef = collection(db, 'packages')
         const allPackagesSnapshot = await getDocs(packagesRef)
         const packagesData: DestinationPackage[] = []
 
-        // Get linked package IDs from destination if available
         const linkedPackageIds = foundDestination?.packageIds || []
         const hasLinkedPackages = Array.isArray(linkedPackageIds) && linkedPackageIds.length > 0
 
@@ -108,17 +151,13 @@ export default function DestinationDetailClient({ params, initialDestination, in
           const pkgId = data.Destination_ID || ''
 
           let shouldInclude = false
-
-          // First priority: Check if package ID is in the linked packageIds array
           if (hasLinkedPackages) {
             shouldInclude = linkedPackageIds.includes(pkgId)
           } else {
-            // Fallback: Match by destination name if no linked packages
             const pkgName = data.Destination_Name?.toLowerCase() || ''
             const normalizedPkgId = pkgId.toLowerCase()
-
-            // Match if package name or Destination_ID contains destination or vice versa
-            shouldInclude = pkgName.includes(normalizedDestination) ||
+            shouldInclude =
+              pkgName.includes(normalizedDestination) ||
               normalizedDestination.includes(pkgName) ||
               pkgName === normalizedDestination ||
               normalizedPkgId.includes(normalizedDestination) ||
@@ -133,9 +172,9 @@ export default function DestinationDetailClient({ params, initialDestination, in
         setDestinationPackages(packagesData)
       } catch (error) {
         console.error('Error fetching destination:', error)
-        // Fallback to JSON
         const foundDestination = travelData.destinations.find(
-          (d: any) => d.name.toLowerCase() === destinationName.toLowerCase() ||
+          (d: any) =>
+            d.name.toLowerCase() === destinationName.toLowerCase() ||
             d.name.toLowerCase().replace(/\s+/g, '-') === destinationName.toLowerCase()
         )
         setDestination(foundDestination)
@@ -145,16 +184,84 @@ export default function DestinationDetailClient({ params, initialDestination, in
     }
 
     fetchDestinationAndPackages()
-  }, [destinationName])
+  }, [destinationName, initialDestination])
+
+  // Filtered & sorted packages
+  const filteredPackages = useMemo(() => {
+    let result = destinationPackages.filter((pkg) => {
+      // Search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim()
+        const nameMatch = (pkg.Destination_Name || '').toLowerCase().includes(q)
+        const overviewMatch = (pkg.Overview || '').toLowerCase().includes(q)
+        const locationMatch = (pkg.Location_Breakup || '').toLowerCase().includes(q)
+        if (!nameMatch && !overviewMatch && !locationMatch) return false
+      }
+
+      // Duration
+      if (durationFilter !== 'All') {
+        const match = (pkg.Duration || '').match(/(\d+)\s*N/i)
+        const nights = match ? parseInt(match[1], 10) : 5
+        if (durationFilter === '3-5 Nights' && (nights < 3 || nights > 5)) return false
+        if (durationFilter === '6-8 Nights' && (nights < 6 || nights > 8)) return false
+        if (durationFilter === '9+ Nights' && nights < 9) return false
+      }
+
+      // Budget
+      if (budgetFilter !== 'All') {
+        const cleanPrice = String(pkg.Price_Range_INR || '').replace(/[^0-9]/g, '')
+        const num = parseInt(cleanPrice, 10) || 0
+        if (budgetFilter === 'Under ₹35k' && (num > 35000 || num === 0)) return false
+        if (budgetFilter === '₹35k - ₹60k' && (num < 35000 || num > 60000)) return false
+        if (budgetFilter === '₹60k+' && num < 60000) return false
+      }
+
+      // Category
+      if (categoryFilter !== 'All') {
+        const cat = (pkg.Star_Category || '').toLowerCase()
+        const name = (pkg.Destination_Name || '').toLowerCase()
+        if (categoryFilter === '4 Star' && !cat.includes('4')) return false
+        if (categoryFilter === '5 Star' && !cat.includes('5')) return false
+        if (categoryFilter === 'Villa' && !name.includes('villa') && !cat.includes('villa')) return false
+      }
+
+      return true
+    })
+
+    // Sort
+    if (sortBy === 'price-low') {
+      result.sort((a, b) => {
+        const priceA = parseInt(String(a.Price_Range_INR || '').replace(/[^0-9]/g, ''), 10) || 0
+        const priceB = parseInt(String(b.Price_Range_INR || '').replace(/[^0-9]/g, ''), 10) || 0
+        return priceA - priceB
+      })
+    } else if (sortBy === 'price-high') {
+      result.sort((a, b) => {
+        const priceA = parseInt(String(a.Price_Range_INR || '').replace(/[^0-9]/g, ''), 10) || 0
+        const priceB = parseInt(String(b.Price_Range_INR || '').replace(/[^0-9]/g, ''), 10) || 0
+        return priceB - priceA
+      })
+    } else if (sortBy === 'duration') {
+      result.sort((a, b) => {
+        const matchA = (a.Duration || '').match(/(\d+)\s*N/i)
+        const matchB = (b.Duration || '').match(/(\d+)\s*N/i)
+        const nA = matchA ? parseInt(matchA[1], 10) : 0
+        const nB = matchB ? parseInt(matchB[1], 10) : 0
+        return nB - nA
+      })
+    }
+
+    return result
+  }, [destinationPackages, durationFilter, budgetFilter, categoryFilter, sortBy, searchQuery])
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-[#FAFAFC]">
         <Header />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-            <p className="text-gray-500 font-medium animate-pulse">Finding destination...</p>
+            <div className="size-12 border-4 border-black/20 border-t-black rounded-full animate-spin" />
+            <p className="text-gray-500 font-medium animate-pulse">Loading destination packages...</p>
           </div>
         </div>
         <Footer />
@@ -164,15 +271,15 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
   if (!destination) {
     return (
-      <main className="min-h-screen bg-white">
+      <main className="min-h-screen bg-[#FAFAFC]">
         <Header />
         <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Destination Not Found</h1>
-            <p className="text-gray-600 mb-8">The destination you're looking for doesn't exist.</p>
+          <div className="text-center max-w-md px-6">
+            <h1 className="text-3xl font-bold font-serif text-gray-900 mb-3">Destination Not Found</h1>
+            <p className="text-gray-500 mb-6">The destination you are looking for is currently unavailable.</p>
             <Link
               href="/destinations"
-              className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
+              className="inline-block bg-black text-white px-6 py-3 rounded-full font-semibold hover:bg-gray-800 transition"
             >
               Back to Destinations
             </Link>
@@ -183,790 +290,550 @@ export default function DestinationDetailClient({ params, initialDestination, in
     )
   }
 
-  const getDestinationImage = (dest: any) => {
-    // Use image from Firestore if available
-    if (dest?.image) return dest.image
+  const meta = getDestinationMeta(destination?.slug || destinationName, destination?.name || destinationName)
+  const minStartingPrice = destinationPackages.reduce((min, p) => {
+    const clean = String(p.Price_Range_INR || '').replace(/[^0-9]/g, '')
+    const num = parseInt(clean, 10)
+    return num && num < min ? num : min
+  }, Infinity)
 
-    // Fallback to image map
-    const imageMap: { [key: string]: string } = {
-      'Bali': 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=80',
-      'Goa': 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=80',
-      'Kerala': 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=1200&q=80',
-      'Rajasthan': 'https://images.unsplash.com/photo-1539650116574-75c0c6d73a6e?w=1200&q=80',
-      'Manali': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80',
-      'Singapore': 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=1200&q=80',
-      'Thailand': 'https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=1200&q=80',
-      'Maldives': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80',
-    }
-    return imageMap[dest?.name] || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=80'
-  }
-
-  const imageUrl = destination ? getDestinationImage(destination) : ''
+  const formattedLowest = minStartingPrice !== Infinity ? `₹${minStartingPrice.toLocaleString('en-IN')}` : '₹32,000'
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-[#FAFAFC] text-[#1C1C1E] antialiased selection:bg-[#E8DCC3]">
       <Header />
 
-      <div className="bg-white px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <Breadcrumbs items={[
-            { name: 'Home', url: '/' },
-            { name: 'Destinations', url: '/destinations' },
-            { name: destination?.name || destinationName }
-          ]} />
+      {/* ─────────────────────────────────────────────────────────────
+          1. BREADCRUMBS & TOP NAVIGATION
+      ───────────────────────────────────────────────────────────── */}
+      <div className="bg-[#FAFAFC] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
+        <div className="max-w-[1440px] mx-auto flex items-center justify-between">
+          <Breadcrumbs
+            items={[
+              { name: 'Home', url: '/' },
+              { name: 'Destinations', url: '/destinations' },
+              { name: destination?.name || destinationName }
+            ]}
+          />
+          <Link
+            href="/destinations"
+            className="text-xs font-semibold text-gray-500 hover:text-black flex items-center gap-1.5 transition"
+          >
+            <span>←</span>
+            <span>All Destinations</span>
+          </Link>
         </div>
       </div>
 
-      {/* Hero Image Section */}
-      <section className="relative h-[460px] md:h-[400px] overflow-hidden bg-gray-900">
-        <Image
-          src={imageUrl}
-          alt={`Beautiful view of ${destination?.name || destinationName}`}
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent pointer-events-none"></div>
-        {/* Back Button - Positioned over image */}
-        <div className="absolute top-20 left-4 md:left-12 z-[100] pointer-events-auto">
-          <button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              router.push('/destinations')
-            }}
-            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white hover:bg-white text-gray-900 hover:text-primary transition-all shadow-xl hover:shadow-2xl backdrop-blur-sm cursor-pointer"
-            aria-label="Go back to destinations"
-            type="button"
-          >
-            <svg className="w-6 h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-        </div>
-        <div className="relative z-10 h-full flex items-end pointer-events-none">
-          <div className="max-w-6xl mx-auto w-full px-4 md:px-12 pb-12">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold">
-                {destination?.country || 'Destination'}
-              </span>
+      {/* ─────────────────────────────────────────────────────────────
+          2. ATLYS-STYLE DESTINATION HERO BANNER
+      ───────────────────────────────────────────────────────────── */}
+      <section className="relative px-5 sm:px-8 lg:px-12 pt-4 pb-8">
+        <div className="max-w-[1440px] mx-auto text-center flex flex-col items-center">
+          
+          {/* Flag & Region Pill */}
+          <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 shadow-sm mb-3">
+            <span className="text-base">{meta.flag}</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
+              {meta.region}
+            </span>
+          </div>
+
+          {/* Headline */}
+          <h1 className="text-[36px] sm:text-[46px] lg:text-[54px] font-bold font-serif text-gray-900 tracking-tight leading-[1.08] text-balance">
+            {destination?.name || destinationName} Tour Packages
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-gray-500 text-[15px] sm:text-[17px] max-w-2xl mt-3 leading-relaxed">
+            {destination?.description ||
+              `Discover handpicked packages for ${destination?.name || destinationName}. Verified 4★ & 5★ luxury stays, 100% itemised pricing, and 24×7 concierge on WhatsApp.`}
+          </p>
+
+          {/* Quick Stats Pill Strip */}
+          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-6">
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span>{destinationPackages.length} Curated Packages</span>
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-              {destination?.name || destinationName}
-            </h1>
-            <p className="text-xl text-white/90 max-w-3xl">
-              {destination?.description || 'A beautiful destination waiting to be explored.'}
-            </p>
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+              <span className="size-2 rounded-full bg-amber-500" />
+              <span>From {formattedLowest} / couple</span>
+            </div>
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+              <span className="size-2 rounded-full bg-blue-500" />
+              <span>Best Time: {meta.bestTime}</span>
+            </div>
+            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
+              <span className="size-2 rounded-full bg-purple-500" />
+              <span>Verified 4★ &amp; 5★ Stays</span>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────
+          3. ATLYS FLOATING FILTER CAPSULE
+      ───────────────────────────────────────────────────────────── */}
+      <section className="px-5 sm:px-8 lg:px-12 mb-10">
+        <div className="max-w-4xl mx-auto rounded-[36px] sm:rounded-full bg-white border border-gray-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.05)] px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 md:gap-2">
+          
+          {/* Segment 1: Duration */}
+          <div className="flex items-center gap-3 flex-1 min-w-[140px]">
+            <div className="size-8 rounded-full bg-[#E8F8F0] text-[#10B981] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              ⚡
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Duration:
+              </span>
+              <select
+                value={durationFilter}
+                onChange={(e) => setDurationFilter(e.target.value as any)}
+                className="bg-transparent font-bold text-[14px] text-gray-900 outline-none cursor-pointer"
+              >
+                <option value="All">All Durations</option>
+                <option value="3-5 Nights">3–5 Nights</option>
+                <option value="6-8 Nights">6–8 Nights</option>
+                <option value="9+ Nights">9+ Nights</option>
+              </select>
+            </div>
+          </div>
+
+          <span className="hidden md:block h-7 w-px bg-gray-200 shrink-0" aria-hidden="true" />
+
+          {/* Segment 2: Budget */}
+          <div className="flex items-center gap-3 flex-1 min-w-[140px]">
+            <div className="size-8 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              ✈️
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Budget:
+              </span>
+              <select
+                value={budgetFilter}
+                onChange={(e) => setBudgetFilter(e.target.value as any)}
+                className="bg-transparent font-bold text-[14px] text-gray-900 outline-none cursor-pointer"
+              >
+                <option value="All">Any Budget</option>
+                <option value="Under ₹35k">Under ₹35,000</option>
+                <option value="₹35k - ₹60k">₹35k - ₹60,000</option>
+                <option value="₹60k+">₹60,000+ (Luxury)</option>
+              </select>
+            </div>
+          </div>
+
+          <span className="hidden md:block h-7 w-px bg-gray-200 shrink-0" aria-hidden="true" />
+
+          {/* Segment 3: Category */}
+          <div className="flex items-center gap-3 flex-1 min-w-[140px]">
+            <div className="size-8 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              🏨
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Stays:
+              </span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value as any)}
+                className="bg-transparent font-bold text-[14px] text-gray-900 outline-none cursor-pointer"
+              >
+                <option value="All">All Stays</option>
+                <option value="4 Star">4 Star Hotels</option>
+                <option value="5 Star">5 Star Luxury</option>
+                <option value="Villa">Private Pool Villa</option>
+              </select>
+            </div>
+          </div>
+
+          <span className="hidden md:block h-7 w-px bg-gray-200 shrink-0" aria-hidden="true" />
+
+          {/* Segment 4: Sort */}
+          <div className="flex items-center gap-3 flex-1 min-w-[140px]">
+            <div className="size-8 rounded-full bg-[#FCE7F3] text-[#EC4899] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              📊
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Sort by:
+              </span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent font-bold text-[14px] text-gray-900 outline-none cursor-pointer"
+              >
+                <option value="featured">Featured Picks</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="duration">Longest Trip</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Live Search bar for packages */}
+        <div className="max-w-md mx-auto mt-4">
+          <div className="flex items-center gap-2.5 rounded-full border border-gray-300 bg-white px-4 py-2 shadow-sm focus-within:border-black transition">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6E6E73" strokeWidth="2.2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search ${destination?.name || destinationName} packages, places...`}
+              className="w-full bg-transparent text-[13px] font-medium text-gray-900 outline-none placeholder:text-gray-400"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-gray-400 hover:text-gray-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Packages Section */}
-      {loading ? (
-        <section className="py-12 md:py-16 px-4 md:px-12 bg-gray-50 border-b border-gray-200">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center py-12">
-              <p className="text-gray-600">Loading packages...</p>
-            </div>
+      {/* ─────────────────────────────────────────────────────────────
+          4. ATLYS TALL PORTRAIT PACKAGE CARDS GRID
+      ───────────────────────────────────────────────────────────── */}
+      <section className="px-5 sm:px-8 lg:px-12 mb-20">
+        <div className="max-w-[1440px] mx-auto">
+          
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-sm font-semibold text-gray-600">
+              Showing <strong className="text-gray-900">{filteredPackages.length}</strong> available packages
+            </span>
+            <Link
+              href={`/tailored-travel?destination=${encodeURIComponent(destination?.name || destinationName)}`}
+              className="text-xs font-bold text-black hover:underline flex items-center gap-1"
+            >
+              <span>Customise with AI</span>
+              <span>→</span>
+            </Link>
           </div>
-        </section>
-      ) : destinationPackages.length > 0 ? (
-        <section className="py-12 md:py-16 px-4 md:px-12 bg-gray-50 border-b border-gray-200">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-              <div>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-                  Featured {destination?.name || destinationName} Packages
-                </h2>
-                <p className="text-gray-600">
-                  Curated itineraries crafted by experts for {destination?.name || destinationName}
-                </p>
-              </div>
-              <Link
-                href={`/ai-trip-planner?destination=${encodeURIComponent(destination.name)}`}
-                className="inline-flex items-center gap-2 text-primary font-semibold hover:gap-3 transition-all"
+
+          {filteredPackages.length === 0 ? (
+            <div className="rounded-[32px] border border-dashed border-gray-300 bg-white p-16 text-center shadow-sm">
+              <span className="text-4xl">🏝️</span>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">No packages match your filters</h3>
+              <p className="mt-1 text-sm text-gray-500">Try selecting a different duration, budget, or clearing your search.</p>
+              <button
+                onClick={() => {
+                  setDurationFilter('All')
+                  setBudgetFilter('All')
+                  setCategoryFilter('All')
+                  setSortBy('featured')
+                  setSearchQuery('')
+                }}
+                className="mt-6 rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white hover:bg-gray-800 transition"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-                Plan Trip with AI
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
+                Reset Filters
+              </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
-              {destinationPackages.map((pkg) => {
-                // Extract image URL from Primary_Image_URL (handle markdown format)
-                const imageUrl = pkg.Primary_Image_URL
-                  ? pkg.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
-                  : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80'
-
-                // Use Slug if available, otherwise fall back to Destination_ID or doc id
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredPackages.map((pkg) => {
+                const imageUrl = getPackageImage(pkg.Primary_Image_URL)
                 const packageSlug = (pkg as any).Slug || pkg.Destination_ID || pkg.id || 'package'
+                const formattedPrice = formatPackagePrice(pkg.Price_Range_INR)
+                const starCategory = pkg.Star_Category || '4★ & 5★'
+                const travelType = pkg.Travel_Type || pkg.Mood || 'Romantic'
 
                 return (
                   <Link
                     key={pkg.id || packageSlug}
                     href={`/destinations/${encodeURIComponent(destination?.slug || destination?.name || destinationName)}/${packageSlug}`}
-
-                    className="bg-white rounded-[5px] border border-gray-200 hover:border-primary/40 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden flex flex-col relative group"
+                    className="group relative block aspect-[1/1.5] rounded-[30px] overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1.5 cursor-pointer bg-gray-900"
                   >
-                    {/* Shine Effect Overlay */}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+                    {/* Edge-to-Edge Image */}
+                    <Image
+                      src={imageUrl}
+                      alt={pkg.Destination_Name || 'Package'}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                      className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
+
+                    {/* Top Vignette */}
+                    <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/50 via-black/20 to-transparent pointer-events-none" />
+
+                    {/* Top Floating Badges */}
+                    <div className="absolute top-4 inset-x-4 flex items-center justify-between z-10 pointer-events-none">
+                      <span className="bg-white/95 backdrop-blur-md text-gray-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm tracking-wide uppercase">
+                        {travelType}
+                      </span>
+                      <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-sm">
+                        {starCategory}
+                      </span>
                     </div>
-                    <div className="relative h-44 overflow-hidden">
-                      <Image
-                        src={imageUrl}
-                        alt={pkg.Destination_Name || 'Package'}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      {pkg.Star_Category && (
-                        <span className="absolute top-3 right-3 bg-white text-gray-900 text-[10px] font-semibold px-2.5 py-0.5 rounded-full shadow">
-                          {pkg.Star_Category}
+
+                    {/* Deep Bottom Gradient */}
+                    <div
+                      className="absolute inset-x-0 bottom-0 h-3/5 pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.8) 45%, rgba(0,0,0,0.18) 80%, transparent 100%)'
+                      }}
+                    />
+
+                    {/* Content Overlay */}
+                    <div className="absolute inset-x-0 bottom-0 p-5 flex flex-col z-10">
+                      
+                      {/* Location Hook */}
+                      {pkg.Location_Breakup && (
+                        <span className="text-[10px] font-semibold tracking-wider text-[#E8DCC3] uppercase line-clamp-1 mb-1">
+                          📍 {pkg.Location_Breakup}
                         </span>
                       )}
-                    </div>
-                    <div className="p-3.5 flex-1 flex flex-col gap-2.5 min-h-[240px] max-h-[280px]">
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-900 mb-1 line-clamp-2 leading-tight">{pkg.Destination_Name || 'Package'}</h3>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-0.5">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span>{pkg.Duration || 'Duration not specified'}</span>
-                        </div>
-                      </div>
 
-                      {/* Package Details - Compact */}
-                      <div className="flex-1 space-y-2">
-                        {/* Key Features as Small Badges */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {pkg.Star_Category && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-[10px] font-semibold border border-purple-100">
-                              <svg className="w-2.5 h-2.5 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                              {pkg.Star_Category}
-                            </span>
-                          )}
-                          {pkg.Travel_Type && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-[10px] font-semibold border border-indigo-100">
-                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              {pkg.Travel_Type}
-                            </span>
-                          )}
-                          {pkg.Mood && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-pink-50 text-pink-700 rounded-md text-[10px] font-semibold border border-pink-100">
-                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              {pkg.Mood}
-                            </span>
-                          )}
+                      {/* Package Name */}
+                      <h3 className="font-serif text-[17px] lg:text-[19px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow-md line-clamp-2 text-balance">
+                        {pkg.Destination_Name || 'Curated Romantic Package'}
+                      </h3>
+
+                      {/* Hairline Divider */}
+                      <div className="w-full h-px bg-white/20 my-3" />
+
+                      {/* 3-Column Specifications Bar */}
+                      <div className="w-full flex items-center justify-between text-white">
+                        
+                        {/* Column 1: Duration */}
+                        <div className="flex flex-col text-left">
+                          <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                            DURATION
+                          </span>
+                          <span className="text-[12px] font-bold tracking-wide uppercase">
+                            {pkg.Duration || '5N / 6D'}
+                          </span>
                         </div>
 
-                        {/* Highlights / Overview - Compact */}
-                        {(() => {
-                          // Helper to get highlights with priority: Highlights > Day Wise > Overview
-                          const getHighlights = () => {
-                            // 1. Check explicit Highlights field
-                            if (pkg.Highlights) {
-                              if (Array.isArray(pkg.Highlights) && pkg.Highlights.length > 0) {
-                                return pkg.Highlights;
-                              }
-                              if (typeof pkg.Highlights === 'string') {
-                                try {
-                                  if (pkg.Highlights.trim().startsWith('[')) {
-                                    const parsed = JSON.parse(pkg.Highlights);
-                                    if (Array.isArray(parsed)) return parsed;
-                                  }
-                                  return [pkg.Highlights];
-                                } catch (e) {
-                                  return [pkg.Highlights];
-                                }
-                              }
-                            }
-
-                            // 2. Fallback to Day Wise Itinerary Titles
-                            if (pkg.Day_Wise_Itinerary_Details && Array.isArray(pkg.Day_Wise_Itinerary_Details)) {
-                              const titles = pkg.Day_Wise_Itinerary_Details
-                                .map((day: any) => day.Title)
-                                .filter((t: any) => t && t.trim().length > 3 && !t.toLowerCase().includes('arrival') && !t.toLowerCase().includes('departure'));
-                              if (titles.length > 0) return titles;
-                            }
-
-                            return [];
-                          };
-
-                          const highlights = getHighlights();
-
-                          const displayPoints = highlights.length > 0
-                            ? highlights
-                            : (pkg.Overview ? pkg.Overview.split('. ').filter((point: string) => point.trim().length > 0) : []);
-
-                          const label = highlights.length > 0 ? 'Highlights' : 'Overview';
-                          const showSection = displayPoints.length > 0;
-
-                          if (!showSection) return null;
-
-                          return (
-                            <div className="bg-gray-50 rounded-lg p-2 border border-gray-100">
-                              <p className="text-[10px] font-semibold text-gray-600 mb-1.5 uppercase tracking-wide flex items-center gap-1">
-                                {label === 'Highlights' ? (
-                                  <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                  </svg>
-                                ) : (
-                                  <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                )}
-                                {label}
-                              </p>
-                              <div className="space-y-1">
-                                {displayPoints.slice(0, 3).map((point: string, idx: number) => (
-                                  <div key={idx} className="flex items-start gap-1.5 text-[11px] text-gray-700 min-w-0">
-                                    <svg className="w-3 h-3 text-primary/70 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                    <span className="leading-snug line-clamp-2 flex-1 min-w-0">{point.trim()}{point.trim().endsWith('.') ? '' : '.'}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Price Section - Compact */}
-                      <div className="p-0">
-                        <div className="relative bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg p-2.5 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all duration-300 overflow-hidden">
-                          {/* Animated gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-purple-400/20 via-transparent to-indigo-700/20 rounded-lg"></div>
-                          {/* Content */}
-                          <div className="relative z-10">
-                            <p className="text-[9px] uppercase text-white/90 tracking-wide font-semibold mb-0.5 drop-shadow-sm">Starting From</p>
-                            <p className="text-sm font-bold text-white drop-shadow-md leading-tight">
-                              INR {(() => {
-                                const price = pkg.Price_Range_INR
-                                if (!price) return 'Contact for price'
-                                // Remove existing formatting + non-digits (except maybe range separator if needed, but assuming simple price for now)
-                                // If it contains non-digit chars that aren't commas, it might be a range or text.
-                                // Simple approach: Try to parse as single number if possible.
-                                const cleanPrice = String(price).replace(/,/g, '').trim()
-                                const num = parseInt(cleanPrice)
-                                if (!isNaN(num) && String(num) === cleanPrice) {
-                                  return num.toLocaleString('en-IN')
-                                }
-                                return price
-                              })()}
-                            </p>
-                          </div>
-                          {/* Decorative corner accent */}
-                          <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-purple-300/30 to-transparent rounded-bl-full"></div>
+                        {/* Column 2: Starting */}
+                        <div className="flex flex-col text-center">
+                          <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                            STARTING
+                          </span>
+                          <span className="text-[12px] font-bold tracking-wide text-[#E8DCC3] uppercase">
+                            {formattedPrice}
+                          </span>
                         </div>
+
+                        {/* Column 3: Category */}
+                        <div className="flex flex-col text-right">
+                          <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                            STAYS
+                          </span>
+                          <span className="text-[12px] font-bold tracking-wide uppercase">
+                            {starCategory}
+                          </span>
+                        </div>
+
                       </div>
+
                     </div>
                   </Link>
                 )
               })}
             </div>
-          </div>
-        </section>
-      ) : null}
+          )}
 
-      {/* Destination Information Section */}
-      {destination && (
-        <>
-          {/* Quick Info Bar */}
-          <section className="bg-gradient-to-r from-gray-50 to-white border-y border-gray-200">
-            <div className="max-w-6xl mx-auto px-4 md:px-12 py-4 md:py-6">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-4">
-                {destination.bestTimeToVisit && (
-                  <div className="text-center p-2 md:p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-5 h-5 md:w-6 md:h-6 mx-auto mb-1 md:mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-xs text-gray-500 mb-1 font-medium">Best Time</p>
-                    <p className="text-xs md:text-sm font-bold text-gray-900 leading-tight">{destination.bestTimeToVisit}</p>
-                  </div>
-                )}
-                {destination.duration && (
-                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-xs text-gray-500 mb-1 font-medium">Duration</p>
-                    <p className="text-sm font-bold text-gray-900">{destination.duration}</p>
-                  </div>
-                )}
-                {destination.currency && (
-                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <p className="text-xs text-gray-500 mb-1 font-medium">Currency</p>
-                    <p className="text-sm font-bold text-gray-900">{destination.currency}</p>
-                  </div>
-                )}
-                {destination.language && (
-                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-6 h-6 mx-auto mb-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                    </svg>
-                    <p className="text-xs text-gray-500 mb-1 font-medium">Language</p>
-                    <p className="text-sm font-bold text-gray-900">{destination.language}</p>
-                  </div>
-                )}
-                {destination.rating && (
-                  <div className="text-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
-                    <svg className="w-6 h-6 mx-auto mb-2 text-yellow-500 fill-current" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <p className="text-xs text-gray-500 mb-1 font-medium">Rating</p>
-                    <p className="text-sm font-bold text-gray-900">{destination.rating}/5.0</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Highlights & Activities */}
-          <section className="py-6 md:py-10 px-4 md:px-12 bg-white">
-            <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                {/* Highlights */}
-                {destination.highlights && destination.highlights.length > 0 && (
-                  <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                      <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                      </svg>
-                      Top Highlights
-                    </h2>
-                    <div className="space-y-3">
-                      {destination.highlights.map((highlight: string, index: number) => (
-                        <div key={index} className="flex items-start gap-2 md:gap-3 p-2 md:p-3 bg-gray-50 rounded-lg hover:bg-primary/5 transition-colors">
-                          <span className="flex-shrink-0 w-5 h-5 md:w-6 md:h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold">{index + 1}</span>
-                          <p className="text-sm md:text-base text-gray-700 leading-relaxed">{highlight}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Activities */}
-                {destination.activities && destination.activities.length > 0 && (
-                  <div>
-                    <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6 flex items-center gap-2">
-                      <svg className="w-7 h-7 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Things to Do
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
-                      {destination.activities.map((activity: string, index: number) => (
-                        <div key={index} className="flex items-center gap-2 p-2 md:p-3 bg-gradient-to-r from-primary/5 to-transparent rounded-lg border border-primary/10">
-                          <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <p className="text-sm text-gray-700">{activity}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* Budget & Hotel Types */}
-          <section className="py-6 md:py-10 px-4 md:px-12 bg-gray-50">
-            <div className="max-w-6xl mx-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                {/* Budget Range */}
-                {destination.budgetRange && Object.keys(destination.budgetRange).length > 0 && (
-                  <div>
-                    <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6">Budget Guide</h2>
-                    <div className="space-y-3 md:space-y-4">
-                      {destination.budgetRange.budget && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-bold text-gray-900">Budget</h3>
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">Economical</span>
-                          </div>
-                          <p className="text-xl md:text-2xl font-bold text-primary">{destination.budgetRange.budget}</p>
-                        </div>
-                      )}
-                      {destination.budgetRange.midRange && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-bold text-gray-900">Mid-Range</h3>
-                            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-semibold">Popular</span>
-                          </div>
-                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.midRange}</p>
-                        </div>
-                      )}
-                      {destination.budgetRange.luxury && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-bold text-gray-900">Luxury</h3>
-                            <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-semibold">Premium</span>
-                          </div>
-                          <p className="text-2xl font-bold text-primary">{destination.budgetRange.luxury}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Hotel Types */}
-                {destination.hotelTypes && destination.hotelTypes.length > 0 && (
-                  <div>
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Accommodation Options</h2>
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                      <div className="space-y-3">
-                        {destination.hotelTypes.map((hotelType: string, index: number) => (
-                          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                            <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <p className="text-gray-700 font-medium">{hotelType}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        </>
-      )}
-
-      {/* Quick Info Bar */}
-      {/* <section className="bg-gray-50 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 md:px-12 py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Best Time to Visit</p>
-              <p className="font-semibold text-gray-900">
-                {destination?.bestTimeToVisit 
-                  ? (destination.bestTimeToVisit.includes('(') 
-                      ? destination.bestTimeToVisit.split('(')[0].trim() 
-                      : destination.bestTimeToVisit)
-                  : 'Year-round'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Recommended Duration</p>
-              <p className="font-semibold text-gray-900">{destination?.duration || '5-7 days recommended'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Currency</p>
-              <p className="font-semibold text-gray-900">{destination?.currency || 'Contact for details'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Language</p>
-              <p className="font-semibold text-gray-900">{destination?.language || 'English'}</p>
-            </div>
-          </div>
         </div>
-      </section> */}
+      </section>
 
-      {/* Main Content - Commented Out */}
-      {/* 
-      <section className="py-16 px-4 md:px-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            <div className="lg:col-span-2 space-y-12">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Top Highlights</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {destination.highlights.map((highlight: string, index: number) => (
-                    <div
-                      key={index}
-                      className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-6 border border-primary/20"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-white font-bold">{index + 1}</span>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900 mb-1">{highlight}</h3>
-                          <p className="text-sm text-gray-600">
-                            A must-visit attraction in {destination.name}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Popular Activities</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {destination.activities.map((activity: string, index: number) => (
-                    <div
-                      key={index}
-                      className="bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-primary transition-colors"
-                    >
-                      <p className="font-medium text-gray-900">{activity}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">About {destination.name}</h2>
-                <div className="prose max-w-none">
-                  <p className="text-gray-700 text-lg leading-relaxed mb-4">
-                    {destination.description}
-                  </p>
-                  <p className="text-gray-600 leading-relaxed">
-                    {destination.name} offers an incredible blend of natural beauty, rich culture, and unforgettable experiences. 
-                    Whether you're seeking adventure, relaxation, or cultural immersion, this destination has something special 
-                    for every traveler. From stunning landscapes to vibrant local traditions, your journey here will create 
-                    memories that last a lifetime.
-                  </p>
-                </div>
-              </div>
+      {/* ─────────────────────────────────────────────────────────────
+          5. ATLYS DESTINATION QUICK FACTS (4-CARD GRID)
+      ───────────────────────────────────────────────────────────── */}
+      {destination && (
+        <section className="py-16 bg-white border-y border-gray-200/80">
+          <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
+            
+            <div className="text-center max-w-xl mx-auto mb-12">
+              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                Essential Guide
+              </span>
+              <h2 className="text-[26px] lg:text-[34px] font-bold font-serif text-gray-900 mt-1">
+                Traveling to {destination?.name || destinationName}
+              </h2>
             </div>
-            <div className="space-y-6">
-              <div className="bg-gradient-to-br from-primary to-primary-dark rounded-2xl p-6 text-white">
-                <h3 className="text-2xl font-bold mb-4">Budget Ranges</h3>
-                <div className="space-y-4">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <p className="text-sm opacity-90 mb-1">Budget</p>
-                    <p className="text-xl font-bold">{destination.budgetRange.budget}</p>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <p className="text-sm opacity-90 mb-1">Mid-Range</p>
-                    <p className="text-xl font-bold">{destination.budgetRange.midRange}</p>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                    <p className="text-sm opacity-90 mb-1">Luxury</p>
-                    <p className="text-xl font-bold">{destination.budgetRange.luxury}</p>
-                  </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              
+              {/* Card 1: Best Time */}
+              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+                <div className="size-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold mb-4">
+                  ☀️
                 </div>
-              </div>
-              <div className="bg-white rounded-2xl border border-gray-200 p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Hotel Types</h3>
-                <div className="space-y-2">
-                  {destination.hotelTypes.map((hotelType: string, index: number) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 text-gray-700"
-                    >
-                      <span className="text-primary">✓</span>
-                      <span>{hotelType}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-3">
-                <Link
-                  href={`/ai-trip-planner?destination=${encodeURIComponent(destination?.name || destinationName)}`}
-                  className="block w-full bg-primary text-white text-center px-6 py-4 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-                >
-                  Plan Your Trip with AI
-                </Link>
-                <Link
-                  href="/destinations"
-                  className="block w-full bg-white border-2 border-primary text-primary text-center px-6 py-4 rounded-lg font-semibold hover:bg-primary/10 transition-colors"
-                >
-                  Back to Destinations
-                </Link>
-              </div>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <span>💡</span> Travel Tip
-                </h3>
-                <p className="text-sm text-gray-700">
-                  The best time to visit {destination.name} is {destination.bestTimeToVisit}. 
-                  Make sure to book your accommodations in advance, especially during peak season.
+                <h3 className="text-[16px] font-bold text-gray-900">Best Time to Visit</h3>
+                <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  {destination.bestTimeToVisit || meta.bestTime} offers idyllic beach weather, calm ocean waters, and stunning sunsets.
                 </p>
               </div>
+
+              {/* Card 2: Recommended Duration */}
+              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold mb-4">
+                  ⏳
+                </div>
+                <h3 className="text-[16px] font-bold text-gray-900">Ideal Trip Length</h3>
+                <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  {destination.duration || '5 to 8 Days'} is recommended to comfortably explore key regions without feeling rushed.
+                </p>
+              </div>
+
+              {/* Card 3: Currency */}
+              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+                <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold mb-4">
+                  💵
+                </div>
+                <h3 className="text-[16px] font-bold text-gray-900">Local Currency</h3>
+                <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  {destination.currency || 'Local Currency'}. Cards widely accepted in hotels, and forex exchange available at airport.
+                </p>
+              </div>
+
+              {/* Card 4: Curated Stays */}
+              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+                <div className="size-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold mb-4">
+                  🏨
+                </div>
+                <h3 className="text-[16px] font-bold text-gray-900">Verified Couple Stays</h3>
+                <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
+                  Handpicked private pool villas, 5★ beachfront resorts, and boutique stays vetted for privacy and intimacy.
+                </p>
+              </div>
+
             </div>
+
           </div>
-        </div>
-      </section>
-
-      <section className="py-16 px-4 md:px-12 bg-gray-50">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-            Suggested Itinerary
-          </h2>
-          <div className="bg-white rounded-2xl p-8 shadow-lg">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {destination.highlights.slice(0, 4).map((highlight: string, index: number) => (
-                <div
-                  key={index}
-                  className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg"
-                >
-                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-lg">Day {index + 1}</span>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{highlight}</h3>
-                    <p className="text-sm text-gray-600">
-                      Explore this amazing attraction and immerse yourself in the local culture.
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 text-center">
-              <Link
-                href={`/ai-trip-planner?destination=${encodeURIComponent(destination.name)}`}
-                className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-              >
-                Get Your Personalized Itinerary
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-      */}
-
-      {/* PLP Sections */}
-      {destination && (
-        <>
-          {/* From Airport Cities Section */}
-          {destination.airportCities && destination.airportCities.length > 0 && (
-            <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
-              <div className="max-w-6xl mx-auto">
-                <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 mb-4 md:mb-6">From Airport Cities</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {destination.airportCities.map((city: any, index: number) => (
-                    <Link
-                      key={index}
-                      href={city.url}
-                      className="px-3 md:px-4 py-2 md:py-3 bg-gray-50 hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
-                    >
-                      {city.cityName}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* From India Section */}
-          {destination.fromIndiaCities && destination.fromIndiaCities.length > 0 && (
-            <section className="py-12 px-4 md:px-12 bg-gray-50 border-t border-gray-100">
-              <div className="max-w-6xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">From India</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {destination.fromIndiaCities.map((city: any, index: number) => (
-                    <Link
-                      key={index}
-                      href={city.url}
-                      className="px-4 py-3 bg-white hover:bg-primary/10 border border-gray-200 hover:border-primary rounded-lg text-center transition-all font-medium text-gray-900 hover:text-primary text-sm"
-                    >
-                      {city.cityName}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* Travel Guides Section */}
-          {destination.travelGuides && destination.travelGuides.length > 0 && (
-            <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
-              <div className="max-w-6xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Travel Guides</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                  {destination.travelGuides.map((guide: any, index: number) => (
-                    <div key={index} className="bg-gray-50 p-6 rounded-xl border border-gray-200 hover:border-primary/50 transition-all">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2">{guide.title}</h3>
-                      <p className="text-gray-600 leading-relaxed">{guide.description}</p>
-                      {guide.url && (
-                        <Link href={guide.url} className="inline-block mt-3 text-primary font-semibold hover:underline">
-                          Read More →
-                        </Link>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* FAQ Section */}
-          {destination.faqs && destination.faqs.length > 0 && (
-            <section className="py-12 px-4 md:px-12 bg-gray-50 border-t border-gray-100">
-              <div className="max-w-4xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 text-center">Frequently Asked Questions</h2>
-                <div className="space-y-4">
-                  {destination.faqs.map((faq: any, index: number) => (
-                    <details key={index} className="bg-white p-6 rounded-xl border border-gray-200 hover:border-primary/50 transition-all group">
-                      <summary className="font-semibold text-gray-900 cursor-pointer list-none flex items-center justify-between">
-                        <span>{faq.question}</span>
-                        <svg className="w-5 h-5 text-gray-400 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </summary>
-                      <p className="mt-3 text-gray-600 leading-relaxed">{faq.answer}</p>
-                    </details>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-        </>
+        </section>
       )}
 
-      {/* Internal Linking CTA Section */}
-      <section className="py-12 px-4 md:px-12 bg-white border-t border-gray-100">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">Ready to Explore {destination?.name || destinationName}?</h2>
-          <p className="text-gray-600 mb-6 text-lg">
-            Visit our <Link href="/contact" className="text-primary font-semibold hover:underline">Contact Page</Link> to speak with our travel experts, or try our <Link href="/ai-trip-planner" className="text-primary font-semibold hover:underline">AI Trip Planner</Link> to generate a perfectly tailored itinerary for your dates!
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/contact" className="px-8 py-3 bg-primary text-white rounded-[5px] font-semibold hover:bg-primary-dark transition-colors inline-block">
-              Contact Us
-            </Link>
-            <Link href="/ai-trip-planner" className="px-8 py-3 bg-white border-2 border-primary text-primary rounded-[5px] font-semibold hover:bg-primary/5 transition-colors inline-block">
-              Launch AI Planner
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* ─────────────────────────────────────────────────────────────
+          6. TOP HIGHLIGHTS & THINGS TO DO
+      ───────────────────────────────────────────────────────────── */}
+      {destination && (destination.highlights || destination.activities) && (
+        <section className="py-16 bg-[#FAFAFC]">
+          <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              
+              {/* Highlights */}
+              {destination.highlights && destination.highlights.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                    Top Sights
+                  </span>
+                  <h2 className="text-[24px] lg:text-[30px] font-bold font-serif text-gray-900 mt-1 mb-6">
+                    Must-Experience in {destination?.name || destinationName}
+                  </h2>
+                  <div className="space-y-3">
+                    {destination.highlights.map((h: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3.5 p-4 rounded-[20px] bg-white border border-gray-200/80 shadow-sm"
+                      >
+                        <span className="size-6 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <p className="text-[14.5px] text-gray-800 leading-relaxed font-medium">
+                          {h}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-      {/* ================================ */}
-      {/* Traveler Reviews Section         */}
-      {/* ================================ */}
-      <section className="py-14 px-4 md:px-12 bg-gradient-to-b from-gray-50 to-white border-t border-gray-100">
-        <div className="max-w-6xl mx-auto">
-          {/* Section Header */}
-          <div className="mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
-              <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-              <span className="text-xs font-bold text-primary uppercase tracking-wider">Traveler Reviews</span>
+              {/* Things to do */}
+              {destination.activities && destination.activities.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                    Romantic Experiences
+                  </span>
+                  <h2 className="text-[24px] lg:text-[30px] font-bold font-serif text-gray-900 mt-1 mb-6">
+                    Curated Activities for Two
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {destination.activities.map((act: string, idx: number) => (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-[20px] bg-white border border-gray-200/80 shadow-sm flex items-center gap-3"
+                      >
+                        <span className="text-emerald-500 font-bold">✓</span>
+                        <p className="text-[14px] text-gray-800 font-medium">{act}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-              What Travelers Say About {destination?.name || destinationName}
+
+          </div>
+        </section>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          7. FAQs ACCORDION
+      ───────────────────────────────────────────────────────────── */}
+      {destination?.faqs && destination.faqs.length > 0 && (
+        <section className="py-16 bg-white border-t border-gray-200/80">
+          <div className="max-w-3xl mx-auto px-5 sm:px-8">
+            <div className="text-center mb-10">
+              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                Common Questions
+              </span>
+              <h2 className="text-[26px] lg:text-[32px] font-bold font-serif text-gray-900 mt-1">
+                Frequently Asked Questions
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {destination.faqs.map((faq: any, idx: number) => (
+                <details
+                  key={idx}
+                  className="rounded-[20px] bg-[#FAFAFC] p-5 border border-gray-200/80 group list-none cursor-pointer"
+                >
+                  <summary className="font-bold text-[15px] text-gray-900 flex items-center justify-between list-none">
+                    <span>{faq.question}</span>
+                    <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+                  </summary>
+                  <p className="mt-3 text-[14px] text-gray-600 leading-relaxed pt-2 border-t border-gray-200/50">
+                    {faq.answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          8. TRAVELER REVIEWS
+      ───────────────────────────────────────────────────────────── */}
+      <section className="py-16 bg-[#FAFAFC] border-t border-gray-200/80">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
+          
+          <div className="mb-10">
+            <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+              Couple Testimonials
+            </span>
+            <h2 className="text-[26px] lg:text-[34px] font-bold font-serif text-gray-900 mt-1">
+              What Couples Say About {destination?.name || destinationName}
             </h2>
-            <p className="text-gray-500 text-base">
-              Authentic experiences from travelers who've visited with Travelzada
+            <p className="text-gray-500 text-[15px] mt-1">
+              Authentic reviews from couples who traveled with Travelzada
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: Summary + Form */}
+            {/* Summary & Form */}
             <div className="space-y-6">
               <ReviewSummary
                 destinationName={destination?.name || destinationName}
@@ -976,7 +843,6 @@ export default function DestinationDetailClient({ params, initialDestination, in
                 }}
               />
 
-              {/* Review Form */}
               <div ref={reviewFormRef} id="write-review">
                 <ReviewForm
                   destinationName={destination?.name || destinationName}
@@ -985,13 +851,45 @@ export default function DestinationDetailClient({ params, initialDestination, in
               </div>
             </div>
 
-            {/* Right: Reviews List */}
+            {/* List */}
             <div className="lg:col-span-2">
               <ReviewList
                 destinationName={destination?.name || destinationName}
                 refreshTrigger={reviewRefresh}
               />
             </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────────────────────────
+          9. BOTTOM CTA BANNER
+      ───────────────────────────────────────────────────────────── */}
+      <section className="py-16 bg-[#111317] text-white">
+        <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 text-center flex flex-col items-center">
+          <h2 className="text-[28px] lg:text-[40px] font-bold font-serif tracking-tight max-w-[650px] text-balance">
+            Ready to plan your trip to {destination?.name || destinationName}?
+          </h2>
+          <p className="text-gray-300 text-[15px] max-w-[500px] mt-2.5">
+            Talk to a real travel designer for two. Free personalised day-by-day itinerary with zero booking obligations.
+          </p>
+          <div className="flex items-center gap-4 flex-wrap justify-center mt-7">
+            <Link
+              href={`/tailored-travel?destination=${encodeURIComponent(destination?.name || destinationName)}`}
+              className="px-8 py-3.5 rounded-full bg-white text-black font-bold text-[14px] hover:bg-gray-100 transition shadow"
+            >
+              Plan with AI — Free
+            </Link>
+            <a
+              href="https://wa.me/919929962350"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-8 py-3.5 rounded-full bg-[#25D366] text-white font-bold text-[14px] hover:bg-[#20ba59] transition shadow flex items-center gap-2"
+            >
+              <span>Chat on WhatsApp</span>
+              <span>→</span>
+            </a>
           </div>
         </div>
       </section>
@@ -1000,4 +898,3 @@ export default function DestinationDetailClient({ params, initialDestination, in
     </main>
   )
 }
-
