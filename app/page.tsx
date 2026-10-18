@@ -1,23 +1,9 @@
 import Header from '@/components/Header'
-import Hero from '@/components/Hero'
-import TripTypeSelector from '@/components/TripTypeSelector'
-import HowItWorks from '@/components/HowItWorks'
-import Testimonials from '@/components/Testimonials'
-import WhyTravelzada from '@/components/WhyTravelzada'
-import Packages from '@/components/Packages'
 import Footer from '@/components/Footer'
-import SchemaMarkup, { generateOrganizationSchema, generateWebSiteSchema, generateFAQSchema, generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
-import FAQ from '@/components/FAQ'
+import SchemaMarkup, { generateWebSiteSchema, generateFAQSchema, generateBreadcrumbSchema, generateWebPageSchema } from '@/components/SchemaMarkup'
 import { faqs } from '@/data/faqs'
-import DynamicOccasionRails from '@/components/DynamicOccasionRails'
-import DestinationRail from '@/components/DestinationRail'
 import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
-import IndiaHoneymoonPackages from '@/components/IndiaHoneymoonPackages'
-import InternationalPackages from '@/components/InternationalPackages'
-import WorldForTwo from '@/components/WorldForTwo'
-import PricingBreakdown from '@/components/PricingBreakdown'
-import PromiseBanner from '@/components/PromiseBanner'
-import PartnerLogos from '@/components/PartnerLogos'
+import TravelzadaHomePage from '@/components/homepage/TravelzadaHomePage'
 
 export default function Home() {
   const websiteSchema = generateWebSiteSchema()
@@ -26,8 +12,8 @@ export default function Home() {
     { name: 'Home', url: 'https://www.travelzada.com' }
   ])
   const webPageSchema = generateWebPageSchema({
-    name: 'Travelzada - AI-Powered Travel Planner',
-    description: 'Plan your perfect trip with Travelzada. AI-powered itineraries, curated packages, and expert travel guidance for couples and families.',
+    name: 'Travelzada — Journeys designed only for two',
+    description: 'Honeymoons, proposals, anniversaries and quiet escapes — planned by a real travel designer for two.',
     url: 'https://www.travelzada.com',
     websiteUrl: 'https://www.travelzada.com',
   })
@@ -39,44 +25,13 @@ export default function Home() {
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumb-schema-home" />
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <DestinationSlugCacheInitializer />
-      <main className="min-h-screen bg-cream overflow-x-hidden">
-        <Header />
-        <Hero />
-        <TripTypeSelector />
-        <IndiaHoneymoonPackages />
-        <InternationalPackages />
-        {/* <WorldForTwo /> */}
-        <PartnerLogos />
-        <HowItWorks />
-        <PricingBreakdown />
-
-        {/* India Destinations Rail */}
-        {/* <DestinationRail
-          region="India"
-          title="Explore India"
-          subtitle="Handpicked luxury journeys across the country."
-          tagLabel="Incredible India"
-        /> */}
-
-        {/* International Destinations Rail */}
-        {/* <DestinationRail
-          region="International"
-          title="World Destinations"
-          subtitle="Curated global adventures beyond borders."
-          tagLabel="International"
-        /> */}
-
-        <Testimonials />
-        <PromiseBanner />
-
-        {/* Dynamic Occasions */}
-        <DynamicOccasionRails />
-        <Packages />
-        <WhyTravelzada />
-        <FAQ />
-        <Footer />
+      <Header />
+      <main className="min-h-screen bg-[#F6F1E6] overflow-x-hidden">
+        <TravelzadaHomePage />
       </main>
+      <Footer />
     </>
   )
 }
+
 

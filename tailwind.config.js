@@ -11,8 +11,20 @@ module.exports = {
         sans: ['var(--font-outfit)', '"Outfit"', 'sans-serif'],
         display: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
         serif: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
+        cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+        pinyon: ['"Pinyon Script"', 'cursive'],
+        figtree: ['Figtree', 'system-ui', 'sans-serif'],
       },
       colors: {
+        tz: {
+          dark: '#2B1D17',
+          cocoa: '#3B2A20',
+          brown: '#7A4F34',
+          bronze: '#B88A5A',
+          gold: '#D6B08C',
+          sand: '#E8DCC3',
+          cream: '#F6F1E6',
+        },
         primary: {
           DEFAULT: '#7c3aed',
           dark: '#6d28d9',

@@ -1,6 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Figtree:ital,wght@0,300..900;1,300..900&family=Pinyon+Script&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@keyframes tzMarquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes tzFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes tzRise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes tzCardA {
+  from { opacity: 0; transform: translateY(34px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes tzCardB {
+  from { opacity: 0; transform: translateY(34px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+}
+
+.font-pinyon {
+  font-family: 'Pinyon Script', cursive !important;
+}
+
+.font-figtree {
+  font-family: 'Figtree', system-ui, sans-serif !important;
+}
+
+[data-noscroll]::-webkit-scrollbar {
+  display: none;
+}
+
 
 .space-y-6 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;

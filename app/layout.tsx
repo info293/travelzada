@@ -14,8 +14,8 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'Travelzada - Plan your perfect trip in seconds',
-  description: 'One best itinerary, made just for you',
+  title: 'Travelzada — Journeys designed only for two',
+  description: 'Honeymoons, proposals, anniversaries and quiet escapes — planned by a real travel designer.',
   metadataBase: new URL('https://www.travelzada.com'),
   robots: {
     index: true,
@@ -26,14 +26,14 @@ export const metadata: Metadata = {
     locale: 'en_IN',
     url: 'https://www.travelzada.com/',
     siteName: 'Travelzada',
-    title: 'Travelzada - Plan your perfect trip in seconds',
-    description: 'AI-powered travel planning for couples. Curated packages for Bali, Kashmir, Kerala, Singapore & more.',
+    title: 'Travelzada — Journeys designed only for two',
+    description: 'Honeymoons, proposals, anniversaries and quiet escapes — planned by a real travel designer.',
     images: [{ url: 'https://www.travelzada.com/images/og-homepage.jpg' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Travelzada - Plan your perfect trip in seconds',
-    description: 'AI-powered travel planning for couples.',
+    title: 'Travelzada — Journeys designed only for two',
+    description: 'Honeymoons, proposals, anniversaries and quiet escapes — planned by a real travel designer.',
     images: ['https://www.travelzada.com/images/og-homepage.jpg'],
   },
   icons: {
