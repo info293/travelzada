@@ -6,153 +6,10 @@ import { useRouter } from 'next/navigation'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
-// --- Data definitions ---
+import { HomepageData, RealDestinationSection, RealPackageCard, fetchHomepageData } from '@/lib/homepageData'
 
-interface Card {
-  place: string
-  region: string
-  nights: string
-  hook: string
-  img: string
-  slug: string
-}
-
-interface Occasion {
-  name: string
-  line: string
-  cards: Card[]
-}
-
-const occasionsData: Occasion[] = [
-  {
-    name: 'Honeymoons',
-    line: 'Slow mornings, big views, nothing on the clock.',
-    cards: [
-      { place: 'Bali', region: 'Indonesia', nights: '6N / 7D', hook: 'Jungle villas and floating breakfasts', img: 'https://ik.imagekit.io/tux8wjwgq/Bali/BAL_001_3.jpg?tr=w-900', slug: 'bali' },
-      { place: 'Vietnam', region: 'Hoi An · Ha Long', nights: '7N / 8D', hook: 'Lantern towns and limestone bays', img: 'https://images.pexels.com/photos/23857946/pexels-photo-23857946.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'vietnam' },
-      { place: 'Thailand', region: 'Phuket · Krabi', nights: '5N / 6D', hook: 'Longtail boats to hidden lagoons', img: 'https://ik.imagekit.io/tux8wjwgq/Thailand/stylish%20couple%20boating%20through%20krabi%20limestone%20islands.png?tr=w-900', slug: 'thailand' },
-      { place: 'Kerala', region: 'Munnar · Alleppey', nights: '5N / 6D', hook: 'Tea hills, then a private houseboat', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20overlooking%20serene%20kerala%20backwaters.png?tr=w-900', slug: 'kerala' },
-      { place: 'Andaman', region: 'Havelock', nights: '5N / 6D', hook: 'Coral reefs and empty beaches', img: 'https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20snorkelling%20over%20vibrant%20coral%20reefs%20at%20elephant%20beach.png?tr=w-900', slug: 'andaman' }
-    ]
-  },
-  {
-    name: 'Minimoons',
-    line: 'Two to four nights, close to home, right after the wedding.',
-    cards: [
-      { place: 'Coorg', region: 'Karnataka', nights: '2N / 3D', hook: 'Coffee estates in the mist', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/Couple%20in%20Munnar%20Tea%20garden%20and%20cloudes.jpg?tr=w-900', slug: 'coorg' },
-      { place: 'Da Nang', region: 'Vietnam', nights: '3N / 4D', hook: 'Beach days, Hoi An nights', img: 'https://images.pexels.com/photos/31476945/pexels-photo-31476945.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'vietnam' },
-      { place: 'Phu Quoc', region: 'Vietnam', nights: '3N / 4D', hook: 'Island sunsets, no alarms', img: 'https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20relaxing%20together%20at%20a%20beach%20resort%20near%20radhanagar%20beach.png?tr=w-900', slug: 'vietnam' },
-      { place: 'Gulmarg', region: 'Kashmir', nights: '3N / 4D', hook: 'Snowfall and a fireside cabin', img: 'https://ik.imagekit.io/tux8wjwgq/Kashmir/couple%20playing%20with%20snow%20in%20gulmarg.jpg?tr=w-900', slug: 'kashmir' },
-      { place: 'Udaipur', region: 'Rajasthan', nights: '2N / 3D', hook: 'Lake views from a palace suite', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/indian%20couple%20walking%20near%20lake%20pichola%20udaipur.png?tr=w-900', slug: 'udaipur' }
-    ]
-  },
-  {
-    name: 'Proposals',
-    line: 'We scout the spot, hide the photographer and chill the champagne.',
-    cards: [
-      { place: 'Phi Phi Island', region: 'Thailand', nights: '4N / 5D', hook: 'A private beach at golden hour', img: 'https://ik.imagekit.io/tux8wjwgq/Thailand/romantic%20couple%20walking%20on%20phi%20phi%20island%20beach.png?tr=w-900', slug: 'thailand' },
-      { place: 'Dubai', region: 'UAE', nights: '4N / 5D', hook: 'Dunes, a dinner table, one question', img: 'https://images.pexels.com/photos/36260020/pexels-photo-36260020.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'dubai' },
-      { place: 'Paris', region: 'France', nights: '5N / 6D', hook: 'The Seine at sunset', img: 'https://images.pexels.com/photos/29389532/pexels-photo-29389532.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'france' },
-      { place: 'Swiss Alps', region: 'Switzerland', nights: '6N / 7D', hook: 'A mountaintop with no one else', img: 'https://images.pexels.com/photos/36980067/pexels-photo-36980067.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'switzerland' },
-      { place: 'Maldives', region: 'Sandbank dinner', nights: '4N / 5D', hook: 'Just the two of you and the sea', img: 'https://images.pexels.com/photos/1287455/pexels-photo-1287455.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'maldives' }
-    ]
-  },
-  {
-    name: 'Surprise your girlfriend',
-    line: 'You book it. She finds out at the airport.',
-    cards: [
-      { place: 'Goa', region: 'North Goa', nights: '3N / 4D', hook: 'Beach shacks and a sunset cruise', img: 'https://images.pexels.com/photos/30987033/pexels-photo-30987033.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'goa' },
-      { place: 'Pondicherry', region: 'White Town', nights: '2N / 3D', hook: 'French lanes and seaside cafés', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20at%20kovalam%20beach.jpg?tr=w-900', slug: 'pondicherry' },
-      { place: 'Wayanad', region: 'Kerala', nights: '3N / 4D', hook: 'A treehouse in the rainforest', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20enjoying%20lush%20green%20tea%20gardens%20in%20munnar.png?tr=w-900', slug: 'kerala' },
-      { place: 'Jaisalmer', region: 'Rajasthan', nights: '2N / 3D', hook: 'Dunes, camels and a desert camp', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/indian%20couple%20having%20camel%20ride%20on%20sam%20sand%20dunes%20jaisalmer.png?tr=w-900', slug: 'jaisalmer' },
-      { place: 'Bali', region: 'Indonesia', nights: '5N / 6D', hook: "A birthday she won't see coming", img: 'https://ik.imagekit.io/tux8wjwgq/Bali/Birthday.jpg?tr=w-900', slug: 'bali' }
-    ]
-  },
-  {
-    name: 'First wedding night',
-    line: 'Suites chosen for privacy, petals and a very late checkout.',
-    cards: [
-      { place: 'The Lodhi', region: 'New Delhi', nights: '1–2 nights', hook: 'Suites with private plunge pools', img: 'https://images.pexels.com/photos/17657612/pexels-photo-17657612.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'delhi' },
-      { place: 'Brij Kukas', region: 'Jaipur', nights: '1–2 nights', hook: 'A private heritage hideaway near Amer', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/indian%20couple%20at%20amber%20fort%20jaipur%20exploring%20historic%20architecture.png?tr=w-900', slug: 'jaipur' },
-      { place: 'The Oberoi Amarvilas', region: 'Agra', nights: '1–2 nights', hook: 'Wake up facing the Taj Mahal', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/luxury%20indian%20couple%20inside%20city%20palace%20udaipur.png?tr=w-900', slug: 'agra' },
-      { place: 'Taj Lake Palace', region: 'Udaipur', nights: '1–2 nights', hook: 'A palace floating on Lake Pichola', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/romantic%20couple%20boating%20on%20lake%20pichola%20udaipur.png?tr=w-900', slug: 'udaipur' },
-      { place: 'ITC Grand Bharat', region: 'Gurugram', nights: '1–2 nights', hook: 'All-suite retreat in the Aravallis', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/candle%20light%20dinner%20kerala.jpg?tr=w-900', slug: 'delhi' }
-    ]
-  },
-  {
-    name: 'Luxury getaways',
-    line: "Private villas, butlers and pools you won't share.",
-    cards: [
-      { place: 'Koh Samui', region: 'Thailand', nights: '6N / 7D', hook: 'Private beach villa resorts', img: 'https://ik.imagekit.io/tux8wjwgq/Thailand/luxury%20couple%20relaxing%20at%20private%20koh%20samui%20beach%20resort.png?tr=w-900', slug: 'thailand' },
-      { place: 'Ubud', region: 'Bali', nights: '5N / 6D', hook: 'Infinity pools over the jungle', img: 'https://ik.imagekit.io/tux8wjwgq/Bali/bali%20floating%20breakfast.jpg?tr=w-900', slug: 'bali' },
-      { place: 'Maldives', region: 'Baa Atoll', nights: '4N / 5D', hook: 'Overwater villas with private pools', img: 'https://images.pexels.com/photos/28843928/pexels-photo-28843928.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'maldives' },
-      { place: 'Dubai', region: 'Palm Jumeirah', nights: '4N / 5D', hook: 'Suites above the Gulf', img: 'https://images.pexels.com/photos/28720826/pexels-photo-28720826.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'dubai' },
-      { place: 'Singapore', region: 'Marina Bay', nights: '4N / 5D', hook: 'Skyline rooftops and fine dining', img: 'https://ik.imagekit.io/tux8wjwgq/SIngapore/luxury%20couple%20at%20gardens%20by%20the%20bay.jpg?tr=w-900', slug: 'singapore' }
-    ]
-  },
-  {
-    name: 'Wedding blessings',
-    line: 'Begin together at the temples and shrines that matter to you.',
-    cards: [
-      { place: 'Varanasi', region: 'Uttar Pradesh', nights: '2N / 3D', hook: 'Ganga aarti, side by side', img: 'https://images.pexels.com/photos/32297486/pexels-photo-32297486.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'varanasi' },
-      { place: 'Amritsar', region: 'Punjab', nights: '2N / 3D', hook: 'The Golden Temple at dawn', img: 'https://images.pexels.com/photos/29231349/pexels-photo-29231349.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'amritsar' },
-      { place: 'Rishikesh', region: 'Uttarakhand', nights: '3N / 4D', hook: 'Riverside blessings in the hills', img: 'https://images.pexels.com/photos/37248322/pexels-photo-37248322.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'rishikesh' },
-      { place: 'Paro', region: 'Bhutan', nights: '4N / 5D', hook: "The climb to Tiger's Nest", img: 'https://images.pexels.com/photos/9982525/pexels-photo-9982525.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'bhutan' },
-      { place: 'Thekkady', region: 'Kerala', nights: '3N / 4D', hook: 'Temple towns and forest calm', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/elephant%20bathing%20in%20thekkady%20forest%20river.png?tr=w-900', slug: 'kerala' }
-    ]
-  },
-  {
-    name: 'Anniversaries',
-    line: 'Another year, somewhere neither of you has been.',
-    cards: [
-      { place: 'Bali', region: 'Indonesia', nights: '7N / 8D', hook: 'Cliff dinners and a couple spa', img: 'https://ik.imagekit.io/tux8wjwgq/Bali/anniversary%20special.jpg?tr=w-900', slug: 'bali' },
-      { place: 'Andaman', region: 'Port Blair · Havelock', nights: '5N / 6D', hook: 'Candlelit dinner on the sand', img: 'https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20celebrating%20an%20anniversary%20dinner%20at%20a%20luxury%20resort%20in%20port%20blair.png?tr=w-900', slug: 'andaman' },
-      { place: 'Baku', region: 'Azerbaijan', nights: '4N / 5D', hook: 'Old-town lanes, a city of lights', img: 'https://ik.imagekit.io/tux8wjwgq/Baku/couple%20at%20baku%20eye.jpg?tr=w-900', slug: 'baku' },
-      { place: 'Paris', region: 'France', nights: '5N / 6D', hook: 'Rooftops at golden hour', img: 'https://images.pexels.com/photos/28688862/pexels-photo-28688862.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'france' },
-      { place: 'Switzerland', region: 'Lucerne · Alps', nights: '6N / 7D', hook: 'Lakes, trains and snow peaks', img: 'https://images.pexels.com/photos/30765901/pexels-photo-30765901.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'switzerland' }
-    ]
-  },
-  {
-    name: 'Babymoons',
-    line: 'Short flights, gentle days, soft beds — one last trip as two.',
-    cards: [
-      { place: 'Maldives', region: 'Kaafu Atoll', nights: '4N / 5D', hook: 'Short flight, total stillness', img: 'https://images.pexels.com/photos/32267913/pexels-photo-32267913.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'maldives' },
-      { place: 'Sri Lanka', region: 'Ella · Galle', nights: '5N / 6D', hook: 'Tea country by slow train', img: 'https://images.pexels.com/photos/31555892/pexels-photo-31555892.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'sri-lanka' },
-      { place: 'Nepal', region: 'Pokhara', nights: '4N / 5D', hook: 'Lakeside mornings, mountain views', img: 'https://images.pexels.com/photos/26926327/pexels-photo-26926327.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'nepal' },
-      { place: 'Bhutan', region: 'Paro · Thimphu', nights: '5N / 6D', hook: 'The calmest kingdom on earth', img: 'https://images.pexels.com/photos/17898806/pexels-photo-17898806.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'bhutan' },
-      { place: 'Kerala', region: 'Kovalam', nights: '4N / 5D', hook: 'Ayurveda and ocean breezes', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20at%20kovalam%20beach%20during%20sunset.png?tr=w-900', slug: 'kerala' }
-    ]
-  },
-  {
-    name: 'Gratitude to parents',
-    line: 'Send them on the holiday they always put off.',
-    cards: [
-      { place: 'Singapore', region: 'City · Sentosa', nights: '5N / 6D', hook: 'Easy pace, everything nearby', img: 'https://ik.imagekit.io/tux8wjwgq/SIngapore/indian%20couple%20at%20merlion%20park%20singapore.jpg?tr=w-900', slug: 'singapore' },
-      { place: 'Malaysia', region: 'Kuala Lumpur · Langkawi', nights: '5N / 6D', hook: 'Skylines, then island calm', img: 'https://images.pexels.com/photos/6147614/pexels-photo-6147614.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'malaysia' },
-      { place: 'Dubai', region: 'UAE', nights: '4N / 5D', hook: 'Desert dinners by the Burj Al Arab', img: 'https://images.pexels.com/photos/17865575/pexels-photo-17865575.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'dubai' },
-      { place: 'Europe', region: 'Swiss & Italian Alps', nights: '8N / 9D', hook: 'The trip they never took', img: 'https://images.pexels.com/photos/27912555/pexels-photo-27912555.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'switzerland' },
-      { place: 'Kashmir', region: 'Srinagar · Gulmarg', nights: '5N / 6D', hook: 'A shikara ride on Dal Lake', img: 'https://ik.imagekit.io/tux8wjwgq/Kashmir/romantic%20shikara%20experience%20on%20dal%20lake.png?tr=w-900', slug: 'kashmir' }
-    ]
-  }
-]
-
-const destinationsData = {
-  International: [
-    { name: 'Bali', meta: 'From ₹35,000 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Bali/Phinisi%20Cruise%20Dinner.jpg?tr=w-900', slug: 'bali' },
-    { name: 'Thailand', meta: 'From ₹32,000 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Thailand/romantic%20couple%20on%20krabi%20four%20island%20longtail%20boat.png?tr=w-900', slug: 'thailand' },
-    { name: 'Singapore', meta: 'From ₹41,599 per person', img: 'https://ik.imagekit.io/tux8wjwgq/SIngapore/honeymoon%20couple%20at%20marina%20bay%20sands%20pool.jpg?tr=w-900', slug: 'singapore' },
-    { name: 'Baku', meta: 'From ₹35,000 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Baku/honeymoon%20couple%20in%20baku%20azerbaijan.jpg?tr=w-900', slug: 'baku' },
-    { name: 'Dubai', meta: 'Tailor-made', img: 'https://images.pexels.com/photos/17865575/pexels-photo-17865575.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'dubai' },
-    { name: 'Switzerland', meta: 'Tailor-made', img: 'https://images.pexels.com/photos/30765901/pexels-photo-30765901.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'switzerland' }
-  ],
-  India: [
-    { name: 'Kashmir', meta: 'From ₹14,500 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Kashmir/romantic%20shikara%20experience%20on%20dal%20lake.png?tr=w-900', slug: 'kashmir' },
-    { name: 'Udaipur', meta: 'From ₹17,249 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/romantic%20couple%20boating%20on%20lake%20pichola%20udaipur.png?tr=w-900', slug: 'udaipur' },
-    { name: 'Kerala', meta: 'From ₹19,000 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/luxury%20couple%20in%20scenic%20munnar%20tea%20plantations.png?tr=w-900', slug: 'kerala' },
-    { name: 'Andaman', meta: 'From ₹30,475 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20strolling%20peacefully%20along%20the%20shoreline%20of%20radhanagar%20beach.png?tr=w-900', slug: 'andaman' },
-    { name: 'Jaisalmer', meta: 'From ₹25,299 per person', img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/luxury%20indian%20couple%20at%20a%20heritage%20palace%20in%20jaisalmer.png?tr=w-900', slug: 'jaisalmer' },
-    { name: 'Himachal', meta: 'Tailor-made', img: 'https://images.pexels.com/photos/20725666/pexels-photo-20725666.jpeg?auto=compress&cs=tinysrgb&w=900', slug: 'himachal' }
-  ]
+export interface TravelzadaHomePageProps {
+  initialData?: HomepageData
 }
 
 const hotelPartners = [
@@ -217,8 +74,25 @@ function toHighRes(url: string) {
   return url.replace('tr=w-900', 'tr=w-1800').replace('w=900', 'w=1800')
 }
 
-export default function TravelzadaHomePage() {
+export default function TravelzadaHomePage({ initialData }: TravelzadaHomePageProps) {
   const router = useRouter()
+
+  // Real database state
+  const [data, setData] = useState<HomepageData | undefined>(initialData)
+
+  useEffect(() => {
+    if (!data || !data.sections || data.sections.length === 0) {
+      fetchHomepageData().then(res => {
+        if (res && res.sections && res.sections.length > 0) {
+          setData(res)
+        }
+      })
+    }
+  }, [data])
+
+  const sections = data?.sections || []
+  const destinationsData = data?.destinationsGrid || { International: [], India: [] }
+  const featuredReviews = data?.featuredReviews || []
 
   // Navigation & Tabs
   const [destTab, setDestTab] = useState<'International' | 'India'>('International')
@@ -244,19 +118,34 @@ export default function TravelzadaHomePage() {
   // Occasions Showcase State
   const [activeSec, setActiveSec] = useState<number>(0)
   const [hoveredSec, setHoveredSec] = useState<number>(-1)
-  const [selectedCards, setSelectedCards] = useState<number[]>(Array(10).fill(0))
-  const [seenSections, setSeenSections] = useState<boolean[]>(Array(10).fill(false))
+  const [selectedCards, setSelectedCards] = useState<number[]>(() => Array(12).fill(0))
+  const [seenSections, setSeenSections] = useState<boolean[]>(() => Array(12).fill(false))
   const [isNarrow, setIsNarrow] = useState<boolean>(false)
 
   // Double-buffered backgrounds
   const [bgs, setBgs] = useState(() =>
-    occasionsData.map(o => ({
-      a: toHighRes(o.cards[0].img),
+    sections.map(s => ({
+      a: toHighRes(s.cards[0]?.img || s.img),
       b: '',
       front: 'A' as 'A' | 'B',
-      cur: toHighRes(o.cards[0].img)
+      cur: toHighRes(s.cards[0]?.img || s.img)
     }))
   )
+
+  useEffect(() => {
+    if (sections.length > 0) {
+      setSelectedCards(Array(sections.length).fill(0))
+      setSeenSections(Array(sections.length).fill(false))
+      setBgs(
+        sections.map(s => ({
+          a: toHighRes(s.cards[0]?.img || s.img),
+          b: '',
+          front: 'A' as 'A' | 'B',
+          cur: toHighRes(s.cards[0]?.img || s.img)
+        }))
+      )
+    }
+  }, [sections])
 
   const secRefs = useRef<(HTMLElement | null)[]>([])
   const trackRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -298,8 +187,9 @@ export default function TravelzadaHomePage() {
     const track = trackRefs.current[secIdx]
     if (!track) return
 
+    const numCards = sections[secIdx]?.cards?.length || 5
     const w = getCardWidth(track)
-    const cardIdx = Math.max(0, Math.min(4, Math.round(track.scrollLeft / w)))
+    const cardIdx = Math.max(0, Math.min(numCards - 1, Math.round(track.scrollLeft / w)))
     const maxScroll = track.scrollWidth - track.clientWidth
     if (track.scrollLeft >= maxScroll - 4 && selectedCards[secIdx] > cardIdx) return
 
@@ -322,10 +212,19 @@ export default function TravelzadaHomePage() {
 
   // Update background crossfade when selected card changes
   useEffect(() => {
+    if (sections.length === 0) return
     setBgs(prevBgs => {
       let changed = false
-      const newBgs = prevBgs.map((b, i) => {
-        const targetUrl = toHighRes(occasionsData[i].cards[selectedCards[i]].img)
+      const newBgs = sections.map((sec, i) => {
+        const b = prevBgs[i] || {
+          a: toHighRes(sec.cards[0]?.img || sec.img),
+          b: '',
+          front: 'A' as const,
+          cur: toHighRes(sec.cards[0]?.img || sec.img)
+        }
+        const cardImg = sec.cards[selectedCards[i] || 0]?.img || sec.img
+        if (!cardImg) return b
+        const targetUrl = toHighRes(cardImg)
         if (targetUrl === b.cur) return b
         changed = true
         return b.front === 'A'
@@ -334,7 +233,7 @@ export default function TravelzadaHomePage() {
       })
       return changed ? newBgs : prevBgs
     })
-  }, [selectedCards])
+  }, [selectedCards, sections])
 
   // IntersectionObserver to detect active occasion and trigger reveal
   useEffect(() => {
@@ -372,7 +271,8 @@ export default function TravelzadaHomePage() {
   useEffect(() => {
     const timer = setInterval(() => {
       if (activeSec < 0 || hoveredSec === activeSec) return
-      const nextCard = (selectedCards[activeSec] + 1) % 5
+      const totalCards = sections[activeSec]?.cards?.length || 1
+      const nextCard = ((selectedCards[activeSec] || 0) + 1) % totalCards
       goToCard(activeSec, nextCard)
     }, 4800)
 
@@ -477,65 +377,40 @@ export default function TravelzadaHomePage() {
         {/* Background Hero Image */}
         <div className="absolute inset-0">
           <img
-            src="https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20swimming%20and%20enjoying%20a%20golden%20sunset%20at%20radhanagar%20beach.png?tr=w-2000"
-            alt="Hero couple at golden hour"
-            className="w-full h-full object-cover"
+            src="https://ik.imagekit.io/tux8wjwgq/Andaman/couple%20swimming%20and%20enjoying%20a%20golden%20sunset%20at%20radhanagar%20beach.png?tr=w-2400"
+            alt="Hero couple enjoying turquoise ocean"
+            className="w-full h-full object-cover object-[center_32%]"
+            loading="eager"
           />
         </div>
 
-        {/* Vignette Overlay */}
+        {/* Clear, Luminous Vignette Overlay (Leaves natural sunlit colors intact) */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(180deg, rgba(43,29,23,0.7) 0%, rgba(43,29,23,0.25) 38%, rgba(43,29,23,0.3) 62%, rgba(43,29,23,0.85) 100%)'
+              'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.06) 30%, rgba(0,0,0,0.12) 60%, rgba(43,29,23,0.7) 100%)'
           }}
         />
 
-        {/* In-page Anchor Links Bar */}
-        <div className="relative z-10 max-w-[1280px] mx-auto px-5 sm:px-8 py-3 w-full flex items-center justify-between gap-4 flex-wrap text-[13px] tracking-[0.14em] uppercase text-[#E8DCC3]/80 border-b border-white/10">
-          <div className="flex items-center gap-6 overflow-x-auto scrollbar-none py-1">
-            <a href="#occasions" className="hover:text-white transition-colors">Occasions</a>
-            <a href="#packages" className="hover:text-white transition-colors">Packages</a>
-            <a href="#destinations" className="hover:text-white transition-colors">Destinations</a>
-            <a href="#stays" className="hover:text-white transition-colors">Stays &amp; Airlines</a>
-            <a href="#how" className="hover:text-white transition-colors">How It Works</a>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/tailored-travel"
-              className="text-[#F6F1E6] hover:text-[#D6B08C] transition-colors flex items-center gap-1.5"
-            >
-              <span>✨</span>
-              <span>AI Itinerary Planner</span>
-            </Link>
-            <Link
-              href="/destinations"
-              className="hidden sm:inline-block text-[#F6F1E6] hover:text-[#D6B08C] transition-colors"
-            >
-              All Destinations →
-            </Link>
-          </div>
-        </div>
-
         {/* Hero Content */}
-        <div className="relative z-10 flex-1 flex items-center justify-center text-center px-5 sm:px-8 pt-8 pb-28 sm:pb-36">
+        <div className="relative z-10 flex-1 flex items-center justify-center text-center px-5 sm:px-8 pt-10 sm:pt-16 pb-28 sm:pb-36">
           <div className="max-w-[980px] animate-[tzRise_0.9s_ease_both]">
-            <div className="text-[12.5px] font-semibold tracking-[0.3em] uppercase text-[#F6F1E6]">
+            <div className="text-[12.5px] font-semibold tracking-[0.3em] uppercase text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
               Couples only · India &amp; the world
             </div>
-            <h1 className="font-cormorant font-normal text-[clamp(48px,7.4vw,110px)] leading-[0.98] tracking-[-0.01em] text-[#F6F1E6] mt-4 text-balance">
+            <h1 className="font-cormorant font-normal text-[clamp(44px,6.8vw,96px)] leading-[0.98] tracking-[-0.01em] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] mt-4 text-balance">
               Journeys designed<br />
-              only <span className="font-pinyon font-normal text-[#E8DCC3] text-[0.92em] tracking-normal">for two</span>
+              only <span className="font-pinyon font-normal text-[#F6F1E6] text-[0.92em] tracking-normal drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]">for two</span>
             </h1>
-            <p className="text-[clamp(16px,1.4vw,19px)] leading-relaxed text-[#F6F1E6] mt-5 mx-auto max-w-[560px]">
+            <p className="text-[clamp(15px,1.35vw,18px)] leading-relaxed text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.75)] font-medium mt-4 mx-auto max-w-[560px]">
               Honeymoons, proposals, anniversaries and quiet escapes — planned by real travel designers and powered by AI.
             </p>
 
             {/* Quick Interactive Search Bar (Connected to /tailored-travel) */}
             <form
               onSubmit={handleHeroSearch}
-              className="mt-8 sm:mt-10 mx-auto max-w-[840px] flex items-stretch flex-wrap gap-2 bg-[#F6F1E6]/15 backdrop-blur-[14px] border border-[#F6F1E6]/40 rounded-[18px] p-2 text-left"
+              className="mt-7 sm:mt-9 mx-auto max-w-[840px] flex items-stretch flex-wrap gap-2 bg-[#F6F1E6]/25 backdrop-blur-[16px] border border-white/60 rounded-[18px] p-2 text-left shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
             >
               {/* Occasion select */}
               <div className="flex-1 min-w-[150px] p-2.5 sm:px-4 rounded-[12px] bg-black/20 hover:bg-black/30 transition-colors">
@@ -595,14 +470,14 @@ export default function TravelzadaHomePage() {
             </form>
 
             {/* Trust badges */}
-            <div className="flex justify-center items-center gap-3 sm:gap-5 flex-wrap mt-6 text-[14.5px] text-[#F6F1E6]">
-              <Link href="/reviews" className="hover:underline flex items-center gap-1.5">
+            <div className="flex justify-center items-center gap-3 sm:gap-5 flex-wrap mt-6 text-[14.5px] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] font-medium">
+              <Link href="/reviews" className="hover:underline flex items-center gap-1.5 text-white">
                 <strong className="font-semibold text-amber-300">★ 4.9</strong>
                 <span>from 500+ couples</span>
               </Link>
-              <span className="w-1 h-1 rounded-full bg-[#E8DCC3]" />
+              <span className="w-1 h-1 rounded-full bg-white/70" />
               <span>Free personalized itinerary</span>
-              <span className="w-1 h-1 rounded-full bg-[#E8DCC3]" />
+              <span className="w-1 h-1 rounded-full bg-white/70" />
               <span>No payment until you love the plan</span>
             </div>
           </div>
@@ -649,13 +524,13 @@ export default function TravelzadaHomePage() {
             className="max-w-[1280px] mx-auto px-5 sm:px-8 py-2.5 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none"
           >
             <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#D6B08C] mr-2">
-              Packages by occasion
+              Featured Destinations
             </span>
-            {occasionsData.map((occ, i) => {
+            {sections.map((occ, i) => {
               const isActive = activeSec === i
               return (
                 <button
-                  key={occ.name}
+                  key={occ.id}
                   onClick={() => scrollToOccasion(i)}
                   className={`flex-none font-figtree text-[14px] font-medium px-4 py-2 rounded-full cursor-pointer transition-all border ${
                     isActive
@@ -663,24 +538,30 @@ export default function TravelzadaHomePage() {
                       : 'bg-transparent text-[#F6F1E6] border-[#F6F1E6]/35 hover:border-[#F6F1E6]/70'
                   }`}
                 >
-                  {occ.name}
+                  {occ.name} ({occ.cards.length})
                 </button>
               )
             })}
           </div>
         </div>
 
-        {/* 10 Occasion Sections */}
-        {occasionsData.map((occ, i) => {
-          const cardIdx = selectedCards[i]
-          const bgState = bgs[i]
-          const isSeen = seenSections[i]
+        {/* Real Destination Sections */}
+        {sections.map((occ, i) => {
+          const cardIdx = selectedCards[i] || 0
+          const bgState = bgs[i] || {
+            a: toHighRes(occ.cards[0]?.img || occ.img),
+            b: '',
+            front: 'A' as const,
+            cur: toHighRes(occ.cards[0]?.img || occ.img)
+          }
+          const isSeen = Boolean(seenSections[i])
           const padNum = String(i + 1).padStart(2, '0')
-          const nextIdx = (i + 1) % 10
+          const totalNum = String(sections.length).padStart(2, '0')
+          const nextIdx = (i + 1) % sections.length
 
           return (
             <section
-              key={occ.name}
+              key={occ.id}
               id={`occ-${i}`}
               ref={el => { secRefs.current[i] = el }}
               onMouseEnter={() => setHoveredSec(i)}
@@ -717,7 +598,7 @@ export default function TravelzadaHomePage() {
               {/* Occasion Inner Grid */}
               <div className="relative max-w-[1280px] mx-auto min-h-[min(92vh,820px)] px-5 sm:px-8 py-16 sm:py-28 flex flex-wrap items-center gap-8 sm:gap-16">
 
-                {/* Left Side: Occasion Details */}
+                {/* Left Side: Destination Details */}
                 <div
                   className="flex-1 basis-[300px] max-w-[400px] min-w-0 transition-all duration-700 ease-out"
                   style={{
@@ -727,38 +608,43 @@ export default function TravelzadaHomePage() {
                 >
                   <div className="flex items-baseline gap-2.5 font-cormorant">
                     <span className="text-[clamp(44px,5vw,60px)] font-normal leading-none">{padNum}</span>
-                    <span className="text-[20px] text-[#D6B08C]">/ 10</span>
+                    <span className="text-[20px] text-[#D6B08C]">/ {totalNum}</span>
                   </div>
                   <h2 className="font-cormorant font-normal text-[clamp(42px,5.2vw,74px)] leading-none tracking-[-0.01em] mt-4 text-balance">
                     {occ.name}
                   </h2>
-                  <p className="text-[17px] leading-relaxed text-[#F6F1E6] mt-4 max-w-[360px]">
+                  <div className="inline-block mt-3 px-3.5 py-1 bg-white/10 backdrop-blur-md rounded-full text-[13px] text-[#E8DCC3]">
+                    {occ.meta} · {occ.cards.length} Packages
+                  </div>
+                  <p className="text-[16px] leading-relaxed text-[#F6F1E6]/90 mt-4 max-w-[360px] line-clamp-3">
                     {occ.line}
                   </p>
 
                   <div className="flex items-center gap-3.5 flex-wrap mt-7">
                     <Link
-                      href={`/tailored-travel?occasion=${encodeURIComponent(occ.name)}`}
+                      href={`/tailored-travel?destination=${encodeURIComponent(occ.name)}`}
                       className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#3B2A20] bg-[#F6F1E6] px-5 py-3 rounded-full transition hover:bg-[#D6B08C] hover:-translate-y-0.5"
                     >
                       Plan with AI <span>→</span>
                     </Link>
                     <Link
-                      href={`/packages?occasion=${encodeURIComponent(occ.name.toLowerCase())}`}
+                      href={`/destinations/${occ.slug}`}
                       className="inline-flex items-center text-[14px] font-medium text-[#E8DCC3] border border-[#E8DCC3]/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
                     >
-                      Explore Packages
+                      Explore All Packages
                     </Link>
-                    <button
-                      onClick={() => scrollToOccasion(nextIdx)}
-                      className="text-[14px] font-medium text-[#E8DCC3] border-b border-[#E8DCC3]/45 pb-0.5 hover:text-[#F6F1E6] cursor-pointer"
-                    >
-                      Next: {occasionsData[nextIdx].name} ↓
-                    </button>
+                    {sections.length > 1 && (
+                      <button
+                        onClick={() => scrollToOccasion(nextIdx)}
+                        className="text-[14px] font-medium text-[#E8DCC3] border-b border-[#E8DCC3]/45 pb-0.5 hover:text-[#F6F1E6] cursor-pointer"
+                      >
+                        Next: {sections[nextIdx]?.name} ↓
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Right Side: 5-Card Carousel */}
+                {/* Right Side: Package Cards Carousel */}
                 <div className="flex-1 basis-[520px] min-w-0">
                   <div
                     ref={el => { trackRefs.current[i] = el }}
@@ -768,11 +654,13 @@ export default function TravelzadaHomePage() {
                   >
                     {occ.cards.map((c, j) => {
                       const isSelected = j === cardIdx
-                      const targetUrl = `/destinations/${c.slug}`
+                      const targetUrl = c.packageSlug
+                        ? `/destinations/${c.slug}/${c.packageSlug}`
+                        : `/destinations/${c.slug}`
 
                       return (
                         <div
-                          key={c.place}
+                          key={c.id || c.place}
                           onMouseEnter={() => goToCard(i, j)}
                           className={`flex-none snap-start w-[clamp(232px,21vw,280px)] aspect-[5/7] rounded-[18px] transition-all duration-500 ease-out relative ${
                             isSelected
@@ -784,7 +672,7 @@ export default function TravelzadaHomePage() {
                             href={targetUrl}
                             onClick={() => goToCard(i, j)}
                             className="block w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
-                            title={`Explore ${c.place} packages`}
+                            title={`Open ${c.place}`}
                           >
                             <img
                               src={c.img}
@@ -797,32 +685,37 @@ export default function TravelzadaHomePage() {
                               className="absolute inset-0 pointer-events-none"
                               style={{
                                 background:
-                                  'linear-gradient(to top, rgba(43,29,23,0.92) 0%, rgba(43,29,23,0.3) 46%, rgba(43,29,23,0) 66%)'
+                                  'linear-gradient(to top, rgba(43,29,23,0.94) 0%, rgba(43,29,23,0.3) 48%, rgba(43,29,23,0) 68%)'
                               }}
                             />
                             {/* Nights badge */}
-                            <div className="absolute top-3.5 left-3.5 text-[12.5px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/60 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
+                            <div className="absolute top-3.5 left-3.5 text-[12px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/65 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
                               {c.nights}
                             </div>
-                            {/* Top-right "Packages" badge */}
+                            {/* Top-right "Package" badge */}
                             <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#3B2A20] bg-[#E8DCC3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F6F1E6] transition-colors pointer-events-none flex items-center gap-1">
-                              <span>Packages</span>
+                              <span>Package</span>
                               <span>↗</span>
                             </div>
                             {/* Card bottom text */}
                             <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#F6F1E6]">
-                              <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3]">
-                                {c.region}
+                              <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3] flex items-center justify-between">
+                                <span>{c.region}</span>
+                                {c.price && (
+                                  <span className="font-semibold text-[13px] text-[#F6F1E6]">
+                                    {c.price}
+                                  </span>
+                                )}
                               </div>
-                              <div className="font-cormorant font-semibold text-[27px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors">
+                              <div className="font-cormorant font-semibold text-[25px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors line-clamp-2">
                                 {c.place}
                               </div>
-                              <div className="text-[13.5px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
+                              <div className="text-[13px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
                                 {c.hook}
                               </div>
                               {/* Direct Destination Link & AI Plan */}
                               <div className="mt-3.5 pt-2.5 border-t border-white/20 flex items-center justify-between gap-2 text-[12.5px]">
-                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
+                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3.5 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
                                   Explore Package <span className="transition-transform group-hover:translate-x-0.5">→</span>
                                 </span>
                                 <span
@@ -846,36 +739,38 @@ export default function TravelzadaHomePage() {
                   </div>
 
                   {/* Carousel Controls */}
-                  <div className="flex items-center gap-4 mt-2 px-2 flex-wrap">
-                    <button
-                      onClick={() => goToCard(i, (cardIdx + 4) % 5)}
-                      aria-label="Previous card"
-                      className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6]/55 bg-[#2B1D17]/40 text-[#F6F1E6] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F6F1E6]/20"
-                    >
-                      ←
-                    </button>
-                    <button
-                      onClick={() => goToCard(i, (cardIdx + 1) % 5)}
-                      aria-label="Next card"
-                      className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6] bg-[#F6F1E6] text-[#3B2A20] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#D6B08C]"
-                    >
-                      →
-                    </button>
+                  {occ.cards.length > 1 && (
+                    <div className="flex items-center gap-4 mt-2 px-2 flex-wrap">
+                      <button
+                        onClick={() => goToCard(i, (cardIdx + occ.cards.length - 1) % occ.cards.length)}
+                        aria-label="Previous card"
+                        className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6]/55 bg-[#2B1D17]/40 text-[#F6F1E6] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F6F1E6]/20"
+                      >
+                        ←
+                      </button>
+                      <button
+                        onClick={() => goToCard(i, (cardIdx + 1) % occ.cards.length)}
+                        aria-label="Next card"
+                        className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6] bg-[#F6F1E6] text-[#3B2A20] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#D6B08C]"
+                      >
+                        →
+                      </button>
 
-                    <div className="flex-1 max-w-[220px] h-[2px] bg-[#F6F1E6]/25 rounded overflow-hidden">
-                      <div
-                        className="h-full bg-[#D6B08C] transition-all duration-500 ease-out"
-                        style={{ width: `${((cardIdx + 1) / 5) * 100}%` }}
-                      />
-                    </div>
+                      <div className="flex-1 max-w-[220px] h-[2px] bg-[#F6F1E6]/25 rounded overflow-hidden">
+                        <div
+                          className="h-full bg-[#D6B08C] transition-all duration-500 ease-out"
+                          style={{ width: `${((cardIdx + 1) / occ.cards.length) * 100}%` }}
+                        />
+                      </div>
 
-                    <div className="font-cormorant flex items-baseline gap-1.5">
-                      <span className="text-[36px] font-normal leading-none">
-                        {String(cardIdx + 1).padStart(2, '0')}
-                      </span>
-                      <span className="text-[17px] text-[#D6B08C]">/ 05</span>
+                      <div className="font-cormorant flex items-baseline gap-1.5">
+                        <span className="text-[36px] font-normal leading-none">
+                          {String(cardIdx + 1).padStart(2, '0')}
+                        </span>
+                        <span className="text-[17px] text-[#D6B08C]">/ {String(occ.cards.length).padStart(2, '0')}</span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
               </div>
@@ -932,9 +827,9 @@ export default function TravelzadaHomePage() {
             </div>
           </div>
 
-          {/* Destinations Grid (Links to real Next.js destination detail pages) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8 sm:mt-12">
-            {destinationsData[destTab].map(dest => (
+          {/* Destinations Grid (Real Next.js destination detail pages from Firestore) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-8 sm:mt-12">
+            {(destinationsData[destTab] || []).map(dest => (
               <Link
                 key={dest.name}
                 href={`/destinations/${dest.slug}`}
@@ -1195,16 +1090,18 @@ export default function TravelzadaHomePage() {
           <div className="font-cormorant text-[96px] leading-[0.5] text-[#D6B08C] mt-9">
             “
           </div>
-          <blockquote className="font-cormorant font-normal text-[clamp(30px,3.2vw,44px)] leading-snug mt-1.5 text-balance">
-            Travelzada planned our Bali honeymoon down to the sunset dinner. One perfect itinerary — zero stress.
+          <blockquote className="font-cormorant font-normal text-[clamp(24px,2.6vw,36px)] leading-snug mt-1.5 text-balance">
+            {featuredReviews[0]?.content || "Our honeymoon was truly unforgettable, and all thanks to Travelzada. Every detail was thoughtfully planned—from seamless transfers to beautiful hotel stays."}
           </blockquote>
           <div className="flex items-center gap-3.5 mt-7">
             <div className="w-12 h-12 rounded-full bg-[#E8DCC3] flex items-center justify-center font-cormorant font-semibold text-[18px]">
-              A&amp;R
+              {(featuredReviews[0]?.name || 'Nishchay Gupta').split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <div>
-              <div className="text-[16px] font-semibold">Aarav &amp; Riya</div>
-              <div className="text-[14.5px] text-[#7A4F34] mt-0.5">Bali · 6N/7D · Dec 2024</div>
+              <div className="text-[16px] font-semibold">{featuredReviews[0]?.name || 'Nishchay Gupta'}</div>
+              <div className="text-[14.5px] text-[#7A4F34] mt-0.5">
+                {featuredReviews[0]?.packageName || 'Singapore Dream Honeymoon'} · Verified Couple
+              </div>
             </div>
           </div>
 

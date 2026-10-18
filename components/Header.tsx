@@ -103,18 +103,19 @@ export default function Header() {
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
+  const isDarkHero = (pathname === '/' || pathname === '/destinations') && !isScrolled
   const headerHeight = isScrolled ? 'py-2.5' : 'py-4'
   const logoScale = isScrolled ? 'scale-95' : 'scale-100'
-  const backdropBlur = isScrolled ? 'backdrop-blur-xl' : 'backdrop-blur-none'
-  const bgOpacity = isScrolled ? 'bg-white/95' : 'bg-white'
   const shadowIntensity = Math.min(scrollY / 10, 1)
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-500 ease-out ${
         isScrolled
-          ? `${bgOpacity} ${backdropBlur} shadow-lg border-b border-gray-200/50`
-          : 'bg-white/80 backdrop-blur-sm'
+          ? 'bg-white/95 backdrop-blur-xl shadow-lg border-b border-gray-200/50'
+          : isDarkHero
+          ? 'bg-transparent border-b border-transparent'
+          : 'bg-white/80 backdrop-blur-sm border-b border-gray-200/40'
       }`}
       style={{
         boxShadow: isScrolled
@@ -123,7 +124,7 @@ export default function Header() {
       }}
     >
       <div
-        className={`max-w-6xl mx-auto px-4 md:px-6 lg:px-0 ${headerHeight} flex items-center justify-between transition-all duration-500`}
+        className={`max-w-7xl mx-auto px-4 md:px-6 lg:px-8 ${headerHeight} flex items-center justify-between transition-all duration-500`}
       >
         <Link
           href="/"
@@ -136,13 +137,17 @@ export default function Header() {
             height={50}
             className={`h-8 w-auto object-contain transition-all duration-500 ${
               isScrolled ? 'h-7' : 'h-8'
+            } ${
+              isDarkHero
+                ? 'brightness-0 invert drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)]'
+                : 'filter-none'
             }`}
             priority
           />
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+        <nav className="hidden md:flex items-center gap-6 lg:gap-7 text-[15.5px]">
           {navItems.map((item) => {
             const active = isLinkActive(item.href)
             return (
@@ -150,15 +155,25 @@ export default function Header() {
                 key={item.href}
                 href={item.href}
                 className={`relative py-1.5 transition-colors duration-300 ${
-                  active
+                  isDarkHero
+                    ? active
+                      ? 'text-white font-bold drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]'
+                      : 'text-white/90 hover:text-white font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] group'
+                    : active
                     ? 'text-primary font-semibold'
-                    : 'text-gray-600 hover:text-primary font-medium group'
+                    : 'text-gray-700 hover:text-primary font-medium group'
                 }`}
               >
                 <span>{item.label}</span>
                 <span
-                  className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-primary to-primary-dark transition-all duration-300 ${
-                    active ? 'w-full' : 'w-0 group-hover:w-full'
+                  className={`absolute bottom-0 left-0 h-0.5 transition-all duration-300 ${
+                    isDarkHero
+                      ? active
+                        ? 'w-full bg-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]'
+                        : 'w-0 group-hover:w-full bg-white/80'
+                      : active
+                      ? 'w-full bg-gradient-to-r from-primary to-primary-dark'
+                      : 'w-0 group-hover:w-full bg-gradient-to-r from-primary to-primary-dark'
                   }`}
                 />
               </Link>
@@ -173,16 +188,26 @@ export default function Header() {
               {/* Avatar button */}
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-full border border-gray-200 hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 group"
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border transition-all duration-200 group ${
+                  isDarkHero
+                    ? 'border-white/40 bg-black/25 backdrop-blur-md text-white hover:border-white hover:bg-black/35 shadow-sm'
+                    : 'border-gray-200 hover:border-primary/40 hover:bg-primary/5 text-gray-700'
+                }`}
               >
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                  isDarkHero ? 'bg-white/25 text-white' : 'bg-primary/10 text-primary'
+                }`}>
                   {initials}
                 </div>
-                <span className="text-sm text-gray-700 font-medium max-w-[140px] truncate">
+                <span className={`text-sm font-medium max-w-[140px] truncate ${
+                  isDarkHero ? 'text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]' : 'text-gray-700'
+                }`}>
                   {displayName}
                 </span>
                 <svg
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
+                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                    isDarkHero ? 'text-white/80' : 'text-gray-400'
+                  } ${
                     userMenuOpen ? 'rotate-180' : ''
                   }`}
                   fill="none"
@@ -268,7 +293,11 @@ export default function Header() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-gray-600 hover:text-primary transition-colors"
+            className={`md:hidden p-2 transition-colors ${
+              isDarkHero
+                ? 'text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] hover:text-[#E8DCC3]'
+                : 'text-gray-600 hover:text-primary'
+            }`}
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (

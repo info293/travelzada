@@ -4,8 +4,13 @@ import SchemaMarkup, { generateWebSiteSchema, generateFAQSchema, generateBreadcr
 import { faqs } from '@/data/faqs'
 import DestinationSlugCacheInitializer from '@/components/DestinationSlugCacheInitializer'
 import TravelzadaHomePage from '@/components/homepage/TravelzadaHomePage'
+import { fetchHomepageData } from '@/lib/homepageData'
 
-export default function Home() {
+export const revalidate = 60
+
+export default async function Home() {
+  const homepageData = await fetchHomepageData()
+
   const websiteSchema = generateWebSiteSchema()
   const faqSchema = generateFAQSchema(faqs)
   const breadcrumbSchema = generateBreadcrumbSchema([
@@ -27,7 +32,7 @@ export default function Home() {
       <DestinationSlugCacheInitializer />
       <Header />
       <main className="min-h-screen bg-[#F6F1E6] overflow-x-hidden">
-        <TravelzadaHomePage />
+        <TravelzadaHomePage initialData={homepageData} />
       </main>
       <Footer />
     </>
