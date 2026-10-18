@@ -101,17 +101,22 @@ export function renderOptionsEmail(i: OptionsEmailInput) {
             <td style="font-family:${FONT};font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:${BRAND.red}">Option ${idx + 1}${idx === 0 ? ' &nbsp;·&nbsp; Best match' : ''}</td>
             ${o.duration ? `<td align="right" style="font-family:${FONT};font-size:12px;color:${BRAND.muted};white-space:nowrap">${esc(o.duration)}</td>` : ''}
           </tr></table>
-          <div style="font-family:${SERIF};font-size:22px;line-height:1.3;color:${BRAND.navy};font-weight:700;margin:8px 0 6px">${esc(o.name)}</div>
-          ${o.hotels ? `<div style="font-family:${FONT};font-size:13px;color:${BRAND.muted};margin-bottom:10px">${esc(o.hotels)}</div>` : ''}
-          ${
-            o.overview
-              ? `<p style="margin:0 0 18px;font-family:${FONT};font-size:14px;line-height:1.65;color:${BRAND.body}">${esc(o.overview)}${o.overview.length >= 220 ? '…' : ''}</p>`
-              : ''
-          }
+          <!-- The whole card body opens the package page -->
+          <a href="${esc(o.url)}" target="_blank" style="display:block;text-decoration:none;color:inherit">
+            <div style="font-family:${SERIF};font-size:22px;line-height:1.3;color:${BRAND.navy};font-weight:700;margin:8px 0 6px">${esc(o.name)}</div>
+            ${o.hotels ? `<div style="font-family:${FONT};font-size:13px;color:${BRAND.muted};margin-bottom:10px">${esc(o.hotels)}</div>` : ''}
+            ${
+              o.overview
+                ? `<p style="margin:0 0 18px;font-family:${FONT};font-size:14px;line-height:1.65;color:${BRAND.body}">${esc(o.overview)}${o.overview.length >= 220 ? '…' : ''}</p>`
+                : ''
+            }
+          </a>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid ${BRAND.line}"><tr>
             <td style="padding-top:16px;font-family:${FONT}">
-              <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${BRAND.muted}">Starting from</div>
-              <div style="font-size:20px;font-weight:700;color:${BRAND.navy}">${esc(o.price.replace(/^Starting\s+/i, ''))}</div>
+              <a href="${esc(o.url)}" target="_blank" style="display:block;text-decoration:none">
+                <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${BRAND.muted}">Starting from</div>
+                <div style="font-size:20px;font-weight:700;color:${BRAND.navy}">${esc(o.price.replace(/^Starting\s+/i, ''))}</div>
+              </a>
             </td>
             <td align="right" style="padding-top:16px;white-space:nowrap" class="stack">
               ${button(o.url, 'View itinerary', BRAND.navy)}

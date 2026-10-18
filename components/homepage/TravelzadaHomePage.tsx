@@ -768,18 +768,23 @@ export default function TravelzadaHomePage() {
                   >
                     {occ.cards.map((c, j) => {
                       const isSelected = j === cardIdx
+                      const targetUrl = `/destinations/${c.slug}`
+
                       return (
                         <div
                           key={c.place}
+                          onMouseEnter={() => goToCard(i, j)}
                           className={`flex-none snap-start w-[clamp(232px,21vw,280px)] aspect-[5/7] rounded-[18px] transition-all duration-500 ease-out relative ${
                             isSelected
                               ? 'opacity-100 -translate-y-2.5 outline outline-1 outline-[#E8DCC3]/90 outline-offset-4'
                               : 'opacity-75 hover:opacity-100 outline outline-1 outline-transparent'
                           }`}
                         >
-                          <div
+                          <Link
+                            href={targetUrl}
                             onClick={() => goToCard(i, j)}
-                            className="w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
+                            className="block w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
+                            title={`Explore ${c.place} packages`}
                           >
                             <img
                               src={c.img}
@@ -796,39 +801,45 @@ export default function TravelzadaHomePage() {
                               }}
                             />
                             {/* Nights badge */}
-                            <div className="absolute top-3.5 left-3.5 text-[12.5px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/50 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
+                            <div className="absolute top-3.5 left-3.5 text-[12.5px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/60 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
                               {c.nights}
+                            </div>
+                            {/* Top-right "Packages" badge */}
+                            <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#3B2A20] bg-[#E8DCC3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F6F1E6] transition-colors pointer-events-none flex items-center gap-1">
+                              <span>Packages</span>
+                              <span>↗</span>
                             </div>
                             {/* Card bottom text */}
                             <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#F6F1E6]">
                               <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3]">
                                 {c.region}
                               </div>
-                              <div className="font-cormorant font-semibold text-[27px] leading-tight mt-1">
+                              <div className="font-cormorant font-semibold text-[27px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors">
                                 {c.place}
                               </div>
                               <div className="text-[13.5px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
                                 {c.hook}
                               </div>
-                              {/* Direct Destination Link */}
-                              <div className="mt-3 pt-2 border-t border-white/20 flex items-center justify-between text-[12.5px] text-[#E8DCC3]">
-                                <Link
-                                  href={`/destinations/${c.slug}`}
-                                  className="hover:text-white font-medium underline underline-offset-2"
-                                  onClick={e => e.stopPropagation()}
-                                >
-                                  View Packages →
-                                </Link>
-                                <Link
-                                  href={`/tailored-travel?destination=${encodeURIComponent(c.place)}`}
-                                  className="hover:text-white font-medium"
-                                  onClick={e => e.stopPropagation()}
+                              {/* Direct Destination Link & AI Plan */}
+                              <div className="mt-3.5 pt-2.5 border-t border-white/20 flex items-center justify-between gap-2 text-[12.5px]">
+                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
+                                  Explore Package <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                                </span>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    router.push(`/tailored-travel?destination=${encodeURIComponent(c.place)}`)
+                                  }}
+                                  className="text-[#E8DCC3] hover:text-white font-medium px-2 py-1 hover:underline cursor-pointer transition text-[12px] whitespace-nowrap"
                                 >
                                   Plan with AI
-                                </Link>
+                                </span>
                               </div>
                             </div>
-                          </div>
+                          </Link>
                         </div>
                       )
                     })}

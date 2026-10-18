@@ -461,6 +461,582 @@
         "Luxury hotels"
       ],
       "duration": "6-8 days recommended"
+    },
+    {
+      "name": "Vietnam",
+      "country": "Vietnam",
+      "description": "A captivating blend of natural beauty, rich heritage, vibrant lantern-lit streets in Hoi An, and emerald waters in Ha Long Bay.",
+      "bestTimeToVisit": "November to April",
+      "currency": "Vietnamese Dong (VND)",
+      "language": "Vietnamese, English",
+      "image": "https://images.pexels.com/photos/23857946/pexels-photo-23857946.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Ha Long Bay cruise",
+        "Hoi An Ancient Town",
+        "Da Nang Golden Bridge",
+        "Phu Quoc beaches"
+      ],
+      "activities": [
+        "Cruise dinner",
+        "Lantern making",
+        "Island hopping",
+        "Street food tours"
+      ],
+      "budgetRange": {
+        "budget": "₹35,000 - ₹50,000",
+        "midRange": "₹50,000 - ₹80,000",
+        "luxury": "₹80,000+"
+      },
+      "hotelTypes": [
+        "Luxury beach resorts",
+        "Boutique heritage villas",
+        "Riverfront hotels"
+      ],
+      "duration": "6-8 days recommended"
+    },
+    {
+      "name": "Switzerland",
+      "country": "Switzerland",
+      "description": "Postcard alpine landscapes, crystal-clear glacial lakes, world-class scenic rail journeys, and romantic mountain chalets.",
+      "bestTimeToVisit": "May to September (summer) or December to March (winter)",
+      "currency": "Swiss Franc (CHF)",
+      "language": "German, French, Italian, English",
+      "image": "https://images.pexels.com/photos/30765901/pexels-photo-30765901.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Jungfraujoch - Top of Europe",
+        "Lake Lucerne cruise",
+        "Zermatt & Matterhorn",
+        "Interlaken"
+      ],
+      "activities": [
+        "Scenic panoramic trains",
+        "Fondue dinners",
+        "Alpine cable cars",
+        "Glacier walks"
+      ],
+      "budgetRange": {
+        "budget": "₹1,20,000 - ₹1,80,000",
+        "midRange": "₹1,80,000 - ₹2,80,000",
+        "luxury": "₹3,00,000+"
+      },
+      "hotelTypes": [
+        "Alpine chalets",
+        "Luxury lakeside palaces",
+        "Boutique mountain resorts"
+      ],
+      "duration": "7-10 days recommended"
+    },
+    {
+      "name": "France",
+      "country": "France",
+      "description": "The global capital of romance, timeless art, world-renowned culinary excellence, and picturesque sunset cruises along the Seine.",
+      "bestTimeToVisit": "April to October",
+      "currency": "Euro (EUR)",
+      "language": "French, English",
+      "image": "https://images.pexels.com/photos/29389532/pexels-photo-29389532.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Eiffel Tower at golden hour",
+        "Seine River dinner cruise",
+        "Louvre Museum",
+        "Montmartre"
+      ],
+      "activities": [
+        "Rooftop champagne dining",
+        "Private photo sessions",
+        "Palace of Versailles tour",
+        "Boutique shopping"
+      ],
+      "budgetRange": {
+        "budget": "₹1,10,000 - ₹1,60,000",
+        "midRange": "₹1,60,000 - ₹2,50,000",
+        "luxury": "₹2,80,000+"
+      },
+      "hotelTypes": [
+        "Haussmannian boutique hotels",
+        "5-star luxury palaces",
+        "Châteaux"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Coorg",
+      "country": "India",
+      "description": "The Scotland of India, enveloped in lush coffee estates, mist-covered hills, cascading waterfalls, and serene luxury homestays.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Kannada, Kodava, English, Hindi",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Kerala/Couple%20in%20Munnar%20Tea%20garden%20and%20cloudes.jpg?tr=w-1200",
+      "highlights": [
+        "Abbey Falls",
+        "Raja Seat sunset",
+        "Coffee plantation tours",
+        "Dubare Elephant Camp"
+      ],
+      "activities": [
+        "Plantation walks",
+        "Bird watching",
+        "Private candlelit estate dinners",
+        "Spa treatments"
+      ],
+      "budgetRange": {
+        "budget": "₹15,000 - ₹25,000",
+        "midRange": "₹25,000 - ₹45,000",
+        "luxury": "₹50,000+"
+      },
+      "hotelTypes": [
+        "Luxury plantation resorts",
+        "Private pool villas",
+        "Boutique heritage homestays"
+      ],
+      "duration": "3-4 days recommended"
+    },
+    {
+      "name": "Udaipur",
+      "country": "India",
+      "description": "The City of Lakes, boasting floating marble palaces, fairytale sunsets across Lake Pichola, and royal Rajput hospitality.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Mewari, English",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Rajasthan/romantic%20couple%20boating%20on%20lake%20pichola%20udaipur.png?tr=w-1200",
+      "highlights": [
+        "City Palace",
+        "Lake Pichola boat ride",
+        "Jag Mandir",
+        "Saheliyon-ki-Bari"
+      ],
+      "activities": [
+        "Private boat cruise at sunset",
+        "Rooftop dinner overlooking palaces",
+        "Heritage royal tours",
+        "Vintage car ride"
+      ],
+      "budgetRange": {
+        "budget": "₹18,000 - ₹30,000",
+        "midRange": "₹30,000 - ₹55,000",
+        "luxury": "₹60,000+"
+      },
+      "hotelTypes": [
+        "Heritage palace hotels",
+        "Luxury lake resorts",
+        "Boutique havelis"
+      ],
+      "duration": "3-4 days recommended"
+    },
+    {
+      "name": "Jaipur",
+      "country": "India",
+      "description": "The Pink City of royalty, magnificent sandstone fortresses, bustling bazaars, and regal palace accommodations.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Rajasthani, English",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Rajasthan/indian%20couple%20at%20amber%20fort%20jaipur%20exploring%20historic%20architecture.png?tr=w-1200",
+      "highlights": [
+        "Amber Fort",
+        "Hawa Mahal",
+        "City Palace",
+        "Nahargarh Fort sunset"
+      ],
+      "activities": [
+        "Hot air balloon safari",
+        "Royal Rajasthani thali dining",
+        "Jewellery & textiles shopping",
+        "Fort tours"
+      ],
+      "budgetRange": {
+        "budget": "₹15,000 - ₹28,000",
+        "midRange": "₹28,000 - ₹50,000",
+        "luxury": "₹55,000+"
+      },
+      "hotelTypes": [
+        "Royal palace hotels",
+        "Heritage havelis",
+        "Luxury resorts"
+      ],
+      "duration": "3-4 days recommended"
+    },
+    {
+      "name": "Jaisalmer",
+      "country": "India",
+      "description": "The Golden City in the heart of the Thar Desert, famed for golden sand dunes, starlit camping, and living sandstone fortresses.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Rajasthani, English",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Rajasthan/indian%20couple%20having%20camel%20ride%20on%20sam%20sand%20dunes%20jaisalmer.png?tr=w-1200",
+      "highlights": [
+        "Jaisalmer Fort (Sonar Qila)",
+        "Sam Sand Dunes",
+        "Patwon Ki Haveli",
+        "Gadisar Lake"
+      ],
+      "activities": [
+        "Desert camel safari",
+        "Sunset over Thar dunes",
+        "Starlit camp musical evenings",
+        "Dune bashing"
+      ],
+      "budgetRange": {
+        "budget": "₹18,000 - ₹30,000",
+        "midRange": "₹30,000 - ₹50,000",
+        "luxury": "₹55,000+"
+      },
+      "hotelTypes": [
+        "Luxury desert camps",
+        "Heritage fort hotels",
+        "Boutique havelis"
+      ],
+      "duration": "3-4 days recommended"
+    },
+    {
+      "name": "Himachal",
+      "country": "India",
+      "description": "Snow-capped Himalayan peaks, pine-scented valleys, charming apple orchards, and cozy mountain retreats.",
+      "bestTimeToVisit": "March to June, September to February",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Pahari, English",
+      "image": "https://images.pexels.com/photos/20725666/pexels-photo-20725666.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Solang Valley",
+        "Rohtang Pass",
+        "Old Manali cafes",
+        "Kasol & Parvati Valley"
+      ],
+      "activities": [
+        "Paragliding",
+        "Snow adventures",
+        "Riverside camping",
+        "Cafe hopping"
+      ],
+      "budgetRange": {
+        "budget": "₹16,000 - ₹28,000",
+        "midRange": "₹28,000 - ₹48,000",
+        "luxury": "₹50,000+"
+      },
+      "hotelTypes": [
+        "Luxury chalets",
+        "Riverside cottages",
+        "Boutique mountain resorts"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Delhi",
+      "country": "India",
+      "description": "Historic grandeur meets modern luxury, featuring world-class dining, opulent 5-star suites, and centuries of Mughal architecture.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, English, Punjabi",
+      "image": "https://images.pexels.com/photos/17657612/pexels-photo-17657612.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "India Gate & Kartavya Path",
+        "Humayun Tomb",
+        "Qutub Minar",
+        "Lodhi Art District"
+      ],
+      "activities": [
+        "Private pool suite retreats",
+        "Fine dining at award-winning restaurants",
+        "Heritage city walks",
+        "Spa therapy"
+      ],
+      "budgetRange": {
+        "budget": "₹12,000 - ₹22,000",
+        "midRange": "₹22,000 - ₹40,000",
+        "luxury": "₹45,000+"
+      },
+      "hotelTypes": [
+        "Ultra-luxury urban resorts",
+        "Heritage boutique properties",
+        "5-star suites"
+      ],
+      "duration": "2-3 days recommended"
+    },
+    {
+      "name": "Agra",
+      "country": "India",
+      "description": "The monumental home of the Taj Mahal — the world ultimate monument of eternal love.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, English, Urdu",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Rajasthan/luxury%20indian%20couple%20inside%20city%20palace%20udaipur.png?tr=w-1200",
+      "highlights": [
+        "Taj Mahal at sunrise",
+        "Agra Fort",
+        "Mehtab Bagh sunset view",
+        "Fatehpur Sikri"
+      ],
+      "activities": [
+        "Sunrise Taj Mahal photography",
+        "Private balcony dinner facing the Taj",
+        "Mughlai food tasting",
+        "Heritage walks"
+      ],
+      "budgetRange": {
+        "budget": "₹12,000 - ₹20,000",
+        "midRange": "₹20,000 - ₹38,000",
+        "luxury": "₹42,000+"
+      },
+      "hotelTypes": [
+        "Taj-view luxury resorts",
+        "Boutique heritage stays",
+        "5-star hotels"
+      ],
+      "duration": "2-3 days recommended"
+    },
+    {
+      "name": "Varanasi",
+      "country": "India",
+      "description": "One of the oldest continuously inhabited cities on Earth, where divine Ganga aarti and sacred river ghats create an unforgettable spiritual aura.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Bhojpuri, English",
+      "image": "https://images.pexels.com/photos/32297486/pexels-photo-32297486.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Dashashwamedh Ghat evening aarti",
+        "Assi Ghat morning rituals",
+        "Kashi Vishwanath Corridor",
+        "Sarnath"
+      ],
+      "activities": [
+        "Private sunrise boat ride on the Ganga",
+        "Ganga aarti blessing ceremony",
+        "Silk weaving craft tours",
+        "Temple walks"
+      ],
+      "budgetRange": {
+        "budget": "₹12,000 - ₹22,000",
+        "midRange": "₹22,000 - ₹38,000",
+        "luxury": "₹40,000+"
+      },
+      "hotelTypes": [
+        "Heritage riverside havelis",
+        "Luxury ghat-front hotels",
+        "Boutique ashram stays"
+      ],
+      "duration": "2-3 days recommended"
+    },
+    {
+      "name": "Amritsar",
+      "country": "India",
+      "description": "Home of the resplendent Golden Temple, soulful spiritual energy, and Punjab legendary culinary hospitality.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Punjabi, Hindi, English",
+      "image": "https://images.pexels.com/photos/29231349/pexels-photo-29231349.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Harmandir Sahib (Golden Temple) at dawn",
+        "Wagah Border ceremony",
+        "Jallianwala Bagh",
+        "Partition Museum"
+      ],
+      "activities": [
+        "Early morning temple blessing",
+        "Langar seva participation",
+        "Kulcha and lassi food trails",
+        "Heritage walks"
+      ],
+      "budgetRange": {
+        "budget": "₹10,000 - ₹20,000",
+        "midRange": "₹20,000 - ₹35,000",
+        "luxury": "₹40,000+"
+      },
+      "hotelTypes": [
+        "Boutique heritage properties",
+        "Modern 5-star hotels",
+        "Serene farmstays"
+      ],
+      "duration": "2-3 days recommended"
+    },
+    {
+      "name": "Rishikesh",
+      "country": "India",
+      "description": "The Yoga Capital of the World, nestled where the holy Ganga flows out of the Himalayas into peaceful wooded valleys.",
+      "bestTimeToVisit": "September to November, February to May",
+      "currency": "Indian Rupee (INR)",
+      "language": "Hindi, Garhwali, English",
+      "image": "https://images.pexels.com/photos/37248322/pexels-photo-37248322.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Triveni Ghat Ganga aarti",
+        "Laxman Jhula & Ram Jhula",
+        "Beatles Ashram",
+        "Neelkanth Mahadev"
+      ],
+      "activities": [
+        "Couples yoga & meditation retreats",
+        "Riverside sacred blessings",
+        "Gentle river rafting",
+        "Ayurvedic wellness"
+      ],
+      "budgetRange": {
+        "budget": "₹14,000 - ₹24,000",
+        "midRange": "₹24,000 - ₹42,000",
+        "luxury": "₹45,000+"
+      },
+      "hotelTypes": [
+        "Luxury riverside wellness retreats",
+        "Boutique ashrams",
+        "Spa resorts"
+      ],
+      "duration": "3-4 days recommended"
+    },
+    {
+      "name": "Bhutan",
+      "country": "Bhutan",
+      "description": "The Last Shangri-La, famed for Gross National Happiness, cliffside monasteries, pristine pine forests, and profound tranquility.",
+      "bestTimeToVisit": "March to May, September to November",
+      "currency": "Bhutanese Ngultrum (BTN) / INR",
+      "language": "Dzongkha, English",
+      "image": "https://images.pexels.com/photos/9982525/pexels-photo-9982525.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Paro Taktsang (Tiger Nest)",
+        "Punakha Dzong",
+        "Buddha Dordenma Thimphu",
+        "Dochula Pass"
+      ],
+      "activities": [
+        "Monastery hike",
+        "Traditional hot stone baths",
+        "Cultural blessings with monks",
+        "Scenic valley picnics"
+      ],
+      "budgetRange": {
+        "budget": "₹45,000 - ₹70,000",
+        "midRange": "₹70,000 - ₹1,10,000",
+        "luxury": "₹1,20,000+"
+      },
+      "hotelTypes": [
+        "Boutique heritage lodges",
+        "Luxury mountain retreats",
+        "Traditional wooden chalets"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Sri Lanka",
+      "country": "Sri Lanka",
+      "description": "The Pearl of the Indian Ocean, blessed with golden palm-fringed coastlines, colonial tea hills, ancient rock fortresses, and gentle wildlife.",
+      "bestTimeToVisit": "December to April",
+      "currency": "Sri Lankan Rupee (LKR)",
+      "language": "Sinhala, Tamil, English",
+      "image": "https://images.pexels.com/photos/31555892/pexels-photo-31555892.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Sigiriya Lion Rock",
+        "Scenic Kandy-to-Ella blue train",
+        "Galle Dutch Fort",
+        "Mirissa whale watching"
+      ],
+      "activities": [
+        "Slow train through misty tea estates",
+        "Private beachfront seafood dinners",
+        "Wildlife safari",
+        "Surfing & ocean relaxing"
+      ],
+      "budgetRange": {
+        "budget": "₹35,000 - ₹55,000",
+        "midRange": "₹55,000 - ₹85,000",
+        "luxury": "₹90,000+"
+      },
+      "hotelTypes": [
+        "Boutique tea planter bungalows",
+        "Luxury oceanfront villas",
+        "Eco-resorts"
+      ],
+      "duration": "6-8 days recommended"
+    },
+    {
+      "name": "Nepal",
+      "country": "Nepal",
+      "description": "The rooftop of the world, featuring tranquil Himalayan lakes in Pokhara, ancient pagoda temples in Kathmandu, and serene mountain sunrises.",
+      "bestTimeToVisit": "October to December, March to May",
+      "currency": "Nepalese Rupee (NPR)",
+      "language": "Nepali, English, Hindi",
+      "image": "https://images.pexels.com/photos/26926327/pexels-photo-26926327.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Phewa Lake Pokhara",
+        "Sarangkot Annapurna sunrise",
+        "Kathmandu Durbar Square",
+        "Boudhanath Stupa"
+      ],
+      "activities": [
+        "Boating on Phewa Lake",
+        "Mountain flight to Everest",
+        "Gentle scenic hikes",
+        "Lakeside dining"
+      ],
+      "budgetRange": {
+        "budget": "₹22,000 - ₹35,000",
+        "midRange": "₹35,000 - ₹55,000",
+        "luxury": "₹60,000+"
+      },
+      "hotelTypes": [
+        "Lakeside boutique resorts",
+        "Himalayan view lodges",
+        "Heritage hotels"
+      ],
+      "duration": "4-6 days recommended"
+    },
+    {
+      "name": "Malaysia",
+      "country": "Malaysia",
+      "description": "A dazzling blend of futuristic skylines in Kuala Lumpur, pristine white sands in Langkawi, and UNESCO street art in Penang.",
+      "bestTimeToVisit": "December to April",
+      "currency": "Malaysian Ringgit (MYR)",
+      "language": "Malay, English",
+      "image": "https://images.pexels.com/photos/6147614/pexels-photo-6147614.jpeg?auto=compress&cs=tinysrgb&w=1200",
+      "highlights": [
+        "Petronas Twin Towers",
+        "Langkawi Sky Bridge",
+        "Batu Caves",
+        "George Town Penang"
+      ],
+      "activities": [
+        "Private yacht sunset cruise in Langkawi",
+        "Skyline rooftop dining",
+        "Cable car rides",
+        "Mangrove tours"
+      ],
+      "budgetRange": {
+        "budget": "₹38,000 - ₹55,000",
+        "midRange": "₹55,000 - ₹85,000",
+        "luxury": "₹90,000+"
+      },
+      "hotelTypes": [
+        "Overwater bungalows",
+        "5-star skyline hotels",
+        "Rainforest luxury resorts"
+      ],
+      "duration": "5-7 days recommended"
+    },
+    {
+      "name": "Pondicherry",
+      "country": "India",
+      "description": "The French Riviera of the East, famed for pastel mustard-yellow colonial villas, bougainvillea-lined lanes, seaside promenades, and bohemian cafés.",
+      "bestTimeToVisit": "October to March",
+      "currency": "Indian Rupee (INR)",
+      "language": "Tamil, French, English",
+      "image": "https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20at%20kovalam%20beach.jpg?tr=w-1200",
+      "highlights": [
+        "French White Town",
+        "Promenade Beach rock walkway",
+        "Auroville & Matrimandir",
+        "Paradise Beach"
+      ],
+      "activities": [
+        "Bicycle rides through French lanes",
+        "Seaside cafe brunches",
+        "Sunset beach strolls",
+        "Pottery workshops"
+      ],
+      "budgetRange": {
+        "budget": "₹14,000 - ₹24,000",
+        "midRange": "₹24,000 - ₹40,000",
+        "luxury": "₹45,000+"
+      },
+      "hotelTypes": [
+        "French colonial villas",
+        "Boutique heritage mansions",
+        "Beachfront resorts"
+      ],
+      "duration": "2-4 days recommended"
     }
   ],
   "hotelTypes": [

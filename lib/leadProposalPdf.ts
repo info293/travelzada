@@ -135,6 +135,9 @@ export async function generateProposalPdf(input: ProposalInput): Promise<ArrayBu
   let y = 42
   if (hero) {
     coverImage(doc, hero, M, y, W - 2 * M, 92)
+    // The cover photo belongs to the first option that has one
+    const heroOption = input.options[images.indexOf(hero)]
+    if (heroOption?.url) doc.link(M, y, W - 2 * M, 92, { url: heroOption.url })
     y += 92 + 12
   } else {
     y += 8
@@ -199,6 +202,8 @@ export async function generateProposalPdf(input: ProposalInput): Promise<ArrayBu
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(...MUTED)
       doc.text(`${clean(o.duration)}  |  ${clean(o.price)}`, W - M, y, { align: 'right' })
+      // Whole row opens the package page
+      if (o.url) doc.link(M, y - 4.5, W - 2 * M, 6.5, { url: o.url })
       y += 7
     })
   }
@@ -213,6 +218,7 @@ export async function generateProposalPdf(input: ProposalInput): Promise<ArrayBu
     const img = images[i]
     if (img) {
       coverImage(doc, img, M, py, W - 2 * M, 72)
+      if (o.url) doc.link(M, py, W - 2 * M, 72, { url: o.url })
       py += 72 + 10
     }
     doc.setFont('helvetica', 'bold')
@@ -228,6 +234,7 @@ export async function generateProposalPdf(input: ProposalInput): Promise<ArrayBu
     doc.setTextColor(...NAVY)
     const title = doc.splitTextToSize(clean(o.name), W - 2 * M)
     doc.text(title, M, py)
+    if (o.url) doc.link(M, py - 7, W - 2 * M, title.length * 8, { url: o.url })
     py += title.length * 8
     if (o.hotels) {
       doc.setFont('helvetica', 'normal')
