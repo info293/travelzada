@@ -122,9 +122,9 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
             </span>
           </div>
 
-          {/* Center: Iconic Category Tabs (Explore vs Honeymoon) */}
+          {/* Center: Iconic Category Tabs (Explore vs Honeymoon) - Hidden for now */}
+          {/* 
           <div className="flex items-center gap-10">
-            {/* Tab 1: Explore */}
             <button
               type="button"
               onClick={() => setActiveTab('explore')}
@@ -143,7 +143,6 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
               )}
             </button>
 
-            {/* Tab 2: Honeymoon Specials */}
             <button
               type="button"
               onClick={() => setActiveTab('honeymoon')}
@@ -162,6 +161,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
               )}
             </button>
           </div>
+          */}
 
           {/* Right: Sleek Country Search Pill */}
           <div className="relative w-full md:w-auto">
@@ -319,7 +319,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-7">
             {filteredDestinations.map((dest) => {
               const meta = getCountryMeta(dest.slug, dest.name)
               const minPrice = dest.cards.reduce(
@@ -332,14 +332,14 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                 <Link
                   key={dest.slug}
                   href={`/destinations/${dest.slug}`}
-                  className="group relative block aspect-[1/1.55] rounded-[30px] overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1.5 cursor-pointer bg-gray-900"
+                  className="group relative block aspect-[3/4] rounded-[26px] sm:rounded-[30px] overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1.5 cursor-pointer bg-gray-900"
                 >
                   {/* Destination Cover Photo */}
                   <Image
                     src={dest.img}
                     alt={dest.name}
                     fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                    sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
                   />
 
@@ -355,7 +355,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                   />
 
                   {/* Content Overlay */}
-                  <div className="absolute inset-x-0 bottom-0 p-5 flex flex-col items-center z-10">
+                  <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col items-center z-10">
                     
                     {/* Country Flag Circle */}
                     <div className="size-8 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-sm shadow-md mb-2 group-hover:scale-110 transition-transform duration-300">
@@ -363,7 +363,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                     </div>
 
                     {/* Destination Name */}
-                    <h3 className="text-center font-serif text-[18px] lg:text-[20px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow-md text-balance">
+                    <h3 className="text-center font-serif text-[20px] sm:text-[22px] lg:text-[24px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow-md text-balance">
                       {dest.name}
                     </h3>
 
@@ -375,30 +375,30 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                       
                       {/* Column 1: Packages */}
                       <div className="flex flex-col text-left">
-                        <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                        <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">
                           PACKAGES
                         </span>
-                        <span className="text-[12px] font-bold tracking-wide uppercase">
+                        <span className="text-[13px] font-bold tracking-wide uppercase">
                           {dest.cards.length} TOURS
                         </span>
                       </div>
 
                       {/* Column 2: Starting */}
                       <div className="flex flex-col text-center">
-                        <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                        <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">
                           STARTING
                         </span>
-                        <span className="text-[12px] font-bold tracking-wide text-[#E8DCC3] uppercase">
+                        <span className="text-[13px] font-bold tracking-wide text-[#E8DCC3] uppercase">
                           {startingPrice}
                         </span>
                       </div>
 
                       {/* Column 3: Best Time */}
                       <div className="flex flex-col text-right">
-                        <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
+                        <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">
                           BEST TIME
                         </span>
-                        <span className="text-[12px] font-bold tracking-wide uppercase">
+                        <span className="text-[13px] font-bold tracking-wide uppercase">
                           {meta.bestTime}
                         </span>
                       </div>

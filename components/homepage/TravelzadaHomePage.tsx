@@ -514,269 +514,290 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       </section>
 
       {/* ─────────────────────────────────────────────────────────────
-          3. INTERACTIVE OCCASIONS & PACKAGES SHOWCASE
+          3. INTERACTIVE OCCASIONS & PACKAGES SHOWCASE (WITH GENEROUS GAPS & 01/08 INDICATORS)
       ───────────────────────────────────────────────────────────── */}
-      <div id="packages" className="relative bg-[#2B1D17] mt-10 sm:mt-16">
+      <div id="packages" className="relative bg-[#1A120D] pt-6 pb-24 sm:pb-36 mt-10 sm:mt-16">
         {/* Sticky Occasions Filter Bar */}
-        <div className="sticky top-[64px] md:top-[72px] z-30 bg-[#2B1D17]/90 backdrop-blur-[14px] border-b border-[#E8DCC3]/20">
+        <div className="sticky top-[64px] md:top-[72px] z-30 bg-[#1A120D]/90 backdrop-blur-[14px] border-b border-white/10 py-3.5 mb-12 sm:mb-16 shadow-xl">
           <div
             data-noscroll=""
-            className="max-w-[1280px] mx-auto px-5 sm:px-8 py-2.5 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none"
+            className="max-w-[1520px] w-full mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between gap-4 overflow-x-auto whitespace-nowrap scrollbar-none"
           >
-            <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#D6B08C] mr-2">
-              Featured Destinations
+            <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#D6B08C]">
+              Featured Destinations (01 - 08)
             </span>
-            {sections.map((occ, i) => {
-              const isActive = activeSec === i
-              return (
-                <button
-                  key={occ.id}
-                  onClick={() => scrollToOccasion(i)}
-                  className={`flex-none font-figtree text-[14px] font-medium px-4 py-2 rounded-full cursor-pointer transition-all border ${
-                    isActive
-                      ? 'bg-[#F6F1E6] text-[#3B2A20] border-[#F6F1E6]'
-                      : 'bg-transparent text-[#F6F1E6] border-[#F6F1E6]/35 hover:border-[#F6F1E6]/70'
-                  }`}
-                >
-                  {occ.name} ({occ.cards.length})
-                </button>
-              )
-            })}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+              {sections.slice(0, 8).map((occ, i) => {
+                const isActive = activeSec === i
+                const pad = String(i + 1).padStart(2, '0')
+                return (
+                  <button
+                    key={occ.id}
+                    onClick={() => scrollToOccasion(i)}
+                    className={`flex-none font-figtree text-[13px] font-semibold px-4 py-2 rounded-full cursor-pointer transition-all border flex items-center gap-2 ${
+                      isActive
+                        ? 'bg-[#F6F1E6] text-[#3B2A20] border-[#F6F1E6] shadow-sm'
+                        : 'bg-white/5 text-[#F6F1E6] border-white/20 hover:border-white/50 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="font-mono text-[10px] opacity-75">{pad}</span>
+                    <span>{occ.name}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Real Destination Sections */}
-        {sections.map((occ, i) => {
-          const cardIdx = selectedCards[i] || 0
-          const bgState = bgs[i] || {
-            a: toHighRes(occ.cards[0]?.img || occ.img),
-            b: '',
-            front: 'A' as const,
-            cur: toHighRes(occ.cards[0]?.img || occ.img)
-          }
-          const isSeen = Boolean(seenSections[i])
-          const padNum = String(i + 1).padStart(2, '0')
-          const totalNum = String(sections.length).padStart(2, '0')
-          const nextIdx = (i + 1) % sections.length
+        {/* Real Destination Sections with Clear, Generous Gaps Between Each */}
+        <div className="space-y-20 sm:space-y-28 lg:space-y-36">
+          {sections.slice(0, 8).map((occ, i) => {
+            const displayCards = occ.cards.slice(0, 8)
+            const rawCardIdx = selectedCards[i] || 0
+            const cardIdx = rawCardIdx < displayCards.length ? rawCardIdx : 0
+            const bgState = bgs[i] || {
+              a: toHighRes(displayCards[0]?.img || occ.img),
+              b: '',
+              front: 'A' as const,
+              cur: toHighRes(displayCards[0]?.img || occ.img)
+            }
+            const isSeen = Boolean(seenSections[i])
+            const padNum = String(i + 1).padStart(2, '0')
+            const totalNum = '08'
+            const nextIdx = (i + 1) % Math.min(sections.length, 8)
 
-          return (
-            <section
-              key={occ.id}
-              id={`occ-${i}`}
-              ref={el => { secRefs.current[i] = el }}
-              onMouseEnter={() => setHoveredSec(i)}
-              onMouseLeave={() => setHoveredSec(-1)}
-              className="relative overflow-hidden text-[#F6F1E6] scroll-mt-24"
-            >
-              {/* Double-buffered Dynamic Crossfade Backgrounds */}
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-all duration-[1200ms] ease-out pointer-events-none"
-                style={{
-                  backgroundImage: bgState.a ? `url("${bgState.a}")` : 'none',
-                  opacity: bgState.front === 'A' ? 1 : 0,
-                  transform: bgState.front === 'A' ? 'scale(1)' : 'scale(1.08)'
-                }}
-              />
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-all duration-[1200ms] ease-out pointer-events-none"
-                style={{
-                  backgroundImage: bgState.b ? `url("${bgState.b}")` : 'none',
-                  opacity: bgState.front === 'B' ? 1 : 0,
-                  transform: bgState.front === 'B' ? 'scale(1)' : 'scale(1.08)'
-                }}
-              />
-
-              {/* Gradient Scrims for text contrast */}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background:
-                    'linear-gradient(90deg, rgba(43,29,23,0.94) 0%, rgba(43,29,23,0.76) 32%, rgba(43,29,23,0.34) 66%, rgba(43,29,23,0.5) 100%), linear-gradient(180deg, #2B1D17 0%, rgba(43,29,23,0) 20%, rgba(43,29,23,0) 74%, #2B1D17 100%)'
-                }}
-              />
-
-              {/* Occasion Inner Grid */}
-              <div className="relative max-w-[1280px] mx-auto min-h-[min(92vh,820px)] px-5 sm:px-8 py-16 sm:py-28 flex flex-wrap items-center gap-8 sm:gap-16">
-
-                {/* Left Side: Destination Details */}
-                <div
-                  className="flex-1 basis-[300px] max-w-[400px] min-w-0 transition-all duration-700 ease-out"
-                  style={{
-                    opacity: isSeen ? 1 : 0,
-                    transform: isSeen ? 'none' : 'translateY(28px)'
-                  }}
+            return (
+              <div key={occ.id} className="w-full">
+                <section
+                  id={`occ-${i}`}
+                  ref={el => { secRefs.current[i] = el }}
+                  onMouseEnter={() => setHoveredSec(i)}
+                  onMouseLeave={() => setHoveredSec(-1)}
+                  className="w-full relative overflow-hidden text-[#F6F1E6] scroll-mt-28"
                 >
-                  <div className="flex items-baseline gap-2.5 font-cormorant">
-                    <span className="text-[clamp(44px,5vw,60px)] font-normal leading-none">{padNum}</span>
-                    <span className="text-[20px] text-[#D6B08C]">/ {totalNum}</span>
-                  </div>
-                  <h2 className="font-cormorant font-normal text-[clamp(42px,5.2vw,74px)] leading-none tracking-[-0.01em] mt-4 text-balance">
-                    {occ.name}
-                  </h2>
-                  <div className="inline-block mt-3 px-3.5 py-1 bg-white/10 backdrop-blur-md rounded-full text-[13px] text-[#E8DCC3]">
-                    {occ.meta} · {occ.cards.length} Packages
-                  </div>
-                  <p className="text-[16px] leading-relaxed text-[#F6F1E6]/90 mt-4 max-w-[360px] line-clamp-3">
-                    {occ.line}
-                  </p>
-
-                  <div className="flex items-center gap-3.5 flex-wrap mt-7">
-                    <Link
-                      href={`/tailored-travel?destination=${encodeURIComponent(occ.name)}`}
-                      className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#3B2A20] bg-[#F6F1E6] px-5 py-3 rounded-full transition hover:bg-[#D6B08C] hover:-translate-y-0.5"
-                    >
-                      Plan with AI <span>→</span>
-                    </Link>
-                    <Link
-                      href={`/destinations/${occ.slug}`}
-                      className="inline-flex items-center text-[14px] font-medium text-[#E8DCC3] border border-[#E8DCC3]/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
-                    >
-                      Explore All Packages
-                    </Link>
-                    {sections.length > 1 && (
-                      <button
-                        onClick={() => scrollToOccasion(nextIdx)}
-                        className="text-[14px] font-medium text-[#E8DCC3] border-b border-[#E8DCC3]/45 pb-0.5 hover:text-[#F6F1E6] cursor-pointer"
-                      >
-                        Next: {sections[nextIdx]?.name} ↓
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right Side: Package Cards Carousel */}
-                <div className="flex-1 basis-[520px] min-w-0">
+                  {/* Double-buffered Dynamic Crossfade Backgrounds */}
                   <div
-                    ref={el => { trackRefs.current[i] = el }}
-                    onScroll={() => handleTrackScroll(i)}
-                    data-noscroll=""
-                    className="flex gap-4 sm:gap-5 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-none py-4 px-2"
-                  >
-                    {occ.cards.map((c, j) => {
-                      const isSelected = j === cardIdx
-                      const targetUrl = c.packageSlug
-                        ? `/destinations/${c.slug}/${c.packageSlug}`
-                        : `/destinations/${c.slug}`
+                    className="absolute inset-0 bg-cover bg-center transition-all duration-[1200ms] ease-out pointer-events-none"
+                    style={{
+                      backgroundImage: bgState.a ? `url("${bgState.a}")` : 'none',
+                      opacity: bgState.front === 'A' ? 1 : 0,
+                      transform: bgState.front === 'A' ? 'scale(1)' : 'scale(1.08)'
+                    }}
+                  />
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-all duration-[1200ms] ease-out pointer-events-none"
+                    style={{
+                      backgroundImage: bgState.b ? `url("${bgState.b}")` : 'none',
+                      opacity: bgState.front === 'B' ? 1 : 0,
+                      transform: bgState.front === 'B' ? 'scale(1)' : 'scale(1.08)'
+                    }}
+                  />
 
-                      return (
-                        <div
-                          key={c.id || c.place}
-                          onMouseEnter={() => goToCard(i, j)}
-                          className={`flex-none snap-start w-[clamp(232px,21vw,280px)] aspect-[5/7] rounded-[18px] transition-all duration-500 ease-out relative ${
-                            isSelected
-                              ? 'opacity-100 -translate-y-2.5 outline outline-1 outline-[#E8DCC3]/90 outline-offset-4'
-                              : 'opacity-75 hover:opacity-100 outline outline-1 outline-transparent'
-                          }`}
-                        >
-                          <Link
-                            href={targetUrl}
-                            onClick={() => goToCard(i, j)}
-                            className="block w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
-                            title={`Open ${c.place}`}
-                          >
-                            <img
-                              src={c.img}
-                              alt={c.place}
-                              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                              loading="lazy"
-                            />
-                            {/* Card gradient overlay */}
-                            <div
-                              className="absolute inset-0 pointer-events-none"
-                              style={{
-                                background:
-                                  'linear-gradient(to top, rgba(43,29,23,0.94) 0%, rgba(43,29,23,0.3) 48%, rgba(43,29,23,0) 68%)'
-                              }}
-                            />
-                            {/* Nights badge */}
-                            <div className="absolute top-3.5 left-3.5 text-[12px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/65 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
-                              {c.nights}
-                            </div>
-                            {/* Top-right "Package" badge */}
-                            <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#3B2A20] bg-[#E8DCC3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F6F1E6] transition-colors pointer-events-none flex items-center gap-1">
-                              <span>Package</span>
-                              <span>↗</span>
-                            </div>
-                            {/* Card bottom text */}
-                            <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#F6F1E6]">
-                              <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3] flex items-center justify-between">
-                                <span>{c.region}</span>
-                                {c.price && (
-                                  <span className="font-semibold text-[13px] text-[#F6F1E6]">
-                                    {c.price}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="font-cormorant font-semibold text-[25px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors line-clamp-2">
-                                {c.place}
-                              </div>
-                              <div className="text-[13px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
-                                {c.hook}
-                              </div>
-                              {/* Direct Destination Link & AI Plan */}
-                              <div className="mt-3.5 pt-2.5 border-t border-white/20 flex items-center justify-between gap-2 text-[12.5px]">
-                                <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3.5 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
-                                  Explore Package <span className="transition-transform group-hover:translate-x-0.5">→</span>
-                                </span>
-                                <span
-                                  role="button"
-                                  tabIndex={0}
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    router.push(`/tailored-travel?destination=${encodeURIComponent(c.place)}`)
-                                  }}
-                                  className="text-[#E8DCC3] hover:text-white font-medium px-2 py-1 hover:underline cursor-pointer transition text-[12px] whitespace-nowrap"
-                                >
-                                  Plan with AI
-                                </span>
-                              </div>
-                            </div>
-                          </Link>
-                        </div>
-                      )
-                    })}
-                  </div>
+                  {/* Gradient Scrims for text contrast */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        'linear-gradient(90deg, rgba(30,20,15,0.96) 0%, rgba(30,20,15,0.82) 36%, rgba(30,20,15,0.42) 70%, rgba(30,20,15,0.6) 100%), linear-gradient(180deg, rgba(30,20,15,0.8) 0%, rgba(30,20,15,0.2) 25%, rgba(30,20,15,0.3) 70%, rgba(30,20,15,0.95) 100%)'
+                    }}
+                  />
 
-                  {/* Carousel Controls */}
-                  {occ.cards.length > 1 && (
-                    <div className="flex items-center gap-4 mt-2 px-2 flex-wrap">
-                      <button
-                        onClick={() => goToCard(i, (cardIdx + occ.cards.length - 1) % occ.cards.length)}
-                        aria-label="Previous card"
-                        className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6]/55 bg-[#2B1D17]/40 text-[#F6F1E6] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F6F1E6]/20"
-                      >
-                        ←
-                      </button>
-                      <button
-                        onClick={() => goToCard(i, (cardIdx + 1) % occ.cards.length)}
-                        aria-label="Next card"
-                        className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6] bg-[#F6F1E6] text-[#3B2A20] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#D6B08C]"
-                      >
-                        →
-                      </button>
+                  {/* Occasion Inner Grid */}
+                  <div className="relative max-w-[1520px] w-full mx-auto min-h-[min(88vh,780px)] px-6 sm:px-10 lg:px-16 py-16 sm:py-24 flex flex-wrap items-center gap-10 sm:gap-16">
 
-                      <div className="flex-1 max-w-[220px] h-[2px] bg-[#F6F1E6]/25 rounded overflow-hidden">
-                        <div
-                          className="h-full bg-[#D6B08C] transition-all duration-500 ease-out"
-                          style={{ width: `${((cardIdx + 1) / occ.cards.length) * 100}%` }}
-                        />
+                    {/* Left Side: Destination Details */}
+                    <div
+                      className="flex-1 basis-[300px] max-w-[420px] min-w-0 transition-all duration-700 ease-out"
+                      style={{
+                        opacity: isSeen ? 1 : 0,
+                        transform: isSeen ? 'none' : 'translateY(28px)'
+                      }}
+                    >
+                      {/* Destination Number Badge (01 / 08) */}
+                      <div className="flex items-center gap-2.5 mb-3.5">
+                        <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-mono font-bold tracking-wider border border-white/20 shadow-sm">
+                          <span className="text-[#E8DCC3]">{padNum}</span>
+                          <span className="text-white/40">/</span>
+                          <span className="text-white">{totalNum}</span>
+                        </span>
+                        <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#D6B08C]">
+                          DESTINATION {padNum} OF {totalNum}
+                        </span>
                       </div>
 
-                      <div className="font-cormorant flex items-baseline gap-1.5">
-                        <span className="text-[36px] font-normal leading-none">
-                          {String(cardIdx + 1).padStart(2, '0')}
-                        </span>
-                        <span className="text-[17px] text-[#D6B08C]">/ {String(occ.cards.length).padStart(2, '0')}</span>
+                      <div className="flex items-baseline gap-2.5 font-cormorant">
+                        <span className="text-[clamp(44px,5vw,60px)] font-normal leading-none">{padNum}</span>
+                        <span className="text-[20px] text-[#D6B08C]">/ {totalNum}</span>
+                      </div>
+                      <h2 className="font-cormorant font-normal text-[clamp(42px,5.2vw,74px)] leading-none tracking-[-0.01em] mt-3 text-balance">
+                        {occ.name}
+                      </h2>
+                      <div className="inline-block mt-3 px-3.5 py-1 bg-white/10 backdrop-blur-md rounded-full text-[13px] text-[#E8DCC3]">
+                        {occ.meta} · {displayCards.length} Curated Packages
+                      </div>
+                      <p className="text-[16px] leading-relaxed text-[#F6F1E6]/90 mt-4 max-w-[360px] line-clamp-3">
+                        {occ.line}
+                      </p>
+
+                      <div className="flex items-center gap-3.5 flex-wrap mt-7">
+                        <Link
+                          href={`/tailored-travel?destination=${encodeURIComponent(occ.name)}`}
+                          className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#3B2A20] bg-[#F6F1E6] px-5 py-3 rounded-full transition hover:bg-[#D6B08C] hover:-translate-y-0.5"
+                        >
+                          Plan with AI <span>→</span>
+                        </Link>
+                        <Link
+                          href={`/destinations/${occ.slug}`}
+                          className="inline-flex items-center text-[14px] font-medium text-[#E8DCC3] border border-[#E8DCC3]/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
+                        >
+                          Explore All Packages
+                        </Link>
+                        {sections.length > 1 && (
+                          <button
+                            onClick={() => scrollToOccasion(nextIdx)}
+                            className="text-[14px] font-medium text-[#E8DCC3] hover:text-[#F6F1E6] cursor-pointer transition"
+                          >
+                            Next: {sections[nextIdx]?.name} ↓
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
 
+                    {/* Right Side: Package Cards Carousel */}
+                    <div className="flex-1 basis-[520px] min-w-0">
+                      <div
+                        ref={el => { trackRefs.current[i] = el }}
+                        onScroll={() => handleTrackScroll(i)}
+                        data-noscroll=""
+                        className="flex gap-4 sm:gap-5 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-none py-4 px-2"
+                      >
+                        {displayCards.map((c, j) => {
+                          const isSelected = j === cardIdx
+                          const targetUrl = c.packageSlug
+                            ? `/destinations/${c.slug}/${c.packageSlug}`
+                            : `/destinations/${c.slug}`
+
+                          return (
+                            <div
+                              key={c.id || c.place}
+                              onMouseEnter={() => goToCard(i, j)}
+                              className={`flex-none snap-start w-[clamp(232px,21vw,280px)] aspect-[5/7] rounded-[18px] transition-all duration-500 ease-out relative ${
+                                isSelected
+                                  ? 'opacity-100 -translate-y-2.5 outline outline-1 outline-[#E8DCC3]/90 outline-offset-4'
+                                  : 'opacity-75 hover:opacity-100 outline outline-1 outline-transparent'
+                              }`}
+                            >
+                              <Link
+                                href={targetUrl}
+                                onClick={() => goToCard(i, j)}
+                                className="block w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
+                                title={`Open ${c.place}`}
+                              >
+                                <img
+                                  src={c.img}
+                                  alt={c.place}
+                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                  loading="lazy"
+                                />
+                                {/* Card gradient overlay */}
+                                <div
+                                  className="absolute inset-0 pointer-events-none"
+                                  style={{
+                                    background:
+                                      'linear-gradient(to top, rgba(43,29,23,0.94) 0%, rgba(43,29,23,0.3) 48%, rgba(43,29,23,0) 68%)'
+                                  }}
+                                />
+                                {/* Nights badge */}
+                                <div className="absolute top-3.5 left-3.5 text-[12px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/65 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
+                                  {c.nights}
+                                </div>
+                                {/* Top-right "Package" badge */}
+                                <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#3B2A20] bg-[#E8DCC3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F6F1E6] transition-colors pointer-events-none flex items-center gap-1">
+                                  <span>Package</span>
+                                  <span>↗</span>
+                                </div>
+                                {/* Card bottom text */}
+                                <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#F6F1E6]">
+                                  <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3] flex items-center justify-between">
+                                    <span>{c.region}</span>
+                                    {c.price && (
+                                      <span className="font-semibold text-[13px] text-[#F6F1E6]">
+                                        {c.price}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="font-cormorant font-semibold text-[25px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors line-clamp-2">
+                                    {c.place}
+                                  </div>
+                                  <div className="text-[13px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
+                                    {c.hook}
+                                  </div>
+                                  {/* Direct Destination Link & AI Plan */}
+                                  <div className="mt-3.5 pt-2.5 border-t border-white/20 flex items-center justify-between gap-2 text-[12.5px]">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3.5 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
+                                      Explore Package <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                                    </span>
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        router.push(`/tailored-travel?destination=${encodeURIComponent(c.place)}`)
+                                      }}
+                                      className="text-[#E8DCC3] hover:text-white font-medium px-2 py-1 hover:underline cursor-pointer transition text-[12px] whitespace-nowrap"
+                                    >
+                                      Plan with AI
+                                    </span>
+                                  </div>
+                                </div>
+                              </Link>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* Carousel Controls */}
+                      {displayCards.length > 1 && (
+                        <div className="flex items-center gap-4 mt-4 px-2 flex-wrap">
+                          <button
+                            onClick={() => goToCard(i, (cardIdx + displayCards.length - 1) % displayCards.length)}
+                            aria-label="Previous card"
+                            className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6]/55 bg-[#2B1D17]/40 text-[#F6F1E6] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F6F1E6]/20"
+                          >
+                            ←
+                          </button>
+                          <button
+                            onClick={() => goToCard(i, (cardIdx + 1) % displayCards.length)}
+                            aria-label="Next card"
+                            className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6] bg-[#F6F1E6] text-[#3B2A20] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#D6B08C]"
+                          >
+                            →
+                          </button>
+
+                          <div className="flex-1 max-w-[220px] h-[2px] bg-[#F6F1E6]/25 rounded overflow-hidden">
+                            <div
+                              className="h-full bg-[#D6B08C] transition-all duration-500 ease-out"
+                              style={{ width: `${((cardIdx + 1) / displayCards.length) * 100}%` }}
+                            />
+                          </div>
+
+                          <div className="font-cormorant flex items-baseline gap-1.5">
+                            <span className="text-[34px] font-normal leading-none text-white">
+                              {String(cardIdx + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-[17px] text-[#D6B08C]">/ 08</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </section>
               </div>
-            </section>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {/* ─────────────────────────────────────────────────────────────

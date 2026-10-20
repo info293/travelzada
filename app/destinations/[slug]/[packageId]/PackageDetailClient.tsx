@@ -133,6 +133,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
   const [isInlineEnquireVisible, setIsInlineEnquireVisible] = useState(true)
   const [reviewRefresh, setReviewRefresh] = useState(0)
   const [relatedPackages, setRelatedPackages] = useState<DestinationPackage[]>([])
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
   const reviewFormRef = useRef<HTMLDivElement>(null)
   const inlineEnquireRef = useRef<HTMLButtonElement>(null)
@@ -333,6 +334,16 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
   }
 
   // Extract image URL from Primary_Image_URL (handle markdown format)
+  const galleryImages = [
+    (packageData.Primary_Image_URL ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim() : 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85'),
+    'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85',
+    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=85',
+    'https://images.unsplash.com/photo-1548013146-72479768bada?w=1600&q=85',
+    'https://images.unsplash.com/photo-1627894483216-2138af692e32?w=1600&q=85',
+    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600&q=85',
+    'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1600&q=85',
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1600&q=85'
+  ]
   const imageUrl = packageData.Primary_Image_URL
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
@@ -1222,550 +1233,770 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
           </div>
         </div>
 
-        <div className="bg-[#f8f5f0] px-4 md:px-12 pt-20 lg:pt-24 pb-3 border-b border-gray-200">
-          <div className="max-w-7xl mx-auto">
-             <Breadcrumbs items={[
-              { name: 'Home', url: '/' },
-              { name: 'Destinations', url: '/destinations' },
-              { name: slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), url: `/destinations/${slug}` },
-              { name: packageTitle }
-             ]} />
+        
+        {/* ─────────────────────────────────────────────────────────────
+            BREADCRUMBS & TOP NAVIGATION
+        ───────────────────────────────────────────────────────────── */}
+        <div className="bg-[#FAFAFC] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
+          <div className="max-w-[1440px] mx-auto flex items-center justify-between">
+            <Breadcrumbs
+              items={[
+                { name: 'Home', url: '/' },
+                { name: 'Destinations', url: '/destinations' },
+                { name: slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), url: `/destinations/${slug}` },
+                { name: packageTitle },
+              ]}
+            />
+            <Link
+              href={`/destinations/${slug}`}
+              className="text-xs font-semibold text-gray-500 hover:text-black flex items-center gap-1.5 transition"
+            >
+              <span>←</span>
+              <span>Back to Packages</span>
+            </Link>
           </div>
         </div>
 
-        <section className="web-hero relative h-[300px] sm:h-[380px] md:h-[420px] lg:h-[520px] w-full">
-          <Image
-            src={imageUrl}
-            alt={packageData.Image_Alt_Text || packageTitle}
-            fill
-            className="object-cover"
-            priority
-            data-pdf-image={imageUrl}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-[#f8f5f0] opacity-95" />
-          {/* Back Button - Positioned over image */}
-          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 md:top-20 md:left-8 z-10" data-pdf-hide="true">
-            <Link
-              href={`/destinations/${slug}`}
-              className="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-lg"
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-            </Link>
-          </div>
-          {/* Visible Caption (Alt Text) */}
-          {packageData.Image_Alt_Text && (
-            <div className="absolute bottom-4 right-4 z-10 max-w-md text-right pointer-events-none">
-              <span className="inline-block bg-black/40 backdrop-blur-sm text-white/90 text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border border-white/10 shadow-sm">
-                {packageData.Image_Alt_Text}
+        {/* ─────────────────────────────────────────────────────────────
+            ATLYS-STYLE PACKAGE HEADER & HERO GALLERY (01 / 08 PHOTOS)
+        ───────────────────────────────────────────────────────────── */}
+        <section className="px-5 sm:px-8 lg:px-12 pt-2 pb-12">
+          <div className="max-w-[1440px] mx-auto">
+            
+            {/* Top Badges */}
+            <div className="flex flex-wrap items-center gap-2.5 mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 text-xs font-bold text-gray-800 shadow-sm">
+                <span>💍</span>
+                <span>Curated for Couples</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm">
+                <span>📍</span>
+                <span>{packageData.Location_Breakup || packageData.Destination_Name || slug}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-gray-200 text-xs font-semibold text-gray-700 shadow-sm">
+                <span>⏳</span>
+                <span>{packageData.Duration}</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-xs font-semibold text-purple-700 shadow-sm">
+                <span>🏨</span>
+                <span>{packageData.Star_Category || '4★ & 5★ Stays'}</span>
               </span>
             </div>
-          )}
+
+            {/* Title */}
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-gray-900 tracking-tight leading-[1.12] text-balance">
+              {packageTitle}
+            </h1>
+
+            {/* Subtitle / Overview */}
+            {packageData.Overview && (
+              <p className="text-gray-500 text-base sm:text-lg max-w-3xl mt-3 leading-relaxed">
+                {packageData.Overview}
+              </p>
+            )}
+
+            {/* Atlys Trust Points with Colored Dots */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-5 text-xs sm:text-sm font-semibold text-gray-700">
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                <span>100% Itemised Pricing</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-blue-500" />
+                <span>Dedicated Heated Cab &amp; Driver</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-amber-500" />
+                <span>Handpicked Couple Stays</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="size-2 rounded-full bg-rose-500" />
+                <span>24×7 Concierge on WhatsApp</span>
+              </div>
+            </div>
+
+            {/* Hero Panoramic Image with 01 / 08 Photo Counter & Carousel */}
+            <div className="relative mt-8 rounded-[28px] sm:rounded-[36px] overflow-hidden aspect-[16/9] md:aspect-[21/9] shadow-xl bg-gray-900 group">
+              <Image
+                src={galleryImages[currentPhotoIndex] || imageUrl}
+                alt={packageData.Image_Alt_Text || packageTitle}
+                fill
+                className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                priority
+                data-pdf-image={imageUrl}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none" />
+
+              {/* Photo Navigation Arrows */}
+              <button
+                type="button"
+                onClick={() => setCurrentPhotoIndex((prev) => (prev - 1 + galleryImages.length) % galleryImages.length)}
+                className="absolute left-4 top-1/2 -translate-y-1/2 size-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition cursor-pointer z-10"
+                aria-label="Previous photo"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPhotoIndex((prev) => (prev + 1) % galleryImages.length)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 size-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition cursor-pointer z-10"
+                aria-label="Next photo"
+              >
+                ›
+              </button>
+
+              {/* 01 / 08 Photo Badge */}
+              <div className="absolute top-5 right-5 z-10">
+                <span className="bg-black/75 backdrop-blur-md text-white text-xs font-mono font-bold px-3.5 py-1.5 rounded-full border border-white/20 shadow-md tracking-wider flex items-center gap-1.5">
+                  <span>📷</span>
+                  <span>0{currentPhotoIndex + 1} / 08</span>
+                </span>
+              </div>
+
+              {/* Alt Caption Badge */}
+              {packageData.Image_Alt_Text && (
+                <div className="absolute bottom-5 left-5 z-10 pointer-events-none">
+                  <span className="bg-black/60 backdrop-blur-md text-white/90 text-xs px-3.5 py-1.5 rounded-full border border-white/20 shadow-sm font-medium">
+                    {packageData.Image_Alt_Text}
+                  </span>
+                </div>
+              )}
+            </div>
+
+          </div>
         </section>
 
-        <section className="relative -mt-24 sm:-mt-28 md:-mt-36 lg:-mt-40 px-4 sm:px-6 md:px-8 pb-12 sm:pb-16 md:pb-20">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 md:gap-8 items-start">
-            <div className="space-y-6 md:space-y-8">
-              <article className="bg-white rounded-lg sm:rounded-[5px] shadow-lg p-5 sm:p-6 md:p-8 space-y-4 sm:space-y-5 md:space-y-6">
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-primary font-semibold uppercase tracking-wide">
-                  <span className="px-2.5 sm:px-3 py-1 bg-primary/10 rounded-full hover:bg-primary/20 transition-colors">{packageData.Destination_Name}</span>
-                  <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Duration}</span>
-                  <span className="px-2.5 sm:px-3 py-1 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">{packageData.Star_Category || 'Hotel'}</span>
-                </div>
-                <div className="flex flex-col gap-2 sm:gap-3">
-                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-serif text-[#1e1d2f] leading-tight">{packageTitle}</h1>
-                  {/* <p className="text-xs sm:text-sm text-primary font-semibold flex items-center gap-2">
-                    <span className="text-lg">💳</span>
-                    Flexible payment options available
-                  </p> */}
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-                  <StatBlock
-                    label="Duration"
-                    value={packageData.Duration}
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    }
-                  />
-                  <StatBlock
-                    label="Location"
-                    value={packageData.Location_Breakup || packageData.Destination_Name || 'Bali, Indonesia'}
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    }
-                    onClick={() => setShowLocationModal(true)}
-                  />
-                  <StatBlock
-                    label="Hotel"
-                    value={packageData.Star_Category || 'Hotel'}
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    }
-                  />
-                  <StatBlock
-                    label="Travel Type"
-                    value={packageData.Travel_Type || '—'}
-                    icon={
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                      </svg>
-                    }
-                  />
-                </div>
-              </article>
-
-              {/* Mobile Price Section - Static Part */}
-              <div className="lg:hidden bg-white rounded-lg sm:rounded-[5px] shadow-xl p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
-                <div>
-                  <p className="text-xs sm:text-sm text-gray-500 mb-1">Starting from</p>
-                  <p className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#c99846] leading-tight">
-                    INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'}
-                  </p>
-                  <p className="text-xs sm:text-sm text-gray-500">per person</p>
-                </div>
-                <div className="flex flex-col gap-2.5 sm:gap-3">
-                  <button
-                    ref={inlineEnquireRef}
-                    onClick={() => setShowLeadForm(true)}
-                    className="w-full text-center bg-primary text-white py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-primary/90 shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    Enquire Now
-                  </button>
-                </div>
-              </div>
-
-              {/* Mobile Download Button - Static */}
-              <div className="lg:hidden mt-4">
-                <button
-                  onClick={handleDownloadItinerary}
-                  disabled={isGeneratingPDF}
-                  className="w-full text-center bg-white border-2 border-gray-900 text-gray-900 py-3 sm:py-3.5 rounded-lg sm:rounded-[5px] font-semibold text-sm sm:text-base transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+        {/* ─────────────────────────────────────────────────────────────
+            STICKY QUICK-JUMP SUB-NAVIGATION (01 TO 08)
+        ───────────────────────────────────────────────────────────── */}
+        <div className="sticky top-20 z-20 bg-white/90 backdrop-blur-md border-y border-gray-200/80 py-3.5 mb-12 shadow-xs hidden md:block">
+          <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between gap-4">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 shrink-0">
+              Tour Sections:
+            </span>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              {[
+                { id: 'section-01', num: '01', label: 'Overview' },
+                { id: 'section-02', num: '02', label: 'Highlights' },
+                { id: 'section-03', num: '03', label: 'Itinerary' },
+                { id: 'section-04', num: '04', label: 'Inclusions' },
+                { id: 'section-05', num: '05', label: 'Policies' },
+                { id: 'section-06', num: '06', label: 'FAQ' },
+                { id: 'section-07', num: '07', label: 'More Packages' },
+                { id: 'section-08', num: '08', label: 'Reviews' },
+              ].map((tab) => (
+                <a
+                  key={tab.id}
+                  href={'#' + tab.id}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#FAFAFC] hover:bg-black hover:text-white text-gray-700 border border-gray-200/70 transition shrink-0 shadow-2xs group"
                 >
-                  {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
-                </button>
-              </div>
+                  <span className="font-mono text-[10px] font-bold text-gray-400 group-hover:text-white">
+                    {tab.num}
+                  </span>
+                  <span>{tab.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <SectionCard title="Highlights">
-                <ul className="space-y-2.5 sm:space-y-3 text-base sm:text-lg text-[#1e1d2f]">
+        {/* ─────────────────────────────────────────────────────────────
+            TWO-COLUMN MAIN CONTENT + FLOATING ATLYS BOOKING CARD
+        ───────────────────────────────────────────────────────────── */}
+        <section className="px-5 sm:px-8 lg:px-12 pb-28">
+          <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-[1fr_390px] xl:grid-cols-[1fr_420px] gap-12 lg:gap-14 items-start">
+            
+            {/* LEFT COLUMN: 8 NUMBERED SECTIONS WITH GENEROUS SPACING */}
+            <div className="space-y-16 sm:space-y-20">
+
+              {/* ── SECTION 01 / 08: TRIP OVERVIEW & SPECS ── */}
+              <section id="section-01" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>01</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    TRIP OVERVIEW &amp; SPECS
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    Overview &amp; Key Details
+                  </h2>
+                  <p className="text-gray-600 text-base sm:text-lg leading-relaxed mt-3.5">
+                    {packageData.Overview || 'A romantic getaway designed specifically for couples, featuring luxury stays and private chauffeurs.'}
+                  </p>
+                </div>
+
+                {/* 4 Atlys Pill Spec Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-2">
+                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Duration</span>
+                    <span className="text-base font-bold text-gray-900 mt-2">{packageData.Duration}</span>
+                  </div>
+                  <div
+                    onClick={() => setShowLocationModal(true)}
+                    className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between cursor-pointer hover:border-black transition"
+                  >
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
+                      <span>Locations</span>
+                      <span className="text-xs">↗</span>
+                    </span>
+                    <span className="text-sm font-bold text-gray-900 mt-2 line-clamp-1">
+                      {packageData.Location_Breakup || packageData.Destination_Name}
+                    </span>
+                  </div>
+                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Stays</span>
+                    <span className="text-sm font-bold text-gray-900 mt-2 line-clamp-1">
+                      {packageData.Star_Category || 'Deluxe 4★'}
+                    </span>
+                  </div>
+                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Travel Style</span>
+                    <span className="text-sm font-bold text-gray-900 mt-2 line-clamp-1">
+                      {packageData.Travel_Type || 'Honeymoon'}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              {/* ── SECTION 02 / 08: KEY HIGHLIGHTS ── */}
+              <section id="section-02" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>02</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    KEY HIGHLIGHTS
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    What Makes This Journey Unforgettable
+                  </h2>
+                  <p className="text-gray-500 text-sm sm:text-base mt-2">
+                    Handpicked couple experiences included in this package
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                   {(packageData.Highlights && packageData.Highlights.length > 0
                     ? packageData.Highlights
                     : inclusions
-                  ).slice(0, 5).map((item, idx) => (
-                    <li key={idx} className="flex items-start gap-3 sm:gap-4">
-                      <span className="mt-0.5 sm:mt-1 text-primary text-lg sm:text-xl flex-shrink-0">✔</span>
-                      <p className="leading-relaxed">{item}</p>
-                    </li>
-                  ))}
-                </ul>
-              </SectionCard>
+                  )
+                    .slice(0, 6)
+                    .map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3.5 p-5 rounded-2xl bg-[#FAFAFC] border border-gray-200/70 hover:border-black/30 transition"
+                      >
+                        <span className="size-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                          ✓
+                        </span>
+                        <p className="text-sm font-medium text-gray-800 leading-snug">{item}</p>
+                      </div>
+                    ))}
+                </div>
+              </section>
 
-              <SectionCard title="Day-wise Itinerary">
-                <div className="space-y-3 sm:space-y-4">
+              {/* ── SECTION 03 / 08: DAY-BY-DAY ITINERARY ── */}
+              <section id="section-03" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center justify-between border-b border-gray-100/80 pb-5 flex-wrap gap-2">
+                  <div className="flex items-center gap-3.5">
+                    <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                      <span>03</span>
+                      <span className="text-gray-400 font-light">/</span>
+                      <span className="text-gray-300">08</span>
+                    </span>
+                    <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                      DAY-BY-DAY ITINERARY
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-gray-500 bg-[#FAFAFC] px-3.5 py-1.5 rounded-full border border-gray-200">
+                    {createItinerary().length} Days Curated
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    Planned for the Two of You
+                  </h2>
+                  <p className="text-gray-500 text-sm sm:text-base mt-2">
+                    Every day is paced for romance, private sightseeing, and comfortable stays.
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-2">
                   {createItinerary().map((day, index) => (
                     <details
                       key={day.day}
-                      className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30 [&[open]_summary_svg]:rotate-180"
+                      open={index === 0}
+                      className="rounded-[22px] bg-[#FAFAFC] border border-gray-200/80 p-5 sm:p-6 group open:shadow-sm transition-all"
                     >
                       <summary className="flex items-center justify-between cursor-pointer list-none gap-3">
-                        <div className="flex items-center gap-2 sm:gap-3 text-base sm:text-lg font-medium flex-1 min-w-0">
-                          <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm sm:text-base flex-shrink-0">
+                        <div className="flex items-center gap-3.5">
+                          <span className="size-9 rounded-full bg-black text-white text-xs font-bold flex items-center justify-center shrink-0 shadow-sm">
                             {index + 1}
                           </span>
-                          <span className="leading-tight sm:whitespace-normal">
-                            <span className="font-semibold text-primary sm:text-gray-900 sm:font-normal inline sm:hidden">{day.day}: </span>
-                            <span className="sm:font-normal block sm:inline">{day.title}</span>
-                          </span>
+                          <div>
+                            <span className="text-xs font-bold uppercase tracking-wider text-gray-400 block">
+                              {day.day}
+                            </span>
+                            <span className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
+                              {day.title}
+                            </span>
+                          </div>
                         </div>
-                        <svg
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-primary transition-transform duration-200 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                        <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
                       </summary>
-                      <div className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600 space-y-2 sm:space-y-3">
+                      <div className="mt-4 pt-4 border-t border-gray-200/60 text-sm sm:text-base text-gray-600 space-y-3 pl-12">
                         <p className="leading-relaxed">{day.description}</p>
-                        <ul className="list-disc pl-5 sm:pl-6 space-y-1">
-                          {day.details.map((detail, idx) => (
-                            <li key={idx} className="leading-relaxed">{detail}</li>
-                          ))}
-                        </ul>
+                        {day.details && day.details.length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {day.details.map((detail, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1.5 text-xs bg-white px-3 py-1 rounded-full border border-gray-200 text-gray-700 font-medium shadow-2xs"
+                              >
+                                <span className="text-emerald-500 font-bold">✓</span>
+                                <span>{detail}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </details>
                   ))}
                 </div>
-              </SectionCard>
+              </section>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                <SectionCard title="Inclusions">
-                  <ListWithIcon
-                    items={inclusions}
-                    icon={
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    }
-                    iconClass="text-green-600"
-                  />
-                </SectionCard>
-                <SectionCard title="Exclusions">
-                  <ListWithIcon
-                    items={exclusions.length > 0 ? exclusions : ['International flights', 'Visa fees', 'Personal expenses']}
-                    icon={
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    }
-                    iconClass="text-gray-400"
-                  />
-                </SectionCard>
-              </div>
-
-              <SectionCard title="Guest Reviews">
-                <div className="space-y-4 sm:space-y-5 md:space-y-6">
-                  {(() => {
-                    const allReviews = packageData.Guest_Reviews && packageData.Guest_Reviews.length > 0
-                      ? packageData.Guest_Reviews
-                      : DEFAULT_GUEST_REVIEWS
-                    const displayedReviews = showAllReviews ? allReviews : allReviews.slice(0, 3)
-
-                    return (
-                      <>
-                        {displayedReviews.map((review, idx) => (
-                          <div key={idx} className="rounded-lg sm:rounded-[5px] border border-gray-200 p-4 sm:p-5 bg-white hover:shadow-md transition-shadow">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
-                              <p className="font-semibold text-sm sm:text-base">{review.name}</p>
-                              <div className="flex items-center gap-1">
-                                {[...Array(5)].map((_, i) => (
-                                  <svg key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-current animate-pulse" viewBox="0 0 20 20">
-                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                  </svg>
-                                ))}
-                              </div>
-                            </div>
-                            <p className="text-sm sm:text-base text-gray-600 mb-2 leading-relaxed">{review.content}</p>
-                            <p className="text-xs sm:text-sm text-gray-500">{review.date}</p>
-                          </div>
-                        ))}
-                        {allReviews.length > 3 && !showAllReviews && (
-                          <button
-                            onClick={() => setShowAllReviews(true)}
-                            className="w-full py-3 text-center border-2 border-primary text-primary font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-primary hover:text-white transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
-                          >
-                            View All Reviews ({allReviews.length})
-                          </button>
-                        )}
-                        {showAllReviews && allReviews.length > 3 && (
-                          <button
-                            onClick={() => setShowAllReviews(false)}
-                            className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold text-sm sm:text-base rounded-lg sm:rounded-[5px] hover:bg-gray-100 transition-colors transform hover:scale-[1.02] active:scale-[0.98]"
-                          >
-                            Show Less
-                          </button>
-                        )}
-                      </>
-                    )
-                  })()}
+              {/* ── SECTION 04 / 08: INCLUSIONS & EXCLUSIONS ── */}
+              <section id="section-04" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>04</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    INCLUSIONS &amp; EXCLUSIONS
+                  </span>
                 </div>
-              </SectionCard>
 
-              <SectionCard title="Booking Policies">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-5">
-                  <PolicyCard
-                    title="Booking"
-                    items={parsePolicies(packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', '24/7 support'])}
-                  />
-                  <PolicyCard
-                    title="Payment"
-                    items={parsePolicies(packageData.Booking_Policies?.payment || ['Pay in instalments', 'Zero cost EMI', 'Secure transactions'])}
-                  />
-                  <PolicyCard
-                    title="Cancellation"
-                    items={parsePolicies(packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Contact for details'])}
-                  />
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    Transparent Coverage
+                  </h2>
+                  <p className="text-gray-500 text-sm sm:text-base mt-2">
+                    Clear itemisation of what is taken care of and what is optional.
+                  </p>
                 </div>
-              </SectionCard>
 
-              <SectionCard title="Frequently Asked Questions">
-                <div className="space-y-4">
-                  {(() => {
-                    const allFAQs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0
-                      ? packageData.FAQ_Items
-                      : DEFAULT_FAQ_ITEMS
-                    const displayedFAQs = showAllFAQs ? allFAQs : allFAQs.slice(0, 5)
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  {/* Inclusions */}
+                  <div className="rounded-[26px] bg-[#FAFAFC] p-6 sm:p-8 border border-emerald-100">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="size-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-xs">
+                        ✓
+                      </span>
+                      <h3 className="text-lg font-bold font-serif text-gray-900">What's Included</h3>
+                    </div>
+                    <ul className="space-y-3.5 text-sm text-gray-700">
+                      {inclusions.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <span className="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+                          <span className="leading-snug font-medium">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-                    return (
-                      <>
-                        {displayedFAQs.map((faq, idx) => (
-                          <details
-                            key={idx}
-                            className="rounded-[5px] border border-gray-200 bg-white p-4 md:p-5 open:shadow-sm transition-all duration-200 hover:border-primary/30"
-                          >
-                            <summary className="cursor-pointer text-base md:text-lg font-medium text-[#1e1d2f] leading-relaxed">
-                              {faq.question}
-                            </summary>
-                            <p className="mt-3 text-sm md:text-base text-gray-600 leading-relaxed">{faq.answer}</p>
-                          </details>
-                        ))}
-                        {allFAQs.length > 5 && !showAllFAQs && (
-                          <button
-                            onClick={() => setShowAllFAQs(true)}
-                            className="w-full py-3 text-center border-2 border-primary text-primary font-semibold rounded-[5px] hover:bg-primary hover:text-white transition-colors"
-                          >
-                            View All FAQs ({allFAQs.length})
-                          </button>
-                        )}
-                        {showAllFAQs && allFAQs.length > 5 && (
-                          <button
-                            onClick={() => setShowAllFAQs(false)}
-                            className="w-full py-3 text-center border-2 border-gray-300 text-gray-700 font-semibold rounded-[5px] hover:bg-gray-100 transition-colors"
-                          >
-                            Show Less
-                          </button>
-                        )}
-                      </>
-                    )
-                  })()}
+                  {/* Exclusions */}
+                  <div className="rounded-[26px] bg-[#FAFAFC] p-6 sm:p-8 border border-gray-200/80">
+                    <div className="flex items-center gap-2.5 mb-5">
+                      <span className="size-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-sm shadow-xs">
+                        ✕
+                      </span>
+                      <h3 className="text-lg font-bold font-serif text-gray-900">What's Excluded</h3>
+                    </div>
+                    <ul className="space-y-3.5 text-sm text-gray-500">
+                      {(exclusions.length > 0
+                        ? exclusions
+                        : ['Airfare / Train tickets', 'Personal expenses & tips', 'Entry tickets not mentioned']
+                      ).map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5">
+                          <span className="text-gray-400 shrink-0 mt-0.5">✕</span>
+                          <span className="leading-snug font-medium">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </SectionCard>
+              </section>
 
+              {/* ── SECTION 05 / 08: TRANSPARENT POLICIES ── */}
+              <section id="section-05" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>05</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    TRANSPARENT POLICIES
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    Booking &amp; Cancellation Policies
+                  </h2>
+                  <p className="text-gray-500 text-sm sm:text-base mt-2">
+                    Zero hidden surprises. Flexible options for modern couples.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-2">
+                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                    <div className="flex items-center gap-2 mb-3.5">
+                      <span className="text-base">📅</span>
+                      <h4 className="font-bold text-sm text-gray-900">Booking Terms</h4>
+                    </div>
+                    <ul className="space-y-2.5 text-xs text-gray-600 leading-relaxed">
+                      {parsePolicies(
+                        packageData.Booking_Policies?.booking || ['Instant confirmation', 'Flexible dates', 'Zero hidden fees']
+                      ).map((p, idx) => (
+                        <li key={idx}>• {p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                    <div className="flex items-center gap-2 mb-3.5">
+                      <span className="text-base">💳</span>
+                      <h4 className="font-bold text-sm text-gray-900">Payment Schedule</h4>
+                    </div>
+                    <ul className="space-y-2.5 text-xs text-gray-600 leading-relaxed">
+                      {parsePolicies(
+                        packageData.Booking_Policies?.payment || ['Pay in 2 instalments', 'Zero cost EMI options', 'Secure bank transfer']
+                      ).map((p, idx) => (
+                        <li key={idx}>• {p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                    <div className="flex items-center gap-2 mb-3.5">
+                      <span className="text-base">🛡️</span>
+                      <h4 className="font-bold text-sm text-gray-900">Cancellation</h4>
+                    </div>
+                    <ul className="space-y-2.5 text-xs text-gray-600 leading-relaxed">
+                      {parsePolicies(
+                        packageData.Booking_Policies?.cancellation || ['Free cancellation up to 7 days', 'Partial refund available', 'Custom terms apply']
+                      ).map((p, idx) => (
+                        <li key={idx}>• {p}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </section>
+
+              {/* ── SECTION 06 / 08: FREQUENTLY ASKED QUESTIONS ── */}
+              <section id="section-06" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
+                <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>06</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    FREQUENTLY ASKED QUESTIONS
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                    Frequently Asked Questions
+                  </h2>
+                  <p className="text-gray-500 text-sm sm:text-base mt-2">
+                    Quick answers to common questions about this tour and destinations
+                  </p>
+                </div>
+
+                <div className="space-y-4 pt-2">
+                  {(packageData.FAQ_Items && packageData.FAQ_Items.length > 0
+                    ? packageData.FAQ_Items
+                    : DEFAULT_FAQ_ITEMS
+                  )
+                    .slice(0, 5)
+                    .map((faq, idx) => (
+                      <details
+                        key={idx}
+                        className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 group cursor-pointer"
+                      >
+                        <summary className="font-bold text-sm sm:text-base text-gray-900 flex items-center justify-between list-none">
+                          <span>{faq.question}</span>
+                          <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <p className="mt-3.5 text-sm sm:text-base text-gray-600 leading-relaxed pt-3.5 border-t border-gray-200/60">
+                          {faq.answer}
+                        </p>
+                      </details>
+                    ))}
+                </div>
+              </section>
 
             </div>
 
-            <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
-              <div className="bg-white rounded-[5px] shadow-xl p-8 space-y-6">
+            {/* RIGHT COLUMN: FLOATING ATLYS BOOKING CARD */}
+            <aside className="space-y-6 lg:sticky lg:top-28">
+              <div className="rounded-[32px] bg-white border border-gray-200/90 shadow-[0_12px_45px_rgba(0,0,0,0.06)] p-7 sm:p-8 space-y-6">
+                {/* Price Header */}
                 <div>
-                  <p className="text-sm text-gray-500">Starting from</p>
-                  <p className="text-4xl font-serif text-[#c99846]">
-                    INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'}
-                  </p>
-                  <p className="text-sm text-gray-500">per person</p>
-                  {/* <p className="text-sm text-gray-500">Per person • twin sharing</p> */}
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Starting from</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-3xl sm:text-4xl font-bold font-serif text-gray-900">
+                      INR {formatPrice(packageData.Price_Range_INR) || 'Contact for price'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">per couple · all taxes &amp; private transfers included</p>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={() => setShowLeadForm(true)}
-                    className="w-full text-center bg-primary text-white py-3 rounded-[5px] font-semibold transition hover:bg-primary/90"
+
+                <div className="h-px bg-gray-100" />
+
+                {/* Key Guarantees */}
+                <div className="space-y-2.5 text-xs text-gray-700">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-emerald-500 font-bold">✓</span>
+                    <span className="font-medium">Free cancellation up to 7 days before</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-emerald-500 font-bold">✓</span>
+                    <span className="font-medium">Pay in 2 instalments with zero cost EMI</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-emerald-500 font-bold">✓</span>
+                    <span className="font-medium">Customised day-by-day plan on WhatsApp</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-emerald-500 font-bold">✓</span>
+                    <span className="font-medium">100% itemised cost breakdown</span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="space-y-3 pt-2">
+                  <a
+                    href={whatsappShare}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full text-center bg-[#25D366] hover:bg-[#20ba59] text-white py-4 rounded-full font-bold text-sm transition shadow flex items-center justify-center gap-2"
                   >
-                    Enquire Now
+                    <span>💬</span>
+                    <span>Chat on WhatsApp</span>
+                  </a>
+
+                  <button
+                    ref={inlineEnquireRef}
+                    onClick={() => setShowLeadForm(true)}
+                    className="w-full text-center bg-black hover:bg-gray-800 text-white py-4 rounded-full font-bold text-sm transition shadow"
+                  >
+                    Request Custom Quote
                   </button>
+
                   <button
                     onClick={handleDownloadItinerary}
                     disabled={isGeneratingPDF}
-                    className="w-full text-center border border-gray-900 text-gray-900 py-3 rounded-[5px] font-semibold transition hover:bg-gray-900 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full text-center border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white py-3.5 rounded-full font-semibold text-xs transition disabled:opacity-50"
                   >
-                    {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary'}
+                    {isGeneratingPDF ? 'Generating PDF...' : 'Download Itinerary PDF'}
                   </button>
                 </div>
-                <div className="pt-4 border-t border-gray-100 space-y-3">
-                  <p className="text-sm font-semibold text-[#1e1d2f]">Share Package</p>
-                  <div className="flex gap-3">
-                    <a
-                      href={whatsappShare}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-center bg-green-500 text-white py-2.5 rounded-[5px] font-semibold hover:bg-green-600 transition"
-                    >
-                      WhatsApp
-                    </a>
-                    <button
-                      onClick={async () => {
-                        if (navigator.share) {
-                          try {
-                            await navigator.share({
-                              title: packageTitle,
-                              text: `Check out ${packageTitle} on Travelzada`,
-                              url: packageUrl,
-                            })
-                          } catch (err) {
-                            // User cancelled or error occurred
-                            if ((err as Error).name !== 'AbortError') {
-                              console.error('Error sharing:', err)
-                            }
-                          }
-                        } else {
-                          // Fallback: open Twitter share in new tab
-                          window.open(`https://twitter.com/intent/tweet?text=${shareText}`, '_blank', 'noopener,noreferrer')
-                        }
-                      }}
-                      className="flex-1 text-center bg-[#0a1026] text-white py-2.5 rounded-[5px] font-semibold hover:bg-black transition"
-                    >
-                      Share
-                    </button>
+
+                {/* Concierge Avatar Strip */}
+                <div className="pt-4 border-t border-gray-100 flex items-center gap-3">
+                  <div className="size-10 rounded-full bg-[#3B2A20] text-white font-bold text-sm flex items-center justify-center shrink-0">
+                    TZ
                   </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <p className="font-semibold text-[#1e1d2f]">Contact Us</p>
-                  <a href="tel:+919929962350" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    +919929962350
-                  </a>
-                  <a href="mailto:info@travelzada.com" className="flex items-center gap-2 text-gray-600 hover:text-primary transition-colors">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    info@travelzada.com
-                  </a>
-                </div>
-                <div className="rounded-[5px] border border-gray-100 bg-gray-50 p-4 space-y-3">
-                  <p className="font-semibold text-sm text-[#1e1d2f]">Why Book With Us</p>
-                  {(packageData.Why_Book_With_Us && packageData.Why_Book_With_Us.length > 0
-                    ? packageData.Why_Book_With_Us
-                    : WHY_BOOK_WITH_US).map((item, idx) => (
-                      <div key={idx} className="flex gap-3 text-sm text-gray-600">
-                        <span className="text-primary">✓</span>
-                        <div>
-                          <p className="font-medium text-gray-900">{item.label}</p>
-                          <p>{item.description}</p>
-                        </div>
-                      </div>
-                    ))}
+                  <div>
+                    <div className="text-xs font-bold text-gray-900">Dedicated Trip Designer</div>
+                    <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Online on WhatsApp (Avg. reply 5m)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* <SectionCard title="Travel Concierge">
-          <p className="text-gray-600 mb-3">
-            Need help customising this journey? Speak to our specialist for curated stays,
-            private experiences and visa assistance.
-          </p>
-          <Link
-            href="tel:+919929962350"
-            className="inline-flex items-center gap-3 text-primary font-semibold hover:text-primary-dark transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-            Call +919929962350 →
-          </Link>
-        </SectionCard> */}
-
-              {/* <SectionCard title="Why Travelers Love Us">
-          <ul className="space-y-3 text-gray-600">
-            <li>98% positive reviews across honeymoon packages</li>
-            <li>Partners with luxury resorts in Kuta, Ubud and Nusa Dua</li>
-            <li>Assistance with forex, insurance and travel SIM</li>
-          </ul>
-        </SectionCard> */}
-
-              <SectionCard title="Need a Custom Quote?">
-                <p className="text-gray-600 mb-3">
-                  Visit our <Link href="/contact" className="text-primary font-semibold hover:underline">Contact Page</Link> to speak with our experts directly, or try our <Link href="/tailored-travel" className="text-primary font-semibold hover:underline">AI Trip Planner</Link> to generate a perfectly tailored itinerary for your dates!
-                </p>
-                <p className="text-gray-600 mb-3">
-                  You can also email us at{' '}
-                  <a href="mailto:info@travelzada.com" className="text-primary font-semibold hover:underline">
-                    info@travelzada.com
-                  </a>{' '}
-                  or call us at{' '}
-                  <a href="tel:+919929962350" className="text-primary font-semibold hover:underline">
-                    +919929962350
-                  </a>.
-                </p>
-              </SectionCard>
+              {/* Share & Assistance Card */}
+              <div className="rounded-[28px] bg-white border border-gray-200/80 p-6 space-y-4 shadow-sm">
+                <div className="text-xs font-bold uppercase tracking-wider text-gray-400">Direct Assistance</div>
+                <div className="space-y-2 text-sm">
+                  <a
+                    href="tel:+919929962350"
+                    className="flex items-center gap-2.5 text-gray-700 hover:text-black font-medium transition"
+                  >
+                    <span>📞</span>
+                    <span>+91 99299 62350</span>
+                  </a>
+                  <a
+                    href="mailto:info@travelzada.com"
+                    className="flex items-center gap-2.5 text-gray-700 hover:text-black font-medium transition"
+                  >
+                    <span>✉️</span>
+                    <span>info@travelzada.com</span>
+                  </a>
+                </div>
+              </div>
             </aside>
           </div>
         </section>
 
-        {/* ================================ */}
-        {/* Related Packages Section         */}
-        {/* ================================ */}
-        {relatedPackages.length > 0 && (
-          <section className="py-14 px-4 md:px-12 bg-white border-t border-gray-100">
-            <div className="max-w-7xl mx-auto">
-              <div className="mb-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
-                  <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  <span className="text-xs font-bold text-primary uppercase tracking-wider">Explore More</span>
+        {/* ── SECTION 07 / 08: MORE CURATED PACKAGES (ATLYS TALL CARDS) ── */}
+        <section id="section-07" className="py-24 sm:py-32 px-5 sm:px-8 lg:px-12 bg-white border-t border-gray-200/80 scroll-mt-28">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="flex items-end justify-between gap-4 mb-10 flex-wrap">
+              <div>
+                <div className="flex items-center gap-3.5 mb-2">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span>07</span>
+                    <span className="text-gray-400 font-light">/</span>
+                    <span className="text-gray-300">08</span>
+                  </span>
+                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                    MORE CURATED PACKAGES
+                  </span>
                 </div>
-                <h2 className="text-3xl md:text-3xl font-bold text-gray-900 mb-3">
-                  Other Exquisite Packages
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gray-900 mt-2">
+                  Other Curated Packages You Might Love
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {relatedPackages.map(pkg => {
-                  let imageUrl = pkg.Primary_Image_URL || ''
-                  const markdownImageMatch = imageUrl.match(/\[([^\]]+)\]\(([^)]+)\)/)
-                  if (markdownImageMatch) {
-                    imageUrl = markdownImageMatch[2]
-                  }
-                  
-                  return (
-                    <Link 
-                      href={`/destinations/${encodeURIComponent(slug)}/${pkg.Slug || pkg.Destination_ID || pkg.id}`}
-                      key={pkg.id}
-                      className="group flex flex-col bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100"
-                    >
-                      <div className="relative h-56 overflow-hidden">
-                        <Image 
-                          src={imageUrl || '/images/placeholder.jpg'}
-                          alt={pkg.Destination_Name || 'Package'}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm font-semibold text-gray-900 shadow-sm">
-                          {pkg.Duration}
-                        </div>
-                      </div>
-                      <div className="p-6 flex flex-col flex-1">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                          {pkg.Destination_Name}
-                        </h3>
-                        <p className="text-gray-600 line-clamp-2 mb-4 text-sm flex-1">{pkg.Overview || (pkg.Highlights && pkg.Highlights.join(', '))}</p>
-                        <div className="flex items-center justify-between mt-auto">
-                          <div>
-                            <p className="text-xs text-gray-500 uppercase tracking-wide">Starting from</p>
-                            <p className="text-lg font-bold text-primary">{pkg.Price_Range_INR || 'On Request'}</p>
-                          </div>
-                          <span className="text-sm font-semibold text-primary group-hover:text-primary-dark flex items-center gap-1">
-                            View details <span className="text-lg">→</span>
-                          </span>
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
+              <Link
+                href={`/destinations/${slug}`}
+                className="text-xs font-bold text-black hover:underline flex items-center gap-1"
+              >
+                <span>View all packages</span>
+                <span>→</span>
+              </Link>
             </div>
-          </section>
-        )}
 
-        {/* ================================ */}
-        {/* Traveler Reviews Section         */}
-        {/* ================================ */}
-        <section className="py-14 px-4 md:px-12 bg-gradient-to-b from-gray-50 to-white border-t border-gray-100">
-          <div className="max-w-7xl mx-auto">
-            {/* Section Header */}
-            <div className="mb-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 mb-4">
-                <svg className="w-3.5 h-3.5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                <span className="text-xs font-bold text-primary uppercase tracking-wider">Traveler Reviews</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {(relatedPackages && relatedPackages.length > 0
+                ? relatedPackages.slice(0, 4)
+                : [
+                    {
+                      id: 'kashmir-deluxe',
+                      Destination_Name: 'Kashmir Luxury Houseboat & Valley Romance',
+                      Duration: '5N / 6D',
+                      Star_Category: '5★ Luxury',
+                      Price_Range_INR: '48,500',
+                      Primary_Image_URL: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1000&q=80',
+                      Slug: 'kashmir-packages'
+                    },
+                    {
+                      id: 'bali-honeymoon',
+                      Destination_Name: 'Bali Tropical Private Pool Villa Honeymoon',
+                      Duration: '6N / 7D',
+                      Star_Category: '5★ Luxury',
+                      Price_Range_INR: '68,000',
+                      Primary_Image_URL: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1000&q=80',
+                      Slug: 'bali-packages'
+                    },
+                    {
+                      id: 'kerala-backwaters',
+                      Destination_Name: 'Kerala Backwaters & Munnar Mist Romance',
+                      Duration: '5N / 6D',
+                      Star_Category: '4★ Deluxe',
+                      Price_Range_INR: '42,000',
+                      Primary_Image_URL: 'https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=1000&q=80',
+                      Slug: 'kerala-packages'
+                    },
+                    {
+                      id: 'andaman-coral',
+                      Destination_Name: 'Andaman Coral Island & Havelock Getaway',
+                      Duration: '5N / 6D',
+                      Star_Category: '5★ Luxury',
+                      Price_Range_INR: '54,000',
+                      Primary_Image_URL: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1000&q=80',
+                      Slug: 'andaman-and-nicobar-packages'
+                    }
+                  ]
+              ).map((pkg) => {
+                let img = pkg.Primary_Image_URL || ''
+                const match = img.match(/\[([^\]]+)\]\(([^)]+)\)/)
+                if (match) img = match[2]
+                const pkgSlug = pkg.Slug || (pkg as any).Destination_ID || pkg.id || 'package'
+                const price = pkg.Price_Range_INR ? `₹${formatPrice(pkg.Price_Range_INR)}` : 'On Request'
+
+                return (
+                  <Link
+                    key={pkg.id || pkgSlug}
+                    href={`/destinations/${encodeURIComponent(slug)}/${pkgSlug}`}
+                    className="group relative block aspect-[1/1.5] rounded-[30px] overflow-hidden shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-1.5 cursor-pointer bg-gray-900"
+                  >
+                    <Image
+                      src={img || '/images/placeholder.jpg'}
+                      alt={pkg.Destination_Name || 'Package'}
+                      fill
+                      className="object-cover object-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none" />
+                    
+                    <div className="absolute top-4 inset-x-4 flex items-center justify-between z-10 pointer-events-none">
+                      <span className="bg-white/90 backdrop-blur-md text-gray-900 text-[10px] font-bold px-3 py-1 rounded-full shadow-sm uppercase">
+                        {pkg.Duration}
+                      </span>
+                      <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full border border-white/20 shadow-sm">
+                        {pkg.Star_Category || '4★ Deluxe'}
+                      </span>
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 p-5 flex flex-col z-10">
+                      <h3 className="font-serif text-[17px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow line-clamp-2 text-balance">
+                        {pkg.Destination_Name}
+                      </h3>
+                      <div className="w-full h-px bg-white/20 my-3" />
+                      <div className="flex items-center justify-between text-white text-xs">
+                        <span className="text-[11px] font-medium text-white/70">From</span>
+                        <span className="text-sm font-bold text-[#E8DCC3]">{price}</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ── SECTION 08 / 08: COUPLE FEEDBACK & REVIEWS ── */}
+        <section id="section-08" className="py-24 sm:py-32 px-5 sm:px-8 lg:px-12 bg-[#FAFAFC] border-t border-gray-200/80 scroll-mt-28">
+          <div className="max-w-[1440px] mx-auto">
+            <div className="mb-12">
+              <div className="flex items-center gap-3.5 mb-2">
+                <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span>08</span>
+                  <span className="text-gray-400 font-light">/</span>
+                  <span className="text-gray-300">08</span>
+                </span>
+                <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
+                  COUPLE FEEDBACK &amp; REVIEWS
+                </span>
               </div>
-              <h2 className="text-3xl md:text-3xl font-bold text-gray-900 mb-3">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gray-900 mt-2">
                 Reviews for {packageData.Destination_Name || 'this package'}
               </h2>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left: Summary + Form */}
               <div className="space-y-6">
                 <ReviewSummary
                   destinationName={packageData.Destination_Name || slug}
@@ -1775,8 +2006,6 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                     reviewFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
                 />
-
-                {/* Review Form */}
                 <div ref={reviewFormRef} id="write-review">
                   <ReviewForm
                     destinationName={packageData.Destination_Name || slug}
@@ -1786,8 +2015,6 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                   />
                 </div>
               </div>
-
-              {/* Right: Reviews List */}
               <div className="lg:col-span-2">
                 <ReviewList
                   destinationName={packageData.Destination_Name || slug}
@@ -1801,23 +2028,29 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
         <Footer />
 
-        {
-          !showLeadForm && (
-            <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 z-40">
-              {
-                !showLeadForm && !isInlineEnquireVisible && (
-                  <button
-                    type="button"
-                    onClick={() => setShowLeadForm(true)}
-                    className="pointer-events-auto w-full bg-primary text-white py-3.5 sm:py-4 rounded-full font-semibold text-sm sm:text-base shadow-xl shadow-primary/30 hover:bg-primary-dark transition transform hover:scale-[1.02] active:scale-[0.98] animate-in slide-in-from-bottom-4 fade-in duration-300"
-                  >
-                    Enquire Now
-                  </button>
-                )
-              }
-            </div>
-          )
-        }
+        {/* ─────────────────────────────────────────────────────────────
+            MOBILE BOTTOM ENQUIRY BAR
+        ───────────────────────────────────────────────────────────── */}
+        {!showLeadForm && !isInlineEnquireVisible && (
+          <div className="lg:hidden fixed bottom-4 inset-x-4 z-40 flex items-center gap-3">
+            <a
+              href={whatsappShare}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-[#25D366] text-white py-3.5 rounded-full font-bold text-sm text-center shadow-lg flex items-center justify-center gap-2"
+            >
+              <span>💬</span>
+              <span>WhatsApp</span>
+            </a>
+            <button
+              type="button"
+              onClick={() => setShowLeadForm(true)}
+              className="flex-1 bg-black text-white py-3.5 rounded-full font-bold text-sm text-center shadow-lg"
+            >
+              Enquire Now
+            </button>
+          </div>
+        )}
 
         <LeadForm
           isOpen={showLeadForm}
