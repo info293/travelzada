@@ -9,7 +9,7 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="bg-gradient-to-br from-gray-900 via-ink to-gray-900 text-white border-t border-white/5" role="contentinfo" aria-label="Site Footer">
+      <footer className="bg-gradient-to-br from-mauve via-coffee to-coffee text-alabaster border-t border-white/5" role="contentinfo" aria-label="Site Footer">
         {/* Main Footer Content */}
         <div className="max-w-7xl mx-auto px-4 py-16">
           <FooterSEO />
@@ -93,7 +93,7 @@ export default function Footer() {
 
             {/* Company Links */}
             <nav className="lg:col-span-2" aria-labelledby="footer-company">
-              <h3 id="footer-company" className="font-bold text-lg mb-5 text-white">Company</h3>
+              <h3 id="footer-company" className="font-semibold text-lg mb-5 text-white">Company</h3>
               <ul className="space-y-3" role="list">
                 <li>
                   <Link href="/about" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Learn about Travelzada">
@@ -125,7 +125,7 @@ export default function Footer() {
 
             {/* Quick Links */}
             <nav className="lg:col-span-2" aria-labelledby="footer-services">
-              <h3 id="footer-services" className="font-bold text-lg mb-5 text-white">Services</h3>
+              <h3 id="footer-services" className="font-semibold text-lg mb-5 text-white">Services</h3>
               <ul className="space-y-3" role="list">
                 <li>
                   <Link href="/tailored-travel" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="AI-powered trip planner">
@@ -159,7 +159,7 @@ export default function Footer() {
 
             {/* Legal Links */}
             <nav className="lg:col-span-2" aria-labelledby="footer-legal">
-              <h3 id="footer-legal" className="font-bold text-lg mb-5 text-white">Legal</h3>
+              <h3 id="footer-legal" className="font-semibold text-lg mb-5 text-white">Legal</h3>
               <ul className="space-y-3" role="list">
                 <li>
                   <Link href="/terms-and-conditions" className="text-white/70 hover:text-white hover:translate-x-1 inline-block transition-all" title="Terms and conditions of service">

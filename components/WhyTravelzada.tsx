@@ -49,8 +49,8 @@ const ROWS = [
 function NegIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
-      <circle cx="12" cy="12" r="10" stroke="#d1d5db" strokeWidth="1.5" />
-      <path d="M8 12h8" stroke="#d1d5db" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="10" stroke="#cdc8cf" strokeWidth="1.5" />
+      <path d="M8 12h8" stroke="#cdc8cf" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -60,7 +60,7 @@ function CheckIcon() {
   return (
     <span
       className="flex-none flex items-center justify-center rounded-full"
-      style={{ width: 22, height: 22, background: '#4f46e5', marginTop: 2, flexShrink: 0 }}
+      style={{ width: 22, height: 22, background: '#462831', marginTop: 2, flexShrink: 0 }}
     >
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 6L9 17l-5-5" />
@@ -78,7 +78,7 @@ export default function WhyTravelzada() {
         <div className="text-center mb-12">
           <div
             className="text-xs font-bold tracking-[0.22em] uppercase mb-5"
-            style={{ color: '#a08a6a' }}
+            style={{ color: '#95929c' }}
           >
             Why Couples Are Switching
           </div>
@@ -86,10 +86,10 @@ export default function WhyTravelzada() {
             style={{
               margin: 0,
               fontSize: 'clamp(26px, 4.5vw, 56px)',
-              fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+              fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
               fontWeight: 700,
               letterSpacing: '-0.02em',
-              color: '#1a1a24',
+              color: '#0f0406',
               lineHeight: 1.15,
             }}
           >
@@ -98,7 +98,7 @@ export default function WhyTravelzada() {
         </div>
 
         {/* Swipe hint — mobile only */}
-        <p className="md:hidden text-xs text-center mb-3" style={{ color: '#9a9aa5' }}>
+        <p className="md:hidden text-xs text-center mb-3" style={{ color: '#95929c' }}>
           ← Swipe to compare →
         </p>
 
@@ -110,8 +110,8 @@ export default function WhyTravelzada() {
             className="absolute right-0 flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-bold tracking-[0.1em] uppercase"
             style={{
               top: -18,
-              background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-              boxShadow: '0 6px 18px rgba(79,70,229,.35)',
+              background: 'linear-gradient(135deg,#651926,#462831)',
+              boxShadow: '0 6px 18px rgba(70,40,49,.35)',
               zIndex: 10,
               right: 0,
               width: 'fit-content',
@@ -133,7 +133,7 @@ export default function WhyTravelzada() {
 
             {/* Column headers */}
             <thead>
-              <tr style={{ borderBottom: '1.5px solid #e5e7eb' }}>
+              <tr style={{ borderBottom: '1.5px solid #e2dde3' }}>
                 {/* Compare */}
                 <th
                   style={{
@@ -143,7 +143,7 @@ export default function WhyTravelzada() {
                     fontWeight: 700,
                     letterSpacing: '0.14em',
                     textTransform: 'uppercase',
-                    color: '#9a9aa5',
+                    color: '#95929c',
                   }}
                 >
                   Compare
@@ -155,7 +155,7 @@ export default function WhyTravelzada() {
                     textAlign: 'left',
                     fontSize: 15,
                     fontWeight: 600,
-                    color: '#6b6b76',
+                    color: '#6b6773',
                   }}
                 >
                   Travel Agents
@@ -167,7 +167,7 @@ export default function WhyTravelzada() {
                     textAlign: 'left',
                     fontSize: 15,
                     fontWeight: 600,
-                    color: '#6b6b76',
+                    color: '#6b6773',
                   }}
                 >
                   OTAs
@@ -177,13 +177,13 @@ export default function WhyTravelzada() {
                   style={{
                     padding: '16px 20px',
                     textAlign: 'left',
-                    background: 'rgba(79,70,229,.04)',
+                    background: 'rgba(70,40,49,.04)',
                     borderRadius: '10px 10px 0 0',
                   }}
                 >
                   <div className="flex items-center gap-2">
                     {/* Eye/brand icon */}
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#462831" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                       <circle cx="12" cy="12" r="3" />
                     </svg>
@@ -191,8 +191,8 @@ export default function WhyTravelzada() {
                       style={{
                         fontSize: 20,
                         fontWeight: 700,
-                        color: '#1a1a24',
-                        fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+                        color: '#0f0406',
+                        fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
                       }}
                     >
                       Travelzada
@@ -207,7 +207,7 @@ export default function WhyTravelzada() {
               {ROWS.map((row, i) => (
                 <tr
                   key={i}
-                  style={{ borderBottom: '1px solid #f0ece5' }}
+                  style={{ borderBottom: '1px solid #e2dde3' }}
                 >
                   {/* Feature label */}
                   <td
@@ -215,7 +215,7 @@ export default function WhyTravelzada() {
                       padding: '20px 20px 20px 0',
                       fontSize: 14,
                       fontWeight: 700,
-                      color: '#1a1a24',
+                      color: '#0f0406',
                       verticalAlign: 'top',
                     }}
                   >
@@ -226,7 +226,7 @@ export default function WhyTravelzada() {
                   <td style={{ padding: '20px', verticalAlign: 'top' }}>
                     <span className="flex items-start gap-2">
                       <NegIcon />
-                      <span style={{ fontSize: 14, color: '#9a9aa5', lineHeight: 1.55 }}>{row.agents}</span>
+                      <span style={{ fontSize: 14, color: '#95929c', lineHeight: 1.55 }}>{row.agents}</span>
                     </span>
                   </td>
 
@@ -234,7 +234,7 @@ export default function WhyTravelzada() {
                   <td style={{ padding: '20px', verticalAlign: 'top' }}>
                     <span className="flex items-start gap-2">
                       <NegIcon />
-                      <span style={{ fontSize: 14, color: '#9a9aa5', lineHeight: 1.55 }}>{row.otas}</span>
+                      <span style={{ fontSize: 14, color: '#95929c', lineHeight: 1.55 }}>{row.otas}</span>
                     </span>
                   </td>
 
@@ -243,14 +243,14 @@ export default function WhyTravelzada() {
                     style={{
                       padding: '20px',
                       verticalAlign: 'top',
-                      background: 'rgba(79,70,229,.04)',
-                      borderLeft: '1px solid rgba(79,70,229,.1)',
-                      borderRight: '1px solid rgba(79,70,229,.1)',
+                      background: 'rgba(70,40,49,.04)',
+                      borderLeft: '1px solid rgba(70,40,49,.1)',
+                      borderRight: '1px solid rgba(70,40,49,.1)',
                     }}
                   >
                     <span className="flex items-start gap-2.5">
                       <CheckIcon />
-                      <span style={{ fontSize: 14, color: '#1a1a24', fontWeight: 500, lineHeight: 1.55 }}>{row.tz}</span>
+                      <span style={{ fontSize: 14, color: '#0f0406', fontWeight: 500, lineHeight: 1.55 }}>{row.tz}</span>
                     </span>
                   </td>
                 </tr>
@@ -264,14 +264,14 @@ export default function WhyTravelzada() {
           <Link
             href="/case-study"
             className="inline-flex items-center justify-center font-semibold rounded-full transition-all hover:scale-105"
-            style={{ background: '#fff', color: '#1a1a24', border: '1px solid #d8d2c6', fontSize: 14, padding: '15px 32px' }}
+            style={{ background: '#fff', color: '#0f0406', border: '1px solid #cdc8cf', fontSize: 14, padding: '15px 32px' }}
           >
             Read Case Studies
           </Link>
           <Link
             href="/tailored-travel"
             className="inline-flex items-center gap-2 justify-center text-white font-semibold rounded-full transition-all hover:scale-105"
-            style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)', fontSize: 14, padding: '15px 32px', boxShadow: '0 10px 28px rgba(79,70,229,.3)' }}
+            style={{ background: 'linear-gradient(135deg,#651926,#462831)', fontSize: 14, padding: '15px 32px', boxShadow: '0 10px 28px rgba(70,40,49,.3)' }}
           >
             Try AI Planner
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -181,7 +181,7 @@ export default async function AuthorPage({ params }: { params: { slug: string } 
             {/* Info */}
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3 mb-2">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{author.name}</h1>
+                <h1 className="text-2xl md:text-3xl font-medium text-gray-900">{author.name}</h1>
                 {author.role && (
                   <span className="text-xs uppercase tracking-wider bg-primary/10 text-primary px-3 py-1 rounded-full font-semibold">
                     {author.role}
@@ -252,7 +252,7 @@ export default async function AuthorPage({ params }: { params: { slug: string } 
         {/* Author's Articles */}
         <section className="py-12 px-4 md:px-8">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">
+            <h2 className="text-xl font-medium text-gray-900 mb-6">
               Articles by {author.name}
               <span className="ml-2 text-sm font-normal text-gray-400">({posts.length})</span>
             </h2>
@@ -287,7 +287,7 @@ export default async function AuthorPage({ params }: { params: { slug: string } 
                         {post.category && (
                           <span className="text-xs uppercase tracking-wide text-primary font-semibold mb-2">{post.category}</span>
                         )}
-                        <h3 className="text-base font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors leading-snug line-clamp-2">
+                        <h3 className="text-base font-semibold text-gray-900 mb-2 group-hover:text-primary transition-colors leading-snug line-clamp-2">
                           {post.title}
                         </h3>
                         <p className="text-sm text-gray-600 line-clamp-2 mb-4 flex-1">{post.description}</p>

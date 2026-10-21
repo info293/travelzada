@@ -85,22 +85,22 @@ function parseDays(itinerary: string): DayBlock[] {
 function TravelGuide() {
   return (
     <svg width="60" height="74" viewBox="0 0 60 76" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="30" cy="11" rx="22" ry="5" fill="#6d28d9" opacity="0.35"/>
-      <rect x="15" y="4" width="30" height="11" rx="6" fill="#7c3aed"/>
+      <ellipse cx="30" cy="11" rx="22" ry="5" fill="#4c111c" opacity="0.35"/>
+      <rect x="15" y="4" width="30" height="11" rx="6" fill="#651926"/>
       <rect x="12" y="11" width="36" height="4" rx="2" fill="#5b21b6"/>
       <rect x="24" y="40" width="12" height="8" rx="3" fill="#fbbf24"/>
       <circle cx="30" cy="28" r="17" fill="#fde68a"/>
-      <ellipse cx="23" cy="25" rx="2.8" ry="3.2" fill="#1f2937"/>
+      <ellipse cx="23" cy="25" rx="2.8" ry="3.2" fill="#0f0406"/>
       <circle cx="24" cy="23.5" r="1.1" fill="white"/>
-      <ellipse cx="37" cy="25" rx="2.8" ry="3.2" fill="#1f2937"/>
+      <ellipse cx="37" cy="25" rx="2.8" ry="3.2" fill="#0f0406"/>
       <circle cx="38" cy="23.5" r="1.1" fill="white"/>
       <path d="M21 32 Q30 40 39 32" stroke="#92400e" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
       <ellipse cx="17" cy="31" rx="5" ry="4" fill="#fca5a5" opacity="0.5"/>
       <ellipse cx="43" cy="31" rx="5" ry="4" fill="#fca5a5" opacity="0.5"/>
-      <rect x="13" y="48" width="34" height="22" rx="9" fill="#7c3aed"/>
+      <rect x="13" y="48" width="34" height="22" rx="9" fill="#651926"/>
       <path d="M26 48 L30 55 L34 48" fill="#a78bfa"/>
-      <rect x="1" y="50" width="12" height="8" rx="4" fill="#7c3aed"/>
-      <rect x="47" y="50" width="12" height="8" rx="4" fill="#7c3aed"/>
+      <rect x="1" y="50" width="12" height="8" rx="4" fill="#651926"/>
+      <rect x="47" y="50" width="12" height="8" rx="4" fill="#651926"/>
       <circle cx="3" cy="54" r="4" fill="#fde68a"/>
       <circle cx="57" cy="54" r="4" fill="#fde68a"/>
     </svg>
@@ -413,7 +413,7 @@ export default function AgentResultsPage() {
           <div className="w-16 h-16 bg-primary/8 rounded-full flex items-center justify-center mb-4">
             <Package className="w-7 h-7 text-primary/50" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">No matching packages found</h2>
+          <h2 className="text-lg font-medium text-gray-900 mb-2">No matching packages found</h2>
           <p className="text-sm text-gray-500 mb-6">
             {agentInfo?.companyName} hasn&apos;t added packages for your selected destinations yet.
           </p>
@@ -453,7 +453,7 @@ export default function AgentResultsPage() {
   })()
 
   return (
-    <div className="min-h-screen bg-[#f8f5f0] text-gray-900">
+    <div className="min-h-screen bg-[#f5f2f5] text-gray-900">
       <AgentStrip pkg={bestPkg} />
 
       {/* ── Hero ── */}
@@ -461,7 +461,7 @@ export default function AgentResultsPage() {
         {bestPkg.Primary_Image_URL
           ? <img src={bestPkg.Primary_Image_URL} alt={title} className="w-full h-full object-cover" />
           : <div className="w-full h-full bg-primary/10 flex items-center justify-center"><MapPin className="w-16 h-16 text-primary/20" /></div>}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#f8f5f0] opacity-95" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-[#f5f2f5] opacity-95" />
       </section>
 
       {/* ── Floating content ── */}
@@ -480,29 +480,29 @@ export default function AgentResultsPage() {
                   <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full">{bestPkg.Star_Category}</span>
                 )}
               </div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#1e1d2f] leading-tight">{title}</h1>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif text-[#0f0406] leading-tight">{title}</h1>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
+                <div className="flex flex-col gap-1 p-3 bg-[#f5f2f5] rounded-lg">
                   <Clock className="w-4 h-4 text-primary" />
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Duration</p>
-                  <p className="text-sm font-bold text-[#1e1d2f]">{bestPkg.Duration_Nights}N {bestPkg.Duration_Days}D</p>
+                  <p className="text-sm font-bold text-[#0f0406]">{bestPkg.Duration_Nights}N {bestPkg.Duration_Days}D</p>
                 </div>
-                <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
+                <div className="flex flex-col gap-1 p-3 bg-[#f5f2f5] rounded-lg">
                   <MapPin className="w-4 h-4 text-primary" />
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Destination</p>
-                  <p className="text-sm font-bold text-[#1e1d2f]">{bestPkg.Destination_Name}</p>
+                  <p className="text-sm font-bold text-[#0f0406]">{bestPkg.Destination_Name}</p>
                 </div>
                 {bestPkg.Star_Category && bestPkg.Star_Category.toLowerCase() !== 'none' && (
-                  <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
+                  <div className="flex flex-col gap-1 p-3 bg-[#f5f2f5] rounded-lg">
                     <Star className="w-4 h-4 text-primary" />
                     <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Hotel</p>
-                    <p className="text-sm font-bold text-[#1e1d2f]">{bestPkg.Star_Category}</p>
+                    <p className="text-sm font-bold text-[#0f0406]">{bestPkg.Star_Category}</p>
                   </div>
                 )}
-                <div className="flex flex-col gap-1 p-3 bg-[#f8f5f0] rounded-lg">
+                <div className="flex flex-col gap-1 p-3 bg-[#f5f2f5] rounded-lg">
                   <Users className="w-4 h-4 text-primary" />
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold mt-0.5">Passengers</p>
-                  <p className="text-sm font-bold text-[#1e1d2f]">{pdfGroupSize} Pax</p>
+                  <p className="text-sm font-bold text-[#0f0406]">{pdfGroupSize} Pax</p>
                 </div>
               </div>
             </article>
@@ -518,7 +518,7 @@ export default function AgentResultsPage() {
             {/* Overview */}
             {bestPkg.Overview && (
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
-                <h2 className="text-xl font-serif text-[#1e1d2f] mb-3">Overview</h2>
+                <h2 className="text-xl font-serif text-[#0f0406] mb-3">Overview</h2>
                 <p className="text-sm text-gray-600 leading-relaxed">{bestPkg.Overview}</p>
               </div>
             )}
@@ -526,7 +526,7 @@ export default function AgentResultsPage() {
             {/* Highlights */}
             {highlights.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
-                <h2 className="text-xl font-serif text-[#1e1d2f] mb-4">Highlights</h2>
+                <h2 className="text-xl font-serif text-[#0f0406] mb-4">Highlights</h2>
                 <ul className="space-y-3">
                   {highlights.map((h: string, i: number) => (
                     <li key={i} className="flex items-start gap-3">
@@ -542,7 +542,7 @@ export default function AgentResultsPage() {
             {days.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-serif text-[#1e1d2f]">Day-wise Itinerary</h2>
+                  <h2 className="text-xl font-serif text-[#0f0406]">Day-wise Itinerary</h2>
                   <div className="flex items-center gap-1">
                     <button onClick={() => setCurrentDayIdx(p => Math.max(0, p - 1))} disabled={currentDayIdx === 0}
                       className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-30 transition-colors">
@@ -596,7 +596,7 @@ export default function AgentResultsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {inclusions.length > 0 && (
                   <div className="bg-white rounded-xl shadow-sm p-5">
-                    <h2 className="text-lg font-serif text-[#1e1d2f] mb-3">Inclusions</h2>
+                    <h2 className="text-lg font-serif text-[#0f0406] mb-3">Inclusions</h2>
                     <ul className="space-y-2.5">
                       {inclusions.map((inc: string, i: number) => (
                         <li key={i} className="flex items-start gap-2.5">
@@ -609,7 +609,7 @@ export default function AgentResultsPage() {
                 )}
                 {exclusions.length > 0 && (
                   <div className="bg-white rounded-xl shadow-sm p-5">
-                    <h2 className="text-lg font-serif text-[#1e1d2f] mb-3">Exclusions</h2>
+                    <h2 className="text-lg font-serif text-[#0f0406] mb-3">Exclusions</h2>
                     <ul className="space-y-2.5">
                       {exclusions.map((exc: string, i: number) => (
                         <li key={i} className="flex items-start gap-2.5">
@@ -628,7 +628,7 @@ export default function AgentResultsPage() {
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
                 <div className="flex items-center gap-2.5 mb-4">
                   <Hotel className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-serif text-[#1e1d2f]">Hotel Information</h2>
+                  <h2 className="text-xl font-serif text-[#0f0406]">Hotel Information</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
@@ -666,7 +666,7 @@ export default function AgentResultsPage() {
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
                 <div className="flex items-center gap-2.5 mb-4">
                   <Car className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-serif text-[#1e1d2f]">Transport & Transfers</h2>
+                  <h2 className="text-xl font-serif text-[#0f0406]">Transport & Transfers</h2>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border-collapse">
@@ -701,7 +701,7 @@ export default function AgentResultsPage() {
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
                 <div className="flex items-center gap-2.5 mb-3">
                   <CreditCard className="w-5 h-5 text-primary" />
-                  <h2 className="text-xl font-serif text-[#1e1d2f]">Payment Policy</h2>
+                  <h2 className="text-xl font-serif text-[#0f0406]">Payment Policy</h2>
                 </div>
                 <div className="space-y-2">
                   {bestPkg.PaymentPolicy.split('\n').filter(Boolean).map((line: string, i: number) => (
@@ -718,7 +718,7 @@ export default function AgentResultsPage() {
               <div className="bg-white rounded-xl shadow-sm p-5 sm:p-6">
                 <div className="flex items-center gap-2.5 mb-3">
                   <Ban className="w-5 h-5 text-red-400" />
-                  <h2 className="text-xl font-serif text-[#1e1d2f]">Cancellation Policy</h2>
+                  <h2 className="text-xl font-serif text-[#0f0406]">Cancellation Policy</h2>
                 </div>
                 <div className="space-y-2">
                   {bestPkg.CancellationPolicy.split('\n').filter(Boolean).map((line: string, i: number) => (
@@ -739,7 +739,7 @@ export default function AgentResultsPage() {
             <div className="bg-white rounded-xl shadow-xl p-5 sm:p-6 space-y-5">
               <div>
                 <p className="text-xs text-gray-500 mb-0.5">{bestPkg.totalPrice ? 'Total Price' : 'Starting from'}</p>
-                <p className="text-3xl font-serif text-[#c99846] leading-tight">
+                <p className="text-3xl font-serif text-[#651926] leading-tight">
                   {getCurrencySymbol(bestPkg.Currency)}{(bestPkg.totalPrice || bestPkg.Price_Min_INR).toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -749,7 +749,7 @@ export default function AgentResultsPage() {
               </div>
 
               {/* Trip summary */}
-              <div className="text-xs text-gray-600 bg-[#f8f5f0] rounded-lg p-3 space-y-1.5">
+              <div className="text-xs text-gray-600 bg-[#f5f2f5] rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <Users className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                   <span>
@@ -1075,7 +1075,7 @@ function NameCaptureModal({ action, agentInfo, pkg, wizardData, subAgentId, subA
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50 rounded-t-3xl">
         <div>
-          <h3 className="font-bold text-gray-900">{actionLabel}</h3>
+          <h3 className="font-semibold text-gray-900">{actionLabel}</h3>
           <p className="text-xs text-gray-500 mt-0.5">{pkg.agentPackageTitle || pkg.Destination_Name} · {currSym}{basePrice.toLocaleString()}{isTotalPrice ? ' total' : '/person'}</p>
         </div>
         <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1"><X className="w-5 h-5" /></button>

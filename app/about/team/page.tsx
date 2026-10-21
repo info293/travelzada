@@ -49,9 +49,9 @@ export default function TeamPage() {
                 </div>
             </div>
 
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="text-4xl md:text-5xl font-serif font-bold text-gray-900 mb-4">Meet Our Team</h1>
+                    <h1 className="text-4xl md:text-5xl font-serif font-medium text-gray-900 mb-4">Meet Our <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Team</span></h1>
                     <p className="text-xl text-gray-600">
                         The travel experts ensuring your next trip is planned thoughtfully and honestly.
                     </p>
@@ -65,7 +65,7 @@ export default function TeamPage() {
                             <div key={member.name} className="bg-white border text-left border-gray-100 rounded-3xl p-8 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="space-y-6">
                                     <div>
-                                        <h2 className="text-2xl font-bold text-gray-900">{member.name}</h2>
+                                        <h2 className="text-2xl font-medium text-gray-900">{member.name}</h2>
                                         <p className="text-primary font-medium mt-1">{member.role}</p>
                                     </div>
 
@@ -74,7 +74,7 @@ export default function TeamPage() {
                                     </p>
 
                                     <div>
-                                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">Areas of Expertise</h3>
+                                        <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3">Areas of Expertise</h3>
                                         <div className="flex flex-wrap gap-2">
                                             {member.expertise.map((skill) => (
                                                 <span key={skill} className="bg-primary/5 text-primary px-3 py-1 rounded-full text-sm font-medium border border-primary/10">

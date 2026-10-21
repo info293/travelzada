@@ -77,7 +77,7 @@ export default function DestinationRailClient({ title, subtitle, tagLabel, desti
                     {tagLabel && (
                         <p className="font-serif italic text-teal-500 text-lg mb-2">{tagLabel}</p>
                     )}
-                    <h2 className="text-3xl sm:text-4xl font-bold text-[#1a2c4e]">{title}</h2>
+                    <h2 className="text-3xl sm:text-4xl font-medium text-[#1a2c4e]">{title}</h2>
                     {subtitle && (
                         <p className="text-gray-500 text-sm mt-2 max-w-md mx-auto">{subtitle}</p>
                     )}

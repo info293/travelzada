@@ -48,11 +48,11 @@ export default function Hero() {
 
           {/* Headline */}
           <h1
-            className="text-white font-[var(--font-playfair)]"
-            style={{ margin: 0, fontFamily: "'Playfair Display', serif", fontSize: 'clamp(28px, 4.8vw, 50px)', lineHeight: 1.1, fontWeight: 500, letterSpacing: '-0.01em' }}
+            className="text-white font-cormorant"
+            style={{ margin: 0, fontFamily: "var(--font-display), 'Cormorant Garamond', serif", fontSize: 'clamp(28px, 4.8vw, 50px)', lineHeight: 1.1, fontWeight: 500, letterSpacing: '-0.01em' }}
           >
             Honeymoon journeys,<br />
-            designed only <em style={{ color: '#e9d5ff' }}>for two.</em>
+            designed only <em style={{ color: '#c9a0ac' }}>for two.</em>
           </h1>
 
           {/* Sub-headline */}
@@ -65,7 +65,7 @@ export default function Hero() {
             <Link
               href="/destinations"
               className="font-semibold text-white rounded-lg transition-all hover:scale-105"
-              style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)', fontSize: 14, padding: '12px 28px', boxShadow: '0 10px 25px rgba(79,70,229,.4)', letterSpacing: '.01em' }}
+              style={{ background: 'linear-gradient(135deg,#651926,#462831)', fontSize: 14, padding: '12px 28px', boxShadow: '0 10px 25px rgba(70,40,49,.4)', letterSpacing: '.01em' }}
             >
               Explore Packages
             </Link>
@@ -96,7 +96,7 @@ export default function Hero() {
             <button
               type="submit"
               className="text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap flex-shrink-0 transition-all cursor-pointer"
-              style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)' }}
+              style={{ background: 'linear-gradient(135deg,#651926,#462831)' }}
             >
               Plan My Trip
             </button>

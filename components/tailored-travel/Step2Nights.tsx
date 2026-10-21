@@ -293,7 +293,7 @@ export default function Step2Nights({
     return (
         <div className="animate-fade-in-up">
             <div className="text-center mb-8">
-                <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+                <h2 className="text-3xl sm:text-5xl font-medium text-gray-900 mb-3 tracking-tight">
                     Customize Your Journey
                 </h2>
                 <p className="text-sm sm:text-lg text-gray-500 font-medium">
@@ -327,7 +327,7 @@ export default function Step2Nights({
                                     }`}>
                                         {/* Card header */}
                                         <div className="flex items-center gap-4 px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-gray-50/80 to-white">
-                                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-[#ff8a3d] text-white flex items-center justify-center font-black text-lg shadow-md flex-shrink-0">
+                                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-[#b86a79] text-white flex items-center justify-center font-black text-lg shadow-md flex-shrink-0">
                                                 {index + 1}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -373,7 +373,7 @@ export default function Step2Nights({
                                                                     onClick={() => selectNights(index, opt.nights)}
                                                                     className={`relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all duration-200 group select-none ${
                                                                         isSelected
-                                                                            ? 'bg-gradient-to-br from-primary to-[#ff8a3d] border-transparent shadow-xl shadow-primary/30 scale-105'
+                                                                            ? 'bg-gradient-to-br from-primary to-[#b86a79] border-transparent shadow-xl shadow-primary/30 scale-105'
                                                                             : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
                                                                     }`}
                                                                 >
@@ -426,7 +426,7 @@ export default function Step2Nights({
                 {isDmcMode && (
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mt-4">
                         <div className="px-5 pt-5 pb-3 border-b border-gray-50">
-                            <h3 className="font-black text-gray-900 text-base flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2">
                                 <span className="text-lg">👥</span> Group Size
                             </h3>
                             <p className="text-xs text-gray-400 font-medium mt-0.5">For reference — won't affect package search</p>

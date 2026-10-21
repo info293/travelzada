@@ -31,7 +31,7 @@ export default async function Home() {
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />
       <DestinationSlugCacheInitializer />
       <Header />
-      <main className="min-h-screen bg-[#F6F1E6] overflow-x-hidden">
+      <main className="min-h-screen bg-[#E2DDE3] overflow-x-hidden">
         <TravelzadaHomePage initialData={homepageData} />
       </main>
       <Footer />

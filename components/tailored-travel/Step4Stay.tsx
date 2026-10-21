@@ -52,7 +52,7 @@ export default function Step4Stay({
     return (
         <div className="animate-fade-in-up">
             <div className="text-center mb-6">
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 tracking-tight drop-shadow-sm">
+                <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-2 tracking-tight drop-shadow-sm">
                     Stay Preferences
                 </h2>
                 <p className="text-base text-gray-700 font-medium">Tell us what kind of accommodations you prefer and who is staying.</p>
@@ -63,7 +63,7 @@ export default function Step4Stay({
                 {/* Room Configuration */}
                 <div className="bg-white/70 backdrop-blur-2xl rounded-[1.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-[#ff8a3d]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        <svg className="w-5 h-5 text-[#b86a79]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                         Travellers & Rooms
                     </label>
 
@@ -130,7 +130,7 @@ export default function Step4Stay({
                 {/* Hotel Category */}
                 <div className="bg-white/70 backdrop-blur-2xl rounded-[1.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
                     <label className="block text-sm font-bold text-gray-700 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-[#f85cb5]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" /></svg>
+                        <svg className="w-5 h-5 text-[#c9a0ac]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1v1H9V7zm5 0h1v1h-1V7zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1zm-5 4h1v1H9v-1zm5 0h1v1h-1v-1z" /></svg>
                         Select Hotel Category
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -141,7 +141,7 @@ export default function Step4Stay({
                                     key={item.id}
                                     onClick={() => toggleHotel(item.id)}
                                     className={`relative overflow-hidden flex flex-col items-center justify-center text-center gap-1.5 p-5 rounded-[1.25rem] border-2 transition-all duration-300 group ${isSelected
-                                        ? 'bg-gradient-to-br from-primary/10 to-[#f85cb5]/10 border-primary shadow-[0_8px_30px_rgba(0,0,0,0.08)] scale-[1.02]'
+                                        ? 'bg-gradient-to-br from-primary/10 to-[#c9a0ac]/10 border-primary shadow-[0_8px_30px_rgba(0,0,0,0.08)] scale-[1.02]'
                                         : 'bg-white/70 border-gray-100 hover:bg-white hover:border-gray-200 hover:shadow-lg shadow-sm'
                                         }`}
                                 >

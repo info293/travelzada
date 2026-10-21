@@ -230,8 +230,8 @@ export default function TestimonialsClient() {
         className="flex flex-col md:flex-row overflow-hidden"
         style={{
           borderRadius: 16,
-          border: '1px solid #e9e5dd',
-          boxShadow: '0 12px 48px rgba(26,26,36,.08)',
+          border: '1px solid #e2dde3',
+          boxShadow: '0 12px 48px rgba(15,4,6,.08)',
           minHeight: 420,
         }}
       >
@@ -249,7 +249,7 @@ export default function TestimonialsClient() {
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(10,9,16,.58) 0%, transparent 55%)' }} />
           {active.location && (
             <div className="absolute bottom-4 left-4 flex items-center gap-1.5">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="#f59e0b">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#651926">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
               </svg>
               <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: '#fff', textTransform: 'uppercase' }}>{active.location}</span>
@@ -265,7 +265,7 @@ export default function TestimonialsClient() {
           {/* Stars */}
           <div className="flex gap-1 mb-6">
             {Array.from({ length: active.rating ?? 5 }).map((_, i) => (
-              <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill="#f59e0b">
+              <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill="#651926">
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
               </svg>
             ))}
@@ -275,10 +275,10 @@ export default function TestimonialsClient() {
           <blockquote
             style={{
               margin: '0 0 32px',
-              fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+              fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
               fontSize: 'clamp(16px, 4.5vw, 26px)',
               fontWeight: 400,
-              color: '#1a1a24',
+              color: '#0f0406',
               lineHeight: 1.6,
             }}
           >
@@ -289,14 +289,14 @@ export default function TestimonialsClient() {
           <div className="flex items-center gap-4">
             <div
               className="flex-none flex items-center justify-center rounded-full text-sm font-black"
-              style={{ width: 52, height: 52, background: '#1a1a24', color: '#fff', letterSpacing: '.03em' }}
+              style={{ width: 52, height: 52, background: '#0f0406', color: '#fff', letterSpacing: '.03em' }}
             >
               {initials}
             </div>
             <div>
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: '#1a1a24' }}>{active.name}</p>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: '#0f0406' }}>{active.name}</p>
               {active.trip && (
-                <p style={{ margin: '3px 0 0', fontSize: 13, color: '#9a9aa5' }}>{active.trip}</p>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: '#95929c' }}>{active.trip}</p>
               )}
             </div>
           </div>
@@ -320,14 +320,14 @@ export default function TestimonialsClient() {
                 style={{
                   width: 52,
                   height: 52,
-                  background: isActive ? '#1a1a24' : '#d9d5ce',
-                  color: isActive ? '#fff' : '#6b6b76',
+                  background: isActive ? '#0f0406' : '#cdc8cf',
+                  color: isActive ? '#fff' : '#6b6773',
                   border: 'none',
                   cursor: 'pointer',
                   letterSpacing: '.03em',
                   transform: isActive ? 'scale(1.08)' : 'scale(1)',
                   boxShadow: isActive
-                    ? '0 0 0 3px #faf8f5, 0 0 0 5px #4f46e5, 0 8px 20px rgba(26,26,36,.2)'
+                    ? '0 0 0 3px #f5f2f5, 0 0 0 5px #462831, 0 8px 20px rgba(15,4,6,.2)'
                     : 'none',
                 }}
                 aria-label={t.name}
@@ -341,20 +341,20 @@ export default function TestimonialsClient() {
 
       {/* ── Bottom stats ── */}
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-8" style={{ fontSize: 14 }}>
-        <span style={{ color: '#6b6b76' }}>
-          Rated <strong style={{ color: '#1a1a24' }}>4.9/5</strong> from <strong style={{ color: '#1a1a24' }}>500+</strong> couples
+        <span style={{ color: '#6b6773' }}>
+          Rated <strong style={{ color: '#0f0406' }}>4.9/5</strong> from <strong style={{ color: '#0f0406' }}>500+</strong> couples
         </span>
-        <span style={{ color: '#e9e5dd' }}>|</span>
-        <Link href="/reviews" className="font-semibold hover:underline" style={{ color: '#4f46e5' }}>
+        <span style={{ color: '#e2dde3' }}>|</span>
+        <Link href="/reviews" className="font-semibold hover:underline" style={{ color: '#462831' }}>
           Read All Reviews →
         </Link>
-        <span style={{ color: '#e9e5dd' }}>|</span>
+        <span style={{ color: '#e2dde3' }}>|</span>
         <Link
           href="https://g.page/r/travelzada"
           target="_blank"
           rel="noopener noreferrer"
           className="font-semibold hover:underline"
-          style={{ color: '#4f46e5' }}
+          style={{ color: '#462831' }}
         >
           Review us on Google
         </Link>

@@ -113,7 +113,7 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">Trip Details</h2>
+      <h2 className="text-2xl font-medium mb-6 text-gray-900">Trip Details</h2>
       
       <div className="space-y-6">
         {/* Destination */}
@@ -253,7 +253,7 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
                       {/* Content Section */}
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-bold text-gray-900 flex-1">{pkg.title}</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 flex-1">{pkg.title}</h3>
                         </div>
                         <p className="text-sm text-gray-600 mb-3">{pkg.nightsSummary}</p>
                         
@@ -310,7 +310,7 @@ export default function TripForm({ formData, setFormData }: TripFormProps) {
             {/* Itinerary Card */}
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg">
               <div className="bg-gradient-to-r from-primary/10 to-primary/5 px-6 py-4 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">
                   {generatedItinerary.destination} Itinerary
                 </h3>
                 <div className="flex items-center gap-4 text-sm text-gray-600">

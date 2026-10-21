@@ -107,7 +107,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
   const totalPackagesShown = filteredDestinations.reduce((acc, curr) => acc + curr.cards.length, 0)
 
   return (
-    <div className="font-figtree text-[#1C1C1E] bg-[#FAFAFC] min-h-screen antialiased selection:bg-[#E8DCC3] pt-24 pb-20">
+    <div className="font-figtree text-[#0F0406] bg-[#F5F2F5] min-h-screen antialiased selection:bg-[#651926] selection:text-white pt-24 pb-20">
 
       {/* ─────────────────────────────────────────────────────────────
           1. ATLYS-INSPIRED TOP NAVIGATION: TABS & SEARCH PILL
@@ -130,7 +130,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
               onClick={() => setActiveTab('explore')}
               className="flex flex-col items-center gap-1.5 group cursor-pointer relative"
             >
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm flex items-center justify-center text-xl text-white group-hover:scale-105 transition-transform">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-mauve-500 to-indigo-600 shadow-sm flex items-center justify-center text-xl text-white group-hover:scale-105 transition-transform">
                 🌍
               </div>
               <span className={`text-[14px] font-bold tracking-tight transition-colors ${
@@ -166,7 +166,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
           {/* Right: Sleek Country Search Pill */}
           <div className="relative w-full md:w-auto">
             <div className="flex items-center gap-2.5 rounded-full border border-gray-300/80 bg-white px-4 py-2.5 shadow-sm hover:border-gray-400 focus-within:border-black focus-within:ring-2 focus-within:ring-black/5 transition w-full md:w-[260px]">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6E6E73" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6773" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -223,7 +223,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
 
           {/* Segment 2: Budget */}
           <div className="flex items-center gap-3 flex-1 min-w-[150px]">
-            <div className="size-8 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#EDE4E7] text-[#462831] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               ✈️
             </div>
             <div className="flex flex-col text-left">
@@ -247,7 +247,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
 
           {/* Segment 3: Duration */}
           <div className="flex items-center gap-3 flex-1 min-w-[150px]">
-            <div className="size-8 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#EDE4E7] text-[#462831] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               📋
             </div>
             <div className="flex flex-col text-left">
@@ -271,7 +271,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
 
           {/* Segment 4: Holidays / Style */}
           <div className="flex items-center gap-3 flex-1 min-w-[150px]">
-            <div className="size-8 rounded-full bg-[#FCE7F3] text-[#EC4899] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#F5E6E9] text-[#852233] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               🏖️
             </div>
             <div className="flex flex-col text-left">
@@ -302,7 +302,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
         {filteredDestinations.length === 0 ? (
           <div className="rounded-[32px] border border-dashed border-gray-300 bg-white p-16 text-center shadow-sm">
             <span className="text-4xl">🌍</span>
-            <h3 className="mt-4 text-lg font-bold text-gray-900">No destinations match your filters</h3>
+            <h3 className="mt-4 text-lg font-semibold text-gray-900">No destinations match your filters</h3>
             <p className="mt-1 text-sm text-gray-500">Try adjusting your region, budget, or duration filter.</p>
             <button
               onClick={() => {
@@ -363,7 +363,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                     </div>
 
                     {/* Destination Name */}
-                    <h3 className="text-center font-serif text-[20px] sm:text-[22px] lg:text-[24px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow-md text-balance">
+                    <h3 className="text-center font-serif text-[20px] sm:text-[22px] lg:text-[24px] font-semibold text-white uppercase tracking-wider leading-tight drop-shadow-md text-balance">
                       {dest.name}
                     </h3>
 
@@ -388,7 +388,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                         <span className="text-[10px] font-bold tracking-wider text-white/60 uppercase">
                           STARTING
                         </span>
-                        <span className="text-[13px] font-bold tracking-wide text-[#E8DCC3] uppercase">
+                        <span className="text-[13px] font-bold tracking-wide text-[#E2DDE3] uppercase">
                           {startingPrice}
                         </span>
                       </div>
@@ -415,69 +415,6 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          4. WHY COUPLES CHOOSE TRAVELZADA (VALUE PROPOSITION)
-      ───────────────────────────────────────────────────────────── */}
-      <section className="mt-24 pt-16 border-t border-gray-200/70 bg-white">
-        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
-          
-          <div className="text-center max-w-[640px] mx-auto mb-14">
-            <span className="text-[11.5px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
-              The Travelzada Standard
-            </span>
-            <h2 className="text-[28px] lg:text-[38px] font-bold tracking-tight text-gray-900 mt-2">
-              Why couples book their milestone trips with us
-            </h2>
-            <p className="text-gray-500 text-[15px] mt-2.5">
-              Handcrafted romantic getaways with complete price transparency and personalized support.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="rounded-[24px] bg-[#FAFAFC] p-7 border border-gray-200/80 hover:shadow-md transition">
-              <div className="size-11 rounded-2xl bg-[#5057EA]/10 text-[#5057EA] flex items-center justify-center text-xl font-bold mb-4">
-                ⚡
-              </div>
-              <h3 className="text-[17px] font-bold text-gray-900">Customised in 24 Hours</h3>
-              <p className="text-[14px] text-gray-500 leading-relaxed mt-2">
-                Personalized day-by-day plan crafted for the two of you with handpicked experiences.
-              </p>
-            </div>
-
-            <div className="rounded-[24px] bg-[#FAFAFC] p-7 border border-gray-200/80 hover:shadow-md transition">
-              <div className="size-11 rounded-2xl bg-[#22C55E]/10 text-[#22C55E] flex items-center justify-center text-xl font-bold mb-4">
-                🏷️
-              </div>
-              <h3 className="text-[17px] font-bold text-gray-900">100% Itemised Costs</h3>
-              <p className="text-[14px] text-gray-500 leading-relaxed mt-2">
-                Every stay, private cab, and romantic candlelight dinner is clearly itemised with zero hidden markups.
-              </p>
-            </div>
-
-            <div className="rounded-[24px] bg-[#FAFAFC] p-7 border border-gray-200/80 hover:shadow-md transition">
-              <div className="size-11 rounded-2xl bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center text-xl font-bold mb-4">
-                🏨
-              </div>
-              <h3 className="text-[17px] font-bold text-gray-900">Verified Couple Stays</h3>
-              <p className="text-[14px] text-gray-500 leading-relaxed mt-2">
-                Private pool villas, heritage suites, and beachfront bungalows vetted for romance.
-              </p>
-            </div>
-
-            <div className="rounded-[24px] bg-[#FAFAFC] p-7 border border-gray-200/80 hover:shadow-md transition">
-              <div className="size-11 rounded-2xl bg-[#EC4899]/10 text-[#EC4899] flex items-center justify-center text-xl font-bold mb-4">
-                💬
-              </div>
-              <h3 className="text-[17px] font-bold text-gray-900">24×7 WhatsApp Concierge</h3>
-              <p className="text-[14px] text-gray-500 leading-relaxed mt-2">
-                A dedicated travel designer stays by your side on WhatsApp from inquiry until you return home.
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ─────────────────────────────────────────────────────────────
           5. COUPLE TESTIMONIALS & BOTTOM CTA BANNER
       ───────────────────────────────────────────────────────────── */}
       <section className="py-20 bg-white">
@@ -485,14 +422,14 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
           
           <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-10">
             <div>
-              <span className="text-[11.5px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+              <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
                 Verified Reviews
               </span>
-              <h2 className="text-[26px] lg:text-[34px] font-bold tracking-tight text-gray-900 mt-1">
+              <h2 className="text-[26px] lg:text-[34px] font-medium tracking-tight text-gray-900 mt-1">
                 Loved by 500+ couples across India
               </h2>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#FAFAFC] px-4 py-2 rounded-full border border-gray-200">
+            <div className="flex items-center gap-1.5 bg-[#F5F2F5] px-4 py-2 rounded-full border border-gray-200">
               <span className="text-[#00B67A] font-bold">★ 4.9 / 5.0</span>
               <span className="text-gray-400 text-xs">· Trustpilot Verified</span>
             </div>
@@ -518,7 +455,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
             ].map((rev, idx) => (
               <div
                 key={idx}
-                className="rounded-[24px] bg-[#FAFAFC] p-7 border border-gray-200/80 flex flex-col justify-between"
+                className="rounded-[24px] bg-[#F5F2F5] p-7 border border-gray-200/80 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center gap-1 mb-3.5">
@@ -533,7 +470,7 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
                   </p>
                 </div>
                 <div className="mt-6 pt-4 border-t border-gray-200 flex items-center gap-3">
-                  <div className="size-9 rounded-full bg-[#3B2A20] text-white flex items-center justify-center font-bold text-xs">
+                  <div className="size-9 rounded-full bg-[#651926] text-white flex items-center justify-center font-bold text-xs">
                     {rev.name.charAt(0)}
                   </div>
                   <div>
@@ -551,10 +488,10 @@ export default function DestinationsClient({ initialData }: DestinationsClientPr
       {/* ─────────────────────────────────────────────────────────────
           6. BOTTOM MINIMALIST CTA
       ───────────────────────────────────────────────────────────── */}
-      <section className="py-14 bg-[#111317] text-white">
+      <section className="py-14 bg-[#0F0406] text-white">
         <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12 text-center flex flex-col items-center">
-          <h2 className="text-[28px] lg:text-[40px] font-bold tracking-tight max-w-[650px] text-balance">
-            Ready to plan your romantic getaway?
+          <h2 className="text-[28px] lg:text-[40px] font-medium tracking-tight max-w-[650px] text-balance">
+            Ready to plan your <span className="font-pinyon font-normal text-[#C9A0AC] text-[1.08em] tracking-normal">romantic getaway?</span>
           </h2>
           <p className="text-gray-300 text-[15px] max-w-[480px] mt-2.5">
             Connect with a dedicated travel designer. Completely customized day-by-day itinerary with zero booking obligations.

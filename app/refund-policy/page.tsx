@@ -37,16 +37,16 @@ export default function RefundPolicyPage() {
                     ]} />
                 </div>
             </div>
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">Refund Policy</h1>
+                    <h1 className="text-3xl md:text-4xl font-serif font-medium text-gray-900">Refund <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Policy</span></h1>
                 </div>
             </section>
             <section className="py-16 px-4 md:px-12">
                 <div className="max-w-4xl mx-auto space-y-8 prose prose-lg text-gray-600">
                     <div className="space-y-8">
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">Cancellation Policy</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">Cancellation Policy</h2>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>Cancellations made more than 30 days prior to travel may be refundable as per hotel, cab, and flight policies.</li>
                                 <li>No refund will be provided for any non-refundable component once booked.</li>

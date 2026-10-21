@@ -34,7 +34,7 @@ export default function AiLoader() {
                     <div className="absolute inset-4 border-4 border-t-transparent border-r-white/50 border-b-transparent border-l-white/50 rounded-full animate-[spin_3s_linear_infinite_reverse]" />
 
                     {/* Inner Pulsing Core with Logo */}
-                    <div className="absolute inset-8 bg-white rounded-full flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(124,58,237,0.3)]">
+                    <div className="absolute inset-8 bg-white rounded-full flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(101,25,38,0.3)]">
                         <img
                             src="/images/logo/Travelzada Logo April (1).png"
                             alt="Travelzada"
@@ -50,7 +50,7 @@ export default function AiLoader() {
 
                 {/* Text Content */}
                 <div className="text-center space-y-3 max-w-sm">
-                    <h3 className="text-2xl font-bold text-white tracking-wider animate-pulse">
+                    <h3 className="text-2xl font-semibold text-white tracking-wider animate-pulse">
                         AI PROCESSING
                     </h3>
 

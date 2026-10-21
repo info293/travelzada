@@ -31,7 +31,7 @@ export default function ExploreIndia() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
           <p className="text-xs uppercase tracking-[0.5em] text-gray-400 mb-3">India, Reimagined</p>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-900 mb-3">
             Curated state circuits by Travelzada ateliers
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">

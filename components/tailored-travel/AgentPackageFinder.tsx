@@ -310,7 +310,7 @@ export default function AgentPackageFinder({
 
       {/* Heading */}
       <div className="text-center mb-6">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
+        <h2 className="text-3xl sm:text-4xl font-medium text-gray-900 tracking-tight">
           Find Your Package
         </h2>
         <p className="text-sm text-gray-400 font-medium mt-2">
@@ -329,7 +329,7 @@ export default function AgentPackageFinder({
             </p>
 
             {selectedDestination ? (
-              <div className="inline-flex items-center gap-2.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white pl-4 pr-3 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/25 text-sm">
+              <div className="inline-flex items-center gap-2.5 bg-gradient-to-r from-primary to-[#b86a79] text-white pl-4 pr-3 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/25 text-sm">
                 <svg className="w-4 h-4 opacity-80 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -562,7 +562,7 @@ export default function AgentPackageFinder({
                           onClick={() => toggleHotelStar(opt.id)}
                           className={`relative flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 transition-all duration-200 select-none ${
                             isSelected
-                              ? 'bg-gradient-to-br from-primary/10 to-[#ff8a3d]/10 border-primary shadow-lg shadow-primary/15 scale-[1.04]'
+                              ? 'bg-gradient-to-br from-primary/10 to-[#b86a79]/10 border-primary shadow-lg shadow-primary/15 scale-[1.04]'
                               : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.02]'
                           }`}
                         >
@@ -623,7 +623,7 @@ export default function AgentPackageFinder({
                         onClick={() => setSelectedNights(opt.nights)}
                         className={`relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all duration-200 group select-none ${
                           isSelected
-                            ? 'bg-gradient-to-br from-primary to-[#ff8a3d] border-transparent shadow-xl shadow-primary/30 scale-105'
+                            ? 'bg-gradient-to-br from-primary to-[#b86a79] border-transparent shadow-xl shadow-primary/30 scale-105'
                             : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
                         }`}
                       >

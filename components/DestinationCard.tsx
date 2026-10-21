@@ -125,7 +125,7 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
         )}
 
         {/* Rating Badge */}
-        <div className="absolute top-3 right-3 bg-[#1e1d2f]/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg">
+        <div className="absolute top-3 right-3 bg-[#0f0406]/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg">
           <span className="text-xs font-medium">⭐ {rating}</span>
         </div>
       </div>
@@ -135,11 +135,11 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
         {/* Location */}
         <div className="flex items-center text-3xl gap-1.5 text-xs text-gray-500 mb-1.5">
           <span>📍</span>
-          <h2 className="text-xl font-bold m-0">{destination.name}, {destination.country}</h2>
+          <h2 className="text-xl font-medium m-0">{destination.name}, {destination.country}</h2>
         </div>
 
         {/* Package Title */}
-        {/* <h3 className="text-base font-medium text-[#1e1d2f] mb-3 line-clamp-2">
+        {/* <h3 className="text-base font-medium text-[#0f0406] mb-3 line-clamp-2">
           {destination.description || `${destination.name} Adventure Package`}
         </h3> */}
 
@@ -147,7 +147,7 @@ export default function DestinationCard({ destination }: DestinationCardProps) {
         <div className="flex items-end justify-between gap-3">
           <div className="flex-1">
             <p className="text-xs text-gray-500 mb-0.5">Starting from</p>
-            <p className="text-2xl font-semibold text-[#1e1d2f]">{startingPrice}</p>
+            <p className="text-2xl font-semibold text-[#0f0406]">{startingPrice}</p>
           </div>
           <span className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap">
             Explore More

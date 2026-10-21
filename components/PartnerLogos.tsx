@@ -33,7 +33,7 @@ export default function PartnerLogos() {
             </svg>
             Luxury Hospitality Partners
           </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-3 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight font-display mb-3 leading-tight">
             Stay at World-Class Luxury Hotels & Resorts
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto">

@@ -234,12 +234,12 @@ export default function ContactPage() {
 
       <Header />
 
-      <main className="font-figtree text-[#3B2A20] bg-[#F6F1E6] text-[16px] antialiased selection:bg-[#E8DCC3] min-h-screen">
+      <main className="font-figtree text-[#0F0406] bg-[#E2DDE3] text-[16px] antialiased selection:bg-[#651926] selection:text-[#E2DDE3] min-h-screen">
 
         {/* ─────────────────────────────────────────────────────────────
             1. HERO & INTERACTIVE PLANNER FORM
         ───────────────────────────────────────────────────────────── */}
-        <section className="relative bg-[#2B1D17] text-[#F6F1E6] overflow-hidden pt-24 md:pt-28">
+        <section className="relative bg-[#0F0406] text-[#E2DDE3] overflow-hidden pt-24 md:pt-28">
           {/* Background Hero Image */}
           <div className="absolute inset-0">
             <img
@@ -255,7 +255,7 @@ export default function ContactPage() {
             className="absolute inset-0 pointer-events-none"
             style={{
               background:
-                'linear-gradient(90deg, rgba(43,29,23,0.95) 0%, rgba(43,29,23,0.82) 42%, rgba(43,29,23,0.58) 100%), linear-gradient(180deg, rgba(43,29,23,0.65) 0%, rgba(43,29,23,0.15) 26%, rgba(43,29,23,0) 70%, rgba(43,29,23,0.92) 100%)'
+                'linear-gradient(90deg, rgba(15,4,6,0.95) 0%, rgba(15,4,6,0.82) 42%, rgba(15,4,6,0.58) 100%), linear-gradient(180deg, rgba(15,4,6,0.65) 0%, rgba(15,4,6,0.15) 26%, rgba(15,4,6,0) 70%, rgba(15,4,6,0.92) 100%)'
             }}
           />
 
@@ -263,16 +263,16 @@ export default function ContactPage() {
 
             {/* Left Column: Heading & Contact Channels */}
             <div className="animate-[tzRise_0.8s_ease_both]">
-              <div className="text-[12.5px] font-semibold tracking-[0.3em] uppercase text-[#E8DCC3]">
+              <div className="text-[12.5px] font-semibold tracking-[0.3em] uppercase text-[#E2DDE3]">
                 Contact us
               </div>
               <h1 className="font-cormorant font-normal text-[clamp(46px,6.2vw,90px)] leading-[0.98] tracking-[-0.01em] mt-5 text-balance">
                 Let's plan something{' '}
-                <span className="font-pinyon font-normal text-[#E8DCC3] text-[0.92em] tracking-normal">
+                <span className="font-pinyon font-normal text-[#E2DDE3] text-[0.92em] tracking-normal">
                   for two
                 </span>
               </h1>
-              <p className="text-[clamp(16.5px,1.4vw,18.5px)] leading-relaxed text-[#F6F1E6] mt-6 max-w-[470px]">
+              <p className="text-[clamp(16.5px,1.4vw,18.5px)] leading-relaxed text-[#E2DDE3] mt-6 max-w-[470px]">
                 Tell us the occasion and a few details. A real travel designer gets back to you with a free, personalised itinerary.
               </p>
 
@@ -283,22 +283,22 @@ export default function ContactPage() {
                   href="https://wa.me/919929962350"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#F6F1E6]/10 border border-[#F6F1E6]/25 backdrop-blur-md text-[#F6F1E6] hover:bg-[#F6F1E6]/20 hover:border-[#F6F1E6]/50 transition group"
+                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#E2DDE3]/10 border border-[#F5F2F5]/25 backdrop-blur-md text-[#E2DDE3] hover:bg-[#E2DDE3]/20 hover:border-[#F5F2F5]/50 transition group"
                 >
-                  <span className="flex-none w-11 h-11 rounded-full bg-[#F6F1E6] text-[#3B2A20] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="flex-none w-11 h-11 rounded-full bg-[#E2DDE3] text-[#0F0406] flex items-center justify-center group-hover:scale-105 transition-transform">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 12a9 9 0 01-13.5 7.8L3 21l1.2-4.5A9 9 0 1121 12z" />
                     </svg>
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3]">
+                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E2DDE3]">
                       WhatsApp
                     </span>
                     <span className="block text-[17px] font-medium mt-0.5">
                       +91 99299 62350
                     </span>
                   </span>
-                  <span className="text-[#E8DCC3] group-hover:translate-x-1 transition-transform text-[18px]">
+                  <span className="text-[#E2DDE3] group-hover:translate-x-1 transition-transform text-[18px]">
                     →
                   </span>
                 </a>
@@ -306,22 +306,22 @@ export default function ContactPage() {
                 {/* Direct Call */}
                 <a
                   href="tel:+919929962350"
-                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#F6F1E6]/10 border border-[#F6F1E6]/25 backdrop-blur-md text-[#F6F1E6] hover:bg-[#F6F1E6]/20 hover:border-[#F6F1E6]/50 transition group"
+                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#E2DDE3]/10 border border-[#F5F2F5]/25 backdrop-blur-md text-[#E2DDE3] hover:bg-[#E2DDE3]/20 hover:border-[#F5F2F5]/50 transition group"
                 >
-                  <span className="flex-none w-11 h-11 rounded-full bg-[#F6F1E6] text-[#3B2A20] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="flex-none w-11 h-11 rounded-full bg-[#E2DDE3] text-[#0F0406] flex items-center justify-center group-hover:scale-105 transition-transform">
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" />
                     </svg>
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3]">
+                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E2DDE3]">
                       Direct Call
                     </span>
                     <span className="block text-[17px] font-medium mt-0.5">
                       +91 99299 62350
                     </span>
                   </span>
-                  <span className="text-[#E8DCC3] group-hover:translate-x-1 transition-transform text-[18px]">
+                  <span className="text-[#E2DDE3] group-hover:translate-x-1 transition-transform text-[18px]">
                     →
                   </span>
                 </a>
@@ -329,46 +329,46 @@ export default function ContactPage() {
                 {/* Email */}
                 <a
                   href="mailto:info@travelzada.com"
-                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#F6F1E6]/10 border border-[#F6F1E6]/25 backdrop-blur-md text-[#F6F1E6] hover:bg-[#F6F1E6]/20 hover:border-[#F6F1E6]/50 transition group"
+                  className="flex items-center gap-4 p-4 rounded-[16px] bg-[#E2DDE3]/10 border border-[#F5F2F5]/25 backdrop-blur-md text-[#E2DDE3] hover:bg-[#E2DDE3]/20 hover:border-[#F5F2F5]/50 transition group"
                 >
-                  <span className="flex-none w-11 h-11 rounded-full bg-[#F6F1E6] text-[#3B2A20] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="flex-none w-11 h-11 rounded-full bg-[#E2DDE3] text-[#0F0406] flex items-center justify-center group-hover:scale-105 transition-transform">
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 6h18v12H3zM3 7l9 6 9-6" />
                     </svg>
                   </span>
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3]">
+                    <span className="block text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E2DDE3]">
                       Email
                     </span>
                     <span className="block text-[17px] font-medium mt-0.5 truncate">
                       info@travelzada.com
                     </span>
                   </span>
-                  <span className="text-[#E8DCC3] group-hover:translate-x-1 transition-transform text-[18px]">
+                  <span className="text-[#E2DDE3] group-hover:translate-x-1 transition-transform text-[18px]">
                     →
                   </span>
                 </a>
               </div>
 
               {/* Trust Badge */}
-              <div className="flex items-center gap-3 sm:gap-4 flex-wrap mt-7 text-[14.5px] text-[#F6F1E6]/90">
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap mt-7 text-[14.5px] text-[#E2DDE3]/90">
                 <Link href="/reviews" className="hover:underline flex items-center gap-1.5">
                   <strong className="font-semibold text-amber-300">★ 4.9</strong>
                   <span>from 500+ couples</span>
                 </Link>
-                <span className="w-1 h-1 rounded-full bg-[#E8DCC3]" />
+                <span className="w-1 h-1 rounded-full bg-[#E2DDE3]" />
                 <span>No payment until you love the plan</span>
               </div>
             </div>
 
             {/* Right Column: Form Card or Confirmation */}
-            <div className="bg-white text-[#3B2A20] rounded-[24px] p-6 sm:p-10 shadow-[0_40px_80px_-36px_rgba(0,0,0,0.7)] animate-[tzRise_0.8s_0.1s_ease_both]">
+            <div className="bg-white text-[#0F0406] rounded-[24px] p-6 sm:p-10 shadow-[0_40px_80px_-36px_rgba(0,0,0,0.7)] animate-[tzRise_0.8s_0.1s_ease_both]">
               {!submitted ? (
                 <div>
                   <h2 className="font-cormorant font-semibold text-[clamp(30px,2.8vw,38px)] leading-[1.05]">
                     Plan your trip
                   </h2>
-                  <div className="text-[15px] text-[#7A4F34] mt-1.5">
+                  <div className="text-[15px] text-[#651926] mt-1.5">
                     Takes 30 seconds. We'll take it from there.
                   </div>
 
@@ -382,8 +382,8 @@ export default function ContactPage() {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="Riya &amp; Aarav"
-                        className={`w-full box-border mt-2 border rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 transition focus:bg-white focus:border-[#B88A5A] ${
-                          tried && !nameValid ? 'border-rose-600 bg-rose-50/50' : 'border-[#E8DCC3]'
+                        className={`w-full box-border mt-2 border rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 transition focus:bg-white focus:border-[#651926] ${
+                          tried && !nameValid ? 'border-rose-600 bg-rose-50/50' : 'border-[#95929C]/30'
                         }`}
                       />
                       {tried && !nameValid && (
@@ -397,11 +397,11 @@ export default function ContactPage() {
                     <label className="block">
                       <div className="text-[14px] font-semibold">WhatsApp number</div>
                       <div
-                        className={`flex items-center mt-2 border rounded-[12px] bg-[#F6F1E6] overflow-hidden focus-within:bg-white focus-within:border-[#B88A5A] transition ${
-                          tried && !phoneValid ? 'border-rose-600 bg-rose-50/50' : 'border-[#E8DCC3]'
+                        className={`flex items-center mt-2 border rounded-[12px] bg-[#E2DDE3] overflow-hidden focus-within:bg-white focus-within:border-[#651926] transition ${
+                          tried && !phoneValid ? 'border-rose-600 bg-rose-50/50' : 'border-[#95929C]/30'
                         }`}
                       >
-                        <span className="flex-none px-3.5 text-[15.5px] font-semibold text-[#7A4F34] border-r border-[#E8DCC3]">
+                        <span className="flex-none px-3.5 text-[15.5px] font-semibold text-[#651926] border-r border-[#95929C]/30">
                           +91
                         </span>
                         <input
@@ -410,7 +410,7 @@ export default function ContactPage() {
                           value={formData.phone}
                           onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s]/g, '') })}
                           placeholder="98765 43210"
-                          className="flex-1 min-w-0 border-none bg-transparent outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5"
+                          className="flex-1 min-w-0 border-none bg-transparent outline-none font-figtree text-[16px] text-[#0F0406] p-3.5"
                         />
                       </div>
                       {tried && !phoneValid && (
@@ -428,7 +428,7 @@ export default function ContactPage() {
                         <select
                           value={formData.occasion}
                           onChange={(e) => setFormData({ ...formData, occasion: e.target.value })}
-                          className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[15.5px] text-[#3B2A20] p-3.5 cursor-pointer focus:border-[#B88A5A] focus:bg-white transition"
+                          className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[15.5px] text-[#0F0406] p-3.5 cursor-pointer focus:border-[#651926] focus:bg-white transition"
                         >
                           {defaultOccasions.map((occ) => (
                             <option key={occ} value={occ}>
@@ -444,7 +444,7 @@ export default function ContactPage() {
                         <select
                           value={formData.when}
                           onChange={(e) => setFormData({ ...formData, when: e.target.value })}
-                          className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[15.5px] text-[#3B2A20] p-3.5 cursor-pointer focus:border-[#B88A5A] focus:bg-white transition"
+                          className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[15.5px] text-[#0F0406] p-3.5 cursor-pointer focus:border-[#651926] focus:bg-white transition"
                         >
                           {months.map((m) => (
                             <option key={m} value={m}>
@@ -459,7 +459,7 @@ export default function ContactPage() {
                     <label className="block">
                       <div className="flex justify-between items-baseline gap-2">
                         <span className="text-[14px] font-semibold">Where to?</span>
-                        <span className="text-[12.5px] text-[#7A4F34]">Select or type any place</span>
+                        <span className="text-[12.5px] text-[#651926]">Select or type any place</span>
                       </div>
                       <input
                         type="text"
@@ -467,7 +467,7 @@ export default function ContactPage() {
                         value={formData.destination}
                         onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                         placeholder="Bali, Kashmir, Kerala, or help us choose..."
-                        className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 transition focus:bg-white focus:border-[#B88A5A]"
+                        className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 transition focus:bg-white focus:border-[#651926]"
                       />
                       <datalist id="destinations-list">
                         {destinations.map((d) => (
@@ -480,14 +480,14 @@ export default function ContactPage() {
                     <label className="block">
                       <div className="flex justify-between items-baseline gap-2">
                         <span className="text-[14px] font-semibold">Email address</span>
-                        <span className="text-[12.5px] text-[#7A4F34]">Optional for itinerary copy</span>
+                        <span className="text-[12.5px] text-[#651926]">Optional for itinerary copy</span>
                       </div>
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder="riya.aarav@gmail.com"
-                        className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 transition focus:bg-white focus:border-[#B88A5A]"
+                        className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 transition focus:bg-white focus:border-[#651926]"
                       />
                     </label>
 
@@ -495,14 +495,14 @@ export default function ContactPage() {
                     <label className="block">
                       <div className="flex justify-between items-baseline gap-2">
                         <span className="text-[14px] font-semibold">Special wishlist or notes</span>
-                        <span className="text-[12.5px] text-[#7A4F34]">Optional</span>
+                        <span className="text-[12.5px] text-[#651926]">Optional</span>
                       </div>
                       <textarea
                         rows={2}
                         value={formData.message}
                         onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                         placeholder="Candlelight dinner, private pool villa, relaxed pace..."
-                        className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[15px] text-[#3B2A20] p-3 transition focus:bg-white focus:border-[#B88A5A] resize-none"
+                        className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#E2DDE3] outline-none font-figtree text-[15px] text-[#0F0406] p-3 transition focus:bg-white focus:border-[#651926] resize-none"
                       />
                     </label>
 
@@ -516,7 +516,7 @@ export default function ContactPage() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full mt-2 font-figtree text-[16px] font-semibold text-[#F6F1E6] bg-[#3B2A20] disabled:bg-gray-400 border-none rounded-full py-4 px-6 cursor-pointer transition hover:bg-[#7A4F34] hover:-translate-y-0.5 shadow-md flex items-center justify-center gap-2"
+                      className="w-full mt-2 font-figtree text-[16px] font-semibold text-[#E2DDE3] bg-[#462831] disabled:bg-gray-400 border-none rounded-full py-4 px-6 cursor-pointer transition hover:bg-[#852233] hover:-translate-y-0.5 shadow-md flex items-center justify-center gap-2"
                     >
                       {isSubmitting ? (
                         <span>Connecting with personal designer...</span>
@@ -525,7 +525,7 @@ export default function ContactPage() {
                       )}
                     </button>
 
-                    <div className="text-[13px] text-[#7A4F34] text-center mt-1">
+                    <div className="text-[13px] text-[#651926] text-center mt-1">
                       Free planning. We never share your number or spam you.
                     </div>
                   </form>
@@ -533,31 +533,31 @@ export default function ContactPage() {
               ) : (
                 /* Success Screen */
                 <div className="animate-[tzRise_0.5s_ease_both]">
-                  <div className="w-14 h-14 rounded-full bg-[#3B2A20] text-[#F6F1E6] flex items-center justify-center text-[24px]">
+                  <div className="w-14 h-14 rounded-full bg-[#462831] text-[#E2DDE3] flex items-center justify-center text-[24px]">
                     ✓
                   </div>
                   <h3 className="font-cormorant font-semibold text-[clamp(32px,3vw,40px)] leading-[1.05] mt-5">
                     Thank you, {firstName}!
                   </h3>
-                  <p className="text-[16px] leading-relaxed text-[#7A4F34] mt-2.5">
+                  <p className="text-[16px] leading-relaxed text-[#651926] mt-2.5">
                     Your personal travel designer has received your brief and will connect with you on WhatsApp shortly.
                   </p>
 
-                  <div className="mt-5 border border-[#E8DCC3] rounded-[16px] overflow-hidden divide-y divide-[#E8DCC3]/60 bg-[#F6F1E6]/40">
+                  <div className="mt-5 border border-[#95929C]/30 rounded-[16px] overflow-hidden divide-y divide-[#E2DDE3]/60 bg-[#E2DDE3]/40">
                     <div className="flex justify-between gap-4 p-3.5 text-[15px]">
-                      <span className="text-[#7A4F34]">Occasion</span>
+                      <span className="text-[#651926]">Occasion</span>
                       <span className="font-semibold">{formData.occasion}</span>
                     </div>
                     <div className="flex justify-between gap-4 p-3.5 text-[15px]">
-                      <span className="text-[#7A4F34]">Destination</span>
+                      <span className="text-[#651926]">Destination</span>
                       <span className="font-semibold">{formData.destination || 'Open to recommendations'}</span>
                     </div>
                     <div className="flex justify-between gap-4 p-3.5 text-[15px]">
-                      <span className="text-[#7A4F34]">When</span>
+                      <span className="text-[#651926]">When</span>
                       <span className="font-semibold">{formData.when}</span>
                     </div>
                     <div className="flex justify-between gap-4 p-3.5 text-[15px]">
-                      <span className="text-[#7A4F34]">WhatsApp</span>
+                      <span className="text-[#651926]">WhatsApp</span>
                       <span className="font-semibold">+91 {formData.phone}</span>
                     </div>
                   </div>
@@ -567,7 +567,7 @@ export default function ContactPage() {
                       href={`https://wa.me/919929962350?text=${waLeadMsg}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 text-[15.5px] font-semibold text-[#F6F1E6] bg-[#3B2A20] rounded-full py-3.5 px-6 hover:bg-[#7A4F34] transition shadow-md"
+                      className="flex-1 flex items-center justify-center gap-2 text-[15.5px] font-semibold text-[#E2DDE3] bg-[#462831] rounded-full py-3.5 px-6 hover:bg-[#852233] transition shadow-md"
                     >
                       <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
                       Chat now on WhatsApp
@@ -578,7 +578,7 @@ export default function ContactPage() {
                         setSubmitted(false)
                         setTried(false)
                       }}
-                      className="flex-initial text-[15px] font-semibold text-[#3B2A20] bg-transparent border border-[#D6B08C] rounded-full py-3.5 px-6 hover:bg-[#F6F1E6] transition cursor-pointer"
+                      className="flex-initial text-[15px] font-semibold text-[#0F0406] bg-transparent border border-[#C9A0AC] rounded-full py-3.5 px-6 hover:bg-[#E2DDE3] transition cursor-pointer"
                     >
                       Edit details
                     </button>
@@ -595,7 +595,7 @@ export default function ContactPage() {
         ───────────────────────────────────────────────────────────── */}
         <section className="max-w-[1280px] mx-auto px-5 sm:px-8 py-16 sm:py-28">
           <div className="text-center max-w-[680px] mx-auto">
-            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#7A4F34] leading-none">
+            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#651926] leading-none">
               what happens next
             </div>
             <h2 className="font-cormorant font-normal text-[clamp(36px,4.4vw,58px)] leading-[1.04] tracking-[-0.01em] mt-2.5">
@@ -605,40 +605,40 @@ export default function ContactPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 mt-12 sm:mt-16">
             {/* Step 1 */}
-            <div className="border-t border-[#D6B08C] pt-6">
-              <div className="font-cormorant font-normal text-[52px] leading-none text-[#B88A5A]">
+            <div className="border-t border-[#C9A0AC] pt-6">
+              <div className="font-cormorant font-normal text-[52px] leading-none text-[#651926]">
                 01
               </div>
-              <h3 className="text-[19px] font-semibold mt-4 text-[#3B2A20]">
+              <h3 className="text-[19px] font-semibold mt-4 text-[#0F0406]">
                 We read your brief
               </h3>
-              <p className="text-[15.5px] leading-relaxed text-[#7A4F34] mt-2 max-w-[340px]">
+              <p className="text-[15.5px] leading-relaxed text-[#651926] mt-2 max-w-[340px]">
                 A real travel designer goes through every detail you shared to understand your pace, style and budget.
               </p>
             </div>
 
             {/* Step 2 */}
-            <div className="border-t border-[#D6B08C] pt-6">
-              <div className="font-cormorant font-normal text-[52px] leading-none text-[#B88A5A]">
+            <div className="border-t border-[#C9A0AC] pt-6">
+              <div className="font-cormorant font-normal text-[52px] leading-none text-[#651926]">
                 02
               </div>
-              <h3 className="text-[19px] font-semibold mt-4 text-[#3B2A20]">
+              <h3 className="text-[19px] font-semibold mt-4 text-[#0F0406]">
                 We message you
               </h3>
-              <p className="text-[15.5px] leading-relaxed text-[#7A4F34] mt-2 max-w-[340px]">
+              <p className="text-[15.5px] leading-relaxed text-[#651926] mt-2 max-w-[340px]">
                 On WhatsApp, to ask a few quick questions and curate handpicked boutique stays and private transfers.
               </p>
             </div>
 
             {/* Step 3 */}
-            <div className="border-t border-[#D6B08C] pt-6">
-              <div className="font-cormorant font-normal text-[52px] leading-none text-[#B88A5A]">
+            <div className="border-t border-[#C9A0AC] pt-6">
+              <div className="font-cormorant font-normal text-[52px] leading-none text-[#651926]">
                 03
               </div>
-              <h3 className="text-[19px] font-semibold mt-4 text-[#3B2A20]">
+              <h3 className="text-[19px] font-semibold mt-4 text-[#0F0406]">
                 Your free itinerary
               </h3>
-              <p className="text-[15.5px] leading-relaxed text-[#7A4F34] mt-2 max-w-[340px]">
+              <p className="text-[15.5px] leading-relaxed text-[#651926] mt-2 max-w-[340px]">
                 Day by day, 100% itemised with transparent pricing. Swap hotels or dates as much as you like. No payment until you love it.
               </p>
             </div>
@@ -648,10 +648,10 @@ export default function ContactPage() {
         {/* ─────────────────────────────────────────────────────────────
             3. VISIT US IN JAIPUR (MAP & OFFICE INFO)
         ───────────────────────────────────────────────────────────── */}
-        <section className="bg-[#E8DCC3]">
+        <section className="bg-[#E2DDE3]">
           <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-16 sm:py-28 grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-16 items-center">
             <div>
-              <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#7A4F34]">
+              <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#651926]">
                 Visit us
               </div>
               <h2 className="font-cormorant font-normal text-[clamp(36px,4.2vw,56px)] leading-[1.04] tracking-[-0.01em] mt-3.5">
@@ -660,10 +660,10 @@ export default function ContactPage() {
 
               <div className="grid gap-5 mt-7">
                 <div>
-                  <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#7A4F34]">
+                  <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#651926]">
                     Headquarters
                   </div>
-                  <div className="text-[17px] leading-relaxed mt-1 max-w-[380px] text-[#3B2A20]">
+                  <div className="text-[17px] leading-relaxed mt-1 max-w-[380px] text-[#0F0406]">
                     Travelzada (Sadaya Trips LLP)<br />
                     4th Floor, Bhamashah Techno Hub, Malviya Nagar, Jaipur, Rajasthan 302017
                   </div>
@@ -671,23 +671,23 @@ export default function ContactPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
                   <div>
-                    <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#7A4F34]">
+                    <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#651926]">
                       Call &amp; WhatsApp
                     </div>
                     <a
                       href="tel:+919929962350"
-                      className="block text-[17px] font-medium mt-1 hover:text-[#7A4F34] transition"
+                      className="block text-[17px] font-medium mt-1 hover:text-[#651926] transition"
                     >
                       +91 99299 62350
                     </a>
                   </div>
                   <div>
-                    <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#7A4F34]">
+                    <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#651926]">
                       Email
                     </div>
                     <a
                       href="mailto:info@travelzada.com"
-                      className="block text-[17px] font-medium mt-1 hover:text-[#7A4F34] transition"
+                      className="block text-[17px] font-medium mt-1 hover:text-[#651926] transition"
                     >
                       info@travelzada.com
                     </a>
@@ -699,7 +699,7 @@ export default function ContactPage() {
                 href="https://www.google.com/maps/search/?api=1&query=Bhamashah%20Techno%20Hub%20Malviya%20Nagar%20Jaipur%20302017"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2.5 mt-8 text-[15px] font-semibold text-[#F6F1E6] bg-[#3B2A20] px-6 py-3.5 rounded-full transition hover:bg-[#7A4F34] hover:-translate-y-0.5 shadow-sm"
+                className="inline-flex items-center gap-2.5 mt-8 text-[15px] font-semibold text-[#E2DDE3] bg-[#462831] px-6 py-3.5 rounded-full transition hover:bg-[#852233] hover:-translate-y-0.5 shadow-sm"
               >
                 <span>Open in Google Maps</span>
                 <span>↗</span>
@@ -707,7 +707,7 @@ export default function ContactPage() {
             </div>
 
             {/* Styled Map Embed */}
-            <div className="h-[clamp(320px,34vw,440px)] rounded-[20px] overflow-hidden bg-[#D6B08C] outline outline-1 outline-[#D6B08C] outline-offset-[6px] shadow-md">
+            <div className="h-[clamp(320px,34vw,440px)] rounded-[20px] overflow-hidden bg-[#C9A0AC] outline outline-1 outline-[#C9A0AC] outline-offset-[6px] shadow-md">
               <iframe
                 title="Travelzada Jaipur Office Map"
                 src="https://www.google.com/maps?q=Bhamashah%20Techno%20Hub%2C%20Malviya%20Nagar%2C%20Jaipur%20302017&output=embed"
@@ -724,11 +724,11 @@ export default function ContactPage() {
         ───────────────────────────────────────────────────────────── */}
         {isNarrow && (
           <>
-            <div className="h-[84px] bg-[#3B2A20]" />
-            <div className="fixed left-3 right-3 bottom-3 z-50 flex gap-2 bg-[#F6F1E6] rounded-full p-1.5 shadow-[0_18px_40px_-14px_rgba(43,29,23,0.55),0_0_0_1px_#E8DCC3] animate-[tzRise_0.4s_ease_both]">
+            <div className="h-[84px] bg-[#462831]" />
+            <div className="fixed left-3 right-3 bottom-3 z-50 flex gap-2 bg-[#E2DDE3] rounded-full p-1.5 shadow-[0_18px_40px_-14px_rgba(15,4,6,0.55),0_0_0_1px_#E2DDE3] animate-[tzRise_0.4s_ease_both]">
               <a
                 href="tel:+919929962350"
-                className="flex-1 flex items-center justify-center font-figtree text-[15.5px] font-semibold text-[#3B2A20] bg-[#E8DCC3] rounded-full h-[52px] hover:bg-[#D6B08C] transition"
+                className="flex-1 flex items-center justify-center font-figtree text-[15.5px] font-semibold text-[#0F0406] bg-[#E2DDE3] rounded-full h-[52px] hover:bg-[#C9A0AC] transition"
               >
                 Call us
               </a>
@@ -736,7 +736,7 @@ export default function ContactPage() {
                 href="https://wa.me/919929962350"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-[1.4] flex items-center justify-center gap-2 font-figtree text-[15.5px] font-semibold text-[#F6F1E6] bg-[#3B2A20] rounded-full h-[52px] hover:bg-[#7A4F34] transition"
+                className="flex-[1.4] flex items-center justify-center gap-2 font-figtree text-[15.5px] font-semibold text-[#E2DDE3] bg-[#462831] rounded-full h-[52px] hover:bg-[#852233] transition"
               >
                 <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
                 WhatsApp us

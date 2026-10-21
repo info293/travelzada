@@ -112,9 +112,9 @@ export default function LoginPage() {
                 <span className="w-2 h-2 bg-purple-500 rounded-full" />
                 AI-Powered Travel
               </span>
-              <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-4xl font-medium text-gray-900 leading-tight">
                 Welcome back to<br />
-                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">
                   your journey
                 </span>
               </h1>
@@ -127,7 +127,7 @@ export default function LoginPage() {
               {[
                 { label: 'AI Trip Planner', sub: 'Personalized routes in seconds', color: 'from-purple-50 to-indigo-50' },
                 { label: 'Saved Itineraries', sub: 'Pick up where you left off', color: 'from-pink-50 to-rose-50' },
-                { label: 'Exclusive Deals', sub: 'Members-only pricing', color: 'from-amber-50 to-orange-50' },
+                { label: 'Exclusive Deals', sub: 'Members-only pricing', color: 'from-amber-50 to-bordeaux-50' },
                 { label: '24/7 Support', sub: 'Always here to help', color: 'from-green-50 to-emerald-50' },
               ].map((c) => (
                 <div key={c.label} className={`p-4 rounded-2xl bg-gradient-to-br ${c.color} border border-white/80`}>
@@ -142,7 +142,7 @@ export default function LoginPage() {
           <div className="w-full">
             <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-purple-900/5 p-8">
               <div className="mb-7">
-                <h2 className="text-2xl font-bold text-gray-900">Sign in</h2>
+                <h2 className="text-2xl font-medium text-gray-900">Sign in</h2>
                 <p className="text-gray-500 text-sm mt-1">Enter your credentials to continue</p>
               </div>
 

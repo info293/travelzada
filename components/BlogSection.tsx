@@ -26,7 +26,7 @@ export default function BlogSection() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
           <div>
             <p className="text-xs uppercase tracking-[0.5em] text-gray-400">Dispatches</p>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900">Stories from the Travelzada journal</h2>
+            <h2 className="text-3xl md:text-5xl font-medium text-gray-900">Stories from the Travelzada journal</h2>
           </div>
           <a href="/blog" className="text-primary font-semibold flex items-center gap-2 hover:gap-3 transition-all">
             View all articles

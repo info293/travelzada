@@ -101,7 +101,7 @@ export default function ReviewSummary({
 
   return (
     <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">Review Summary</h3>
+      <h3 className="text-xl font-semibold text-gray-900 mb-6">Review Summary</h3>
 
       {/* Aggregate Rating */}
       <div className="flex items-center gap-5 mb-8">

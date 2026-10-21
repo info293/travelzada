@@ -32,7 +32,7 @@ export default function BestSellers() {
               )}
             </div>
             <div className="p-4">
-              <h3 className="font-bold text-lg mb-1 line-clamp-1">{pkg.title}</h3>
+              <h3 className="font-semibold text-lg mb-1 line-clamp-1">{pkg.title}</h3>
               <p className="text-sm text-gray-600 mb-2">{pkg.destination}</p>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-500">{pkg.duration}</span>

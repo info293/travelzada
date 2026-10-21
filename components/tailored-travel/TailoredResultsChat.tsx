@@ -24,7 +24,7 @@ const thinkingMessages = [
 
 const SparkleIconIndicator = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
     <span
-        className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm`}
+        className={`${className} inline-block bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm`}
     />
 )
 
@@ -446,7 +446,7 @@ export default function TailoredResultsChat({ initialPackages, wizardData, onNew
             <div className="hidden lg:flex w-64 bg-white/40 backdrop-blur-md border-r border-gray-100/50 flex-col p-4 shrink-0 h-full">
                 <div className="flex items-center gap-3 mb-8 px-2">
                     <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
-                        <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
+                        <div className="w-4 h-4 bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
                     </div>
                     <span className="font-normal text-gray-700">Trip Planner</span>
                 </div>

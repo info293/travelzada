@@ -315,7 +315,7 @@ export default function StepDmc1Destination({
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-5">
-        <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1.5 tracking-tight">
+        <h2 className="text-2xl sm:text-4xl font-medium text-gray-900 mb-1.5 tracking-tight">
           Plan Your Journey
         </h2>
         <p className="text-xs sm:text-base text-gray-500 font-medium px-2">

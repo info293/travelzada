@@ -60,7 +60,7 @@ const jsonLd = {
 // Reusing the SparkleIcon for consistency if needed, though the text content is priority now.
 const SparkleIcon = ({ className = 'w-6 h-6' }: { className?: string }) => (
     <span
-        className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
+        className={`${className} inline-block bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
     />
 )
 
@@ -88,11 +88,11 @@ export default function AboutUsPage() {
             </div>
 
             {/* Hero / Intro Section */}
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center space-y-8">
 
                     <div className="space-y-6">
-                        <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">About Travelzada</h1>
+                        <h1 className="text-3xl md:text-4xl font-serif font-medium text-gray-900">About <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Travelzada</span></h1>
                         <div className="prose prose-lg mx-auto text-gray-600 leading-relaxed text-justify">
                             <p>
                                 Travelzada is a unit of Sadaya Trips LLP , building couple-focused travel experiences for a little over one year now.
@@ -111,7 +111,7 @@ export default function AboutUsPage() {
 
                     {/* The Story */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">The Story Behind Travelzada (and Why It Exists)</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">The Story Behind Travelzada (and Why It Exists)</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travelzada was founded by Rishabh Khandelwal (<a href="https://www.linkedin.com/in/rishabhk108/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">LinkedIn</a>)
@@ -145,7 +145,7 @@ export default function AboutUsPage() {
 
                     {/* The Problem */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">The Problem</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">The Problem</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4">
                             <p>
                                 Couples today aren’t short on travel options. They’re overwhelmed by them.
@@ -167,7 +167,7 @@ export default function AboutUsPage() {
 
                     {/* Why Book with Travelzada */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">Why Book Your Couple Trip with Travelzada</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">Why Book Your Couple Trip with Travelzada</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 We’re upfront about one thing - we are not the biggest travel company in the market (yet). We focus on planning trips that actually make sense for couples.
@@ -202,7 +202,7 @@ export default function AboutUsPage() {
 
                     {/* How We Use AI & Technology */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">How We Use AI & Technology</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">How We Use AI & Technology</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travel planning today suffers from information overload. Our technology is built to reduce that.
@@ -240,7 +240,7 @@ export default function AboutUsPage() {
 
                     {/* Who Travelzada Is Built For */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">Who Travelzada Is Built For</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">Who Travelzada Is Built For</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travelzada is designed exclusively for couples:
@@ -272,7 +272,7 @@ export default function AboutUsPage() {
 
                     {/* Our Philosophy */}
                     <div className="space-y-6">
-                        <h2 className="text-3xl font-serif font-bold text-gray-900">Our Philosophy</h2>
+                        <h2 className="text-3xl font-serif font-medium text-gray-900">Our Philosophy</h2>
                         <div className="prose prose-lg text-gray-600 leading-relaxed space-y-4 text-justify">
                             <p>
                                 Travel is a high ticket-size decision.
@@ -292,7 +292,7 @@ export default function AboutUsPage() {
                     {/* Company Details */}
                     <div className="bg-gray-50 border border-gray-100 rounded-3xl p-8 md:p-12 space-y-8">
                         <div className="space-y-4">
-                            <h2 className="text-3xl font-serif font-bold text-gray-900">Built from Jaipur, for Couples Everywhere</h2>
+                            <h2 className="text-3xl font-serif font-medium text-gray-900">Built from Jaipur, for Couples Everywhere</h2>
                             <p className="text-lg text-gray-600">
                                 Travelzada is proudly built from Jaipur, India, with a deep focus on operations, planning, and real-world execution.
                             </p>
@@ -300,7 +300,7 @@ export default function AboutUsPage() {
 
                         <div className="grid md:grid-cols-2 gap-8 pt-4">
                             <div>
-                                <h3 className="font-bold text-gray-900 mb-4 uppercase tracking-wider text-sm">Company Details</h3>
+                                <h3 className="font-semibold text-gray-900 mb-4 uppercase tracking-wider text-sm">Company Details</h3>
                                 <div className="space-y-2 text-gray-600">
                                     <p className="font-semibold text-gray-900">Sadaya Trips LLP</p>
                                     <p>LLP Number: ACH-0386</p>
@@ -309,7 +309,7 @@ export default function AboutUsPage() {
                             </div>
 
                             <div>
-                                <h3 className="font-bold text-gray-900 mb-4 uppercase tracking-wider text-sm">Contact & Address</h3>
+                                <h3 className="font-semibold text-gray-900 mb-4 uppercase tracking-wider text-sm">Contact & Address</h3>
                                 <div className="space-y-2 text-gray-600">
                                     <p>Email ID : <a href="mailto:info@travelzada.com" className="text-primary hover:underline">info@travelzada.com</a></p>
                                     <p>Contact Number : <a href="tel:+919929962350" className="text-primary hover:underline">+91 9929962350</a></p>

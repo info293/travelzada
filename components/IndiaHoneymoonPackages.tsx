@@ -234,7 +234,7 @@ export default function IndiaHoneymoonPackages() {
   }
 
   return (
-    <section className="relative overflow-hidden bg-[#fbf9f6] py-10 sm:py-14 px-4 sm:px-8 select-none">
+    <section className="relative overflow-hidden bg-[#f5f2f5] py-10 sm:py-14 px-4 sm:px-8 select-none">
       {/* Background ambient glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-amber-100/40 via-purple-100/30 to-indigo-100/40 blur-3xl pointer-events-none rounded-full" />
 
@@ -248,7 +248,7 @@ export default function IndiaHoneymoonPackages() {
             </svg>
             Incredible India
           </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-2 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight font-display mb-2 leading-tight">
             Best Honeymoon Tour Packages in India
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-1 max-w-2xl mx-auto">
@@ -367,7 +367,7 @@ export default function IndiaHoneymoonPackages() {
 
                         {/* Top Right Rating */}
                         <div className="absolute top-4 right-4 z-10 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-950/80 backdrop-blur-md text-white flex items-center gap-1 border border-white/15">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#651926">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
                           </svg>
                           <span>{rating}</span>
@@ -379,7 +379,7 @@ export default function IndiaHoneymoonPackages() {
                       <div className="p-5 sm:p-6 flex flex-col justify-between">
                         {/* Title & Location */}
                         <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
+                          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
                             {name}
                           </h3>
 

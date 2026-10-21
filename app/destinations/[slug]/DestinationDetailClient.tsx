@@ -256,7 +256,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#FAFAFC]">
+      <main className="min-h-screen bg-[#F5F2F5]">
         <Header />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-4">
@@ -271,11 +271,11 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
   if (!destination) {
     return (
-      <main className="min-h-screen bg-[#FAFAFC]">
+      <main className="min-h-screen bg-[#F5F2F5]">
         <Header />
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center max-w-md px-6">
-            <h1 className="text-3xl font-bold font-serif text-gray-900 mb-3">Destination Not Found</h1>
+            <h1 className="text-3xl font-medium font-serif text-gray-900 mb-3">Destination Not Found</h1>
             <p className="text-gray-500 mb-6">The destination you are looking for is currently unavailable.</p>
             <Link
               href="/destinations"
@@ -300,13 +300,13 @@ export default function DestinationDetailClient({ params, initialDestination, in
   const formattedLowest = minStartingPrice !== Infinity ? `₹${minStartingPrice.toLocaleString('en-IN')}` : '₹32,000'
 
   return (
-    <main className="min-h-screen bg-[#FAFAFC] text-[#1C1C1E] antialiased selection:bg-[#E8DCC3]">
+    <main className="min-h-screen bg-[#F5F2F5] text-[#0F0406] antialiased selection:bg-[#651926] selection:text-[#E2DDE3]">
       <Header />
 
       {/* ─────────────────────────────────────────────────────────────
           1. BREADCRUMBS & TOP NAVIGATION
       ───────────────────────────────────────────────────────────── */}
-      <div className="bg-[#FAFAFC] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
+      <div className="bg-[#F5F2F5] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
         <div className="max-w-[1440px] mx-auto flex items-center justify-between">
           <Breadcrumbs
             items={[
@@ -340,8 +340,8 @@ export default function DestinationDetailClient({ params, initialDestination, in
           </div>
 
           {/* Headline */}
-          <h1 className="text-[36px] sm:text-[46px] lg:text-[54px] font-bold font-serif text-gray-900 tracking-tight leading-[1.08] text-balance">
-            {destination?.name || destinationName} Tour Packages
+          <h1 className="text-[36px] sm:text-[46px] lg:text-[54px] font-medium font-serif text-gray-900 tracking-tight leading-[1.08] text-balance">
+            {destination?.name || destinationName}{' '}<span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Tour Packages</span>
           </h1>
 
           {/* Subtitle */}
@@ -357,11 +357,11 @@ export default function DestinationDetailClient({ params, initialDestination, in
               <span>{destinationPackages.length} Curated Packages</span>
             </div>
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
-              <span className="size-2 rounded-full bg-amber-500" />
+              <span className="size-2 rounded-full bg-[#C9A0AC]" />
               <span>From {formattedLowest} / couple</span>
             </div>
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
-              <span className="size-2 rounded-full bg-blue-500" />
+              <span className="size-2 rounded-full bg-mauve-500" />
               <span>Best Time: {meta.bestTime}</span>
             </div>
             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
@@ -405,7 +405,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
           {/* Segment 2: Budget */}
           <div className="flex items-center gap-3 flex-1 min-w-[140px]">
-            <div className="size-8 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#EDE4E7] text-[#462831] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               ✈️
             </div>
             <div className="flex flex-col text-left">
@@ -429,7 +429,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
           {/* Segment 3: Category */}
           <div className="flex items-center gap-3 flex-1 min-w-[140px]">
-            <div className="size-8 rounded-full bg-[#FEF3C7] text-[#D97706] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#EDE4E7] text-[#462831] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               🏨
             </div>
             <div className="flex flex-col text-left">
@@ -453,7 +453,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
 
           {/* Segment 4: Sort */}
           <div className="flex items-center gap-3 flex-1 min-w-[140px]">
-            <div className="size-8 rounded-full bg-[#FCE7F3] text-[#EC4899] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            <div className="size-8 rounded-full bg-[#F5E6E9] text-[#852233] flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
               📊
             </div>
             <div className="flex flex-col text-left">
@@ -478,7 +478,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
         {/* Live Search bar for packages */}
         <div className="max-w-md mx-auto mt-4">
           <div className="flex items-center gap-2.5 rounded-full border border-gray-300 bg-white px-4 py-2 shadow-sm focus-within:border-black transition">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6E6E73" strokeWidth="2.2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B6773" strokeWidth="2.2">
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
@@ -524,7 +524,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
           {filteredPackages.length === 0 ? (
             <div className="rounded-[32px] border border-dashed border-gray-300 bg-white p-16 text-center shadow-sm">
               <span className="text-4xl">🏝️</span>
-              <h3 className="mt-4 text-lg font-bold text-gray-900">No packages match your filters</h3>
+              <h3 className="mt-4 text-lg font-semibold text-gray-900">No packages match your filters</h3>
               <p className="mt-1 text-sm text-gray-500">Try selecting a different duration, budget, or clearing your search.</p>
               <button
                 onClick={() => {
@@ -589,13 +589,13 @@ export default function DestinationDetailClient({ params, initialDestination, in
                       
                       {/* Location Hook */}
                       {pkg.Location_Breakup && (
-                        <span className="text-[10px] font-semibold tracking-wider text-[#E8DCC3] uppercase line-clamp-1 mb-1">
+                        <span className="text-[10px] font-semibold tracking-wider text-[#E2DDE3] uppercase line-clamp-1 mb-1">
                           📍 {pkg.Location_Breakup}
                         </span>
                       )}
 
                       {/* Package Name */}
-                      <h3 className="font-serif text-[17px] lg:text-[19px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow-md line-clamp-2 text-balance">
+                      <h3 className="font-serif text-[17px] lg:text-[19px] font-semibold text-white uppercase tracking-wider leading-tight drop-shadow-md line-clamp-2 text-balance">
                         {pkg.Destination_Name || 'Curated Romantic Package'}
                       </h3>
 
@@ -620,7 +620,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
                           <span className="text-[9px] font-bold tracking-wider text-white/60 uppercase">
                             STARTING
                           </span>
-                          <span className="text-[12px] font-bold tracking-wide text-[#E8DCC3] uppercase">
+                          <span className="text-[12px] font-bold tracking-wide text-[#E2DDE3] uppercase">
                             {formattedPrice}
                           </span>
                         </div>
@@ -655,10 +655,10 @@ export default function DestinationDetailClient({ params, initialDestination, in
           <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
             
             <div className="text-center max-w-xl mx-auto mb-12">
-              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+              <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
                 Essential Guide
               </span>
-              <h2 className="text-[26px] lg:text-[34px] font-bold font-serif text-gray-900 mt-1">
+              <h2 className="text-[26px] lg:text-[34px] font-medium font-serif text-gray-900 mt-1">
                 Traveling to {destination?.name || destinationName}
               </h2>
             </div>
@@ -666,44 +666,44 @@ export default function DestinationDetailClient({ params, initialDestination, in
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               
               {/* Card 1: Best Time */}
-              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+              <div className="rounded-[24px] bg-[#F5F2F5] p-6 border border-gray-200/80">
                 <div className="size-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg font-bold mb-4">
                   ☀️
                 </div>
-                <h3 className="text-[16px] font-bold text-gray-900">Best Time to Visit</h3>
+                <h3 className="text-[16px] font-semibold text-gray-900">Best Time to Visit</h3>
                 <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
                   {destination.bestTimeToVisit || meta.bestTime} offers idyllic beach weather, calm ocean waters, and stunning sunsets.
                 </p>
               </div>
 
               {/* Card 2: Recommended Duration */}
-              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
-                <div className="size-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg font-bold mb-4">
+              <div className="rounded-[24px] bg-[#F5F2F5] p-6 border border-gray-200/80">
+                <div className="size-10 rounded-2xl bg-mauve-50 text-mauve-600 flex items-center justify-center text-lg font-bold mb-4">
                   ⏳
                 </div>
-                <h3 className="text-[16px] font-bold text-gray-900">Ideal Trip Length</h3>
+                <h3 className="text-[16px] font-semibold text-gray-900">Ideal Trip Length</h3>
                 <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
                   {destination.duration || '5 to 8 Days'} is recommended to comfortably explore key regions without feeling rushed.
                 </p>
               </div>
 
               {/* Card 3: Currency */}
-              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+              <div className="rounded-[24px] bg-[#F5F2F5] p-6 border border-gray-200/80">
                 <div className="size-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg font-bold mb-4">
                   💵
                 </div>
-                <h3 className="text-[16px] font-bold text-gray-900">Local Currency</h3>
+                <h3 className="text-[16px] font-semibold text-gray-900">Local Currency</h3>
                 <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
                   {destination.currency || 'Local Currency'}. Cards widely accepted in hotels, and forex exchange available at airport.
                 </p>
               </div>
 
               {/* Card 4: Curated Stays */}
-              <div className="rounded-[24px] bg-[#FAFAFC] p-6 border border-gray-200/80">
+              <div className="rounded-[24px] bg-[#F5F2F5] p-6 border border-gray-200/80">
                 <div className="size-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-lg font-bold mb-4">
                   🏨
                 </div>
-                <h3 className="text-[16px] font-bold text-gray-900">Verified Couple Stays</h3>
+                <h3 className="text-[16px] font-semibold text-gray-900">Verified Couple Stays</h3>
                 <p className="text-[13.5px] text-gray-500 mt-1.5 leading-relaxed">
                   Handpicked private pool villas, 5★ beachfront resorts, and boutique stays vetted for privacy and intimacy.
                 </p>
@@ -719,7 +719,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
           6. TOP HIGHLIGHTS & THINGS TO DO
       ───────────────────────────────────────────────────────────── */}
       {destination && (destination.highlights || destination.activities) && (
-        <section className="py-16 bg-[#FAFAFC]">
+        <section className="py-16 bg-[#F5F2F5]">
           <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -727,10 +727,10 @@ export default function DestinationDetailClient({ params, initialDestination, in
               {/* Highlights */}
               {destination.highlights && destination.highlights.length > 0 && (
                 <div>
-                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
                     Top Sights
                   </span>
-                  <h2 className="text-[24px] lg:text-[30px] font-bold font-serif text-gray-900 mt-1 mb-6">
+                  <h2 className="text-[24px] lg:text-[30px] font-medium font-serif text-gray-900 mt-1 mb-6">
                     Must-Experience in {destination?.name || destinationName}
                   </h2>
                   <div className="space-y-3">
@@ -754,10 +754,10 @@ export default function DestinationDetailClient({ params, initialDestination, in
               {/* Things to do */}
               {destination.activities && destination.activities.length > 0 && (
                 <div>
-                  <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
                     Romantic Experiences
                   </span>
-                  <h2 className="text-[24px] lg:text-[30px] font-bold font-serif text-gray-900 mt-1 mb-6">
+                  <h2 className="text-[24px] lg:text-[30px] font-medium font-serif text-gray-900 mt-1 mb-6">
                     Curated Activities for Two
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -787,10 +787,10 @@ export default function DestinationDetailClient({ params, initialDestination, in
         <section className="py-16 bg-white border-t border-gray-200/80">
           <div className="max-w-3xl mx-auto px-5 sm:px-8">
             <div className="text-center mb-10">
-              <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+              <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
                 Common Questions
               </span>
-              <h2 className="text-[26px] lg:text-[32px] font-bold font-serif text-gray-900 mt-1">
+              <h2 className="text-[26px] lg:text-[32px] font-medium font-serif text-gray-900 mt-1">
                 Frequently Asked Questions
               </h2>
             </div>
@@ -798,7 +798,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
               {destination.faqs.map((faq: any, idx: number) => (
                 <details
                   key={idx}
-                  className="rounded-[20px] bg-[#FAFAFC] p-5 border border-gray-200/80 group list-none cursor-pointer"
+                  className="rounded-[20px] bg-[#F5F2F5] p-5 border border-gray-200/80 group list-none cursor-pointer"
                 >
                   <summary className="font-bold text-[15px] text-gray-900 flex items-center justify-between list-none">
                     <span>{faq.question}</span>
@@ -817,14 +817,14 @@ export default function DestinationDetailClient({ params, initialDestination, in
       {/* ─────────────────────────────────────────────────────────────
           8. TRAVELER REVIEWS
       ───────────────────────────────────────────────────────────── */}
-      <section className="py-16 bg-[#FAFAFC] border-t border-gray-200/80">
+      <section className="py-16 bg-[#F5F2F5] border-t border-gray-200/80">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12">
           
           <div className="mb-10">
-            <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#7A4F34]">
+            <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
               Couple Testimonials
             </span>
-            <h2 className="text-[26px] lg:text-[34px] font-bold font-serif text-gray-900 mt-1">
+            <h2 className="text-[26px] lg:text-[34px] font-medium font-serif text-gray-900 mt-1">
               What Couples Say About {destination?.name || destinationName}
             </h2>
             <p className="text-gray-500 text-[15px] mt-1">
@@ -868,7 +868,7 @@ export default function DestinationDetailClient({ params, initialDestination, in
       ───────────────────────────────────────────────────────────── */}
       <section className="py-16 bg-[#111317] text-white">
         <div className="max-w-[1440px] mx-auto px-5 sm:px-8 lg:px-12 text-center flex flex-col items-center">
-          <h2 className="text-[28px] lg:text-[40px] font-bold font-serif tracking-tight max-w-[650px] text-balance">
+          <h2 className="text-[28px] lg:text-[40px] font-medium font-serif tracking-tight max-w-[650px] text-balance">
             Ready to plan your trip to {destination?.name || destinationName}?
           </h2>
           <p className="text-gray-300 text-[15px] max-w-[500px] mt-2.5">

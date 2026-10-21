@@ -24,8 +24,8 @@ export default function StoryPage() {
       {/* Hero Section */}
       <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w- py-6 mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Our Story
+          <h1 className="text-4xl md:text-5xl font-medium text-gray-900 mb-4">
+            Our <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Story</span>
           </h1>
           <p className="text-xl text-gray-600">
             Discover the journey behind Travelzada and our mission to transform travel planning.
@@ -38,7 +38,7 @@ export default function StoryPage() {
         <div className="max-w-4xl mx-auto">
           <div className="prose prose-lg max-w-none">
             <div className="mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">The Beginning</h2>
+              <h2 className="text-3xl font-medium text-gray-900 mb-6">The Beginning</h2>
               <p className="text-gray-700 leading-relaxed mb-4">
                 Travelzada was born from a simple observation: planning a perfect trip shouldn't be complicated.
                 In 2023, our founders experienced the frustration of spending countless hours researching destinations,
@@ -51,7 +51,7 @@ export default function StoryPage() {
             </div>
 
             <div className="mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
+              <h2 className="text-3xl font-medium text-gray-900 mb-6">Our Mission</h2>
               <p className="text-gray-700 leading-relaxed mb-4">
                 At Travelzada, we believe that everyone deserves to experience the world's wonders without the
                 stress of planning. Our mission is to democratize premium travel planning, making it accessible,
@@ -65,7 +65,7 @@ export default function StoryPage() {
             </div>
 
             <div className="mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">What Makes Us Different</h2>
+              <h2 className="text-3xl font-medium text-gray-900 mb-6">What Makes Us Different</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">AI-Powered Precision</h3>
@@ -95,7 +95,7 @@ export default function StoryPage() {
             </div>
 
             <div className="mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Looking Forward</h2>
+              <h2 className="text-3xl font-medium text-gray-900 mb-6">Looking Forward</h2>
               <p className="text-gray-700 leading-relaxed mb-4">
                 As we continue to grow, our commitment remains the same: to make travel planning effortless and
                 travel experiences unforgettable. We're constantly innovating, expanding our destination coverage,

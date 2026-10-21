@@ -96,7 +96,7 @@ export default function SharedPlanPage() {
                 <HeaderClient navItems={[]} children={null} />
                 <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
                     <div className="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center text-3xl mb-6">⚠️</div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">{error || "Plan Not Found"}</h2>
+                    <h2 className="text-2xl font-medium text-gray-900 mb-4">{error || "Plan Not Found"}</h2>
                     <button onClick={() => router.push('/')} className="bg-primary text-white px-8 py-3 rounded-full font-semibold mt-4">Return Home</button>
                 </div>
             </div>
@@ -128,14 +128,14 @@ export default function SharedPlanPage() {
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-[#F8F9FA] font-sans">
+        <div className="min-h-screen flex flex-col bg-[#F5F2F5] font-sans">
             <HeaderClient navItems={[]} children={null} />
 
             {/* Quick Share Header */}
             <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm relative shrink-0">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-bold text-gray-900 line-clamp-1">Multiplayer Trip: {destinationsStr}</h1>
+                        <h1 className="text-lg font-medium text-gray-900 line-clamp-1">Multiplayer Trip: {destinationsStr}</h1>
                         <p className="text-xs text-gray-500 hidden sm:block">Collaborate with the AI and vote on this itinerary</p>
                     </div>
                     <button
@@ -176,16 +176,16 @@ export default function SharedPlanPage() {
                                     <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-white/20">
                                         <span>⌚</span> {pkg.Duration_Nights}N/{pkg.Duration_Days}D
                                     </div>
-                                    <div className="bg-gradient-to-r from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] p-[1px] rounded-full shadow-lg">
+                                    <div className="bg-gradient-to-r from-[#b86a79] via-[#c9a0ac] to-[#95929c] p-[1px] rounded-full shadow-lg">
                                         <div className="bg-white/95 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1">
-                                            <span className="text-gray-900 font-bold text-xs"><span className="text-[#f85cb5]">✨</span> {pkg.matchScore}% Match</span>
+                                            <span className="text-gray-900 font-bold text-xs"><span className="text-[#c9a0ac]">✨</span> {pkg.matchScore}% Match</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
 
                                 <div className="absolute bottom-4 left-5 right-5 text-white z-10 flex flex-col items-start">
-                                    <h3 className="text-2xl font-bold tracking-tight drop-shadow-md leading-tight">{pkg.Destination_Name}</h3>
+                                    <h3 className="text-2xl font-semibold tracking-tight drop-shadow-md leading-tight">{pkg.Destination_Name}</h3>
                                 </div>
                             </div>
 
@@ -197,7 +197,7 @@ export default function SharedPlanPage() {
                                 </div>
 
                                 <div className="flex gap-3 mt-1">
-                                    <div className="mt-0.5 bg-blue-50 p-2 rounded-xl text-blue-500 shrink-0 h-fit border border-blue-100">
+                                    <div className="mt-0.5 bg-mauve-50 p-2 rounded-xl text-mauve-500 shrink-0 h-fit border border-mauve-100">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                     </div>
                                     <p className="text-gray-600 text-sm leading-relaxed font-medium">
@@ -233,7 +233,7 @@ export default function SharedPlanPage() {
                         {/* Interactive Map */}
                         <div className="bg-white rounded-3xl overflow-hidden shadow-lg border border-gray-200 h-[300px] flex flex-col relative shrink-0">
                             <div className="p-3 border-b border-gray-100 flex justify-between items-center bg-white z-10 shrink-0">
-                                <h3 className="font-bold text-gray-900 text-sm">Route Map</h3>
+                                <h3 className="font-semibold text-gray-900 text-sm">Route Map</h3>
                             </div>
                             <div className="flex-1 w-full bg-gray-100 relative">
                                 <LeafletMap
@@ -259,7 +259,7 @@ export default function SharedPlanPage() {
                                                 </div>
 
                                                 <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 hover:border-primary/30 transition-colors group relative overflow-hidden">
-                                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#ff8a3d] to-[#f85cb5] opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#b86a79] to-[#c9a0ac] opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                                     <div className="flex flex-col gap-1.5">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-xs font-black text-primary uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md">{item.day}</span>

@@ -135,7 +135,7 @@ export default function StepDmc2Cities({
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-5">
-        <h2 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-1.5 tracking-tight">
+        <h2 className="text-2xl sm:text-4xl font-medium text-gray-900 mb-1.5 tracking-tight">
           Package Details
         </h2>
         <p className="text-xs sm:text-base text-gray-500 font-medium px-2">
@@ -217,23 +217,23 @@ export default function StepDmc2Cities({
                 onClick={() => setHotelIncluded(false)}
                 className={`relative flex flex-col items-center gap-1.5 py-3 px-3 rounded-2xl border-2 transition-all duration-200 select-none text-left ${
                   hotelIncluded === false
-                    ? 'bg-sky-50 border-sky-400 shadow-md shadow-sky-100 scale-[1.02]'
+                    ? 'bg-mauve-50 border-mauve-400 shadow-md shadow-mauve-100 scale-[1.02]'
                     : 'bg-gray-50 border-gray-100 hover:border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 {hotelIncluded === false && (
-                  <span className="absolute top-2 right-2 w-4 h-4 bg-sky-500 rounded-full flex items-center justify-center">
+                  <span className="absolute top-2 right-2 w-4 h-4 bg-mauve-500 rounded-full flex items-center justify-center">
                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                   </span>
                 )}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${hotelIncluded === false ? 'bg-sky-100' : 'bg-gray-100'}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${hotelIncluded === false ? 'bg-mauve-100' : 'bg-gray-100'}`}>
                   🏕️
                 </div>
                 <div>
-                  <p className={`text-sm font-black text-center ${hotelIncluded === false ? 'text-sky-700' : 'text-gray-700'}`}>Without Hotel</p>
-                  <p className={`text-[10px] text-center ${hotelIncluded === false ? 'text-sky-400' : 'text-gray-400'}`}>Land only package</p>
+                  <p className={`text-sm font-black text-center ${hotelIncluded === false ? 'text-mauve-700' : 'text-gray-700'}`}>Without Hotel</p>
+                  <p className={`text-[10px] text-center ${hotelIncluded === false ? 'text-mauve-400' : 'text-gray-400'}`}>Land only package</p>
                 </div>
               </button>
 

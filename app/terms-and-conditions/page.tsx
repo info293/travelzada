@@ -37,16 +37,16 @@ export default function TermsAndConditionsPage() {
                     ]} />
                 </div>
             </div>
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">Terms and Conditions</h1>
+                    <h1 className="text-3xl md:text-4xl font-serif font-medium text-gray-900">Terms and <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Conditions</span></h1>
                 </div>
             </section>
             <section className="py-16 px-4 md:px-12">
                 <div className="max-w-4xl mx-auto space-y-8 prose prose-lg text-gray-600">
                     <div className="space-y-8">
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">Booking Policy</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">Booking Policy</h2>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>All bookings are subject to availability and final confirmation.</li>
                                 <li>Prices mentioned are starting prices and may vary at the time of booking.</li>
@@ -57,7 +57,7 @@ export default function TermsAndConditionsPage() {
                         </section>
 
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">Payment Policy</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">Payment Policy</h2>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>50% of the total tour cost must be paid at the time of booking.</li>
                                 <li>The remaining 50% payment must be completed at least 30 days prior to the travel date.</li>

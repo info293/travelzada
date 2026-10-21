@@ -39,7 +39,7 @@ export default function StepDmc5Pax({
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-8">
-        <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-medium text-gray-900 mb-3 tracking-tight">
           Group Size
         </h2>
         <p className="text-sm sm:text-lg text-gray-500 font-medium px-2">
@@ -50,7 +50,7 @@ export default function StepDmc5Pax({
       <div className="max-w-2xl mx-auto space-y-3">
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-5 pt-5 pb-3 border-b border-gray-50">
-            <h3 className="font-black text-gray-900 text-base flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900 text-base flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">7</span>
               PAX (Passengers)
             </h3>

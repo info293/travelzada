@@ -68,7 +68,7 @@ export default function ReviewForm({
   return (
     <div className="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
       <div className="mb-6">
-        <h3 className="text-2xl font-bold text-gray-900 mb-1">Write a Review</h3>
+        <h3 className="text-2xl font-semibold text-gray-900 mb-1">Write a Review</h3>
         <p className="text-sm text-gray-500">
           Share your experience for{' '}
           <span className="font-semibold text-primary">{packageName || destinationName}</span>

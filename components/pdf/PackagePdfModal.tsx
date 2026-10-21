@@ -101,7 +101,7 @@ export default function PackagePdfModal({
           {/* Header */}
           <div className="flex items-start justify-between border-b border-gray-200 pb-6">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Travel Package</p>
+              <p className="text-[10px] font-bold text-mauve-500 uppercase tracking-widest mb-1">Travel Package</p>
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
               <p className="text-gray-500 text-sm mt-1.5">
                 📍 {destination}{destinationCountry ? `, ${destinationCountry}` : ''}

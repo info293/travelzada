@@ -109,7 +109,7 @@ export default function AILoader({ message = "Loading..." }: { message?: string 
                         <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-pink-400 rounded-full shadow-lg shadow-pink-400/50"></div>
                     </div>
                     <div className="absolute inset-0 animate-spin" style={{ animationDuration: '4s', animationDirection: 'reverse' }}>
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-400 rounded-full shadow-lg shadow-cyan-400/50"></div>
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-mauve-400 rounded-full shadow-lg shadow-mauve-400/50"></div>
                     </div>
                     <div className="absolute inset-0 animate-spin" style={{ animationDuration: '5s' }}>
                         <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/50"></div>
@@ -118,7 +118,7 @@ export default function AILoader({ message = "Loading..." }: { message?: string 
 
                 {/* Loading text */}
                 <div className="text-center">
-                    <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                    <h2 className="text-2xl md:text-3xl font-medium text-white mb-2">
                         {message}{dots}
                     </h2>
                     <p className="text-white/70 text-sm md:text-base">

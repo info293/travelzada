@@ -131,7 +131,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
   return (
     <div>
       {/* ── Filter bar ── */}
-      <div style={{ background: '#fff', borderBottom: '1px solid #e9e5dd', position: 'sticky', top: 64, zIndex: 30, padding: '0 0' }}>
+      <div style={{ background: '#fff', borderBottom: '1px solid #e2dde3', position: 'sticky', top: 64, zIndex: 30, padding: '0 0' }}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
 
           {/* Trip type tabs */}
@@ -142,10 +142,10 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                 onClick={() => setType(t.key)}
                 className="text-sm font-semibold px-4 py-2 rounded-full transition-all"
                 style={{
-                  background: type === t.key ? 'linear-gradient(135deg,#9333ea,#4f46e5)' : 'transparent',
-                  color: type === t.key ? '#fff' : '#6b6b76',
-                  border: type === t.key ? 'none' : '1px solid #e9e5dd',
-                  boxShadow: type === t.key ? '0 6px 18px rgba(79,70,229,.28)' : 'none',
+                  background: type === t.key ? 'linear-gradient(135deg,#651926,#462831)' : 'transparent',
+                  color: type === t.key ? '#fff' : '#6b6773',
+                  border: type === t.key ? 'none' : '1px solid #e2dde3',
+                  boxShadow: type === t.key ? '0 6px 18px rgba(70,40,49,.28)' : 'none',
                 }}
               >
                 {t.label}
@@ -154,8 +154,8 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
           </div>
 
           {/* Search */}
-          <div className="flex items-center gap-2 rounded-lg px-3 py-2 w-full md:w-56" style={{ background: '#faf8f5', border: '1px solid #e9e5dd' }}>
-            <svg className="w-4 h-4 flex-none" style={{ color: '#9a9aa5' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2 w-full md:w-56" style={{ background: '#f5f2f5', border: '1px solid #e2dde3' }}>
+            <svg className="w-4 h-4 flex-none" style={{ color: '#95929c' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
             </svg>
             <input
@@ -164,7 +164,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 text-sm bg-transparent outline-none"
-              style={{ color: '#1a1a24' }}
+              style={{ color: '#0f0406' }}
             />
           </div>
         </div>
@@ -181,9 +181,9 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                 style={{
                   padding: b.range ? '6px 14px' : '6px 16px',
                   borderRadius: 7,
-                  background: budget === b.key ? 'linear-gradient(135deg,#9333ea,#4f46e5)' : 'transparent',
-                  color: budget === b.key ? '#fff' : '#1a1a24',
-                  border: budget === b.key ? 'none' : '1px solid #e9e5dd',
+                  background: budget === b.key ? 'linear-gradient(135deg,#651926,#462831)' : 'transparent',
+                  color: budget === b.key ? '#fff' : '#0f0406',
+                  border: budget === b.key ? 'none' : '1px solid #e2dde3',
                 }}
               >
                 <span>{b.label}</span>
@@ -193,7 +193,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
           </div>
 
           {/* Divider */}
-          <div className="hidden sm:block w-px h-6 mx-1" style={{ background: '#e9e5dd' }} />
+          <div className="hidden sm:block w-px h-6 mx-1" style={{ background: '#e2dde3' }} />
 
           {/* Region tabs */}
           <div className="flex gap-1.5">
@@ -203,9 +203,9 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                 onClick={() => setRegion(r.key)}
                 className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
                 style={{
-                  background: region === r.key ? '#1a1a24' : 'transparent',
-                  color: region === r.key ? '#fff' : '#6b6b76',
-                  border: region === r.key ? 'none' : '1px solid #e9e5dd',
+                  background: region === r.key ? '#0f0406' : 'transparent',
+                  color: region === r.key ? '#fff' : '#6b6773',
+                  border: region === r.key ? 'none' : '1px solid #e2dde3',
                 }}
               >
                 {r.label}
@@ -217,8 +217,8 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
 
       {/* ── Results header ── */}
       <div className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
-        <p style={{ fontSize: 14, color: '#6b6b76' }}>
-          <strong style={{ color: '#1a1a24' }}>{filtered.length}</strong>{' '}
+        <p style={{ fontSize: 14, color: '#6b6773' }}>
+          <strong style={{ color: '#0f0406' }}>{filtered.length}</strong>{' '}
           {activeTypeLabel} packages found
           {budget !== 'all' && <> · {BUDGET_TIERS.find((b) => b.key === budget)?.label}</>}
           {region !== 'all' && <> · {REGION_TABS.find((r) => r.key === region)?.label}</>}
@@ -226,7 +226,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
         <Link
           href="/tailored-travel"
           className="text-sm font-semibold text-white px-4 py-2 rounded-lg hidden md:inline-flex items-center gap-1.5"
-          style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)' }}
+          style={{ background: 'linear-gradient(135deg,#651926,#462831)' }}
         >
           Build Custom Trip
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,14 +240,14 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
         {filtered.length === 0 ? (
           <div className="text-center py-24">
             <div className="text-4xl mb-4">🌍</div>
-            <h3 style={{ fontSize: 22, fontFamily: "'Playfair Display', serif", color: '#1a1a24', marginBottom: 10 }}>
+            <h3 style={{ fontSize: 22, fontFamily: "var(--font-display), 'Cormorant Garamond', serif", color: '#0f0406', marginBottom: 10 }}>
               No packages match your filters
             </h3>
-            <p style={{ color: '#6b6b76', marginBottom: 24 }}>Try adjusting the trip type, budget, or region.</p>
+            <p style={{ color: '#6b6773', marginBottom: 24 }}>Try adjusting the trip type, budget, or region.</p>
             <button
               onClick={() => { setType('all'); setBudget('all'); setRegion('all'); setSearch('') }}
               className="text-sm font-semibold px-6 py-3 rounded-full text-white"
-              style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)' }}
+              style={{ background: 'linear-gradient(135deg,#651926,#462831)' }}
             >
               Clear all filters
             </button>
@@ -264,9 +264,9 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                   key={pkg.id}
                   href={`/destinations/${encodeURIComponent(pkg.destinationSlug)}/${encodeURIComponent(pkg.packageId)}`}
                   className="group flex flex-col"
-                  style={{ borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 24px rgba(26,26,36,.08)', background: '#fff', border: '1px solid #e9e5dd', transition: 'box-shadow .25s, transform .25s' }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(26,26,36,.14)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(26,26,36,.08)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
+                  style={{ borderRadius: 10, overflow: 'hidden', boxShadow: '0 4px 24px rgba(15,4,6,.08)', background: '#fff', border: '1px solid #e2dde3', transition: 'box-shadow .25s, transform .25s' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(15,4,6,.14)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(15,4,6,.08)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
                 >
                   {/* Image */}
                   <div className="relative overflow-hidden" style={{ height: 220 }}>
@@ -282,7 +282,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                     {badge && (
                       <span
                         className="absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-sm"
-                        style={{ background: 'rgba(255,255,255,.92)', color: '#1a1a24', letterSpacing: '.06em', textTransform: 'uppercase', fontSize: 10 }}
+                        style={{ background: 'rgba(255,255,255,.92)', color: '#0f0406', letterSpacing: '.06em', textTransform: 'uppercase', fontSize: 10 }}
                       >
                         {badge}
                       </span>
@@ -299,20 +299,20 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
                   <div className="flex flex-col flex-1 p-5">
                     <h3
                       className="mb-1 line-clamp-1"
-                      style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, fontWeight: 600, color: '#1a1a24' }}
+                      style={{ fontFamily: "var(--font-display), 'Cormorant Garamond', serif", fontSize: 20, fontWeight: 600, color: '#0f0406' }}
                     >
                       {pkg.Destination_Name}
                     </h3>
-                    <p className="text-xs mb-4" style={{ color: '#9a9aa5', letterSpacing: '.03em' }}>
+                    <p className="text-xs mb-4" style={{ color: '#95929c', letterSpacing: '.03em' }}>
                       {isIndia(pkg) ? 'India' : 'International'} · {pkg.Star_Category ? `${pkg.Star_Category}★ hotels` : 'Curated stay'}
                     </p>
 
-                    <div className="mt-auto pt-4 flex items-end justify-between" style={{ borderTop: '1px solid #e9e5dd' }}>
+                    <div className="mt-auto pt-4 flex items-end justify-between" style={{ borderTop: '1px solid #e2dde3' }}>
                       <div>
-                        <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 600, color: '#1a1a24' }}>{price}</div>
-                        <div style={{ fontSize: 11, color: '#9a9aa5', marginTop: 2 }}>per person</div>
+                        <div style={{ fontFamily: "var(--font-display), 'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: '#0f0406' }}>{price}</div>
+                        <div style={{ fontSize: 11, color: '#95929c', marginTop: 2 }}>per person</div>
                       </div>
-                      <span className="text-sm font-bold flex items-center gap-1" style={{ color: '#4f46e5' }}>
+                      <span className="text-sm font-bold flex items-center gap-1" style={{ color: '#462831' }}>
                         View itinerary <span>→</span>
                       </span>
                     </div>
@@ -328,9 +328,9 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
       <div className="max-w-6xl mx-auto px-4 pb-16">
         <div
           className="rounded-2xl p-8 md:p-12 text-center text-white"
-          style={{ background: 'linear-gradient(135deg,#1a1a24 0%,#2d2050 100%)' }}
+          style={{ background: 'linear-gradient(135deg,#0f0406 0%,#462831 100%)' }}
         >
-          <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(22px,3vw,32px)', fontWeight: 600, marginBottom: 12 }}>
+          <h3 style={{ fontFamily: "var(--font-display), 'Cormorant Garamond', serif", fontSize: 'clamp(22px,3vw,32px)', fontWeight: 600, marginBottom: 12 }}>
             Can&apos;t find what you&apos;re looking for?
           </h3>
           <p style={{ color: 'rgba(255,255,255,.72)', fontSize: 16, marginBottom: 28 }}>
@@ -339,7 +339,7 @@ export default function PackagesClient({ allPackages, initialType, initialBudget
           <Link
             href="/tailored-travel"
             className="inline-flex items-center gap-2 font-semibold text-white rounded-full px-8 py-4"
-            style={{ background: 'linear-gradient(135deg,#9333ea,#4f46e5)', boxShadow: '0 12px 32px rgba(79,70,229,.4)' }}
+            style={{ background: 'linear-gradient(135deg,#651926,#462831)', boxShadow: '0 12px 32px rgba(70,40,49,.4)' }}
           >
             Plan My Custom Trip
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

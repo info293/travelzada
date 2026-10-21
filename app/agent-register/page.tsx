@@ -116,7 +116,7 @@ export default function AgentRegisterPage() {
           <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">Application Submitted!</h1>
+          <h1 className="text-2xl font-medium text-gray-900 mb-3">Application Submitted!</h1>
           <p className="text-gray-500 text-sm leading-relaxed mb-4">
             Thanks for registering with Travelzada. Our team will review your application
             and activate your dashboard within 24–48 hours.
@@ -155,7 +155,7 @@ export default function AgentRegisterPage() {
           {/* Hero */}
           <div className="mb-10">
             <p className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-3">Partner Program</p>
-            <h1 className="text-4xl font-bold text-white leading-tight mb-4">
+            <h1 className="text-4xl font-medium text-white leading-tight mb-4">
               Everything your<br />agency needs.
             </h1>
             <p className="text-white/70 text-sm leading-relaxed">
@@ -206,7 +206,7 @@ export default function AgentRegisterPage() {
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 p-8">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">Apply as a Partner</h2>
+              <h2 className="text-2xl font-medium text-gray-900">Apply as a Partner</h2>
               <p className="text-gray-500 text-sm mt-1">Takes 2 minutes · Active within 48 hours</p>
             </div>
 

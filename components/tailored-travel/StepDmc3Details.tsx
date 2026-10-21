@@ -18,7 +18,7 @@ export default function StepDmc3Details({
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-8">
-        <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-medium text-gray-900 mb-3 tracking-tight">
           Trip Details
         </h2>
         <p className="text-sm sm:text-lg text-gray-500 font-medium px-2">

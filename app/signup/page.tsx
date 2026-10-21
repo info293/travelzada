@@ -308,9 +308,9 @@ export default function SignupPage() {
                 <span className="w-2 h-2 bg-purple-500 rounded-full" />
                 Join Thousands
               </span>
-              <h1 className="text-4xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-4xl font-medium text-gray-900 leading-tight">
                 Start your<br />
-                <span className="bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">
                   adventure today
                 </span>
               </h1>
@@ -323,7 +323,7 @@ export default function SignupPage() {
               {[
                 { label: 'AI Trip Planner', sub: 'Personalized routes in seconds', color: 'from-purple-50 to-indigo-50' },
                 { label: 'Exclusive Deals', sub: 'Members-only pricing', color: 'from-pink-50 to-rose-50' },
-                { label: 'Saved Itineraries', sub: 'Access anywhere, anytime', color: 'from-amber-50 to-orange-50' },
+                { label: 'Saved Itineraries', sub: 'Access anywhere, anytime', color: 'from-amber-50 to-bordeaux-50' },
                 { label: '24/7 Support', sub: 'Always here to help', color: 'from-green-50 to-emerald-50' },
               ].map((c) => (
                 <div key={c.label} className={`p-4 rounded-2xl bg-gradient-to-br ${c.color} border border-white/80`}>
@@ -340,7 +340,7 @@ export default function SignupPage() {
               {step === 'details' ? (
                 <>
                   <div className="mb-7">
-                    <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
+                    <h2 className="text-2xl font-medium text-gray-900">Create account</h2>
                     <p className="text-gray-500 text-sm mt-1">Free forever · No credit card needed</p>
                   </div>
 
@@ -623,7 +623,7 @@ export default function SignupPage() {
                     <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mx-auto text-2xl">
                       ✉️
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-900">Verify your email</h2>
+                    <h2 className="text-2xl font-medium text-gray-900">Verify your email</h2>
                     <p className="text-sm text-gray-500">
                       We sent a 6-digit code to{' '}
                       <span className="font-semibold text-gray-800">{formData.email.trim()}</span>

@@ -3259,7 +3259,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
         <div className="hidden lg:flex w-64 bg-gray-50 border-r border-gray-100 flex-col p-4">
           <div className="flex items-center gap-3 mb-8 px-2">
             <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center border border-purple-100">
-              <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
+              <div className="w-4 h-4 bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
             </div>
             <span className="font-semibold text-gray-700">Trip Planner</span>
           </div>
@@ -3344,7 +3344,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                 {/* Drawer Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                   <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45" />
+                    <div className="w-6 h-6 bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45" />
                     <span className="font-semibold text-gray-800">Chat History</span>
                   </div>
                   <button
@@ -3621,7 +3621,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                   >
                     {message.role === 'assistant' && (
                       <div className="w-8 h-8 rounded-full bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 shadow-sm">
-                        <div className="w-4 h-4 bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
+                        <div className="w-4 h-4 bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm animate-pulse" />
                       </div>
                     )}
 
@@ -4126,7 +4126,7 @@ Present this in an engaging way, highlighting activities that would appeal to a 
 
           {/* Image Analysis Result Display */}
           {imageAnalysisResult && (
-            <div className="border-t border-gray-200 bg-gradient-to-br from-blue-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
+            <div className="border-t border-gray-200 bg-gradient-to-br from-mauve-50/50 to-purple-50/50 px-4 md:px-6 py-4 md:py-6">
               {uploadedImage && (
                 <div className="mb-4">
                   <p className="text-xs md:text-sm font-semibold text-gray-700 mb-2">Uploaded Image:</p>
@@ -4180,25 +4180,25 @@ Present this in an engaging way, highlighting activities that would appeal to a 
                 <div className="space-y-4">
                   {/* Show detected location first */}
                   {imageAnalysisResult.rawDetectedLocation && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 md:p-5">
+                    <div className="bg-mauve-50 border border-mauve-200 rounded-xl p-4 md:p-5">
                       <div className="flex items-start gap-3">
-                        <svg className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 text-mauve-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <div className="flex-1">
-                          <p className="text-sm md:text-base font-semibold text-blue-900 mb-1">
+                          <p className="text-sm md:text-base font-semibold text-mauve-900 mb-1">
                             Location Identified: {imageAnalysisResult.rawDetectedLocation}
                           </p>
                           {imageAnalysisResult.landmarks && imageAnalysisResult.landmarks.length > 0 && (
-                            <p className="text-xs md:text-sm text-blue-700 mb-2">
+                            <p className="text-xs md:text-sm text-mauve-700 mb-2">
                               I can see: {imageAnalysisResult.landmarks.join(', ')}
                             </p>
                           )}
                           {imageAnalysisResult.description && (
-                            <p className="text-xs md:text-sm text-blue-700 mb-2">{imageAnalysisResult.description}</p>
+                            <p className="text-xs md:text-sm text-mauve-700 mb-2">{imageAnalysisResult.description}</p>
                           )}
-                          <p className="text-xs md:text-sm text-blue-800 font-medium">
+                          <p className="text-xs md:text-sm text-mauve-800 font-medium">
                             Unfortunately, we don't have packages for {imageAnalysisResult.rawDetectedLocation} in our database right now.
                           </p>
                         </div>

@@ -1,11 +1,11 @@
 import Link from 'next/link'
 
 const BREAKDOWN = [
-  { label: 'Hotels (4★)', amount: 16000, pct: 42, color: '#4f46e5', icon: '🏨' },
-  { label: 'Transfers',   amount: 7000,  pct: 18, color: '#0284c7', icon: '🚗' },
-  { label: 'Activities',  amount: 8000,  pct: 21, color: '#d97706', icon: '⛵' },
-  { label: 'Romantic',    amount: 4000,  pct: 11, color: '#ec4899', icon: '🌹' },
-  { label: 'Service Fee', amount: 3000,  pct: 8,  color: '#64748b', icon: '🛡️' },
+  { label: 'Hotels (4★)', amount: 16000, pct: 42, color: '#462831', icon: '🏨' },
+  { label: 'Transfers',   amount: 7000,  pct: 18, color: '#651926', icon: '🚗' },
+  { label: 'Activities',  amount: 8000,  pct: 21, color: '#95929C', icon: '⛵' },
+  { label: 'Romantic',    amount: 4000,  pct: 11, color: '#C9A0AC', icon: '🌹' },
+  { label: 'Service Fee', amount: 3000,  pct: 8,  color: '#6B6773', icon: '🛡️' },
 ]
 
 const TOTAL = BREAKDOWN.reduce((s, b) => s + b.amount, 0)
@@ -18,7 +18,7 @@ const GUARANTEES = [
 
 export default function PricingBreakdown() {
   return (
-    <section className="relative py-8 sm:py-12 bg-[#fbf9f6] overflow-hidden select-none">
+    <section className="relative py-8 sm:py-12 bg-[#f5f2f5] overflow-hidden select-none">
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[400px] bg-gradient-to-tr from-indigo-100/40 via-amber-100/30 to-purple-100/40 blur-3xl pointer-events-none rounded-full" />
 
@@ -48,7 +48,7 @@ export default function PricingBreakdown() {
                   </svg>
                   <span>See exactly what you pay for</span>
                 </div>
-                <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 font-display tracking-tight leading-snug">
+                <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900 font-display tracking-tight leading-snug">
                   Kashmir Honeymoon <span className="text-slate-400 font-sans font-normal text-sm sm:text-base">· 6N / 7D</span>
                 </h3>
                 <p className="text-xs text-slate-500 font-normal mt-0.5">

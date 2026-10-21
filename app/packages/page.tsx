@@ -62,31 +62,31 @@ export default async function PackagesPage({ searchParams }: Props) {
   return (
     <>
     <Header />
-    <main className="min-h-screen pt-16 md:pt-24" style={{ background: '#faf8f5' }}>
+    <main className="min-h-screen pt-16 md:pt-24" style={{ background: '#f5f2f5' }}>
       {/* Page header */}
       <div
         className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg,#1a1a24 0%,#2d2050 100%)', padding: '80px 24px 56px' }}
+        style={{ background: 'linear-gradient(135deg,#0f0406 0%,#462831 100%)', padding: '80px 24px 56px' }}
       >
         <div
           className="absolute inset-0 pointer-events-none"
           style={{ background: 'radial-gradient(ellipse 70% 80% at 80% 40%, rgba(99,102,241,.18), transparent)' }}
         />
         <div className="relative max-w-3xl mx-auto text-center text-white">
-          <div className="text-xs font-bold tracking-[0.22em] uppercase mb-4" style={{ color: '#a5b4fc' }}>
+          <div className="font-pinyon text-[clamp(30px,3vw,40px)] leading-none mb-3" style={{ color: '#C9A0AC' }}>
             Curated Escapes
           </div>
           <h1
             style={{
               margin: '0 0 16px',
-              fontFamily: "'Playfair Display', serif",
-              fontSize: 'clamp(30px,5vw,52px)',
-              fontWeight: 600,
+              fontFamily: "var(--font-display), 'Cormorant Garamond', serif",
+              fontSize: 'clamp(36px,5.6vw,64px)',
+              fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.01em',
             }}
           >
-            Find Your Perfect Romantic Escape
+            Find Your Perfect <span className="font-pinyon font-normal text-[#C9A0AC] tracking-normal">Romantic Escape</span>
           </h1>
           <p style={{ color: 'rgba(255,255,255,.7)', fontSize: 17, maxWidth: 520, margin: '0 auto' }}>
             Every package is curated for couples — from budget getaways to luxury hideaways.

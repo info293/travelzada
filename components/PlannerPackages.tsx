@@ -98,8 +98,8 @@ export default function PlannerPackages() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#fef6f1] to-white"></div>
-      <div className="absolute top-0 left-0 w-80 h-80 bg-orange-200/30 rounded-full blur-3xl"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#f5f2f5] to-white"></div>
+      <div className="absolute top-0 left-0 w-80 h-80 bg-bordeaux-200/30 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-[24rem] h-[24rem] bg-pink-200/30 rounded-full blur-3xl"></div>
 
       <div className="relative z-10 max-w-6xl mx-auto">
@@ -148,7 +148,7 @@ export default function PlannerPackages() {
                 <div className="p-4 text-left">
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] text-gray-500 uppercase tracking-wide">{duration}</span>
-                    {/* <span className="text-xs font-semibold text-orange-500">{price}</span> */}
+                    {/* <span className="text-xs font-semibold text-bordeaux-500">{price}</span> */}
                   </div>
                   <h4 className="text-base font-semibold text-gray-900 mb-1 line-clamp-1">{title}</h4>
                   <p className="text-xs text-gray-600 mb-3 capitalize">

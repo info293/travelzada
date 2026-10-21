@@ -263,8 +263,8 @@ export default function ReviewsPage() {
               </svg>
               <span className="text-xs uppercase tracking-[0.3em] text-primary font-semibold">Reviews & Testimonials</span>
             </div>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-ink mb-6 bg-gradient-to-r from-ink to-gray-700 bg-clip-text text-transparent">
-              What Our Travelers Say
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-medium text-ink mb-6">
+              What Our <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Travelers</span> Say
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
               Discover authentic experiences from thousands of satisfied travelers who've trusted Travelzada for their perfect journeys
@@ -276,7 +276,7 @@ export default function ReviewsPage() {
             <div className="bg-gradient-to-br from-primary/5 via-white to-accent/5 rounded-3xl border border-primary/15 p-6 md:p-8 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 mb-1">Traveled with Travelzada?</h2>
+                  <h2 className="text-xl font-medium text-gray-900 mb-1">Traveled with Travelzada?</h2>
                   <p className="text-sm text-gray-500">Share your experience and help fellow travelers plan their perfect trip.</p>
                 </div>
                 <button
@@ -490,7 +490,7 @@ export default function ReviewsPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-ink mb-3">No reviews found</h3>
+                <h3 className="text-2xl font-semibold text-ink mb-3">No reviews found</h3>
                 <p className="text-gray-600 mb-6">Try adjusting your filters to see more results</p>
                 {hasActiveFilters && (
                   <button
@@ -515,7 +515,7 @@ export default function ReviewsPage() {
                   </svg>
                   <span className="text-sm font-semibold text-primary">Join Our Community</span>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-ink mb-4">
+                <h2 className="text-3xl md:text-4xl font-medium text-ink mb-4">
                   Ready to create your perfect trip?
                 </h2>
                 <p className="text-lg text-gray-600 mb-8 leading-relaxed">

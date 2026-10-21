@@ -44,7 +44,7 @@ export default function StepDmc4HotelNights({
   return (
     <div className="animate-fade-in-up">
       <div className="text-center mb-8">
-        <h2 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-3 tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-medium text-gray-900 mb-3 tracking-tight">
           Hotel &amp; Duration
         </h2>
         <p className="text-sm sm:text-lg text-gray-500 font-medium px-2">
@@ -99,7 +99,7 @@ export default function StepDmc4HotelNights({
                         onClick={() => toggleHotelStar(opt.id)}
                         className={`relative flex flex-col items-center justify-center gap-2 py-5 px-3 rounded-2xl border-2 transition-all duration-200 select-none ${
                           isSelected
-                            ? 'bg-gradient-to-br from-primary/10 to-[#ff8a3d]/10 border-primary shadow-lg shadow-primary/15 scale-[1.04]'
+                            ? 'bg-gradient-to-br from-primary/10 to-[#b86a79]/10 border-primary shadow-lg shadow-primary/15 scale-[1.04]'
                             : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.02]'
                         }`}
                       >
@@ -152,7 +152,7 @@ export default function StepDmc4HotelNights({
                         onClick={() => selectNights(opt.nights)}
                         className={`relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl border-2 transition-all duration-200 group select-none ${
                           isSelected
-                            ? 'bg-gradient-to-br from-primary to-[#ff8a3d] border-transparent shadow-xl shadow-primary/30 scale-105'
+                            ? 'bg-gradient-to-br from-primary to-[#b86a79] border-transparent shadow-xl shadow-primary/30 scale-105'
                             : 'bg-gray-50 border-gray-100 hover:border-primary/30 hover:bg-primary/5 hover:scale-[1.03] hover:shadow-md'
                         }`}
                       >

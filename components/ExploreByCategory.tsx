@@ -31,7 +31,7 @@ export default function ExploreByCategory() {
     <section className="py-16 md:py-20 px-4 md:px-8 lg:px-12 bg-white">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-900 mb-4">
             Explore by Category
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
@@ -51,7 +51,7 @@ export default function ExploreByCategory() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/20 group-hover:from-black/80 transition-colors"></div>
               </div>
               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                <h3 className="font-bold text-xl mb-2">{category.title}</h3>
+                <h3 className="font-semibold text-xl mb-2">{category.title}</h3>
                 <p className="text-sm text-white/90">{category.description}</p>
               </div>
             </div>

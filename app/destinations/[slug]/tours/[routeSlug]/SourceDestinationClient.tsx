@@ -69,7 +69,7 @@ export default function SourceDestinationClient({ params, initialDestination, in
 
     const SparkleIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
         <span
-            className={`${className} inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
+            className={`${className} inline-block bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm animate-pulse`}
         />
     )
 
@@ -156,7 +156,7 @@ export default function SourceDestinationClient({ params, initialDestination, in
 
                         <h1 className="text-5xl md:text-7xl font-semibold text-white tracking-tight leading-[1.1] drop-shadow-lg">
                             {destination?.name} Tours <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-200 to-amber-100">
+                            <span className="font-pinyon font-normal text-[#E2DDE3] text-[1.08em] tracking-normal">
                                 from {originName}
                             </span>
                         </h1>
@@ -240,7 +240,7 @@ export default function SourceDestinationClient({ params, initialDestination, in
                 <div className="max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                         <div>
-                            <span className="text-orange-500 font-semibold tracking-wider uppercase text-xs mb-2 block">Curated For You</span>
+                            <span className="text-bordeaux-500 font-semibold tracking-wider uppercase text-xs mb-2 block">Curated For You</span>
                             <h2 className="text-3xl font-semibold text-gray-900">
                                 Trending Packages <span className="text-gray-400 font-light">from {originName}</span>
                             </h2>
@@ -303,7 +303,7 @@ export default function SourceDestinationClient({ params, initialDestination, in
                                             <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
                                                 <div>
                                                     <p className="text-[10px] text-gray-400 uppercase font-semibold">Starts from</p>
-                                                    <span className="text-sm md:text-base font-semibold text-[#7c3aed]">
+                                                    <span className="text-sm md:text-base font-semibold text-[#651926]">
                                                         {formatPrice(pkg.Price_Range_INR)}
                                                     </span>
                                                 </div>
@@ -394,7 +394,7 @@ export default function SourceDestinationClient({ params, initialDestination, in
                 </button>
                 <button
                     onClick={() => setIsLeadFormOpen(true)}
-                    className="flex-1 bg-gradient-to-r from-primary to-orange-500 text-white font-semibold py-3 rounded-xl text-sm shadow-md active:scale-95 transition-transform"
+                    className="flex-1 bg-gradient-to-r from-primary to-bordeaux-500 text-white font-semibold py-3 rounded-xl text-sm shadow-md active:scale-95 transition-transform"
                 >
                     Enquire Now
                 </button>

@@ -71,8 +71,8 @@ export default function AgentLoginPage() {
           {/* Hero text */}
           <div className="mb-12">
             <p className="text-white/60 text-sm font-medium uppercase tracking-widest mb-4">Agent Dashboard</p>
-            <h1 className="text-4xl font-bold text-white leading-tight mb-4">
-              Run your travel<br />business smarter.
+            <h1 className="text-4xl font-medium text-white leading-tight mb-4">
+              Run your travel<br />business <span className="font-pinyon font-normal text-[#C9A0AC] text-[1.08em] tracking-normal">smarter.</span>
             </h1>
             <p className="text-white/70 text-base leading-relaxed">
               Everything you need — AI planner, quotations, bookings, analytics and a full team workspace — in one place.
@@ -123,7 +123,7 @@ export default function AgentLoginPage() {
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 p-8">
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+              <h2 className="text-2xl font-medium text-gray-900">Welcome back</h2>
               <p className="text-gray-500 text-sm mt-1">Sign in to your partner dashboard</p>
             </div>
 

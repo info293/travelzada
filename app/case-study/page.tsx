@@ -66,10 +66,10 @@ export default function CaseStudyPage() {
             <Header />
 
             {/* Hero / Header Section */}
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="text-3xl md:text-5xl font-serif font-bold text-gray-900 mb-6">
-                        Case Studies
+                    <h1 className="text-3xl md:text-5xl font-serif font-medium text-gray-900 mb-6">
+                        Case <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Studies</span>
                     </h1>
                     <p className="text-lg text-gray-600">
                         Real stories of how Travelzada helps travelers every day.
@@ -83,7 +83,7 @@ export default function CaseStudyPage() {
                 {/* Case Study 1 */}
                 <section className="space-y-6">
                     <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold uppercase tracking-wide">Case Study 1</span>
-                    <h2 className="text-3xl font-serif font-bold text-gray-900">
+                    <h2 className="text-3xl font-serif font-medium text-gray-900">
                         “Why Some Couples Don’t Even Compare Anymore”
                     </h2>
 
@@ -106,7 +106,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What usually went wrong earlier</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What usually went wrong earlier</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>Before Travelzada, planning felt tiring.</p>
                             <p>They would:</p>
@@ -123,7 +123,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What felt different this time</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What felt different this time</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>With Travelzada, the experience felt calmer.</p>
                             <p>Instead of being sent multiple options, they were:</p>
@@ -139,7 +139,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">Why they keep coming back</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">Why they keep coming back</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>They don’t feel the need to re-check five websites anymore.</p>
                             <p className="italic pt-2">
@@ -155,7 +155,7 @@ export default function CaseStudyPage() {
                 {/* Case Study 2 */}
                 <section className="space-y-6">
                     <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold uppercase tracking-wide">Case Study 2</span>
-                    <h2 className="text-3xl font-serif font-bold text-gray-900">
+                    <h2 className="text-3xl font-serif font-medium text-gray-900">
                         “We Wanted Understanding, Not Just a Quote”
                     </h2>
 
@@ -169,7 +169,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What didn’t work elsewhere</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What didn’t work elsewhere</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>Most options looked similar:</p>
                             <ul className="list-disc pl-5 space-y-2">
@@ -192,7 +192,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What Travelzada did instead</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What Travelzada did instead</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>Travelzada started with questions, not pricing.</p>
                             <p>They:</p>
@@ -207,7 +207,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">The decision</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">The decision</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>Even after comparing prices, they chose Travelzada.</p>
                             <p>Not because it was the cheapest but because it felt thought-through.</p>
@@ -220,7 +220,7 @@ export default function CaseStudyPage() {
                 {/* Case Study 3 */}
                 <section className="space-y-6">
                     <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold uppercase tracking-wide">Case Study 3</span>
-                    <h2 className="text-3xl font-serif font-bold text-gray-900">
+                    <h2 className="text-3xl font-serif font-medium text-gray-900">
                         “When Everyone You Ask Says the Same Name”
                     </h2>
 
@@ -240,7 +240,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What happened next</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What happened next</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>They casually asked friends for suggestions.</p>
                             <p>To their surprise, most of them mentioned Travelzada independently.</p>
@@ -254,7 +254,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">What built confidence</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">What built confidence</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>With Travelzada, the conversations felt different.</p>
                             <p>They:</p>
@@ -271,7 +271,7 @@ export default function CaseStudyPage() {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold text-gray-900">Final choice</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">Final choice</h3>
                         <div className="prose prose-lg text-gray-600 leading-relaxed">
                             <p>By the end, comparing more felt unnecessary.</p>
                             <p>Trust had already been built.</p>

@@ -34,11 +34,11 @@ export default function ExploreInternational() {
         <section className="py-18 md:py-24 px-4 md:px-12 bg-white">
             <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-14">
-                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-4">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        <span className="text-xs uppercase tracking-widest text-blue-600 font-semibold">Global Getaways</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mauve-50 border border-mauve-100 mb-4">
+                        <span className="w-2 h-2 rounded-full bg-mauve-500"></span>
+                        <span className="text-xs uppercase tracking-widest text-mauve-600 font-semibold">Global Getaways</span>
                     </span>
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-900 mb-3">
                         International Destinations
                     </h2>
                     <p className="text-lg text-gray-600 max-w-3xl mx-auto">

@@ -187,7 +187,7 @@ export default function TailoredResultsPage() {
     // Loading State UI
     if (isLoading) {
         return (
-            <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-[#fafafa]">
+            <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-hidden bg-[#f5f2f5]">
                 <Header />
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-10 w-full max-w-2xl mx-auto">
                     {/* Cinematic Passport Overlay Effect in Background */}
@@ -210,7 +210,7 @@ export default function TailoredResultsPage() {
                     </div>
 
                     <h1 className="text-2xl md:text-3xl font-normal text-gray-800 mb-4 tracking-tight text-balance">
-                        Crafting Your Journey
+                        Crafting Your <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Journey</span>
                     </h1>
                     
                     <div className="h-8 overflow-hidden relative w-full mb-10">
@@ -253,7 +253,7 @@ export default function TailoredResultsPage() {
             {/* Added Premium Background Styling */}
             <div className="absolute inset-0 pointer-events-none -z-10">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] opacity-60"></div>
-                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[120px] opacity-60"></div>
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-mauve-500/5 rounded-full blur-[120px] opacity-60"></div>
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PHBhdGggZD0iTTQwIDBMMCAwIDAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjAxNSIvPjwvc3ZnPg==')]"></div>
             </div>
 
@@ -263,7 +263,7 @@ export default function TailoredResultsPage() {
                 <div className="text-left mb-6 shrink-0 animate-fade-in-up flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl md:text-4xl font-normal text-gray-900 mb-2 tracking-tight">
-                            Your Tailored Travel Plan
+                            Your Tailored <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Travel Plan</span>
                         </h1>
                         <p className="text-gray-600 font-medium">
                             We've analyzed your preferences and hand-picked these exclusive itineraries.
@@ -298,7 +298,7 @@ export default function TailoredResultsPage() {
                         </button>
                         <button 
                             onClick={() => setActiveMobileTab('chat')}
-                            className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-normal rounded-full transition-all ${activeMobileTab === 'chat' ? 'bg-gradient-to-r from-primary to-[#ff8a3d] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-normal rounded-full transition-all ${activeMobileTab === 'chat' ? 'bg-gradient-to-r from-primary to-[#b86a79] text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                         >
                             <span className="text-base">✨</span> AI Planner
                         </button>
@@ -380,9 +380,9 @@ export default function TailoredResultsPage() {
                                                     <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-normal flex items-center gap-1.5 border border-white/20">
                                                         <span>⌚</span> {pkg.Duration_Nights}N/{pkg.Duration_Days}D
                                                     </div>
-                                                    <div className="bg-gradient-to-r from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] p-[1px] rounded-full shadow-lg">
+                                                    <div className="bg-gradient-to-r from-[#b86a79] via-[#c9a0ac] to-[#95929c] p-[1px] rounded-full shadow-lg">
                                                         <div className="bg-white/95 backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-1">
-                                                            <span className="text-gray-900 font-normal text-xs"><span className="text-[#f85cb5]">✨</span> {pkg.matchScore}% Match</span>
+                                                            <span className="text-gray-900 font-normal text-xs"><span className="text-[#c9a0ac]">✨</span> {pkg.matchScore}% Match</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -411,12 +411,12 @@ export default function TailoredResultsPage() {
                                             {/* Content & Ticket Stub CTAs */}
                                             <div className="p-5 md:p-6 flex flex-col gap-5 bg-white relative">
                                                 {/* Floating Price Tag on Stub */}
-                                                <div className="absolute -top-6 right-6 bg-gradient-to-r from-primary to-[#ff8a3d] text-white px-4 py-2 rounded-xl shadow-lg font-normal text-lg flex items-center gap-1 z-30 transform group-hover:scale-105 transition-transform border border-white/20">
+                                                <div className="absolute -top-6 right-6 bg-gradient-to-r from-primary to-[#b86a79] text-white px-4 py-2 rounded-xl shadow-lg font-normal text-lg flex items-center gap-1 z-30 transform group-hover:scale-105 transition-transform border border-white/20">
                                                     ₹{pkg.Price_Min_INR?.toLocaleString('en-IN') || 'TBA'} <span className="text-xs text-gray-400 font-medium">/person</span>
                                                 </div>
 
                                                 <div className="flex gap-3">
-                                                    <div className="mt-0.5 bg-blue-50 p-2 rounded-xl text-blue-500 shrink-0 h-fit border border-blue-100">
+                                                    <div className="mt-0.5 bg-mauve-50 p-2 rounded-xl text-mauve-500 shrink-0 h-fit border border-mauve-100">
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                                     </div>
                                                     <p className="text-gray-600 text-sm leading-relaxed font-medium line-clamp-2 md:line-clamp-3">
@@ -441,7 +441,7 @@ export default function TailoredResultsPage() {
                                                                         setIsTransitioning(false);
                                                                     }, 500);
                                                                 }}
-                                                                className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-[#f8f9fa] border-2 border-gray-200/60 text-gray-700 font-normal uppercase rounded-xl hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-all shadow-sm text-[10px] sm:text-xs tracking-wide group"
+                                                                className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-[#f5f2f5] border-2 border-gray-200/60 text-gray-700 font-normal uppercase rounded-xl hover:bg-gray-100 hover:border-gray-300 hover:text-gray-900 transition-all shadow-sm text-[10px] sm:text-xs tracking-wide group"
                                                             >
                                                                 <span>View Final Details</span>
                                                                 <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 group-hover:text-black transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
@@ -455,7 +455,7 @@ export default function TailoredResultsPage() {
                                                         setSelectedPackageForLead(pkg.Destination_Name);
                                                         setShowLeadForm(true);
                                                         setActiveMobileTab('chat');
-                                                    }} className="w-full relative overflow-hidden flex items-center justify-center py-2.5 sm:py-3 px-1.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white font-normal rounded-xl hover:from-[#e65c00] hover:to-[#e67300] transition-all shadow-md hover:shadow-lg text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap group transform hover:scale-[1.02] active:scale-[0.98]">
+                                                    }} className="w-full relative overflow-hidden flex items-center justify-center py-2.5 sm:py-3 px-1.5 bg-gradient-to-r from-primary to-[#b86a79] text-white font-normal rounded-xl hover:from-[#e65c00] hover:to-[#e67300] transition-all shadow-md hover:shadow-lg text-[10px] sm:text-xs uppercase tracking-wide whitespace-nowrap group transform hover:scale-[1.02] active:scale-[0.98]">
                                                         <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-0"></div>
                                                         <span className="relative z-10 flex items-center gap-1.5 sm:gap-2">
                                                             Download Itinerary
@@ -593,11 +593,11 @@ export default function TailoredResultsPage() {
                             initial={{ scale: 0.5, rotate: -45 }}
                             animate={{ scale: [0.5, 1.2, 1], rotate: [0, 10, -10, 0] }}
                             transition={{ duration: 0.8 }}
-                            className="text-primary text-8xl drop-shadow-[0_0_80px_rgba(255,138,61,0.2)]"
+                            className="text-primary text-8xl drop-shadow-[0_0_80px_rgba(101,25,38,0.2)]"
                         >
                             ✈️
                         </motion.div>
-                        <h2 className="mt-8 text-2xl font-normal text-[#ff8a3d] animate-pulse tracking-widest uppercase">Ready for Takeoff</h2>
+                        <h2 className="mt-8 text-2xl font-normal text-[#b86a79] animate-pulse tracking-widest uppercase">Ready for Takeoff</h2>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -617,7 +617,7 @@ function ScrollLinkedItinerary({ itineraryItems }: { itineraryItems: { day: stri
     return (
         <motion.div ref={containerRef} id="itinerary-section" variants={slideUpItem} className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-5 md:p-6 shadow-[0_12px_44px_rgba(0,0,0,0.08)] border border-gray-100 flex flex-col shrink-0">
             <h4 className="text-xl font-normal text-gray-800 mb-6 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[#ff8a3d] to-primary flex items-center justify-center border border-orange-100 shadow-inner text-white">
+                <div className="w-10 h-10 rounded-[12px] bg-gradient-to-br from-[#b86a79] to-primary flex items-center justify-center border border-bordeaux-100 shadow-inner text-white">
                     <span className="text-xl drop-shadow-sm">📅</span>
                 </div>
                 Day-wise Itinerary
@@ -637,7 +637,7 @@ function ScrollLinkedItinerary({ itineraryItems }: { itineraryItems: { day: stri
                     {itineraryItems.map((item, idx) => (
                         <div key={idx} id={`itinerary-day-${idx}`} className="relative pl-10 pt-1 group">
                             {/* Custom Timeline Dot matching map */}
-                            <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[4px] border-primary group-hover:border-[#ff8a3d] rounded-full shadow-[0_0_15px_rgba(255,138,61,0.2)] z-10 transition-colors duration-300"></div>
+                            <div className="absolute -left-[11px] top-1 w-5 h-5 bg-white border-[4px] border-primary group-hover:border-[#b86a79] rounded-full shadow-[0_0_15px_rgba(101,25,38,0.2)] z-10 transition-colors duration-300"></div>
                             <h5 className="font-normal text-gray-800 text-base tracking-wide">{item.day}: <span className="font-normal text-gray-500">{item.title}</span></h5>
                             {item.description && (
                                 <p className="text-gray-600 text-sm mt-2 leading-relaxed opacity-90 group-hover:opacity-100 transition-opacity bg-gray-50/50 p-3 rounded-lg border border-gray-100">{item.description}</p>

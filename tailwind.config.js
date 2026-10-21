@@ -1,3 +1,47 @@
+// Night Bordeaux ramps (600 = #651926 brand wine, 700 = #462831 mauve shadow)
+const wine = {
+  50: '#FBF4F5',
+  100: '#F5E6E9',
+  200: '#EBCDD3',
+  300: '#D9A5B0',
+  400: '#B86A79',
+  500: '#852233',
+  600: '#651926',
+  700: '#4C111C',
+  800: '#3A0D16',
+  900: '#2A0910',
+  950: '#1A0509',
+}
+
+const mauve = {
+  50: '#F7F3F4',
+  100: '#EDE4E7',
+  200: '#DBC8CE',
+  300: '#BFA0AA',
+  400: '#9A7380',
+  500: '#74505B',
+  600: '#5D3642',
+  700: '#462831',
+  800: '#341D24',
+  900: '#231318',
+  950: '#14090C',
+}
+
+// Neutrals tinted toward mauve (200 = Alabaster, 500 ≈ Granite, 950 = Coffee)
+const neutral = {
+  50: '#F8F6F8',
+  100: '#F1EEF1',
+  200: '#E2DDE3',
+  300: '#CDC8CF',
+  400: '#A9A5AF',
+  500: '#85818C',
+  600: '#67636D',
+  700: '#4A4450',
+  800: '#2D2429',
+  900: '#1A1013',
+  950: '#0F0406',
+}
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -8,33 +52,86 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-outfit)', '"Outfit"', 'sans-serif'],
-        display: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
-        serif: ['var(--font-playfair)', '"Playfair Display"', 'serif'],
-        cormorant: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        pinyon: ['"Pinyon Script"', 'cursive'],
-        figtree: ['Figtree', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Figtree', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        serif: ['var(--font-display)', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        script: ['var(--font-script)', '"Pinyon Script"', 'cursive'],
+        cormorant: ['var(--font-display)', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        pinyon: ['var(--font-script)', '"Pinyon Script"', 'cursive'],
+        figtree: ['var(--font-sans)', 'Figtree', 'system-ui', 'sans-serif'],
       },
+      // Night Bordeaux palette — wine red & coffee black, cooled by granite and alabaster.
+      //   Bordeaux  #651926  brand accent: primary CTAs, links, highlights, active states
+      //   Coffee    #0F0406  ink: headings, body text, darkest surfaces
+      //   Granite   #95929C  muted: meta text on dark, dividers, placeholders
+      //   Alabaster #E2DDE3  canvas: page background, light buttons on dark imagery
+      //   Mauve     #462831  depth: secondary dark surfaces, footer, hover of bordeaux
       colors: {
         tz: {
-          dark: '#2B1D17',
-          cocoa: '#3B2A20',
-          brown: '#7A4F34',
-          bronze: '#B88A5A',
-          gold: '#D6B08C',
-          sand: '#E8DCC3',
-          cream: '#F6F1E6',
+          bordeaux: '#651926',
+          coffee: '#0F0406',
+          granite: '#95929C',
+          alabaster: '#E2DDE3',
+          mauve: '#462831',
+          rose: '#C9A0AC',
+          mist: '#F5F2F5',
+          // Brand aliases
+          dark: '#0F0406',
+          cocoa: '#462831',
+          brown: '#651926',
+          bronze: '#95929C',
+          gold: '#C9A0AC',
+          sand: '#E2DDE3',
+          cream: '#E2DDE3',
         },
+        bordeaux: {
+          DEFAULT: '#651926',
+          light: '#852233',
+          dark: '#4c111c',
+          ...wine,
+        },
+        coffee: {
+          DEFAULT: '#0F0406',
+          light: '#1e0c10',
+        },
+        granite: {
+          DEFAULT: '#95929C',
+          light: '#b0adb7',
+          dark: '#6B6773',
+        },
+        alabaster: {
+          DEFAULT: '#E2DDE3',
+          light: '#F5F2F5',
+          dark: '#cbc5cd',
+        },
+        mauve: {
+          DEFAULT: '#462831',
+          light: '#5d3642',
+          dark: '#301b22',
+          ...mauve,
+        },
+        gray: neutral,
+        slate: neutral,
+        // Legacy accent hues remapped onto the brand ramps so older components
+        // (purple CTAs, indigo links, pink highlights) render in palette.
+        purple: wine,
+        violet: wine,
+        fuchsia: wine,
+        pink: wine,
+        indigo: mauve,
         primary: {
-          DEFAULT: '#7c3aed',
-          dark: '#6d28d9',
+          ...wine,
+          DEFAULT: '#651926',
+          dark: '#462831',
+          light: '#852233',
         },
         accent: {
-          DEFAULT: '#d4af37',
-          dark: '#b79025',
+          DEFAULT: '#95929C',
+          dark: '#462831',
+          rose: '#651926',
         },
-        ink: '#1f1b2c',
-        cream: '#fdf9f3',
+        ink: '#0F0406',
+        cream: '#E2DDE3',
       },
       animation: {
         'spin-slow': 'spin-slow 8s linear infinite',

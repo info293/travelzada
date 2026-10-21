@@ -109,15 +109,15 @@ function AIPlannerContent() {
             <div className="text-center mb-8">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-200 mb-4 md:mb-6 shadow-sm mx-auto justify-center">
-                <span className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45 shadow-sm flex-shrink-0"></span>
+                <span className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45 shadow-sm flex-shrink-0"></span>
                 <span className="text-xs md:text-sm text-purple-700 font-medium whitespace-nowrap">Powered by AI</span>
               </div>
 
               {/* Main Heading */}
               <h1 className="text-3xl md:text-6xl text-gray-900 mb-4 leading-tight">
                 Tell us your vibe.
-                <span className="block bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 bg-clip-text text-transparent pb-2">
-                  AI will plan your trip.
+                <span className="block pb-2">
+                  AI will plan your <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">trip.</span>
                 </span>
               </h1>
 

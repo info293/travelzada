@@ -81,22 +81,22 @@ export default function TripTypeSelector() {
 
         {/* Header */}
         <div className="text-center mb-11">
-          <div className="text-xs font-bold tracking-[0.2em] uppercase mb-4" style={{ color: '#a08a6a' }}>
+          <div className="text-xs font-bold tracking-[0.2em] uppercase mb-4" style={{ color: '#95929c' }}>
             Find Your Trip
           </div>
           <h2
             style={{
               margin: '0 0 14px',
               fontSize: 'clamp(28px,4vw,40px)',
-              fontFamily: "'Playfair Display', serif",
+              fontFamily: "var(--font-display), 'Cormorant Garamond', serif",
               fontWeight: 600,
               letterSpacing: '-0.01em',
-              color: '#1a1a24',
+              color: '#0f0406',
             }}
           >
             What kind of romantic escape<br className="hidden md:block" /> are you dreaming of?
           </h2>
-          <p style={{ margin: 0, fontSize: 16, color: '#6b6b76' }}>
+          <p style={{ margin: 0, fontSize: 16, color: '#6b6773' }}>
             Pick a vibe — we&rsquo;ll tailor every detail to the two of you.
           </p>
         </div>
@@ -124,8 +124,8 @@ export default function TripTypeSelector() {
                   padding: 0,
                   transform: isSelected ? 'translateY(-6px)' : 'translateY(0)',
                   boxShadow: isSelected
-                    ? '0 0 0 2px #fff, 0 0 0 4px #4f46e5, 0 22px 50px rgba(79,70,229,.32)'
-                    : '0 12px 32px rgba(26,26,36,.14)',
+                    ? '0 0 0 2px #fff, 0 0 0 4px #462831, 0 22px 50px rgba(70,40,49,.32)'
+                    : '0 12px 32px rgba(15,4,6,.14)',
                 }}
               >
                 {/* Background image */}
@@ -148,8 +148,8 @@ export default function TripTypeSelector() {
                 <div
                   className="absolute top-3.5 right-3.5 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300"
                   style={{
-                    background: 'linear-gradient(135deg,#9333ea,#4f46e5)',
-                    boxShadow: '0 6px 16px rgba(79,70,229,.5)',
+                    background: 'linear-gradient(135deg,#651926,#462831)',
+                    boxShadow: '0 6px 16px rgba(70,40,49,.5)',
                     opacity: isSelected ? 1 : 0,
                     transform: isSelected ? 'scale(1)' : 'scale(0.5)',
                   }}
@@ -170,15 +170,15 @@ export default function TripTypeSelector() {
                   </div>
                   <h3
                     className="text-white mb-1.5 leading-tight"
-                    style={{ fontFamily: "'Playfair Display', serif", fontSize: 'clamp(15px, 4vw, 20px)', fontWeight: 600 }}
+                    style={{ fontFamily: "var(--font-display), 'Cormorant Garamond', serif", fontSize: 'clamp(15px, 4vw, 20px)', fontWeight: 600 }}
                   >
                     {t.label}
                   </h3>
                   <p className="text-xs md:text-sm mb-2.5" style={{ color: 'rgba(255,255,255,.78)', lineHeight: 1.5 }}>
                     {t.line}
                   </p>
-                  <div className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider" style={{ color: '#e9d5ff' }}>
-                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#c7b48a' }} />
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold tracking-wider" style={{ color: '#c9a0ac' }}>
+                    <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#c9a0ac' }} />
                     {t.count}
                   </div>
                 </div>
@@ -189,8 +189,8 @@ export default function TripTypeSelector() {
 
         {/* Budget filter */}
         <div className="flex items-center gap-4 flex-wrap justify-center mb-6">
-          <div className="flex items-center gap-2 text-xs font-bold tracking-[0.14em] uppercase" style={{ color: '#a08a6a' }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a08a6a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-[0.14em] uppercase" style={{ color: '#95929c' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#95929c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
               <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
               <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
@@ -202,7 +202,7 @@ export default function TripTypeSelector() {
 
           <div
             className="inline-flex items-center gap-1.5 flex-wrap justify-center p-1.5 rounded-xl"
-            style={{ background: '#faf8f5', border: '1px solid #e9e5dd' }}
+            style={{ background: '#f5f2f5', border: '1px solid #e2dde3' }}
           >
             {budgetTiers.map((b) => {
               const isSel = selectedBudget === b.key
@@ -216,14 +216,14 @@ export default function TripTypeSelector() {
                     borderRadius: 8,
                     border: 'none',
                     cursor: 'pointer',
-                    background: isSel ? 'linear-gradient(135deg,#9333ea,#4f46e5)' : 'transparent',
-                    color: isSel ? '#fff' : '#1a1a24',
-                    boxShadow: isSel ? '0 8px 20px rgba(79,70,229,.32)' : 'none',
+                    background: isSel ? 'linear-gradient(135deg,#651926,#462831)' : 'transparent',
+                    color: isSel ? '#fff' : '#0f0406',
+                    boxShadow: isSel ? '0 8px 20px rgba(70,40,49,.32)' : 'none',
                   }}
                 >
                   <span style={{ fontSize: 13.5, fontWeight: 700, lineHeight: 1.1 }}>{b.label}</span>
                   {b.range && (
-                    <span style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: isSel ? 'rgba(255,255,255,.78)' : '#9a9aa5' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: isSel ? 'rgba(255,255,255,.78)' : '#95929c' }}>
                       {b.range}
                     </span>
                   )}
@@ -234,13 +234,13 @@ export default function TripTypeSelector() {
         </div>
 
         {/* Bottom note */}
-        <p className="text-center" style={{ fontSize: 15, color: '#6b6b76' }}>
+        <p className="text-center" style={{ fontSize: 15, color: '#6b6773' }}>
           Every package is customizable. Share your budget and we&rsquo;ll build the perfect honeymoon around it.{' '}
-          <strong style={{ color: '#1a1a24' }}>No judgment, no upselling.</strong>{' '}
+          <strong style={{ color: '#0f0406' }}>No judgment, no upselling.</strong>{' '}
           <button
             onClick={handleExplore}
             className="font-bold"
-            style={{ color: '#4f46e5', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }}
+            style={{ color: '#462831', background: 'none', border: 'none', cursor: 'pointer', fontSize: 15 }}
           >
             Get Free Custom Quote →
           </button>

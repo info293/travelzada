@@ -19,19 +19,19 @@ export default function NotFound() {
     ]
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 flex items-center justify-center px-4">
+        <div className="min-h-screen bg-[#F5F2F5] flex items-center justify-center px-4">
             <div className="max-w-2xl w-full text-center">
                 {/* Animated 404 */}
                 <div className={`transition-all duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
-                    <h1 className="text-[120px] md:text-[180px] font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-indigo-600 bg-clip-text text-transparent leading-none mb-4">
+                    <h1 className="text-[120px] md:text-[180px] font-normal text-[#651926] leading-none mb-4">
                         404
                     </h1>
                 </div>
 
                 {/* Message */}
                 <div className={`transition-all duration-1000 delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-                    <h2 className="text-2xl md:text-4xl font-bold text-gray-800 mb-4">
-                        Oops! Page Not Found
+                    <h2 className="text-2xl md:text-4xl font-medium text-gray-800 mb-4">
+                        Oops! This page has <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">wandered off</span>
                     </h2>
                     <p className="text-base md:text-lg text-gray-600 mb-8 max-w-md mx-auto">
                         The page you're looking for seems to have wandered off on its own adventure.

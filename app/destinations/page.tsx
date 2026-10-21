@@ -49,7 +49,7 @@ export default async function DestinationsPage() {
   )
 
   return (
-    <main className="min-h-screen bg-[#F7F7F9]">
+    <main className="min-h-screen bg-[#F5F2F5]">
       <SchemaMarkup schema={breadcrumbSchema} id="breadcrumbs" />
       <SchemaMarkup schema={itemListSchema} id="item-list" />
       <SchemaMarkup schema={webPageSchema} id="webpage-schema" />

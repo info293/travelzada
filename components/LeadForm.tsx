@@ -154,7 +154,7 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">Get in Touch</h2>
+                  <h2 className="text-xl font-medium text-white">Get in Touch</h2>
                   <p className="text-white/90 text-sm">
                     {packageName ? `Interested in ${packageName}?` : 'We\'d love to hear from you!'}
                   </p>
@@ -181,7 +181,7 @@ export default function LeadForm({ isOpen, onClose, sourceUrl, packageName }: Le
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
+                <h3 className="text-2xl font-semibold text-gray-900 mb-2">Thank You!</h3>
                 <p className="text-gray-600 mb-1">We've received your enquiry.</p>
                 <p className="text-gray-500 text-sm">Our team will get back to you soon.</p>
               </div>

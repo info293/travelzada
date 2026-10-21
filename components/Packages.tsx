@@ -95,14 +95,14 @@ export default async function Packages() {
 
   return (
     <section className="py-24 px-4 md:px-8 lg:px-12 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#fef6f1] to-white"></div>
-      <div className="absolute top-0 left-0 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-[#f5f2f5] to-white"></div>
+      <div className="absolute top-0 left-0 w-96 h-96 bg-bordeaux-200/30 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-0 w-[28rem] h-[28rem] bg-pink-200/30 rounded-full blur-3xl"></div>
 
       <div className="max-w-7xl mx-auto text-center relative z-10">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-orange-100 shadow-sm mb-4">
-          <span className="w-3.5 h-3.5 inline-block bg-gradient-to-br from-[#ff8a3d] via-[#f85cb5] to-[#3abef9] rounded-[40%] rotate-45"></span>
-          <span className="text-xs uppercase tracking-[0.3em] text-orange-500 font-semibold">Featured journeys</span>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-bordeaux-100 shadow-sm mb-4">
+          <span className="w-3.5 h-3.5 inline-block bg-gradient-to-br from-[#b86a79] via-[#c9a0ac] to-[#95929c] rounded-[40%] rotate-45"></span>
+          <span className="text-xs uppercase tracking-[0.3em] text-bordeaux-500 font-semibold">Featured journeys</span>
         </div>
         <h2 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-gray-900 mb-4">
           Best Travel Packages, Ready to Book

@@ -368,12 +368,12 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
   }
 
   return (
-    <div className="font-figtree text-[#3B2A20] bg-[#F6F1E6] text-[16px] antialiased selection:bg-[#E8DCC3]">
+    <div className="font-figtree text-[#0F0406] bg-[#F5F2F5] text-[16px] antialiased selection:bg-[#651926] selection:text-[#E2DDE3]">
 
       {/* ─────────────────────────────────────────────────────────────
           1. HERO & QUICK AI SEARCH SECTION
       ───────────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[min(100vh,920px)] flex flex-col bg-[#2B1D17] overflow-hidden pt-20 md:pt-24">
+      <section className="relative min-h-[min(100vh,920px)] flex flex-col bg-[#0F0406] overflow-hidden pt-20 md:pt-24">
         {/* Background Hero Image */}
         <div className="absolute inset-0">
           <img
@@ -389,7 +389,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.06) 30%, rgba(0,0,0,0.12) 60%, rgba(43,29,23,0.7) 100%)'
+              'linear-gradient(180deg, rgba(15,4,6,0.35) 0%, rgba(15,4,6,0.08) 30%, rgba(70,40,49,0.2) 60%, rgba(15,4,6,0.85) 100%)'
           }}
         />
 
@@ -401,7 +401,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             </div>
             <h1 className="font-cormorant font-normal text-[clamp(44px,6.8vw,96px)] leading-[0.98] tracking-[-0.01em] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)] mt-4 text-balance">
               Journeys designed<br />
-              only <span className="font-pinyon font-normal text-[#F6F1E6] text-[0.92em] tracking-normal drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]">for two</span>
+              only <span className="font-pinyon font-normal text-[#E2DDE3] text-[0.92em] tracking-normal drop-shadow-[0_4px_24px_rgba(0,0,0,0.7)]">for two</span>
             </h1>
             <p className="text-[clamp(15px,1.35vw,18px)] leading-relaxed text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.75)] font-medium mt-4 mx-auto max-w-[560px]">
               Honeymoons, proposals, anniversaries and quiet escapes — planned by real travel designers and powered by AI.
@@ -410,31 +410,31 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             {/* Quick Interactive Search Bar (Connected to /tailored-travel) */}
             <form
               onSubmit={handleHeroSearch}
-              className="mt-7 sm:mt-9 mx-auto max-w-[840px] flex items-stretch flex-wrap gap-2 bg-[#F6F1E6]/25 backdrop-blur-[16px] border border-white/60 rounded-[18px] p-2 text-left shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
+              className="mt-7 sm:mt-9 mx-auto max-w-[840px] flex items-stretch flex-wrap gap-2 bg-[#F5F2F5]/25 backdrop-blur-[16px] border border-white/60 rounded-[18px] p-2 text-left shadow-[0_20px_50px_rgba(0,0,0,0.35)]"
             >
               {/* Occasion select */}
               <div className="flex-1 min-w-[150px] p-2.5 sm:px-4 rounded-[12px] bg-black/20 hover:bg-black/30 transition-colors">
-                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E8DCC3]">
+                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E2DDE3]">
                   Occasion
                 </label>
                 <select
                   value={searchOccasion}
                   onChange={e => setSearchOccasion(e.target.value)}
-                  className="w-full bg-transparent text-[#F6F1E6] font-medium text-[15px] outline-none cursor-pointer mt-1"
+                  className="w-full bg-transparent text-[#E2DDE3] font-medium text-[15px] outline-none cursor-pointer mt-1"
                 >
-                  <option value="Honeymoon" className="bg-[#2B1D17] text-white">Honeymoon</option>
-                  <option value="Minimoon" className="bg-[#2B1D17] text-white">Minimoon</option>
-                  <option value="Proposal" className="bg-[#2B1D17] text-white">Proposal</option>
-                  <option value="Anniversary" className="bg-[#2B1D17] text-white">Anniversary</option>
-                  <option value="Birthday Escape" className="bg-[#2B1D17] text-white">Birthday Escape</option>
-                  <option value="Luxury Getaway" className="bg-[#2B1D17] text-white">Luxury Getaway</option>
-                  <option value="Babymoon" className="bg-[#2B1D17] text-white">Babymoon</option>
+                  <option value="Honeymoon" className="bg-[#0F0406] text-white">Honeymoon</option>
+                  <option value="Minimoon" className="bg-[#0F0406] text-white">Minimoon</option>
+                  <option value="Proposal" className="bg-[#0F0406] text-white">Proposal</option>
+                  <option value="Anniversary" className="bg-[#0F0406] text-white">Anniversary</option>
+                  <option value="Birthday Escape" className="bg-[#0F0406] text-white">Birthday Escape</option>
+                  <option value="Luxury Getaway" className="bg-[#0F0406] text-white">Luxury Getaway</option>
+                  <option value="Babymoon" className="bg-[#0F0406] text-white">Babymoon</option>
                 </select>
               </div>
 
               {/* Destination search */}
               <div className="flex-1 min-w-[160px] p-2.5 sm:px-4 rounded-[12px] bg-black/20 hover:bg-black/30 transition-colors">
-                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E8DCC3]">
+                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E2DDE3]">
                   Destination
                 </label>
                 <input
@@ -442,13 +442,13 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   value={searchDest}
                   onChange={e => setSearchDest(e.target.value)}
                   placeholder="Bali, Kashmir, Europe..."
-                  className="w-full bg-transparent text-[#F6F1E6] placeholder-white/60 font-medium text-[15px] outline-none mt-1"
+                  className="w-full bg-transparent text-[#E2DDE3] placeholder-white/60 font-medium text-[15px] outline-none mt-1"
                 />
               </div>
 
               {/* When input */}
               <div className="flex-1 min-w-[140px] p-2.5 sm:px-4 rounded-[12px] bg-black/20 hover:bg-black/30 transition-colors">
-                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E8DCC3]">
+                <label className="block text-[11px] font-semibold tracking-[0.14em] uppercase text-[#E2DDE3]">
                   When &amp; Nights
                 </label>
                 <input
@@ -456,14 +456,14 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   value={searchWhen}
                   onChange={e => setSearchWhen(e.target.value)}
                   placeholder="Feb · 6 Nights"
-                  className="w-full bg-transparent text-[#F6F1E6] placeholder-white/60 font-medium text-[15px] outline-none mt-1"
+                  className="w-full bg-transparent text-[#E2DDE3] placeholder-white/60 font-medium text-[15px] outline-none mt-1"
                 />
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                className="flex-initial flex items-center justify-center text-[15px] font-semibold text-[#3B2A20] bg-[#F6F1E6] hover:bg-[#D6B08C] rounded-[12px] px-6 py-3.5 whitespace-nowrap transition cursor-pointer"
+                className="flex-initial flex items-center justify-center text-[15px] font-semibold text-[#0F0406] bg-[#F5F2F5] hover:bg-[#C9A0AC] rounded-[12px] px-6 py-3.5 whitespace-nowrap transition cursor-pointer"
               >
                 Plan our trip
               </button>
@@ -490,7 +490,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
           className="absolute left-0 right-0 -bottom-[1px] w-full h-[34px] z-10 block pointer-events-none"
         >
           <path
-            fill="#F6F1E6"
+            fill="#E2DDE3"
             d="M0,40 L0,18 L40,22 L75,14 L110,20 L150,12 L190,19 L230,15 L270,23 L310,13 L350,18 L395,11 L440,20 L480,16 L520,24 L560,14 L605,19 L650,12 L690,21 L735,15 L780,22 L820,13 L860,18 L905,10 L950,19 L990,15 L1030,23 L1075,14 L1120,20 L1160,12 L1200,19 L1245,16 L1290,22 L1330,13 L1375,18 L1410,14 L1440,19 L1440,40 Z"
           />
         </svg>
@@ -501,13 +501,13 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       ───────────────────────────────────────────────────────────── */}
       <section id="occasions" className="max-w-[1280px] mx-auto px-5 sm:px-8 pt-16 sm:pt-28">
         <div className="text-center max-w-[680px] mx-auto">
-          <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#7A4F34] leading-none">
+          <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#651926] leading-none">
             for every chapter
           </div>
           <h2 className="font-cormorant font-normal text-[clamp(38px,4.6vw,62px)] leading-tight tracking-[-0.01em] mt-2.5">
             What are you celebrating?
           </h2>
-          <p className="text-[17px] leading-relaxed text-[#7A4F34] mt-4">
+          <p className="text-[17px] leading-relaxed text-[#651926] mt-4">
             Ten reasons to go away together. Each one planned differently.
           </p>
         </div>
@@ -516,14 +516,14 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       {/* ─────────────────────────────────────────────────────────────
           3. INTERACTIVE OCCASIONS & PACKAGES SHOWCASE (WITH GENEROUS GAPS & 01/08 INDICATORS)
       ───────────────────────────────────────────────────────────── */}
-      <div id="packages" className="relative bg-[#1A120D] pt-6 pb-24 sm:pb-36 mt-10 sm:mt-16">
+      <div id="packages" className="relative bg-[#E2DDE3] pt-6 pb-20 sm:pb-28 mt-6 sm:mt-10">
         {/* Sticky Occasions Filter Bar */}
-        <div className="sticky top-[64px] md:top-[72px] z-30 bg-[#1A120D]/90 backdrop-blur-[14px] border-b border-white/10 py-3.5 mb-12 sm:mb-16 shadow-xl">
+        <div className="sticky top-[64px] md:top-[72px] z-30 bg-[#E2DDE3]/90 backdrop-blur-[14px] border-b border-[#95929C]/30 py-3.5 mb-10 sm:mb-14 shadow-xs">
           <div
             data-noscroll=""
             className="max-w-[1520px] w-full mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between gap-4 overflow-x-auto whitespace-nowrap scrollbar-none"
           >
-            <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#D6B08C]">
+            <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#651926]">
               Featured Destinations (01 - 08)
             </span>
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
@@ -536,8 +536,8 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                     onClick={() => scrollToOccasion(i)}
                     className={`flex-none font-figtree text-[13px] font-semibold px-4 py-2 rounded-full cursor-pointer transition-all border flex items-center gap-2 ${
                       isActive
-                        ? 'bg-[#F6F1E6] text-[#3B2A20] border-[#F6F1E6] shadow-sm'
-                        : 'bg-white/5 text-[#F6F1E6] border-white/20 hover:border-white/50 hover:bg-white/10'
+                        ? 'bg-[#651926] text-white border-[#651926] shadow-sm'
+                        : 'bg-white/80 text-[#0F0406] border-[#95929C]/35 hover:bg-white hover:text-[#651926] hover:border-[#651926]/40'
                     }`}
                   >
                     <span className="font-mono text-[10px] opacity-75">{pad}</span>
@@ -550,7 +550,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
         </div>
 
         {/* Real Destination Sections with Clear, Generous Gaps Between Each */}
-        <div className="space-y-20 sm:space-y-28 lg:space-y-36">
+        <div className="space-y-14 sm:space-y-20 lg:space-y-24">
           {sections.slice(0, 8).map((occ, i) => {
             const displayCards = occ.cards.slice(0, 8)
             const rawCardIdx = selectedCards[i] || 0
@@ -573,7 +573,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   ref={el => { secRefs.current[i] = el }}
                   onMouseEnter={() => setHoveredSec(i)}
                   onMouseLeave={() => setHoveredSec(-1)}
-                  className="w-full relative overflow-hidden text-[#F6F1E6] scroll-mt-28"
+                  className="w-full relative overflow-hidden text-[#E2DDE3] scroll-mt-28"
                 >
                   {/* Double-buffered Dynamic Crossfade Backgrounds */}
                   <div
@@ -598,7 +598,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       background:
-                        'linear-gradient(90deg, rgba(30,20,15,0.96) 0%, rgba(30,20,15,0.82) 36%, rgba(30,20,15,0.42) 70%, rgba(30,20,15,0.6) 100%), linear-gradient(180deg, rgba(30,20,15,0.8) 0%, rgba(30,20,15,0.2) 25%, rgba(30,20,15,0.3) 70%, rgba(30,20,15,0.95) 100%)'
+                        'linear-gradient(90deg, rgba(15,4,6,0.94) 0%, rgba(70,40,49,0.8) 36%, rgba(15,4,6,0.38) 70%, rgba(15,4,6,0.5) 100%), linear-gradient(180deg, rgba(226,221,227,1) 0%, rgba(226,221,227,0) 8%, rgba(15,4,6,0.15) 30%, rgba(15,4,6,0.25) 70%, rgba(226,221,227,0) 92%, rgba(226,221,227,1) 100%)'
                     }}
                   />
 
@@ -616,46 +616,46 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                       {/* Destination Number Badge (01 / 08) */}
                       <div className="flex items-center gap-2.5 mb-3.5">
                         <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-mono font-bold tracking-wider border border-white/20 shadow-sm">
-                          <span className="text-[#E8DCC3]">{padNum}</span>
+                          <span className="text-[#E2DDE3]">{padNum}</span>
                           <span className="text-white/40">/</span>
                           <span className="text-white">{totalNum}</span>
                         </span>
-                        <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#D6B08C]">
+                        <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#C9A0AC]">
                           DESTINATION {padNum} OF {totalNum}
                         </span>
                       </div>
 
                       <div className="flex items-baseline gap-2.5 font-cormorant">
                         <span className="text-[clamp(44px,5vw,60px)] font-normal leading-none">{padNum}</span>
-                        <span className="text-[20px] text-[#D6B08C]">/ {totalNum}</span>
+                        <span className="text-[20px] text-[#C9A0AC]">/ {totalNum}</span>
                       </div>
                       <h2 className="font-cormorant font-normal text-[clamp(42px,5.2vw,74px)] leading-none tracking-[-0.01em] mt-3 text-balance">
                         {occ.name}
                       </h2>
-                      <div className="inline-block mt-3 px-3.5 py-1 bg-white/10 backdrop-blur-md rounded-full text-[13px] text-[#E8DCC3]">
+                      <div className="inline-block mt-3 px-3.5 py-1 bg-white/10 backdrop-blur-md rounded-full text-[13px] text-[#E2DDE3]">
                         {occ.meta} · {displayCards.length} Curated Packages
                       </div>
-                      <p className="text-[16px] leading-relaxed text-[#F6F1E6]/90 mt-4 max-w-[360px] line-clamp-3">
+                      <p className="text-[16px] leading-relaxed text-[#E2DDE3]/90 mt-4 max-w-[360px] line-clamp-3">
                         {occ.line}
                       </p>
 
                       <div className="flex items-center gap-3.5 flex-wrap mt-7">
                         <Link
                           href={`/tailored-travel?destination=${encodeURIComponent(occ.name)}`}
-                          className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#3B2A20] bg-[#F6F1E6] px-5 py-3 rounded-full transition hover:bg-[#D6B08C] hover:-translate-y-0.5"
+                          className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#0F0406] bg-[#F5F2F5] px-5 py-3 rounded-full transition hover:bg-[#C9A0AC] hover:-translate-y-0.5"
                         >
                           Plan with AI <span>→</span>
                         </Link>
                         <Link
                           href={`/destinations/${occ.slug}`}
-                          className="inline-flex items-center text-[14px] font-medium text-[#E8DCC3] border border-[#E8DCC3]/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
+                          className="inline-flex items-center text-[14px] font-medium text-[#E2DDE3] border border-[#95929C]/30/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
                         >
                           Explore All Packages
                         </Link>
                         {sections.length > 1 && (
                           <button
                             onClick={() => scrollToOccasion(nextIdx)}
-                            className="text-[14px] font-medium text-[#E8DCC3] hover:text-[#F6F1E6] cursor-pointer transition"
+                            className="text-[14px] font-medium text-[#E2DDE3] hover:text-[#E2DDE3] cursor-pointer transition"
                           >
                             Next: {sections[nextIdx]?.name} ↓
                           </button>
@@ -683,14 +683,14 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                               onMouseEnter={() => goToCard(i, j)}
                               className={`flex-none snap-start w-[clamp(232px,21vw,280px)] aspect-[5/7] rounded-[18px] transition-all duration-500 ease-out relative ${
                                 isSelected
-                                  ? 'opacity-100 -translate-y-2.5 outline outline-1 outline-[#E8DCC3]/90 outline-offset-4'
+                                  ? 'opacity-100 -translate-y-2.5 outline outline-1 outline-[#E2DDE3]/90 outline-offset-4'
                                   : 'opacity-75 hover:opacity-100 outline outline-1 outline-transparent'
                               }`}
                             >
                               <Link
                                 href={targetUrl}
                                 onClick={() => goToCard(i, j)}
-                                className="block w-full h-full rounded-[18px] overflow-hidden bg-[#3B2A20] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
+                                className="block w-full h-full rounded-[18px] overflow-hidden bg-[#462831] shadow-[0_34px_60px_-28px_rgba(0,0,0,0.85)] cursor-pointer relative group"
                                 title={`Open ${c.place}`}
                               >
                                 <img
@@ -704,37 +704,37 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                                   className="absolute inset-0 pointer-events-none"
                                   style={{
                                     background:
-                                      'linear-gradient(to top, rgba(43,29,23,0.94) 0%, rgba(43,29,23,0.3) 48%, rgba(43,29,23,0) 68%)'
+                                      'linear-gradient(to top, rgba(15,4,6,0.95) 0%, rgba(70,40,49,0.35) 48%, transparent 68%)'
                                   }}
                                 />
                                 {/* Nights badge */}
-                                <div className="absolute top-3.5 left-3.5 text-[12px] font-semibold text-[#F6F1E6] bg-[#2B1D17]/65 backdrop-blur-[8px] border border-[#F6F1E6]/35 px-3 py-1.5 rounded-full pointer-events-none">
+                                <div className="absolute top-3.5 left-3.5 text-[12px] font-semibold text-[#E2DDE3] bg-[#0F0406]/65 backdrop-blur-[8px] border border-[#F5F2F5]/35 px-3 py-1.5 rounded-full pointer-events-none">
                                   {c.nights}
                                 </div>
                                 {/* Top-right "Package" badge */}
-                                <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#3B2A20] bg-[#E8DCC3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F6F1E6] transition-colors pointer-events-none flex items-center gap-1">
+                                <div className="absolute top-3.5 right-3.5 text-[11px] font-semibold uppercase tracking-wider text-[#0F0406] bg-[#E2DDE3] px-2.5 py-1 rounded-full shadow-sm group-hover:bg-[#F5F2F5] transition-colors pointer-events-none flex items-center gap-1">
                                   <span>Package</span>
                                   <span>↗</span>
                                 </div>
                                 {/* Card bottom text */}
-                                <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#F6F1E6]">
-                                  <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E8DCC3] flex items-center justify-between">
+                                <div className="absolute left-4 sm:left-5 right-4 sm:right-5 bottom-4 sm:bottom-5 text-[#E2DDE3]">
+                                  <div className="text-[11.5px] font-semibold tracking-[0.16em] uppercase text-[#E2DDE3] flex items-center justify-between">
                                     <span>{c.region}</span>
                                     {c.price && (
-                                      <span className="font-semibold text-[13px] text-[#F6F1E6]">
+                                      <span className="font-semibold text-[13px] text-[#E2DDE3]">
                                         {c.price}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="font-cormorant font-semibold text-[25px] leading-tight mt-1 group-hover:text-[#E8DCC3] transition-colors line-clamp-2">
+                                  <div className="font-cormorant font-semibold text-[25px] leading-tight mt-1 group-hover:text-[#E2DDE3] transition-colors line-clamp-2">
                                     {c.place}
                                   </div>
-                                  <div className="text-[13px] leading-snug mt-1.5 text-[#F6F1E6]/90 line-clamp-2">
+                                  <div className="text-[13px] leading-snug mt-1.5 text-[#E2DDE3]/90 line-clamp-2">
                                     {c.hook}
                                   </div>
                                   {/* Direct Destination Link & AI Plan */}
                                   <div className="mt-3.5 pt-2.5 border-t border-white/20 flex items-center justify-between gap-2 text-[12.5px]">
-                                    <span className="inline-flex items-center gap-1.5 font-semibold text-[#3B2A20] bg-[#F6F1E6] group-hover:bg-[#D6B08C] px-3.5 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
+                                    <span className="inline-flex items-center gap-1.5 font-semibold text-[#0F0406] bg-[#F5F2F5] group-hover:bg-[#C9A0AC] px-3.5 py-1.5 rounded-full transition-colors shadow-sm text-[12px]">
                                       Explore Package <span className="transition-transform group-hover:translate-x-0.5">→</span>
                                     </span>
                                     <span
@@ -745,7 +745,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                                         e.stopPropagation()
                                         router.push(`/tailored-travel?destination=${encodeURIComponent(c.place)}`)
                                       }}
-                                      className="text-[#E8DCC3] hover:text-white font-medium px-2 py-1 hover:underline cursor-pointer transition text-[12px] whitespace-nowrap"
+                                      className="text-[#E2DDE3] hover:text-white font-medium px-2 py-1 hover:underline cursor-pointer transition text-[12px] whitespace-nowrap"
                                     >
                                       Plan with AI
                                     </span>
@@ -763,21 +763,21 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                           <button
                             onClick={() => goToCard(i, (cardIdx + displayCards.length - 1) % displayCards.length)}
                             aria-label="Previous card"
-                            className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6]/55 bg-[#2B1D17]/40 text-[#F6F1E6] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F6F1E6]/20"
+                            className="w-[48px] h-[48px] rounded-full border border-[#F5F2F5]/55 bg-[#0F0406]/40 text-[#E2DDE3] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#F5F2F5]/20"
                           >
                             ←
                           </button>
                           <button
                             onClick={() => goToCard(i, (cardIdx + 1) % displayCards.length)}
                             aria-label="Next card"
-                            className="w-[48px] h-[48px] rounded-full border border-[#F6F1E6] bg-[#F6F1E6] text-[#3B2A20] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#D6B08C]"
+                            className="w-[48px] h-[48px] rounded-full border border-[#F5F2F5] bg-[#F5F2F5] text-[#0F0406] text-[18px] flex items-center justify-center cursor-pointer transition hover:bg-[#C9A0AC]"
                           >
                             →
                           </button>
 
-                          <div className="flex-1 max-w-[220px] h-[2px] bg-[#F6F1E6]/25 rounded overflow-hidden">
+                          <div className="flex-1 max-w-[220px] h-[2px] bg-[#F5F2F5]/25 rounded overflow-hidden">
                             <div
-                              className="h-full bg-[#D6B08C] transition-all duration-500 ease-out"
+                              className="h-full bg-[#C9A0AC] transition-all duration-500 ease-out"
                               style={{ width: `${((cardIdx + 1) / displayCards.length) * 100}%` }}
                             />
                           </div>
@@ -786,7 +786,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                             <span className="text-[34px] font-normal leading-none text-white">
                               {String(cardIdx + 1).padStart(2, '0')}
                             </span>
-                            <span className="text-[17px] text-[#D6B08C]">/ 08</span>
+                            <span className="text-[17px] text-[#C9A0AC]">/ 08</span>
                           </div>
                         </div>
                       )}
@@ -803,11 +803,11 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       {/* ─────────────────────────────────────────────────────────────
           4. DESTINATIONS SECTION (CONNECTS TO /destinations/[slug])
       ───────────────────────────────────────────────────────────── */}
-      <section id="destinations" className="bg-[#E8DCC3]">
+      <section id="destinations" className="bg-[#E2DDE3]">
         <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-16 sm:py-28">
           <div className="flex items-end justify-between gap-6 flex-wrap">
             <div>
-              <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#7A4F34]">
+              <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#651926]">
                 Destinations
               </div>
               <h2 className="font-cormorant font-normal text-[clamp(38px,4.6vw,62px)] leading-tight tracking-[-0.01em] mt-3">
@@ -816,13 +816,13 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             </div>
             {/* Tab switch + Explore All button */}
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex gap-1 bg-[#F6F1E6] rounded-full p-1.5 shadow-sm">
+              <div className="flex gap-1 bg-[#F5F2F5] rounded-full p-1.5 shadow-sm">
                 <button
                   onClick={() => setDestTab('International')}
                   className={`font-figtree text-[15px] font-semibold px-5 py-2.5 rounded-full transition cursor-pointer ${
                     destTab === 'International'
-                      ? 'bg-[#3B2A20] text-[#F6F1E6]'
-                      : 'bg-transparent text-[#3B2A20] hover:text-[#7A4F34]'
+                      ? 'bg-[#462831] text-[#E2DDE3]'
+                      : 'bg-transparent text-[#0F0406] hover:text-[#651926]'
                   }`}
                 >
                   International
@@ -831,8 +831,8 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   onClick={() => setDestTab('India')}
                   className={`font-figtree text-[15px] font-semibold px-5 py-2.5 rounded-full transition cursor-pointer ${
                     destTab === 'India'
-                      ? 'bg-[#3B2A20] text-[#F6F1E6]'
-                      : 'bg-transparent text-[#3B2A20] hover:text-[#7A4F34]'
+                      ? 'bg-[#462831] text-[#E2DDE3]'
+                      : 'bg-transparent text-[#0F0406] hover:text-[#651926]'
                   }`}
                 >
                   India
@@ -841,7 +841,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
               <Link
                 href="/destinations"
-                className="font-semibold text-sm text-[#3B2A20] hover:text-[#7A4F34] underline underline-offset-4"
+                className="font-semibold text-sm text-[#0F0406] hover:text-[#651926] underline underline-offset-4"
               >
                 All Destinations →
               </Link>
@@ -854,7 +854,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
               <Link
                 key={dest.name}
                 href={`/destinations/${dest.slug}`}
-                className="group relative block h-[clamp(320px,30vw,420px)] rounded-[20px] overflow-hidden bg-[#D6B08C] shadow-sm animate-[tzRise_0.5s_ease_both]"
+                className="group relative block h-[clamp(320px,30vw,420px)] rounded-[20px] overflow-hidden bg-[#C9A0AC] shadow-sm animate-[tzRise_0.5s_ease_both]"
               >
                 <div className="absolute inset-0 transition-transform duration-700 ease-out group-hover:scale-105">
                   <img
@@ -868,19 +868,19 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background:
-                      'linear-gradient(to top, rgba(43,29,23,0.85) 0%, rgba(43,29,23,0.2) 42%, transparent 64%)'
+                      'linear-gradient(to top, rgba(15,4,6,0.92) 0%, rgba(70,40,49,0.25) 42%, transparent 64%)'
                   }}
                 />
-                <div className="absolute left-6 right-6 bottom-5 text-[#F6F1E6] flex items-end justify-between gap-3">
+                <div className="absolute left-6 right-6 bottom-5 text-[#E2DDE3] flex items-end justify-between gap-3">
                   <div>
                     <div className="font-cormorant font-semibold text-[32px] leading-none">
                       {dest.name}
                     </div>
-                    <div className="text-[14.5px] mt-2 text-[#E8DCC3]">
+                    <div className="text-[14.5px] mt-2 text-[#E2DDE3]">
                       {dest.meta}
                     </div>
                   </div>
-                  <span className="w-10 h-10 rounded-full bg-[#F6F1E6] text-[#3B2A20] flex items-center justify-center text-[17px] group-hover:bg-[#D6B08C] transition-colors">
+                  <span className="w-10 h-10 rounded-full bg-[#F5F2F5] text-[#0F0406] flex items-center justify-center text-[17px] group-hover:bg-[#C9A0AC] transition-colors">
                     →
                   </span>
                 </div>
@@ -895,7 +895,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       ───────────────────────────────────────────────────────────── */}
       <section id="stays" className="py-16 sm:py-28 overflow-hidden">
         <div className="max-w-[760px] mx-auto px-5 sm:px-8 text-center">
-          <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#7A4F34]">
+          <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#651926]">
             Stays &amp; skies
           </div>
           <h2 className="font-cormorant font-normal text-[clamp(36px,4.2vw,56px)] leading-tight tracking-[-0.01em] mt-3.5">
@@ -906,7 +906,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
         <div className="mt-10 sm:mt-14 space-y-6">
           {/* Hotels Marquee */}
           <div>
-            <div className="text-center text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#7A4F34] mb-4">
+            <div className="text-center text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#651926] mb-4">
               Luxury hotel partners
             </div>
             <div
@@ -933,7 +933,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
           {/* Airlines Marquee (Reverse) */}
           <div className="pt-2">
-            <div className="text-center text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#7A4F34] mb-3">
+            <div className="text-center text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#651926] mb-3">
               Premium airlines
             </div>
             <div
@@ -950,7 +950,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                 {[...airlines, ...airlines, ...airlines].map((air, idx) => (
                   <div
                     key={idx}
-                    className="h-[72px] px-6 sm:px-11 flex items-center font-cormorant font-semibold text-[26px] tracking-[0.08em] uppercase text-[#3B2A20] whitespace-nowrap"
+                    className="h-[72px] px-6 sm:px-11 flex items-center font-cormorant font-semibold text-[26px] tracking-[0.08em] uppercase text-[#0F0406] whitespace-nowrap"
                   >
                     {air}
                   </div>
@@ -964,12 +964,12 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       {/* ─────────────────────────────────────────────────────────────
           6. HOW IT WORKS (CONNECTS TO /tailored-travel)
       ───────────────────────────────────────────────────────────── */}
-      <section id="how" className="bg-[#3B2A20] text-[#F6F1E6]">
+      <section id="how" className="bg-[#462831] text-[#E2DDE3]">
         <div className="max-w-[1280px] mx-auto px-5 sm:px-8 py-16 sm:py-28 grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-24 items-center">
 
           {/* Left Image & Floating Cost Card */}
           <div className="relative pb-12 mx-auto lg:mx-0 w-full max-w-[460px]">
-            <div className="h-[clamp(440px,46vw,600px)] rounded-t-full rounded-b-[20px] overflow-hidden outline outline-1 outline-[#B88A5A] outline-offset-[10px]">
+            <div className="h-[clamp(440px,46vw,600px)] rounded-t-full rounded-b-[20px] overflow-hidden outline outline-1 outline-[#651926] outline-offset-[10px]">
               <img
                 src="https://ik.imagekit.io/tux8wjwgq/Kerala/romantic%20candlelight%20dinner%20in%20kerala.png?tr=w-1000"
                 alt="Candlelit dinner for two"
@@ -979,12 +979,12 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             </div>
 
             {/* Floating Breakdown Card */}
-            <div className="absolute right-0 bottom-0 w-[min(330px,90%)] bg-[#F6F1E6] text-[#3B2A20] rounded-[18px] p-5 shadow-[0_30px_60px_-28px_rgba(0,0,0,0.6)] animate-[tzFloat_6s_ease-in-out_infinite]">
+            <div className="absolute right-0 bottom-0 w-[min(330px,90%)] bg-[#F5F2F5] text-[#0F0406] rounded-[18px] p-5 shadow-[0_30px_60px_-28px_rgba(0,0,0,0.6)] animate-[tzFloat_6s_ease-in-out_infinite]">
               <div className="flex justify-between items-baseline gap-2">
-                <div className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#7A4F34]">
+                <div className="text-[12px] font-semibold tracking-[0.14em] uppercase text-[#651926]">
                   Sample breakdown
                 </div>
-                <div className="text-[12.5px] text-[#7A4F34]">100% itemised</div>
+                <div className="text-[12.5px] text-[#651926]">100% itemised</div>
               </div>
               <div className="font-cormorant font-semibold text-[24px] mt-1.5">
                 Kashmir Honeymoon · 6N/7D
@@ -992,11 +992,11 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
               {/* Segmented bar */}
               <div className="flex h-2.5 rounded-full overflow-hidden mt-3.5 gap-0.5">
-                <div className="w-[42%] bg-[#3B2A20]" title="Hotels" />
-                <div className="w-[18%] bg-[#7A4F34]" title="Transfers" />
-                <div className="w-[21%] bg-[#B88A5A]" title="Activities" />
-                <div className="w-[11%] bg-[#D6B08C]" title="Romantic extras" />
-                <div className="w-[8%] bg-[#E8DCC3]" title="Service fee" />
+                <div className="w-[42%] bg-[#462831]" title="Hotels" />
+                <div className="w-[18%] bg-[#651926]" title="Transfers" />
+                <div className="w-[21%] bg-[#95929C]" title="Activities" />
+                <div className="w-[11%] bg-[#C9A0AC]" title="Romantic extras" />
+                <div className="w-[8%] bg-[#E2DDE3]" title="Service fee" />
               </div>
 
               {/* Price rows */}
@@ -1008,8 +1008,8 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                 <div className="flex justify-between"><span>Service fee</span><span className="font-medium">₹3,000</span></div>
               </div>
 
-              <div className="flex justify-between items-baseline border-t border-[#E8DCC3] mt-3 pt-3">
-                <span className="text-[14px] text-[#7A4F34]">Total / person</span>
+              <div className="flex justify-between items-baseline border-t border-[#95929C]/30 mt-3 pt-3">
+                <span className="text-[14px] text-[#651926]">Total / person</span>
                 <span className="text-[20px] font-bold">₹38,000</span>
               </div>
             </div>
@@ -1017,7 +1017,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
           {/* Right Text & Steps */}
           <div>
-            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#D6B08C] leading-none">
+            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#C9A0AC] leading-none">
               how it works
             </div>
             <h2 className="font-cormorant font-normal text-[clamp(38px,4.4vw,58px)] leading-[1.04] tracking-[-0.01em] mt-2.5">
@@ -1026,56 +1026,56 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
             <div className="relative mt-8 sm:mt-11 pl-11">
               {/* Vertical connecting line */}
-              <div className="absolute left-[13px] top-2.5 bottom-2.5 w-[1px] bg-[#7A4F34]" />
+              <div className="absolute left-[13px] top-2.5 bottom-2.5 w-[1px] bg-[#651926]" />
 
               {/* Step 1 */}
               <div className="relative pb-7">
-                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#3B2A20] border border-[#D6B08C] flex items-center justify-center text-[11.5px] font-semibold text-[#E8DCC3]">
+                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#462831] border border-[#651926]/40 flex items-center justify-center text-[11.5px] font-semibold text-[#E2DDE3]">
                   01
                 </div>
-                <h3 className="text-[19px] font-semibold mt-0.5 text-[#F6F1E6]">
+                <h3 className="text-[19px] font-semibold mt-0.5 text-[#E2DDE3]">
                   Share your preferences
                 </h3>
-                <p className="text-[15.5px] leading-relaxed text-[#E8DCC3] mt-1.5 max-w-[460px]">
+                <p className="text-[15.5px] leading-relaxed text-[#E2DDE3] mt-1.5 max-w-[460px]">
                   Destination, dates, budget and the occasion. Sixty seconds.
                 </p>
               </div>
 
               {/* Step 2 */}
               <div className="relative pb-7">
-                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#3B2A20] border border-[#D6B08C] flex items-center justify-center text-[11.5px] font-semibold text-[#E8DCC3]">
+                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#462831] border border-[#651926]/40 flex items-center justify-center text-[11.5px] font-semibold text-[#E2DDE3]">
                   02
                 </div>
-                <h3 className="text-[19px] font-semibold mt-0.5 text-[#F6F1E6]">
+                <h3 className="text-[19px] font-semibold mt-0.5 text-[#E2DDE3]">
                   Get your personalised itinerary
                 </h3>
-                <p className="text-[15.5px] leading-relaxed text-[#E8DCC3] mt-1.5 max-w-[460px]">
+                <p className="text-[15.5px] leading-relaxed text-[#E2DDE3] mt-1.5 max-w-[460px]">
                   Day by day — hotels, transfers, romantic add-ons.
                 </p>
               </div>
 
               {/* Step 3 */}
               <div className="relative pb-7">
-                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#3B2A20] border border-[#D6B08C] flex items-center justify-center text-[11.5px] font-semibold text-[#E8DCC3]">
+                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#462831] border border-[#651926]/40 flex items-center justify-center text-[11.5px] font-semibold text-[#E2DDE3]">
                   03
                 </div>
-                <h3 className="text-[19px] font-semibold mt-0.5 text-[#F6F1E6]">
+                <h3 className="text-[19px] font-semibold mt-0.5 text-[#E2DDE3]">
                   Your planner perfects it
                 </h3>
-                <p className="text-[15.5px] leading-relaxed text-[#E8DCC3] mt-1.5 max-w-[460px]">
+                <p className="text-[15.5px] leading-relaxed text-[#E2DDE3] mt-1.5 max-w-[460px]">
                   A real expert refines every detail with you on WhatsApp.
                 </p>
               </div>
 
               {/* Step 4 */}
               <div className="relative pb-5">
-                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#3B2A20] border border-[#D6B08C] flex items-center justify-center text-[11.5px] font-semibold text-[#E8DCC3]">
+                <div className="absolute -left-[44px] top-0 w-7 h-7 rounded-full bg-[#462831] border border-[#651926]/40 flex items-center justify-center text-[11.5px] font-semibold text-[#E2DDE3]">
                   04
                 </div>
-                <h3 className="text-[19px] font-semibold mt-0.5 text-[#F6F1E6]">
+                <h3 className="text-[19px] font-semibold mt-0.5 text-[#E2DDE3]">
                   See exactly what you pay
                 </h3>
-                <p className="text-[15.5px] leading-relaxed text-[#E8DCC3] mt-1.5 max-w-[460px]">
+                <p className="text-[15.5px] leading-relaxed text-[#E2DDE3] mt-1.5 max-w-[460px]">
                   A complete, itemised breakdown. No hidden charges.
                 </p>
               </div>
@@ -1083,7 +1083,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
             <Link
               href="/tailored-travel"
-              className="inline-block text-[15.5px] font-semibold text-[#3B2A20] bg-[#F6F1E6] px-7 py-4 rounded-full transition hover:bg-[#D6B08C] hover:-translate-y-0.5 mt-2"
+              className="inline-block text-[15.5px] font-semibold text-[#0F0406] bg-[#F5F2F5] px-7 py-4 rounded-full transition hover:bg-[#C9A0AC] hover:-translate-y-0.5 mt-2"
             >
               Start planning — it's free
             </Link>
@@ -1105,33 +1105,33 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
           />
         </div>
         <div>
-          <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#7A4F34]">
+          <div className="text-[12.5px] font-semibold tracking-[0.24em] uppercase text-[#651926]">
             Real couples
           </div>
-          <div className="font-cormorant text-[96px] leading-[0.5] text-[#D6B08C] mt-9">
+          <div className="font-cormorant text-[96px] leading-[0.5] text-[#C9A0AC] mt-9">
             “
           </div>
           <blockquote className="font-cormorant font-normal text-[clamp(24px,2.6vw,36px)] leading-snug mt-1.5 text-balance">
             {featuredReviews[0]?.content || "Our honeymoon was truly unforgettable, and all thanks to Travelzada. Every detail was thoughtfully planned—from seamless transfers to beautiful hotel stays."}
           </blockquote>
           <div className="flex items-center gap-3.5 mt-7">
-            <div className="w-12 h-12 rounded-full bg-[#E8DCC3] flex items-center justify-center font-cormorant font-semibold text-[18px]">
+            <div className="w-12 h-12 rounded-full bg-[#E2DDE3] flex items-center justify-center font-cormorant font-semibold text-[18px]">
               {(featuredReviews[0]?.name || 'Nishchay Gupta').split(' ').map(n => n[0]).join('').slice(0, 2)}
             </div>
             <div>
               <div className="text-[16px] font-semibold">{featuredReviews[0]?.name || 'Nishchay Gupta'}</div>
-              <div className="text-[14.5px] text-[#7A4F34] mt-0.5">
+              <div className="text-[14.5px] text-[#651926] mt-0.5">
                 {featuredReviews[0]?.packageName || 'Singapore Dream Honeymoon'} · Verified Couple
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 flex-wrap border-t border-[#E8DCC3] mt-8 pt-6">
+          <div className="flex items-center gap-4 flex-wrap border-t border-[#95929C]/30 mt-8 pt-6">
             <div className="flex">
               {['M&S', 'K&V', 'N&I', 'D&P'].map((initials, idx) => (
                 <div
                   key={idx}
-                  className="w-[38px] h-[38px] rounded-full bg-[#3B2A20] text-[#F6F1E6] border-2 border-[#F6F1E6] -mr-2.5 flex items-center justify-center text-[11.5px] font-semibold"
+                  className="w-[38px] h-[38px] rounded-full bg-[#462831] text-[#E2DDE3] border-2 border-[#F5F2F5] -mr-2.5 flex items-center justify-center text-[11.5px] font-semibold"
                 >
                   {initials}
                 </div>
@@ -1142,7 +1142,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             </div>
             <Link
               href="/reviews"
-              className="text-[15px] font-semibold text-[#7A4F34] border-b border-[#D6B08C] pb-0.5 hover:text-[#3B2A20] transition-colors"
+              className="text-[15px] font-semibold text-[#651926] border-b border-[#651926]/40 pb-0.5 hover:text-[#0F0406] transition-colors"
             >
               Read all reviews
             </Link>
@@ -1153,7 +1153,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       {/* ─────────────────────────────────────────────────────────────
           8. QUESTIONS COUPLES ASK (FAQ)
       ───────────────────────────────────────────────────────────── */}
-      <section className="bg-[#E8DCC3]">
+      <section className="bg-[#E2DDE3]">
         <div className="max-w-[860px] mx-auto px-5 sm:px-8 py-16 sm:py-28">
           <h2 className="font-cormorant font-normal text-[clamp(36px,4.2vw,56px)] leading-tight text-center">
             Questions couples ask
@@ -1162,14 +1162,14 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             {faqData.map((faq, i) => {
               const isOpen = activeFaq === i
               return (
-                <div key={i} className="bg-[#F6F1E6] rounded-[16px] overflow-hidden">
+                <div key={i} className="bg-[#F5F2F5] rounded-[16px] overflow-hidden">
                   <button
                     onClick={() => setActiveFaq(isOpen ? -1 : i)}
-                    className="w-full flex items-center justify-between gap-4 bg-transparent border-none cursor-pointer p-5 sm:p-6 text-left font-figtree text-[17px] font-semibold text-[#3B2A20]"
+                    className="w-full flex items-center justify-between gap-4 bg-transparent border-none cursor-pointer p-5 sm:p-6 text-left font-figtree text-[17px] font-semibold text-[#0F0406]"
                   >
                     <span>{faq.q}</span>
                     <span
-                      className={`w-8 h-8 rounded-full border border-[#D6B08C] flex items-center justify-center flex-none text-[18px] text-[#7A4F34] transition-transform duration-300 ${
+                      className={`w-8 h-8 rounded-full border border-[#651926]/40 flex items-center justify-center flex-none text-[18px] text-[#651926] transition-transform duration-300 ${
                         isOpen ? 'rotate-45' : 'rotate-0'
                       }`}
                     >
@@ -1177,7 +1177,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                     </span>
                   </button>
                   {isOpen && (
-                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 text-[16px] leading-relaxed text-[#7A4F34] max-w-[680px] animate-[tzRise_0.35s_ease_both]">
+                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 text-[16px] leading-relaxed text-[#651926] max-w-[680px] animate-[tzRise_0.35s_ease_both]">
                       {faq.a}
                     </div>
                   )}
@@ -1194,18 +1194,18 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       <section id="enquire" className="max-w-[1280px] mx-auto px-5 sm:px-8 py-16 sm:py-28">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-9 sm:gap-20 items-start">
           <div>
-            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#7A4F34] leading-none">
+            <div className="font-pinyon text-[clamp(30px,3vw,40px)] text-[#651926] leading-none">
               let's begin
             </div>
             <h2 className="font-cormorant font-normal text-[clamp(40px,4.8vw,64px)] leading-none tracking-[-0.01em] mt-2.5">
               Tell us about the two of you
             </h2>
-            <p className="text-[17px] leading-relaxed text-[#7A4F34] mt-4 max-w-[440px]">
+            <p className="text-[17px] leading-relaxed text-[#651926] mt-4 max-w-[440px]">
               Free, personalised itinerary. No payment until you love it.
             </p>
 
             {/* Occasion Chips Multi-select */}
-            <div className="text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#7A4F34] mt-8">
+            <div className="text-[12.5px] font-semibold tracking-[0.2em] uppercase text-[#651926] mt-8">
               The occasion
             </div>
             <div className="flex flex-wrap gap-2 mt-3.5 max-w-[520px]">
@@ -1218,8 +1218,8 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                     onClick={() => toggleOccasion(occName)}
                     className={`font-figtree text-[14.5px] font-medium rounded-full px-4 py-2.5 cursor-pointer border transition-colors ${
                       isSelected
-                        ? 'bg-[#3B2A20] text-[#F6F1E6] border-[#3B2A20]'
-                        : 'bg-transparent text-[#3B2A20] border-[#D6B08C] hover:border-[#3B2A20]'
+                        ? 'bg-[#462831] text-[#E2DDE3] border-[#462831]'
+                        : 'bg-transparent text-[#0F0406] border-[#651926]/40 hover:border-[#462831]'
                     }`}
                   >
                     {occName}
@@ -1230,53 +1230,53 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
           </div>
 
           {/* Form Card */}
-          <div className="bg-white border border-[#E8DCC3] rounded-[24px] p-6 sm:p-10 shadow-sm grid gap-4">
+          <div className="bg-white border border-[#95929C]/30 rounded-[24px] p-6 sm:p-10 shadow-sm grid gap-4">
             <form onSubmit={handleEnquirySubmit} className="grid gap-4">
               <label className="block">
-                <div className="text-[14px] font-semibold text-[#3B2A20]">Your names</div>
+                <div className="text-[14px] font-semibold text-[#0F0406]">Your names</div>
                 <input
                   type="text"
                   required
                   value={formData.names}
                   onChange={e => setFormData({ ...formData, names: e.target.value })}
                   placeholder="Riya &amp; Aarav"
-                  className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 focus:border-[#B88A5A] focus:bg-white transition"
+                  className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#F5F2F5] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 focus:border-[#651926] focus:bg-white transition"
                 />
               </label>
 
               <label className="block">
-                <div className="text-[14px] font-semibold text-[#3B2A20]">Where to?</div>
+                <div className="text-[14px] font-semibold text-[#0F0406]">Where to?</div>
                 <input
                   type="text"
                   required
                   value={formData.whereTo}
                   onChange={e => setFormData({ ...formData, whereTo: e.target.value })}
                   placeholder="Bali, Kashmir, anywhere warm…"
-                  className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 focus:border-[#B88A5A] focus:bg-white transition"
+                  className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#F5F2F5] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 focus:border-[#651926] focus:bg-white transition"
                 />
               </label>
 
               <label className="block">
-                <div className="text-[14px] font-semibold text-[#3B2A20]">When &amp; how long?</div>
+                <div className="text-[14px] font-semibold text-[#0F0406]">When &amp; how long?</div>
                 <input
                   type="text"
                   required
                   value={formData.when}
                   onChange={e => setFormData({ ...formData, when: e.target.value })}
                   placeholder="February, 6 nights"
-                  className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 focus:border-[#B88A5A] focus:bg-white transition"
+                  className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#F5F2F5] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 focus:border-[#651926] focus:bg-white transition"
                 />
               </label>
 
               <label className="block">
-                <div className="text-[14px] font-semibold text-[#3B2A20]">WhatsApp mobile number</div>
+                <div className="text-[14px] font-semibold text-[#0F0406]">WhatsApp mobile number</div>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
                   onChange={e => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+91 98765 43210"
-                  className="w-full box-border mt-2 border border-[#E8DCC3] rounded-[12px] bg-[#F6F1E6] outline-none font-figtree text-[16px] text-[#3B2A20] p-3.5 focus:border-[#B88A5A] focus:bg-white transition"
+                  className="w-full box-border mt-2 border border-[#95929C]/30 rounded-[12px] bg-[#F5F2F5] outline-none font-figtree text-[16px] text-[#0F0406] p-3.5 focus:border-[#651926] focus:bg-white transition"
                 />
               </label>
 
@@ -1289,7 +1289,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="font-figtree text-[16px] font-semibold text-[#F6F1E6] bg-[#3B2A20] disabled:bg-gray-400 border-none rounded-full py-4 px-7 cursor-pointer mt-1.5 transition hover:bg-[#7A4F34] hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                className="font-figtree text-[16px] font-semibold text-[#E2DDE3] bg-[#462831] disabled:bg-gray-400 border-none rounded-full py-4 px-7 cursor-pointer mt-1.5 transition hover:bg-[#651926] hover:-translate-y-0.5 flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <span>Saving your request...</span>
@@ -1309,7 +1309,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
               href="https://wa.me/919929962350"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-[15px] font-semibold text-[#3B2A20] hover:text-[#7A4F34] transition-colors pt-2"
+              className="flex items-center justify-center gap-2 text-[15px] font-semibold text-[#0F0406] hover:text-[#651926] transition-colors pt-2"
             >
               <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
               Or chat directly on WhatsApp — +91 99299 62350
@@ -1323,14 +1323,14 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
       ───────────────────────────────────────────────────────────── */}
       {isNarrow && (
         <>
-          <div className="h-[84px] bg-[#3B2A20]" />
-          <div className="fixed left-3 right-3 bottom-3 z-50 flex gap-2 bg-[#F6F1E6] rounded-full p-1.5 shadow-[0_18px_40px_-14px_rgba(43,29,23,0.55),0_0_0_1px_#E8DCC3] animate-[tzRise_0.4s_ease_both]">
+          <div className="h-[84px] bg-[#462831]" />
+          <div className="fixed left-3 right-3 bottom-3 z-50 flex gap-2 bg-[#F5F2F5] rounded-full p-1.5 shadow-[0_18px_40px_-14px_rgba(15,4,6,0.55),0_0_0_1px_#E2DDE3] animate-[tzRise_0.4s_ease_both]">
             <a
               href="https://wa.me/919929962350"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="WhatsApp Us"
-              className="flex-none w-[52px] h-[52px] rounded-full bg-[#E8DCC3] flex items-center justify-center hover:bg-[#D6B08C] transition-colors"
+              className="flex-none w-[52px] h-[52px] rounded-full bg-[#E2DDE3] flex items-center justify-center hover:bg-[#C9A0AC] transition-colors"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B2A20" strokeWidth="2">
                 <path d="M21 12a9 9 0 01-13.5 7.8L3 21l1.2-4.5A9 9 0 1121 12z" />
@@ -1338,7 +1338,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             </a>
             <Link
               href="/tailored-travel"
-              className="flex-1 flex items-center justify-center text-[16px] font-semibold text-[#F6F1E6] bg-[#3B2A20] rounded-full hover:bg-[#7A4F34] transition-colors"
+              className="flex-1 flex items-center justify-center text-[16px] font-semibold text-[#E2DDE3] bg-[#462831] rounded-full hover:bg-[#651926] transition-colors"
             >
               Plan our trip — free
             </Link>

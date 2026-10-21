@@ -37,16 +37,16 @@ export default function PrivacyPolicyPage() {
                     ]} />
                 </div>
             </div>
-            <section className="relative py-20 px-4 md:px-12 bg-[#fcfcfc] border-b border-gray-100">
+            <section className="relative py-20 px-4 md:px-12 bg-[#f5f2f5] border-b border-gray-100">
                 <div className="max-w-4xl mx-auto text-center">
-                    <h1 className="text-3xl md:text-4xl font-serif font-bold text-gray-900">Privacy Policy</h1>
+                    <h1 className="text-3xl md:text-4xl font-serif font-medium text-gray-900">Privacy <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Policy</span></h1>
                 </div>
             </section>
             <section className="py-16 px-4 md:px-12">
                 <div className="max-w-4xl mx-auto space-y-8 prose prose-lg text-gray-600">
                     <div className="space-y-8">
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Information We Collect</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">1. Information We Collect</h2>
                             <p className="mb-4">We collect information that you provide directly to us when you plan or book a trip, including:</p>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>Personal identification information (Name, email address, phone number, etc.)</li>
@@ -57,7 +57,7 @@ export default function PrivacyPolicyPage() {
                         </section>
 
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">2. How We Use Your Information</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">2. How We Use Your Information</h2>
                             <p className="mb-4">We use the information we collect to:</p>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>Process your bookings and provide travel services</li>
@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
                         </section>
 
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">3. Information Sharing</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">3. Information Sharing</h2>
                             <p className="mb-4">We may share your information with:</p>
                             <ul className="list-disc pl-5 space-y-2 text-gray-700">
                                 <li>Service providers (Airlines, hotels, transport providers) to fulfill your booking</li>
@@ -79,14 +79,14 @@ export default function PrivacyPolicyPage() {
                         </section>
 
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">4. Data Security</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">4. Data Security</h2>
                             <p className="text-gray-700">
                                 We implement appropriate security measures to protect your personal information. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.
                             </p>
                         </section>
 
                         <section>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Contact Us</h2>
+                            <h2 className="text-2xl font-medium text-gray-900 mb-4">5. Contact Us</h2>
                             <p className="text-gray-700 mb-2">
                                 If you have any questions about this Privacy Policy, please contact us:
                             </p>

@@ -50,8 +50,8 @@ export default function PressPage() {
       {/* Hero Section */}
       <section className="py-16 px-4 md:px-12 bg-gradient-to-b from-primary/10 to-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Press & Media
+          <h1 className="text-4xl md:text-5xl font-medium text-gray-900 mb-4">
+            Press &amp; <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Media</span>
           </h1>
           <p className="text-xl text-gray-600">
             Latest news, press releases, and media resources from Travelzada.
@@ -63,7 +63,7 @@ export default function PressPage() {
       <section className="py-12 px-4 md:px-12 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-lg p-8 shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Press Inquiries</h2>
+            <h2 className="text-2xl font-medium text-gray-900 mb-4">Press Inquiries</h2>
             <p className="text-gray-700 mb-6">
               For media inquiries, interview requests, or press-related questions, please contact our press team.
             </p>
@@ -88,12 +88,12 @@ export default function PressPage() {
       {/* Press Releases */}
       <section className="py-16 px-4 md:px-12">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Latest Press Releases</h2>
+          <h2 className="text-3xl font-medium text-gray-900 mb-8">Latest Press Releases</h2>
           <div className="space-y-6">
             {pressReleases.map((release, index) => (
               <div key={index} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
                 <p className="text-sm text-gray-500 mb-2">{release.date}</p>
-                <h3 className="text-xl font-bold text-gray-900 mb-3">{release.title}</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">{release.title}</h3>
                 <p className="text-gray-700 mb-4">{release.excerpt}</p>
                 <Link
                   href="/contact"
@@ -110,7 +110,7 @@ export default function PressPage() {
       {/* Media Kit */}
       <section className="py-16 px-4 md:px-12 bg-gray-50">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Media Kit</h2>
+          <h2 className="text-3xl font-medium text-gray-900 mb-8">Media Kit</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {Object.entries(mediaKit).map(([key, value], index) => (
               <div key={index} className="bg-white rounded-lg p-6 border border-gray-200">
@@ -133,7 +133,7 @@ export default function PressPage() {
       {/* Company Information */}
       <section className="py-16 px-4 md:px-12">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">About Travelzada</h2>
+          <h2 className="text-3xl font-medium text-gray-900 mb-8">About Travelzada</h2>
           <div className="prose prose-lg max-w-none">
             <p className="text-gray-700 leading-relaxed mb-4">
               Travelzada is a leading AI-powered travel planning platform that helps travelers create

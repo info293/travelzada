@@ -39,7 +39,7 @@ export default function Header() {
 
   // Derive role label + dashboard link
   const roleLabel  = isAdmin ? 'Admin' : isAgent ? 'DMC Agent' : isSubAgent ? 'Travel Agent' : 'Member'
-  const roleColor  = isAdmin ? 'bg-red-100 text-red-700' : isAgent ? 'bg-purple-100 text-purple-700' : isSubAgent ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+  const roleColor  = isAdmin ? 'bg-red-100 text-red-700' : isAgent ? 'bg-purple-100 text-purple-700' : isSubAgent ? 'bg-mauve-100 text-mauve-700' : 'bg-gray-100 text-gray-600'
   const dashLink   = isAdmin ? '/admin' : isAgent ? '/dmc-dashboard' : isSubAgent ? '/travel-agent-dashboard' : null
   const dashLabel  = isAdmin ? 'Admin Panel' : isAgent ? 'DMC Dashboard' : isSubAgent ? 'Agent Dashboard' : null
   const displayName = isSubAgent && subAgentName ? subAgentName : currentUser?.email || ''
@@ -295,7 +295,7 @@ export default function Header() {
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className={`md:hidden p-2 transition-colors ${
               isDarkHero
-                ? 'text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] hover:text-[#E8DCC3]'
+                ? 'text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] hover:text-[#E2DDE3]'
                 : 'text-gray-600 hover:text-primary'
             }`}
             aria-label="Toggle menu"

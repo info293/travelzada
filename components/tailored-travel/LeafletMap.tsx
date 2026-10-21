@@ -38,7 +38,7 @@ const createNumberedIcon = (numStr: string, isBase: boolean = false) => {
         html: `
             <div class="relative flex flex-col items-center justify-center transition-transform duration-300 hover:scale-[1.15] hover:-translate-y-1 pb-2 group">
                 <div class="bg-white/95 backdrop-blur-md rounded-[12px] shadow-[0_8px_20px_rgba(0,0,0,0.12)] border border-gray-100 flex items-center justify-center cursor-pointer px-3 py-1.5 min-w-[64px] gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full ${isBase ? 'bg-indigo-500' : 'bg-[#ff8a3d]'} shadow-sm"></span>
+                    <span class="w-1.5 h-1.5 rounded-full ${isBase ? 'bg-indigo-500' : 'bg-[#b86a79]'} shadow-sm"></span>
                     <span class="text-gray-900 font-bold text-[11px] uppercase tracking-wider">${isBase ? 'Base' : 'Day ' + numStr}</span>
                 </div>
                 <!-- Sleek drop arrow -->
@@ -118,7 +118,7 @@ function AirplaneMarker({ routePath }: { routePath: [number, number][] }) {
             className: 'airplane-marker-container clear-background',
             html: `
             <div class="airplane-ik-inner" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); transition: transform 0.1s linear;">
-                <svg viewBox="0 0 24 24" fill="#6366f1" stroke="white" stroke-width="1.5" style="width: 32px; height: 32px;">
+                <svg viewBox="0 0 24 24" fill="#462831" stroke="white" stroke-width="1.5" style="width: 32px; height: 32px;">
                     <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
                 </svg>
             </div>`,
@@ -230,17 +230,17 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
                 <!-- Car body (yellow) -->
                 <rect x="3" y="14" width="42" height="62" rx="9" fill="#FBBF24"/>
                 <!-- Front bumper -->
-                <rect x="7" y="11" width="34" height="7" rx="3.5" fill="#D97706"/>
+                <rect x="7" y="11" width="34" height="7" rx="3.5" fill="#462831"/>
                 <!-- Rear bumper -->
-                <rect x="7" y="74" width="34" height="6" rx="3" fill="#D97706"/>
+                <rect x="7" y="74" width="34" height="6" rx="3" fill="#462831"/>
                 <!-- Front windshield -->
                 <rect x="9" y="18" width="30" height="14" rx="4" fill="#BAE6FD" opacity="0.85"/>
                 <!-- Windshield glare -->
                 <rect x="11" y="20" width="10" height="5" rx="2" fill="white" opacity="0.35"/>
                 <!-- Cabin roof (darker yellow) -->
-                <rect x="8" y="33" width="32" height="24" rx="3" fill="#D97706"/>
+                <rect x="8" y="33" width="32" height="24" rx="3" fill="#462831"/>
                 <!-- TAXI sign (black with yellow text) -->
-                <rect x="11" y="35" width="26" height="10" rx="2.5" fill="#111827"/>
+                <rect x="11" y="35" width="26" height="10" rx="2.5" fill="#0f0406"/>
                 <text x="24" y="43.5" text-anchor="middle" fill="#FBBF24" font-size="7.5" font-weight="900" font-family="Arial,sans-serif" letter-spacing="1">TAXI</text>
                 <!-- Left side window -->
                 <rect x="9" y="46" width="12" height="9" rx="2" fill="#BAE6FD" opacity="0.6"/>
@@ -251,13 +251,13 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
                 <!-- Rear window glare -->
                 <rect x="11" y="61" width="8" height="4" rx="2" fill="white" opacity="0.25"/>
                 <!-- Checkerboard stripe — left -->
-                <rect x="3"  y="56" width="4" height="4" fill="#111827"/>
+                <rect x="3"  y="56" width="4" height="4" fill="#0f0406"/>
                 <rect x="7"  y="56" width="4" height="4" fill="#FBBF24"/>
-                <rect x="11" y="56" width="4" height="4" fill="#111827"/>
+                <rect x="11" y="56" width="4" height="4" fill="#0f0406"/>
                 <!-- Checkerboard stripe — right -->
-                <rect x="41" y="56" width="4" height="4" fill="#111827"/>
+                <rect x="41" y="56" width="4" height="4" fill="#0f0406"/>
                 <rect x="37" y="56" width="4" height="4" fill="#FBBF24"/>
-                <rect x="33" y="56" width="4" height="4" fill="#111827"/>
+                <rect x="33" y="56" width="4" height="4" fill="#0f0406"/>
                 <!-- Front headlights (warm white) -->
                 <rect x="3"  y="13" width="10" height="6" rx="3" fill="#FEF9C3"/>
                 <rect x="35" y="13" width="10" height="6" rx="3" fill="#FEF9C3"/>
@@ -271,16 +271,16 @@ function CarMarker({ routePath }: { routePath: [number, number][] }) {
                 <rect x="5"  y="75" width="6" height="3" rx="1.5" fill="#FCA5A5" opacity="0.6"/>
                 <rect x="37" y="75" width="6" height="3" rx="1.5" fill="#FCA5A5" opacity="0.6"/>
                 <!-- Wheels (front) -->
-                <rect x="0"  y="22" width="7" height="14" rx="3.5" fill="#1F2937"/>
-                <rect x="41" y="22" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <rect x="0"  y="22" width="7" height="14" rx="3.5" fill="#0F0406"/>
+                <rect x="41" y="22" width="7" height="14" rx="3.5" fill="#0F0406"/>
                 <!-- Wheels (rear) -->
-                <rect x="0"  y="58" width="7" height="14" rx="3.5" fill="#1F2937"/>
-                <rect x="41" y="58" width="7" height="14" rx="3.5" fill="#1F2937"/>
+                <rect x="0"  y="58" width="7" height="14" rx="3.5" fill="#0F0406"/>
+                <rect x="41" y="58" width="7" height="14" rx="3.5" fill="#0F0406"/>
                 <!-- Wheel rims -->
-                <rect x="1"  y="24" width="5" height="10" rx="2.5" fill="#374151"/>
-                <rect x="42" y="24" width="5" height="10" rx="2.5" fill="#374151"/>
-                <rect x="1"  y="60" width="5" height="10" rx="2.5" fill="#374151"/>
-                <rect x="42" y="60" width="5" height="10" rx="2.5" fill="#374151"/>
+                <rect x="1"  y="24" width="5" height="10" rx="2.5" fill="#4a4450"/>
+                <rect x="42" y="24" width="5" height="10" rx="2.5" fill="#4a4450"/>
+                <rect x="1"  y="60" width="5" height="10" rx="2.5" fill="#4a4450"/>
+                <rect x="42" y="60" width="5" height="10" rx="2.5" fill="#4a4450"/>
               </svg>
               <!-- Ground shadow -->
               <div style="
@@ -377,7 +377,7 @@ const createPackageIcon = (imageUrl: string) => {
                 </div>
                 
                 <!-- Sleek Badge Indicator -->
-                <div class="absolute -bottom-1.5 bg-gradient-to-r from-primary to-[#ff8a3d] text-white p-1.5 rounded-full shadow-lg border-2 border-white z-20 scale-90 group-hover:scale-100 transition-transform">
+                <div class="absolute -bottom-1.5 bg-gradient-to-r from-primary to-[#b86a79] text-white p-1.5 rounded-full shadow-lg border-2 border-white z-20 scale-90 group-hover:scale-100 transition-transform">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
                 </div>
             </div>
@@ -391,8 +391,8 @@ const createPackageIcon = (imageUrl: string) => {
 // Real Hotel Package Marker — uses actual package image from Firestore
 const createRealHotelIcon = (imageUrl: string, tier: string) => {
     const config: Record<string, { color: string; label: string; ring: string }> = {
-        '5-star': { color: '#f59e0b', label: '5★', ring: 'border-amber-400' },
-        '4-star': { color: '#6366f1', label: '4★', ring: 'border-indigo-500' },
+        '5-star': { color: '#651926', label: '5★', ring: 'border-amber-400' },
+        '4-star': { color: '#462831', label: '4★', ring: 'border-indigo-500' },
         '3-star': { color: '#10b981', label: '3★', ring: 'border-emerald-500' },
     };
     const { color, label } = config[tier] || { color: '#6b7280', label: '★' };
@@ -672,7 +672,7 @@ export default function LeafletMap({
             <MapContainer
                 center={[20, 0]}
                 zoom={2}
-                style={{ height: '100%', width: '100%', background: '#e5e7eb' }}
+                style={{ height: '100%', width: '100%', background: '#e2dde3' }}
                 zoomControl={true}
                 attributionControl={false}
                 scrollWheelZoom={true}
@@ -683,7 +683,7 @@ export default function LeafletMap({
                 {flightPath.length > 1 && (
                     <Polyline
                         positions={flightPath}
-                        pathOptions={{ color: '#6366f1', weight: 4, dashArray: '10, 10', opacity: 0.8 }}
+                        pathOptions={{ color: '#462831', weight: 4, dashArray: '10, 10', opacity: 0.8 }}
                     />
                 )}
 
@@ -780,7 +780,7 @@ export default function LeafletMap({
                     const pos: [number, number] = [basePos[0] + jLat, basePos[1] + jLng];
 
                     const tier = (pkg.starCategory || '').toLowerCase().replace(/\s+/g, '-');
-                    const tierColor = tier.includes('5') ? '#f59e0b' : tier.includes('4') ? '#6366f1' : '#10b981';
+                    const tierColor = tier.includes('5') ? '#651926' : tier.includes('4') ? '#462831' : '#10b981';
                     const tierLabel = tier.includes('5') ? '5★ Luxury' : tier.includes('4') ? '4★ Premium' : '3★ Comfort';
 
                     return (
@@ -885,12 +885,12 @@ export default function LeafletMap({
                         {/* Soft glow underlay */}
                         <Polyline
                             positions={carRoute}
-                            pathOptions={{ color: '#ff8a3d', weight: 10, opacity: 0.15, lineCap: 'round', lineJoin: 'round' }}
+                            pathOptions={{ color: '#b86a79', weight: 10, opacity: 0.15, lineCap: 'round', lineJoin: 'round' }}
                         />
                         {/* Dashed centre line */}
                         <Polyline
                             positions={carRoute}
-                            pathOptions={{ color: '#ff8a3d', weight: 2.5, opacity: 0.85, dashArray: '8, 6', lineCap: 'round', lineJoin: 'round' }}
+                            pathOptions={{ color: '#b86a79', weight: 2.5, opacity: 0.85, dashArray: '8, 6', lineCap: 'round', lineJoin: 'round' }}
                         />
                     </>
                 )}

@@ -181,8 +181,8 @@ export default function CareersPage() {
           <span className="inline-block px-4 py-1.5 rounded-full bg-white border border-gray-200 text-primary text-sm font-semibold shadow-sm mb-6">
             We're Hiring 🚀
           </span>
-          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 tracking-tight tight-leading">
-            Shape the Future of <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-dark">Travel</span>
+          <h1 className="text-5xl md:text-6xl font-medium text-gray-900 mb-6 tracking-tight tight-leading">
+            Shape the Future of <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Travel</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed">
             Join a passionate team dedicated to revolutionizing how the world experiences travel. Build, create, and explore with Travelzada.
@@ -200,7 +200,7 @@ export default function CareersPage() {
       <section className="py-24 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Work at Travelzada?</h2>
+            <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-4">Why Work at Travelzada?</h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               We believe in taking care of our people so they can take care of our travelers.
             </p>
@@ -212,7 +212,7 @@ export default function CareersPage() {
                 <div className="w-14 h-14 bg-gray-50 rounded-xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform duration-300">
                   {benefit.icon}
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary transition-colors">
+                <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-primary transition-colors">
                   {benefit.title}
                 </h3>
                 <p className="text-gray-600 leading-relaxed">
@@ -229,7 +229,7 @@ export default function CareersPage() {
         <div className="max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Open Positions</h2>
+              <h2 className="text-3xl md:text-4xl font-medium text-gray-900 mb-4">Open Positions</h2>
               <p className="text-lg text-gray-600">Find your next role at Travelzada.</p>
             </div>
             <div className="hidden md:block">
@@ -250,11 +250,11 @@ export default function CareersPage() {
                   className="group bg-white rounded-xl p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between shadow-sm hover:shadow-md border border-gray-100 hover:border-primary/20 transition-all duration-200"
                 >
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 group-hover:text-primary transition-colors mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900 group-hover:text-primary transition-colors mb-2">
                       {job.title}
                     </h3>
                     <div className="flex flex-wrap gap-3 mb-4">
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-mauve-50 text-mauve-700">
                         {job.department}
                       </span>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
@@ -281,7 +281,7 @@ export default function CareersPage() {
                 <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
                   ✨
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">No open roles right now</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No open roles right now</h3>
                 <p className="text-gray-600 mb-8 max-w-md mx-auto">
                   We don't have any specific openings at the moment, but we're always looking for talent!
                 </p>
@@ -319,7 +319,7 @@ export default function CareersPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto my-8 animate-in fade-in zoom-in duration-200">
             <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 px-8 py-5 flex justify-between items-center z-10">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Apply for Position</h2>
+                <h2 className="text-2xl font-medium text-gray-900">Apply for Position</h2>
                 <p className="text-sm text-gray-500 mt-1">
                   {selectedPosition || 'General Application'}
                 </p>
@@ -345,15 +345,15 @@ export default function CareersPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">Application Submitted!</h3>
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-3">Application Submitted!</h3>
                   <p className="text-gray-600 max-w-sm mx-auto">
                     Thanks for applying! We've received your details and will be in touch shortly.
                   </p>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
-                    <p className="text-sm text-blue-800 flex gap-2">
+                  <div className="bg-mauve-50 border border-mauve-100 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-mauve-800 flex gap-2">
                       <span className="text-lg">📢</span>
                       You are applying for: <strong>{selectedPosition || 'General Roles'}</strong>
                     </p>

@@ -45,7 +45,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="relative py-16 sm:py-24 bg-[#fbf9f6] overflow-hidden select-none">
+    <section id="how" className="relative py-16 sm:py-24 bg-[#f5f2f5] overflow-hidden select-none">
       {/* Background ambient lighting */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] bg-gradient-to-tr from-indigo-100/40 via-amber-100/30 to-purple-100/40 blur-3xl pointer-events-none rounded-full" />
 
@@ -56,7 +56,7 @@ export default function HowItWorks() {
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900 text-white text-[11px] font-extrabold tracking-[0.2em] uppercase mb-3 shadow-sm">
             Simple Process
           </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 font-display tracking-tight mb-3 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 font-display tracking-tight mb-3 leading-tight">
             How We Plan Your Customized Honeymoon Package
           </h2>
           <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
@@ -83,7 +83,7 @@ export default function HowItWorks() {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-lg font-bold text-slate-900 font-display mb-2.5 leading-snug group-hover:text-indigo-600 transition-colors">
+                <h3 className="text-lg font-semibold text-slate-900 font-display mb-2.5 leading-snug group-hover:text-indigo-600 transition-colors">
                   {s.title}
                 </h3>
 

@@ -542,7 +542,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                             {post.category}
                                         </span>
                                     )}
-                                    <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+                                    <h1 className="text-2xl md:text-4xl lg:text-5xl font-medium text-gray-900 mb-4 leading-tight">
                                         {post.title}
                                     </h1>
                                     {post.subtitle && (
@@ -616,13 +616,13 @@ export default async function BlogPostPage({ params }: PageProps) {
                                                         )
                                                     case 'heading':
                                                         return (
-                                                            <h2 key={`heading-${index}`} id={`heading-${index}`} className="text-2xl md:text-3xl font-bold text-gray-900 mt-12 mb-6 scroll-mt-20">
+                                                            <h2 key={`heading-${index}`} id={`heading-${index}`} className="text-2xl md:text-3xl font-medium text-gray-900 mt-12 mb-6 scroll-mt-20">
                                                                 {section.text || section.content}
                                                             </h2>
                                                         )
                                                     case 'subheading':
                                                         return (
-                                                            <h3 key={`heading-${index}`} id={`heading-${index}`} className="text-xl md:text-2xl font-bold text-gray-900 mt-10 mb-4 scroll-mt-20">
+                                                            <h3 key={`heading-${index}`} id={`heading-${index}`} className="text-xl md:text-2xl font-semibold text-gray-900 mt-10 mb-4 scroll-mt-20">
                                                                 {section.text || section.content}
                                                             </h3>
                                                         )
@@ -685,7 +685,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                                     case 'faq':
                                                         return (
                                                             <section key={index} className="my-10 bg-gray-50 rounded-xl p-8">
-                                                                <h3 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h3>
+                                                                <h3 className="text-2xl font-semibold text-gray-900 mb-6">Frequently Asked Questions</h3>
                                                                 <div className="space-y-6">
                                                                     {section.faqs && section.faqs.length > 0 ? (
                                                                         section.faqs.map((faq, faqIndex) => (
@@ -713,7 +713,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                                             .filter(item => item.section.type === 'heading' || item.section.type === 'subheading') || []
                                                         return (
                                                             <nav key={index} className="my-10 bg-gradient-to-r from-primary/10 to-primary-dark/10 rounded-xl p-6 border-l-4 border-primary">
-                                                                <h3 className="text-xl font-bold text-gray-900 mb-4">Table of Contents</h3>
+                                                                <h3 className="text-xl font-semibold text-gray-900 mb-4">Table of Contents</h3>
                                                                 <ol className="list-decimal list-inside space-y-2">
                                                                     {headings.map((item, headingIndex) => (
                                                                         <li key={headingIndex}>
@@ -731,7 +731,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                                     case 'related':
                                                         return (
                                                             <section key={index} className="my-10">
-                                                                <h3 className="text-2xl font-bold text-gray-900 mb-6">Related Content</h3>
+                                                                <h3 className="text-2xl font-semibold text-gray-900 mb-6">Related Content</h3>
                                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                     {section.relatedLinks?.map((link, linkIndex) => (
                                                                         <Link
@@ -760,14 +760,14 @@ export default async function BlogPostPage({ params }: PageProps) {
                                             {post.content.split('\n').map((paragraph, index) => {
                                                 if (paragraph.startsWith('## ')) {
                                                     return (
-                                                        <h2 key={index} className="text-3xl font-bold text-gray-900 mt-10 mb-4">
+                                                        <h2 key={index} className="text-3xl font-medium text-gray-900 mt-10 mb-4">
                                                             {paragraph.replace('## ', '')}
                                                         </h2>
                                                     )
                                                 }
                                                 if (paragraph.startsWith('### ')) {
                                                     return (
-                                                        <h3 key={index} className="text-2xl font-bold text-gray-900 mt-8 mb-3">
+                                                        <h3 key={index} className="text-2xl font-semibold text-gray-900 mt-8 mb-3">
                                                             {paragraph.replace('### ', '')}
                                                         </h3>
                                                     )
@@ -862,7 +862,7 @@ export default async function BlogPostPage({ params }: PageProps) {
                                     <div className="p-8 flex flex-col md:flex-row md:items-center gap-6">
                                         <div className="flex-1">
                                             <p className="text-xs uppercase tracking-widest font-semibold text-primary mb-2">Ready to go?</p>
-                                            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                                            <h3 className="text-xl md:text-2xl font-semibold text-gray-900 mb-2">
                                                 Explore {linkedDestination.name} Tour Packages
                                             </h3>
                                             <p className="text-gray-600 text-sm md:text-base leading-relaxed">

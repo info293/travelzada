@@ -23,7 +23,7 @@ export function NewsletterForm() {
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900">Travelzada&apos;s Newsletter</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">Travelzada&apos;s Newsletter</h3>
                         <p className="text-gray-600">Curated curiosities delivered to your inbox.</p>
                     </div>
                 </div>

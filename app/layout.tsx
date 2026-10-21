@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Outfit, Playfair_Display } from 'next/font/google'
+import { Figtree, Cormorant_Garamond, Pinyon_Script } from 'next/font/google'
 import { Suspense } from 'react'
 import Script from 'next/script'
 import './globals.css'
@@ -7,11 +7,16 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import GoogleAnalytics from '@/components/GoogleAnalytics'
 import HreflangTags from '@/components/HreflangTags'
 
-const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
-const playfair = Playfair_Display({
+// Typography: Figtree for reading, Cormorant Garamond for headings, Pinyon Script for accent words
+const figtree = Figtree({ subsets: ['latin'], variable: '--font-sans', display: 'swap' })
+const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
-  variable: '--font-playfair',
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-display',
+  display: 'swap',
 })
+const pinyon = Pinyon_Script({ subsets: ['latin'], weight: '400', variable: '--font-script', display: 'swap' })
 
 export const metadata: Metadata = {
   title: 'Travelzada — Journeys designed only for two',
@@ -50,7 +55,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${outfit.className} ${outfit.variable} ${playfair.variable}`}>
+      <body className={`${figtree.className} ${figtree.variable} ${cormorant.variable} ${pinyon.variable}`}>
         <GoogleAnalytics />
         <Script
           id="microsoft-clarity"

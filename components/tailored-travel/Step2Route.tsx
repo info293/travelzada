@@ -56,7 +56,7 @@ export default function Step2Route({
     return (
         <div className="animate-fade-in-up">
             <div className="text-center mb-10">
-                <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight drop-shadow-sm">
+                <h2 className="text-4xl md:text-5xl font-medium text-gray-900 mb-4 tracking-tight drop-shadow-sm">
                     Customize Your Journey
                 </h2>
                 <p className="text-lg text-gray-700 font-medium">Review your route and adjust the duration for each stop.</p>
@@ -66,14 +66,14 @@ export default function Step2Route({
 
                 {/* Route List */}
                 <div className="w-full space-y-4 bg-white/70 backdrop-blur-2xl rounded-[2rem] p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
-                    <h3 className="font-bold text-xl text-gray-900 mb-6 flex items-center gap-2">
-                        <svg className="w-6 h-6 text-[#f85cb5] drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                    <h3 className="font-semibold text-xl text-gray-900 mb-6 flex items-center gap-2">
+                        <svg className="w-6 h-6 text-[#c9a0ac] drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                         Your Itinerary Options
                     </h3>
 
                     <div className="space-y-3 relative">
                         {/* Decorative timeline line */}
-                        <div className="absolute left-[1.15rem] top-6 bottom-6 w-1 bg-gradient-to-b from-primary/20 via-[#f85cb5]/20 to-transparent rounded-full z-0"></div>
+                        <div className="absolute left-[1.15rem] top-6 bottom-6 w-1 bg-gradient-to-b from-primary/20 via-[#c9a0ac]/20 to-transparent rounded-full z-0"></div>
 
                         {routeItems.map((item: any, index: number) => (
                             <div
@@ -81,7 +81,7 @@ export default function Step2Route({
                                 className="relative z-10 flex items-center gap-4 bg-white p-3 md:p-4 rounded-2xl border border-gray-100 shadow-sm transition-all hover:border-gray-200 hover:shadow-md group"
                             >
                                 {/* Node counter */}
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#f85cb5] text-white flex items-center justify-center font-bold shadow-md flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[#c9a0ac] text-white flex items-center justify-center font-bold shadow-md flex-shrink-0">
                                     {index + 1}
                                 </div>
 

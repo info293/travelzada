@@ -92,7 +92,7 @@ export default function OccasionSectionClient({
         touchStartX.current = null
     }
 
-    const bgClass = index % 2 !== 0 ? 'bg-[#faf8f5]' : 'bg-white'
+    const bgClass = index % 2 !== 0 ? 'bg-[#f5f2f5]' : 'bg-white'
 
     if (!packages || packages.length === 0) return null
 
@@ -113,7 +113,7 @@ export default function OccasionSectionClient({
                         </svg>
                         Curated Collection
                     </div>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-2 leading-tight">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight font-display mb-2 leading-tight">
                         {occasion} Specials
                     </h2>
                     <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-1 max-w-2xl mx-auto">
@@ -229,7 +229,7 @@ export default function OccasionSectionClient({
                                                 <div className="inline-block bg-slate-100 text-slate-700 text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full mb-1.5 border border-slate-200/60">
                                                     {occasion}
                                                 </div>
-                                                <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
+                                                <h3 className="text-lg sm:text-xl font-semibold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
                                                     {pkg.Destination_Name}
                                                 </h3>
                                                 <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed font-normal">

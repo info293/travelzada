@@ -105,7 +105,7 @@ function getVisaBadge(p: RawPkg): { label: string; bg: string } {
     return { label: 'VISA FREE', bg: 'bg-emerald-600' }
   }
   if (VISA_ON_ARRIVAL.some(k => check.includes(k))) {
-    return { label: 'VISA ON ARRIVAL', bg: 'bg-blue-600' }
+    return { label: 'VISA ON ARRIVAL', bg: 'bg-mauve-600' }
   }
   return { label: 'VISA REQUIRED', bg: 'bg-slate-700' }
 }
@@ -250,13 +250,13 @@ export default function InternationalPackages() {
   return (
     <section className="relative overflow-hidden bg-white py-10 sm:py-14 px-4 sm:px-8 select-none">
       {/* Ambient background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-sky-100/40 via-indigo-100/30 to-purple-100/40 blur-3xl pointer-events-none rounded-full" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-gradient-to-tr from-mauve-100/40 via-indigo-100/30 to-purple-100/40 blur-3xl pointer-events-none rounded-full" />
 
       <div className="max-w-7xl mx-auto relative z-10">
 
         {/* ── Header ── */}
         <div className="text-center mb-2 sm:mb-3 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 text-sky-800 text-xs font-bold tracking-[0.2em] uppercase mb-2 border border-sky-500/20">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-mauve-500/10 text-mauve-800 text-xs font-bold tracking-[0.2em] uppercase mb-2 border border-mauve-500/20">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="2" y1="12" x2="22" y2="12" />
@@ -264,7 +264,7 @@ export default function InternationalPackages() {
             </svg>
             International
           </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight font-display mb-2 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-medium text-slate-900 tracking-tight font-display mb-2 leading-tight">
             International Couple Tour Packages from India
           </h2>
           <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-1 max-w-2xl mx-auto">
@@ -386,7 +386,7 @@ export default function InternationalPackages() {
 
                         {/* Rating Overlay */}
                         <div className="absolute bottom-3 right-3 z-10 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-950/80 backdrop-blur-md text-white flex items-center gap-1 border border-white/15">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#f59e0b">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="#651926">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
                           </svg>
                           <span>{rating}</span>
@@ -398,7 +398,7 @@ export default function InternationalPackages() {
                       <div className="p-5 sm:p-6 flex flex-col justify-between">
                         {/* Title */}
                         <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
+                          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 line-clamp-1 group-hover:text-slate-700 transition-colors font-display">
                             {name}
                           </h3>
 
@@ -509,7 +509,7 @@ export default function InternationalPackages() {
                 aria-label={`Go to slide ${idx + 1}`}
                 className={`transition-all duration-500 rounded-full ${
                   activeIndex === idx
-                    ? 'w-8 h-2.5 bg-sky-600 shadow-md shadow-sky-600/30'
+                    ? 'w-8 h-2.5 bg-mauve-600 shadow-md shadow-mauve-600/30'
                     : 'w-2.5 h-2.5 bg-slate-300 hover:bg-slate-400'
                 }`}
               />
@@ -522,7 +522,7 @@ export default function InternationalPackages() {
           <div className="text-center mt-12">
             <Link
               href="/packages"
-              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-slate-900 text-white font-bold text-sm hover:bg-sky-600 transition-all duration-300 shadow-lg hover:shadow-sky-500/25 transform hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-full bg-slate-900 text-white font-bold text-sm hover:bg-mauve-600 transition-all duration-300 shadow-lg hover:shadow-mauve-500/25 transform hover:-translate-y-0.5"
             >
               View all international packages
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

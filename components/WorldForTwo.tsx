@@ -85,7 +85,7 @@ function DestCard({ dest, size = 'small', style }: CardProps) {
           className="object-cover transition-transform duration-700 group-hover:scale-105"
         />
       ) : (
-        <div style={{ position: 'absolute', inset: 0, background: '#1e1c2e' }} />
+        <div style={{ position: 'absolute', inset: 0, background: '#0f0406' }} />
       )}
 
       {/* Gradient overlay */}
@@ -123,7 +123,7 @@ function DestCard({ dest, size = 'small', style }: CardProps) {
         )}
         <h3
           style={{
-            fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+            fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
             fontSize: nameFontSize,
             fontWeight: 700,
             color: '#fff',
@@ -145,7 +145,7 @@ function DestCard({ dest, size = 'small', style }: CardProps) {
 function SkeletonCard({ style }: { style?: React.CSSProperties }) {
   return (
     <div
-      style={{ borderRadius: 10, background: '#1e1c2e', width: '100%', minHeight: 268, ...style }}
+      style={{ borderRadius: 10, background: '#0f0406', width: '100%', minHeight: 268, ...style }}
     />
   )
 }
@@ -225,10 +225,10 @@ export default function WorldForTwo() {
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-10">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <span className="block h-px w-8" style={{ background: '#a08a6a' }} />
+              <span className="block h-px w-8" style={{ background: '#95929c' }} />
               <span
                 className="text-xs font-bold tracking-[0.22em] uppercase"
-                style={{ color: '#a08a6a' }}
+                style={{ color: '#95929c' }}
               >
                 Where Love Takes You
               </span>
@@ -237,7 +237,7 @@ export default function WorldForTwo() {
               style={{
                 margin: 0,
                 fontSize: 'clamp(32px, 4vw, 56px)',
-                fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+                fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
                 fontWeight: 700,
                 color: '#fff',
                 lineHeight: 1.05,
@@ -245,7 +245,7 @@ export default function WorldForTwo() {
               }}
             >
               A world made{' '}
-              <em style={{ color: '#c4b5fd', fontStyle: 'italic', fontWeight: 500 }}>for two.</em>
+              <em style={{ color: '#c9a0ac', fontStyle: 'italic', fontWeight: 500 }}>for two.</em>
             </h2>
           </div>
           <p

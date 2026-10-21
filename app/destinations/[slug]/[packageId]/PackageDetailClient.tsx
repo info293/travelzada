@@ -302,7 +302,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
+      <main className="min-h-screen bg-[#f5f2f5] text-gray-900">
         <Header />
         <div className="flex items-center justify-center min-h-screen">
           <p className="text-gray-600">Loading package details...</p>
@@ -314,11 +314,11 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
   if (notFound || !packageData) {
     return (
-      <main className="min-h-screen bg-[#f8f5f0] text-gray-900">
+      <main className="min-h-screen bg-[#f5f2f5] text-gray-900">
         <Header />
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Package Not Found</h1>
+            <h1 className="text-4xl font-medium text-gray-900 mb-4">Package Not Found</h1>
             <p className="text-gray-600 mb-8">The package you're looking for doesn't exist.</p>
             <Link
               href={`/destinations/${slug}`}
@@ -527,13 +527,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
         const margin = 20
 
         // Brand Colors - Matching Website UI
-        const COLOR_PRIMARY = [124, 58, 237] // #7c3aed (Purple - Primary)
-        const COLOR_PRIMARY_DARK = [109, 40, 217] // #6d28d9 (Purple Dark)
-        const COLOR_ACCENT = [212, 175, 55] // #d4af37 (Gold - Accent)
-        const COLOR_ACCENT_DARK = [183, 144, 37] // #b79025 (Gold Dark)
+        const COLOR_PRIMARY = [101, 25, 38] // #651926 (Night Bordeaux - Primary)
+        const COLOR_PRIMARY_DARK = [70, 40, 49] // #462831 (Mauve Shadow - Dark)
+        const COLOR_ACCENT = [201, 160, 172] // #c9a0ac (Rose - Accent)
+        const COLOR_ACCENT_DARK = [133, 34, 51] // #852233 (Bordeaux Light)
         const COLOR_INK = [31, 27, 44] // #1f1b2c (Ink - Dark Text)
-        const COLOR_CREAM = [253, 249, 243] // #fdf9f3 (Cream - Background)
-        const COLOR_PRICE = [201, 152, 70] // #c99846 (Price Gold)
+        const COLOR_CREAM = [245, 242, 245] // #f5f2f5 (Alabaster Mist - Background)
+        const COLOR_PRICE = [101, 25, 38] // #651926 (Price Bordeaux)
         const COLOR_GRAY = [100, 100, 100]
         const COLOR_LIGHT_BG = [253, 249, 243] // Cream background
 
@@ -1185,12 +1185,12 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
   return (
     <>
-      <main className="min-h-screen bg-[#f8f5f0] text-gray-900" ref={contentRef}>
+      <main className="min-h-screen bg-[#f5f2f5] text-gray-900" ref={contentRef}>
         {isGeneratingPDF && <AiLoader />}
         <Header />
 
         {/* PDF Cover Page (hidden by default, shown in PDF generation) */}
-        <div className="pdf-cover-page hidden flex-col w-full h-[1500px] bg-[#f8f5f0] text-[#1e1d2f]">
+        <div className="pdf-cover-page hidden flex-col w-full h-[1500px] bg-[#f5f2f5] text-[#0f0406]">
           <div className="relative w-full h-[60%]">
             <img
               src={imageUrl}
@@ -1199,7 +1199,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               style={{ objectPosition: 'center' }}
               crossOrigin="anonymous"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#f8f5f0] via-transparent to-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#f5f2f5] via-transparent to-black/40" />
 
             {/* Logo */}
             <div className="absolute top-16 left-16 z-20">
@@ -1212,7 +1212,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 p-8">
-              <h1 className="text-7xl font-serif text-[#1e1d2f] mb-4 leading-tight drop-shadow-sm text-center">{packageTitle}</h1>
+              <h1 className="text-7xl font-serif text-[#0f0406] mb-4 leading-tight drop-shadow-sm text-center">{packageTitle}</h1>
               <div className="flex flex-wrap justify-center gap-4 text-xl font-medium">
                 <span className="bg-white/90 backdrop-blur-md px-6 py-1 rounded-full shadow-sm text-gray-800">{packageData.Duration}</span>
                 <span className="bg-white/90 backdrop-blur-md px-6 py-1 rounded-full shadow-sm text-gray-800">{packageData.Star_Category || 'Luxury Stay'}</span>
@@ -1237,7 +1237,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
         {/* ─────────────────────────────────────────────────────────────
             BREADCRUMBS & TOP NAVIGATION
         ───────────────────────────────────────────────────────────── */}
-        <div className="bg-[#FAFAFC] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
+        <div className="bg-[#F5F2F5] px-5 sm:px-8 lg:px-12 pt-24 pb-4">
           <div className="max-w-[1440px] mx-auto flex items-center justify-between">
             <Breadcrumbs
               items={[
@@ -1284,7 +1284,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
             </div>
 
             {/* Title */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif text-gray-900 tracking-tight leading-[1.12] text-balance">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-medium font-serif text-gray-900 tracking-tight leading-[1.12] text-balance">
               {packageTitle}
             </h1>
 
@@ -1302,11 +1302,11 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                 <span>100% Itemised Pricing</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-blue-500" />
+                <span className="size-2 rounded-full bg-mauve-500" />
                 <span>Dedicated Heated Cab &amp; Driver</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-amber-500" />
+                <span className="size-2 rounded-full bg-[#C9A0AC]" />
                 <span>Handpicked Couple Stays</span>
               </div>
               <div className="flex items-center gap-2">
@@ -1392,7 +1392,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                 <a
                   key={tab.id}
                   href={'#' + tab.id}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#FAFAFC] hover:bg-black hover:text-white text-gray-700 border border-gray-200/70 transition shrink-0 shadow-2xs group"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#F5F2F5] hover:bg-black hover:text-white text-gray-700 border border-gray-200/70 transition shrink-0 shadow-2xs group"
                 >
                   <span className="font-mono text-[10px] font-bold text-gray-400 group-hover:text-white">
                     {tab.num}
@@ -1416,18 +1416,18 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               {/* ── SECTION 01 / 08: TRIP OVERVIEW & SPECS ── */}
               <section id="section-01" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>01</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    TRIP OVERVIEW &amp; SPECS
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    Trip overview &amp; specs
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     Overview &amp; Key Details
                   </h2>
                   <p className="text-gray-600 text-base sm:text-lg leading-relaxed mt-3.5">
@@ -1437,13 +1437,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
                 {/* 4 Atlys Pill Spec Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 pt-2">
-                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                  <div className="rounded-[22px] bg-[#F5F2F5] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Duration</span>
                     <span className="text-base font-bold text-gray-900 mt-2">{packageData.Duration}</span>
                   </div>
                   <div
                     onClick={() => setShowLocationModal(true)}
-                    className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between cursor-pointer hover:border-black transition"
+                    className="rounded-[22px] bg-[#F5F2F5] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between cursor-pointer hover:border-black transition"
                   >
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center justify-between">
                       <span>Locations</span>
@@ -1453,13 +1453,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                       {packageData.Location_Breakup || packageData.Destination_Name}
                     </span>
                   </div>
-                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                  <div className="rounded-[22px] bg-[#F5F2F5] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Stays</span>
                     <span className="text-sm font-bold text-gray-900 mt-2 line-clamp-1">
                       {packageData.Star_Category || 'Deluxe 4★'}
                     </span>
                   </div>
-                  <div className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
+                  <div className="rounded-[22px] bg-[#F5F2F5] p-5 sm:p-6 border border-gray-200/80 flex flex-col justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Travel Style</span>
                     <span className="text-sm font-bold text-gray-900 mt-2 line-clamp-1">
                       {packageData.Travel_Type || 'Honeymoon'}
@@ -1471,18 +1471,18 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               {/* ── SECTION 02 / 08: KEY HIGHLIGHTS ── */}
               <section id="section-02" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>02</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    KEY HIGHLIGHTS
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    Key highlights
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     What Makes This Journey Unforgettable
                   </h2>
                   <p className="text-gray-500 text-sm sm:text-base mt-2">
@@ -1499,7 +1499,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                     .map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-3.5 p-5 rounded-2xl bg-[#FAFAFC] border border-gray-200/70 hover:border-black/30 transition"
+                        className="flex items-start gap-3.5 p-5 rounded-2xl bg-[#F5F2F5] border border-gray-200/70 hover:border-black/30 transition"
                       >
                         <span className="size-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                           ✓
@@ -1514,22 +1514,22 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               <section id="section-03" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center justify-between border-b border-gray-100/80 pb-5 flex-wrap gap-2">
                   <div className="flex items-center gap-3.5">
-                    <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                    <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                       <span>03</span>
                       <span className="text-gray-400 font-light">/</span>
                       <span className="text-gray-300">08</span>
                     </span>
-                    <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                      DAY-BY-DAY ITINERARY
+                    <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                      Day-by-day itinerary
                     </span>
                   </div>
-                  <span className="text-xs font-bold text-gray-500 bg-[#FAFAFC] px-3.5 py-1.5 rounded-full border border-gray-200">
+                  <span className="text-xs font-bold text-gray-500 bg-[#F5F2F5] px-3.5 py-1.5 rounded-full border border-gray-200">
                     {createItinerary().length} Days Curated
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     Planned for the Two of You
                   </h2>
                   <p className="text-gray-500 text-sm sm:text-base mt-2">
@@ -1542,7 +1542,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                     <details
                       key={day.day}
                       open={index === 0}
-                      className="rounded-[22px] bg-[#FAFAFC] border border-gray-200/80 p-5 sm:p-6 group open:shadow-sm transition-all"
+                      className="rounded-[22px] bg-[#F5F2F5] border border-gray-200/80 p-5 sm:p-6 group open:shadow-sm transition-all"
                     >
                       <summary className="flex items-center justify-between cursor-pointer list-none gap-3">
                         <div className="flex items-center gap-3.5">
@@ -1584,18 +1584,18 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               {/* ── SECTION 04 / 08: INCLUSIONS & EXCLUSIONS ── */}
               <section id="section-04" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>04</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    INCLUSIONS &amp; EXCLUSIONS
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    Inclusions &amp; exclusions
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     Transparent Coverage
                   </h2>
                   <p className="text-gray-500 text-sm sm:text-base mt-2">
@@ -1605,12 +1605,12 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   {/* Inclusions */}
-                  <div className="rounded-[26px] bg-[#FAFAFC] p-6 sm:p-8 border border-emerald-100">
+                  <div className="rounded-[26px] bg-[#F5F2F5] p-6 sm:p-8 border border-emerald-100">
                     <div className="flex items-center gap-2.5 mb-5">
                       <span className="size-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-xs">
                         ✓
                       </span>
-                      <h3 className="text-lg font-bold font-serif text-gray-900">What's Included</h3>
+                      <h3 className="text-lg font-semibold font-serif text-gray-900">What's Included</h3>
                     </div>
                     <ul className="space-y-3.5 text-sm text-gray-700">
                       {inclusions.map((item, idx) => (
@@ -1623,12 +1623,12 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                   </div>
 
                   {/* Exclusions */}
-                  <div className="rounded-[26px] bg-[#FAFAFC] p-6 sm:p-8 border border-gray-200/80">
+                  <div className="rounded-[26px] bg-[#F5F2F5] p-6 sm:p-8 border border-gray-200/80">
                     <div className="flex items-center gap-2.5 mb-5">
                       <span className="size-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-bold text-sm shadow-xs">
                         ✕
                       </span>
-                      <h3 className="text-lg font-bold font-serif text-gray-900">What's Excluded</h3>
+                      <h3 className="text-lg font-semibold font-serif text-gray-900">What's Excluded</h3>
                     </div>
                     <ul className="space-y-3.5 text-sm text-gray-500">
                       {(exclusions.length > 0
@@ -1648,18 +1648,18 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               {/* ── SECTION 05 / 08: TRANSPARENT POLICIES ── */}
               <section id="section-05" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>05</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    TRANSPARENT POLICIES
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    Transparent policies
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     Booking &amp; Cancellation Policies
                   </h2>
                   <p className="text-gray-500 text-sm sm:text-base mt-2">
@@ -1668,7 +1668,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-2">
-                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                  <div className="p-6 rounded-2xl bg-[#F5F2F5] border border-gray-200/70">
                     <div className="flex items-center gap-2 mb-3.5">
                       <span className="text-base">📅</span>
                       <h4 className="font-bold text-sm text-gray-900">Booking Terms</h4>
@@ -1681,7 +1681,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                       ))}
                     </ul>
                   </div>
-                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                  <div className="p-6 rounded-2xl bg-[#F5F2F5] border border-gray-200/70">
                     <div className="flex items-center gap-2 mb-3.5">
                       <span className="text-base">💳</span>
                       <h4 className="font-bold text-sm text-gray-900">Payment Schedule</h4>
@@ -1694,7 +1694,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                       ))}
                     </ul>
                   </div>
-                  <div className="p-6 rounded-2xl bg-[#FAFAFC] border border-gray-200/70">
+                  <div className="p-6 rounded-2xl bg-[#F5F2F5] border border-gray-200/70">
                     <div className="flex items-center gap-2 mb-3.5">
                       <span className="text-base">🛡️</span>
                       <h4 className="font-bold text-sm text-gray-900">Cancellation</h4>
@@ -1713,18 +1713,18 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
               {/* ── SECTION 06 / 08: FREQUENTLY ASKED QUESTIONS ── */}
               <section id="section-06" className="rounded-[32px] sm:rounded-[36px] bg-white p-8 sm:p-12 lg:p-14 border border-gray-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.03)] space-y-8 scroll-mt-28">
                 <div className="flex items-center gap-3.5 border-b border-gray-100/80 pb-5">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>06</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    FREQUENTLY ASKED QUESTIONS
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    Frequently asked questions
                   </span>
                 </div>
 
                 <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold font-serif text-gray-900 tracking-tight">
+                  <h2 className="text-2xl sm:text-3xl font-medium font-serif text-gray-900 tracking-tight">
                     Frequently Asked Questions
                   </h2>
                   <p className="text-gray-500 text-sm sm:text-base mt-2">
@@ -1741,7 +1741,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                     .map((faq, idx) => (
                       <details
                         key={idx}
-                        className="rounded-[22px] bg-[#FAFAFC] p-5 sm:p-6 border border-gray-200/80 group cursor-pointer"
+                        className="rounded-[22px] bg-[#F5F2F5] p-5 sm:p-6 border border-gray-200/80 group cursor-pointer"
                       >
                         <summary className="font-bold text-sm sm:text-base text-gray-900 flex items-center justify-between list-none">
                           <span>{faq.question}</span>
@@ -1808,7 +1808,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                   <button
                     ref={inlineEnquireRef}
                     onClick={() => setShowLeadForm(true)}
-                    className="w-full text-center bg-black hover:bg-gray-800 text-white py-4 rounded-full font-bold text-sm transition shadow"
+                    className="w-full text-center bg-[#651926] hover:bg-[#852233] text-white py-4 rounded-full font-bold text-sm transition shadow"
                   >
                     Request Custom Quote
                   </button>
@@ -1824,7 +1824,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 
                 {/* Concierge Avatar Strip */}
                 <div className="pt-4 border-t border-gray-100 flex items-center gap-3">
-                  <div className="size-10 rounded-full bg-[#3B2A20] text-white font-bold text-sm flex items-center justify-center shrink-0">
+                  <div className="size-10 rounded-full bg-[#651926] text-white font-bold text-sm flex items-center justify-center shrink-0">
                     TZ
                   </div>
                   <div>
@@ -1867,16 +1867,16 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
             <div className="flex items-end justify-between gap-4 mb-10 flex-wrap">
               <div>
                 <div className="flex items-center gap-3.5 mb-2">
-                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                  <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                     <span>07</span>
                     <span className="text-gray-400 font-light">/</span>
                     <span className="text-gray-300">08</span>
                   </span>
-                  <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                    MORE CURATED PACKAGES
+                  <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                    More curated packages
                   </span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gray-900 mt-2">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium font-serif text-gray-900 mt-2">
                   Other Curated Packages You Might Love
                 </h2>
               </div>
@@ -1961,13 +1961,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                     </div>
 
                     <div className="absolute inset-x-0 bottom-0 p-5 flex flex-col z-10">
-                      <h3 className="font-serif text-[17px] font-bold text-white uppercase tracking-wider leading-tight drop-shadow line-clamp-2 text-balance">
+                      <h3 className="font-serif text-[17px] font-semibold text-white uppercase tracking-wider leading-tight drop-shadow line-clamp-2 text-balance">
                         {pkg.Destination_Name}
                       </h3>
                       <div className="w-full h-px bg-white/20 my-3" />
                       <div className="flex items-center justify-between text-white text-xs">
                         <span className="text-[11px] font-medium text-white/70">From</span>
-                        <span className="text-sm font-bold text-[#E8DCC3]">{price}</span>
+                        <span className="text-sm font-bold text-[#E2DDE3]">{price}</span>
                       </div>
                     </div>
                   </Link>
@@ -1978,20 +1978,20 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
         </section>
 
         {/* ── SECTION 08 / 08: COUPLE FEEDBACK & REVIEWS ── */}
-        <section id="section-08" className="py-24 sm:py-32 px-5 sm:px-8 lg:px-12 bg-[#FAFAFC] border-t border-gray-200/80 scroll-mt-28">
+        <section id="section-08" className="py-24 sm:py-32 px-5 sm:px-8 lg:px-12 bg-[#F5F2F5] border-t border-gray-200/80 scroll-mt-28">
           <div className="max-w-[1440px] mx-auto">
             <div className="mb-12">
               <div className="flex items-center gap-3.5 mb-2">
-                <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-black text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
+                <span className="inline-flex items-center gap-1 px-4 py-1.5 rounded-full bg-[#651926] text-white text-xs font-mono font-semibold tracking-wider shadow-sm">
                   <span>08</span>
                   <span className="text-gray-400 font-light">/</span>
                   <span className="text-gray-300">08</span>
                 </span>
-                <span className="text-[11px] font-bold tracking-[0.25em] uppercase text-[#7A4F34]">
-                  COUPLE FEEDBACK &amp; REVIEWS
+                <span className="block font-pinyon font-normal text-[clamp(28px,2.6vw,36px)] leading-none text-[#651926]">
+                  Couple feedback &amp; reviews
                 </span>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-serif text-gray-900 mt-2">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium font-serif text-gray-900 mt-2">
                 Reviews for {packageData.Destination_Name || 'this package'}
               </h2>
             </div>
@@ -2072,13 +2072,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
                 </svg>
               </button>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 rounded-full bg-blue-50 text-blue-600">
+                <div className="p-2.5 rounded-full bg-mauve-50 text-mauve-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-gray-900">Locations Covered</h3>
+                <h3 className="text-xl font-semibold text-gray-900">Locations Covered</h3>
               </div>
               <div className="prose prose-sm text-gray-600 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <p className="text-base leading-relaxed">
@@ -2104,7 +2104,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
 function PolicyCard({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="rounded-lg sm:rounded-[5px] border border-gray-200 bg-white p-4 sm:p-5 hover:shadow-md transition-shadow">
-      <h3 className="text-base sm:text-lg font-semibold text-[#1e1d2f] mb-2.5 sm:mb-3">{title}</h3>
+      <h3 className="text-base sm:text-lg font-semibold text-[#0f0406] mb-2.5 sm:mb-3">{title}</h3>
       <ul className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-gray-600">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-2 leading-relaxed">
@@ -2121,7 +2121,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="text-lg font-medium text-[#1e1d2f]">{value}</dd>
+      <dd className="text-lg font-medium text-[#0f0406]">{value}</dd>
     </div>
   )
 }
@@ -2138,7 +2138,7 @@ function StatBlock({ label, value, icon, onClick }: { label: string; value: stri
         </div>
         <p className="text-[10px] sm:text-xs uppercase tracking-wider text-gray-500 font-medium">{label}</p>
       </div>
-      <p className="text-xs sm:text-sm font-bold text-[#1e1d2f] leading-snug break-words pl-1 line-clamp-3">{value}</p>
+      <p className="text-xs sm:text-sm font-bold text-[#0f0406] leading-snug break-words pl-1 line-clamp-3">{value}</p>
     </div>
   )
 }
@@ -2160,7 +2160,7 @@ function SectionCard({ title, children, intro }: { title: string; children: Reac
   return (
     <section className="bg-white rounded-lg sm:rounded-[5px] shadow-sm p-5 sm:p-6 md:p-8 space-y-3 sm:space-y-4">
       <div>
-        <h2 className="text-xl sm:text-2xl font-serif text-[#1e1d2f] leading-tight">{title}</h2>
+        <h2 className="text-xl sm:text-2xl font-serif text-[#0f0406] leading-tight">{title}</h2>
         {intro && <p className="text-sm sm:text-base text-gray-600 mt-2 leading-relaxed">{intro}</p>}
       </div>
       {children}

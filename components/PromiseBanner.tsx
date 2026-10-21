@@ -42,7 +42,7 @@ export default function PromiseBanner() {
           style={{
             margin: '0 0 22px',
             fontSize: 'clamp(24px, 6vw, 58px)',
-            fontFamily: 'var(--font-playfair), "Playfair Display", serif',
+            fontFamily: 'var(--font-display), "Cormorant Garamond", serif',
             fontWeight: 700,
             color: '#fff',
             lineHeight: 1.15,
@@ -53,7 +53,7 @@ export default function PromiseBanner() {
           Your honeymoon should feel like
           <br />
           the{' '}
-          <em style={{ color: '#c4b5fd', fontStyle: 'italic', fontWeight: 500 }}>
+          <em style={{ color: '#c9a0ac', fontStyle: 'italic', fontWeight: 500 }}>
             first day of forever.
           </em>
         </h2>
@@ -78,10 +78,10 @@ export default function PromiseBanner() {
             href="/tailored-travel"
             className="font-bold text-white rounded-xl transition-all hover:opacity-90 hover:scale-105"
             style={{
-              background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+              background: 'linear-gradient(135deg,#651926,#462831)',
               fontSize: 15,
               padding: '17px 36px',
-              boxShadow: '0 10px 32px rgba(79,70,229,.45)',
+              boxShadow: '0 10px 32px rgba(70,40,49,.45)',
             }}
           >
             Start Planning — It&apos;s Free

@@ -94,7 +94,7 @@ export default function TravelAgentJoinPage() {
           <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <AlertCircle className="w-7 h-7 text-red-400" />
           </div>
-          <h1 className="text-lg font-bold text-gray-900 mb-2">Invalid Registration Link</h1>
+          <h1 className="text-lg font-medium text-gray-900 mb-2">Invalid Registration Link</h1>
           <p className="text-sm text-gray-500">This link is not valid or the agency is no longer active.</p>
           <Link href="/" className="inline-block mt-5 text-sm text-violet-600 font-semibold hover:underline">Go back →</Link>
         </div>
@@ -113,7 +113,7 @@ export default function TravelAgentJoinPage() {
           <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Registration Submitted!</h2>
+          <h2 className="text-xl font-medium text-gray-900 mb-2">Registration Submitted!</h2>
           <p className="text-sm text-gray-500 leading-relaxed mb-4">
             Your request to join <strong className="text-gray-800">{agentInfo?.companyName}</strong> has been sent.
             The agency manager will review and approve your account.
@@ -147,7 +147,7 @@ export default function TravelAgentJoinPage() {
               </div>
             )}
             <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2">You're joining</p>
-            <h1 className="text-3xl font-bold text-white leading-tight mb-1">{agentInfo?.companyName}</h1>
+            <h1 className="text-3xl font-medium text-white leading-tight mb-1">{agentInfo?.companyName}</h1>
             <p className="text-white/50 text-sm">Travel Agent Portal</p>
           </div>
 
@@ -177,13 +177,13 @@ export default function TravelAgentJoinPage() {
                 <Building2 className="w-6 h-6 text-violet-600" />
               </div>
             )}
-            <h1 className="font-bold text-gray-900">{agentInfo?.companyName}</h1>
+            <h1 className="font-medium text-gray-900">{agentInfo?.companyName}</h1>
             <p className="text-xs text-gray-400 mt-0.5">Travel Agent Portal</p>
           </div>
 
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-200/50 p-8">
             <div className="mb-7">
-              <h2 className="text-xl font-bold text-gray-900">Create your agent account</h2>
+              <h2 className="text-xl font-medium text-gray-900">Create your agent account</h2>
               <p className="text-gray-500 text-sm mt-1">Fill in your details to send a join request</p>
             </div>
 

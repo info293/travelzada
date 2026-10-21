@@ -34,7 +34,7 @@ export default function TrendingThisMonth() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div>
             <p className="text-xs uppercase tracking-[0.6em] text-gray-400 mb-3">Popular now</p>
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900">
+            <h2 className="text-3xl md:text-5xl font-medium text-gray-900">
               Signature routes the atelier is crafting this month.
             </h2>
           </div>

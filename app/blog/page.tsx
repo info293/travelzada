@@ -123,7 +123,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         <Header />
         <section className="pt-20 pb-16 px-4 md:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">No Blog Posts Yet</h1>
+            <h1 className="text-3xl font-medium text-gray-900 mb-4">No Blog Posts Yet</h1>
             <p className="text-gray-600 mb-8">
               There are no published blog posts at the moment. Check back soon!
             </p>
@@ -207,7 +207,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       <section className="pt-10 pb-16 px-4 md:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Visible H1 for SEO */}
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Travelzada Blog</h1>
+          <h1 className="text-3xl md:text-4xl font-medium text-gray-900 mb-2">Travelzada <span className="font-pinyon font-normal text-[#651926] text-[1.08em] tracking-normal">Blog</span></h1>
           <p className="text-gray-500 mb-8">Travel tips, destination guides, and insights for your next trip.</p>
 
           {/* Blog Sections */}
@@ -233,7 +233,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 return (
                   <div key={sectionName} className="space-y-6">
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                      <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-900">{sectionName}</h2>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -262,7 +262,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                                 <span>{post.author}</span>
                               </div>
 
-                              <h3 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-primary transition-colors leading-tight">
+                              <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-primary transition-colors leading-tight">
                                 {post.title}
                               </h3>
 
@@ -294,7 +294,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 <div key={sectionName} className="space-y-6">
                   {/* Section Header */}
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">{sectionName}</h2>
+                    <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-gray-900">{sectionName}</h2>
                     {sectionPosts.length > 5 && !selectedSection && (
                       <Link
                         href={`/blog?section=${encodeURIComponent(sectionName)}`}
@@ -326,7 +326,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
                           {/* Featured Post Content */}
                           <div className="space-y-3">
-                            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 group-hover:text-primary transition-colors leading-tight">
+                            <h3 className="text-xl md:text-2xl lg:text-3xl font-semibold text-gray-900 group-hover:text-primary transition-colors leading-tight">
                               {featuredPost.title}
                             </h3>
                             <p className="text-base md:text-lg text-gray-600 leading-relaxed line-clamp-3">
@@ -366,7 +366,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
-                                  <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                                  <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1.5 group-hover:text-primary transition-colors leading-tight line-clamp-2">
                                     {post.title}
                                   </h3>
                                   <p className="text-sm text-gray-600 mb-2 line-clamp-2">
@@ -388,7 +388,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                       {sectionName === sortedSections[0] && (
                         <div className="sticky top-24">
                           <div className="bg-white border border-gray-200 rounded-lg p-6">
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Travelzada Newsletter</h3>
                             <p className="text-sm text-gray-600 mb-4">
                               Essays and analysis about travel, destinations, tips, and all the other things we care about.
                             </p>
@@ -408,7 +408,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 {/* Left Column - Top Posts */}
                 <div className="lg:col-span-1">
                   <div className="mb-6">
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Top posts</h2>
+                    <h2 className="text-2xl md:text-3xl font-medium text-gray-900">Top posts</h2>
                   </div>
                   <div className="space-y-6">
                     {topPosts.map((post) => (
@@ -430,7 +430,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                            <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
                               {post.title}
                             </h3>
                             <div className="flex items-center gap-1.5 text-xs text-gray-500 uppercase tracking-wide">
@@ -451,7 +451,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 {/* Middle Column - Recent Posts */}
                 <div className="lg:col-span-1">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Recent posts</h2>
+                    <h2 className="text-2xl md:text-3xl font-medium text-gray-900">Recent posts</h2>
                     <Link
                       href="/blog#all-posts"
                       className="text-sm font-medium text-gray-600 hover:text-primary transition-colors flex items-center gap-1"
@@ -482,7 +482,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm md:text-base font-bold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                            <h3 className="text-sm md:text-base font-semibold text-gray-900 mb-1 group-hover:text-primary transition-colors leading-tight line-clamp-2">
                               {post.title}
                             </h3>
                             {post.subtitle && (
@@ -509,7 +509,7 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 <div className="lg:col-span-1">
                   <div className="sticky top-24">
                     <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">Travelzada Newsletter</h3>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Travelzada Newsletter</h3>
                       <p className="text-sm text-gray-600 mb-4">
                         Essays and analysis about travel, destinations, tips, and all the other things we care about.
                       </p>
