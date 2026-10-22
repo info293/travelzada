@@ -81,16 +81,18 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
   const [data, setData] = useState<HomepageData | undefined>(initialData)
 
   useEffect(() => {
-    if (!data || !data.sections || data.sections.length === 0) {
+    if (!data || !data.occasionSections || data.occasionSections.length === 0) {
       fetchHomepageData().then(res => {
-        if (res && res.sections && res.sections.length > 0) {
+        if (res && res.occasionSections && res.occasionSections.length > 0) {
           setData(res)
         }
       })
     }
   }, [data])
 
-  const sections = data?.sections || []
+  const sections = (data?.occasionSections && data.occasionSections.length > 0)
+    ? data.occasionSections
+    : (data?.sections || [])
   const destinationsData = data?.destinationsGrid || { International: [], India: [] }
   const featuredReviews = data?.featuredReviews || []
 
@@ -204,6 +206,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
   // Smooth scroll to an occasion section
   const scrollToOccasion = (secIdx: number) => {
+    setActiveSec(secIdx)
     const el = secRefs.current[secIdx]
     if (!el) return
     const top = el.getBoundingClientRect().top + window.scrollY - 110
@@ -508,7 +511,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             What are you celebrating?
           </h2>
           <p className="text-[17px] leading-relaxed text-[#651926] mt-4">
-            Ten reasons to go away together. Each one planned differently.
+            Eight reasons to go away together. Each one planned differently.
           </p>
         </div>
       </section>
@@ -524,7 +527,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
             className="max-w-[1520px] w-full mx-auto px-5 sm:px-8 lg:px-12 flex items-center justify-between gap-4 overflow-x-auto whitespace-nowrap scrollbar-none"
           >
             <span className="flex-none text-[12px] font-semibold tracking-[0.2em] uppercase text-[#651926]">
-              Featured Destinations (01 - 08)
+              Packages by Occasion (01 - 08)
             </span>
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
               {sections.slice(0, 8).map((occ, i) => {
@@ -549,7 +552,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
           </div>
         </div>
 
-        {/* Real Destination Sections with Clear, Generous Gaps Between Each */}
+        {/* Real Occasion Sections with Clear, Generous Gaps Between Each */}
         <div className="space-y-14 sm:space-y-20 lg:space-y-24">
           {sections.slice(0, 8).map((occ, i) => {
             const displayCards = occ.cards.slice(0, 8)
@@ -605,7 +608,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                   {/* Occasion Inner Grid */}
                   <div className="relative max-w-[1520px] w-full mx-auto min-h-[min(88vh,780px)] px-6 sm:px-10 lg:px-16 py-16 sm:py-24 flex flex-wrap items-center gap-10 sm:gap-16">
 
-                    {/* Left Side: Destination Details */}
+                    {/* Left Side: Occasion Details */}
                     <div
                       className="flex-1 basis-[300px] max-w-[420px] min-w-0 transition-all duration-700 ease-out"
                       style={{
@@ -613,7 +616,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                         transform: isSeen ? 'none' : 'translateY(28px)'
                       }}
                     >
-                      {/* Destination Number Badge (01 / 08) */}
+                      {/* Occasion Number Badge (01 / 08) */}
                       <div className="flex items-center gap-2.5 mb-3.5">
                         <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-white text-xs font-mono font-bold tracking-wider border border-white/20 shadow-sm">
                           <span className="text-[#E2DDE3]">{padNum}</span>
@@ -621,7 +624,7 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
                           <span className="text-white">{totalNum}</span>
                         </span>
                         <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-[#C9A0AC]">
-                          DESTINATION {padNum} OF {totalNum}
+                          OCCASION {padNum} OF {totalNum}
                         </span>
                       </div>
 
@@ -641,13 +644,13 @@ export default function TravelzadaHomePage({ initialData }: TravelzadaHomePagePr
 
                       <div className="flex items-center gap-3.5 flex-wrap mt-7">
                         <Link
-                          href={`/tailored-travel?destination=${encodeURIComponent(occ.name)}`}
+                          href={`/tailored-travel?occasion=${encodeURIComponent(occ.name)}`}
                           className="inline-flex items-center gap-2 text-[14.5px] font-semibold text-[#0F0406] bg-[#F5F2F5] px-5 py-3 rounded-full transition hover:bg-[#C9A0AC] hover:-translate-y-0.5"
                         >
                           Plan with AI <span>→</span>
                         </Link>
                         <Link
-                          href={`/destinations/${occ.slug}`}
+                          href={`/packages?type=${encodeURIComponent(occ.slug || 'all')}`}
                           className="inline-flex items-center text-[14px] font-medium text-[#E2DDE3] border border-[#95929C]/30/40 px-4 py-2.5 rounded-full hover:border-white hover:text-white transition"
                         >
                           Explore All Packages

@@ -27,6 +27,17 @@ export interface RealDestinationSection {
   cards: RealPackageCard[]
 }
 
+export interface RealOccasionSection {
+  id: string
+  name: string
+  fullName?: string
+  slug: string
+  img: string
+  line: string
+  meta: string
+  cards: RealPackageCard[]
+}
+
 export interface RealDestinationGridItem {
   id: string
   name: string
@@ -47,6 +58,7 @@ export interface RealCoupleReview {
 }
 
 export interface HomepageData {
+  occasionSections?: RealOccasionSection[]
   sections: RealDestinationSection[]
   destinationsGrid: {
     International: RealDestinationGridItem[]
@@ -104,6 +116,7 @@ export async function fetchHomepageData(): Promise<HomepageData> {
     })
 
     const allReviews: RealCoupleReview[] = []
+    const allCards: RealPackageCard[] = []
 
     // Match packages to destinations
     rawPkgs.forEach(p => {
@@ -156,7 +169,7 @@ export async function fetchHomepageData(): Promise<HomepageData> {
         const rawPrice = parseInt(String(p.Price_Range_INR).replace(/[^0-9]/g, ''), 10) || 0
         const pkgSlug = p.Slug || p.Destination_ID || p.id
 
-        matchedDest.cards.push({
+        const cardItem: RealPackageCard = {
           id: p.id,
           place: p.Destination_Name || 'Romantic Escape',
           region: matchedDest.name,
@@ -168,7 +181,10 @@ export async function fetchHomepageData(): Promise<HomepageData> {
           slug: matchedDest.slug,
           packageSlug: pkgSlug,
           occasion: p.Occasion || 'Honeymoon'
-        })
+        }
+
+        matchedDest.cards.push(cardItem)
+        allCards.push(cardItem)
       }
 
       // Collect real guest reviews
@@ -230,10 +246,147 @@ export async function fetchHomepageData(): Promise<HomepageData> {
       }
     })
 
+    // ─────────────────────────────────────────────────────────────
+    // Build Occasion Sections (Packages filtered by Occasion)
+    // ─────────────────────────────────────────────────────────────
+    const OCCASION_DEFINITIONS = [
+      {
+        id: 'honeymoons',
+        name: 'Honeymoons',
+        slug: 'honeymoon',
+        line: 'Slow mornings, big views, nothing on the clock.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Bali/BAL_001_3.jpg?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.occasion.toLowerCase().includes('honeymoon') ||
+          c.place.toLowerCase().includes('honeymoon') ||
+          c.place.toLowerCase().includes('newlywed') ||
+          c.place.toLowerCase().includes('love')
+      },
+      {
+        id: 'minimoons',
+        name: 'Minimoons',
+        slug: 'minimoon',
+        line: 'Two to four nights, close to home, right after the wedding.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/Couple%20in%20Munnar%20Tea%20garden%20and%20cloudes.jpg?tr=w-1800',
+        match: (c: RealPackageCard) => {
+          const dur = c.nights.toLowerCase()
+          return dur.includes('2n') || dur.includes('3n') || dur.includes('4n') || c.place.toLowerCase().includes('retreat') || c.place.toLowerCase().includes('escape')
+        }
+      },
+      {
+        id: 'proposals',
+        name: 'Proposals',
+        slug: 'proposal',
+        line: 'We scout the spot, hide the photographer and chill the champagne.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Thailand/romantic%20couple%20walking%20on%20phi%20phi%20island%20beach.png?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.place.toLowerCase().includes('romance') ||
+          c.place.toLowerCase().includes('delight') ||
+          c.place.toLowerCase().includes('snowfall') ||
+          c.place.toLowerCase().includes('blue water') ||
+          c.place.toLowerCase().includes('sunset')
+      },
+      {
+        id: 'anniversaries',
+        name: 'Anniversaries',
+        slug: 'anniversary',
+        line: 'Another year, somewhere neither of you has been.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Bali/anniversary%20special.jpg?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.occasion.toLowerCase().includes('anniversary') ||
+          c.place.toLowerCase().includes('anniversary') ||
+          c.place.toLowerCase().includes('imperial') ||
+          c.place.toLowerCase().includes('heritage') ||
+          c.nights.toLowerCase().includes('7n') ||
+          c.nights.toLowerCase().includes('6n')
+      },
+      {
+        id: 'birthday-getaways',
+        name: 'Birthday & Surprises',
+        slug: 'birthday',
+        line: 'You book it. They find out at the airport.',
+        img: 'https://images.pexels.com/photos/30987033/pexels-photo-30987033.jpeg?auto=compress&cs=tinysrgb&w=1800',
+        match: (c: RealPackageCard) =>
+          c.occasion.toLowerCase().includes('birthday') ||
+          c.place.toLowerCase().includes('birthday') ||
+          c.place.toLowerCase().includes('special') ||
+          c.place.toLowerCase().includes('nature') ||
+          c.place.toLowerCase().includes('adventure')
+      },
+      {
+        id: 'luxury-getaways',
+        name: 'Luxury Getaways',
+        slug: 'luxury',
+        line: 'Five-star retreats, private transfers, pure indulgence.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Rajasthan/luxury%20indian%20couple%20at%20a%20heritage%20palace%20in%20jaisalmer.png?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.place.toLowerCase().includes('royal') ||
+          c.place.toLowerCase().includes('crown') ||
+          c.place.toLowerCase().includes('premium') ||
+          c.place.toLowerCase().includes('luxury') ||
+          c.place.toLowerCase().includes('elite') ||
+          c.rawPrice >= 40000
+      },
+      {
+        id: 'babymoons',
+        name: 'Babymoons',
+        slug: 'babymoon',
+        line: 'Short flights, gentle days, soft beds — one last trip as two.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/Kerala/couple%20at%20kovalam%20beach%20during%20sunset.png?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.place.toLowerCase().includes('serene') ||
+          c.place.toLowerCase().includes('beach') ||
+          c.place.toLowerCase().includes('bliss') ||
+          c.place.toLowerCase().includes('valley') ||
+          c.place.toLowerCase().includes('hills') ||
+          c.place.toLowerCase().includes('lakes')
+      },
+      {
+        id: 'gratitude-to-parents',
+        name: 'Gratitude to Parents',
+        slug: 'gratitude',
+        line: 'Send them on the holiday they always put off.',
+        img: 'https://ik.imagekit.io/tux8wjwgq/SIngapore/indian%20couple%20at%20merlion%20park%20singapore.jpg?tr=w-1800',
+        match: (c: RealPackageCard) =>
+          c.place.toLowerCase().includes('highlights') ||
+          c.place.toLowerCase().includes('heritage') ||
+          c.place.toLowerCase().includes('essentials') ||
+          c.place.toLowerCase().includes('signature') ||
+          c.place.toLowerCase().includes('grand') ||
+          c.region.toLowerCase().includes('singapore') ||
+          c.region.toLowerCase().includes('kerala') ||
+          c.region.toLowerCase().includes('rajasthan')
+      }
+    ]
+
+    const occasionSections: RealOccasionSection[] = OCCASION_DEFINITIONS.map(occDef => {
+      let matched = allCards.filter(occDef.match)
+      if (matched.length < 5) {
+        const existingIds = new Set(matched.map(m => m.id))
+        const fill = allCards.filter(c => !existingIds.has(c.id)).slice(0, 8 - matched.length)
+        matched = matched.concat(fill)
+      }
+      const cards = matched.slice(0, 8)
+      const minPrice = cards.reduce((min, c) => (c.rawPrice && c.rawPrice < min ? c.rawPrice : min), Infinity)
+      const meta = minPrice !== Infinity ? `From ₹${minPrice.toLocaleString('en-IN')} per couple` : 'Tailor-made'
+
+      return {
+        id: occDef.id,
+        name: occDef.name,
+        fullName: occDef.name,
+        slug: occDef.slug,
+        line: occDef.line,
+        meta,
+        img: occDef.img,
+        cards
+      }
+    })
+
     // Pick top real couple reviews
     const featuredReviews: RealCoupleReview[] = allReviews.slice(0, 8)
 
     return {
+      occasionSections,
       sections,
       destinationsGrid: {
         International: gridInternational,
@@ -248,6 +401,7 @@ export async function fetchHomepageData(): Promise<HomepageData> {
   } catch (error) {
     console.error('Error fetching homepage data from Firestore:', error)
     return {
+      occasionSections: [],
       sections: [],
       destinationsGrid: { International: [], India: [] },
       featuredReviews: [],
