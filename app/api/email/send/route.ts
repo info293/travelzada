@@ -9,6 +9,7 @@ import {
   buildTravelAgentApprovedEmail,
   buildLeadNotificationEmail,
 } from '@/lib/mailer'
+import { isSpamLead, isRateLimited, HONEYPOT_FIELD } from '@/lib/spamGuard'
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://www.travelzada.com'
 
@@ -18,6 +19,21 @@ export async function POST(request: Request) {
 
     switch (type) {
       case 'lead_notification': {
+        const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+        if (
+          isSpamLead({
+            name: data?.name,
+            packageName: data?.packageName,
+            message: data?.message,
+            honeypot: data?.[HONEYPOT_FIELD],
+            elapsedMs: data?.elapsedMs,
+          }) ||
+          isRateLimited(`lead:${ip}`)
+        ) {
+          console.warn('[Email send] Blocked suspected spam lead', { ip, name: data?.name })
+          // Pretend success so bots don't adapt
+          return NextResponse.json({ success: true })
+        }
         const mail = buildLeadNotificationEmail({
           name: data.name,
           mobile: data.mobile || data.phone,

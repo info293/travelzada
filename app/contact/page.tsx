@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
@@ -8,6 +8,7 @@ import SchemaMarkup, { generateContactPageSchema, generateBreadcrumbSchema, gene
 import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import emailjs from '@emailjs/browser'
+import { isSpamLead, HONEYPOT_FIELD } from '@/lib/spamGuard'
 
 interface Destination {
   id?: string
@@ -68,6 +69,8 @@ export default function ContactPage() {
   const [error, setError] = useState('')
   const [tried, setTried] = useState(false)
   const [isNarrow, setIsNarrow] = useState(false)
+  const [honeypot, setHoneypot] = useState('')
+  const formStartedAt = useRef(Date.now())
 
   // Dynamic next 12 months options
   const [months, setMonths] = useState<string[]>(['Flexible'])
@@ -141,6 +144,14 @@ export default function ContactPage() {
     const cleanEmail = formData.email.trim().toLowerCase() || `${cleanPhone}@travelzada.guest`
     const cleanDest = formData.destination.trim() || 'Open to ideas'
     const fullMessage = formData.message.trim() || `Occasion: ${formData.occasion}, When: ${formData.when}, Destination: ${cleanDest}`
+    const elapsedMs = Date.now() - formStartedAt.current
+
+    // Silently drop bot submissions (show success, save/send nothing)
+    if (isSpamLead({ name: cleanName, destination: cleanDest, message: formData.message, honeypot, elapsedMs })) {
+      setIsSubmitting(false)
+      setSubmitted(true)
+      return
+    }
 
     try {
       if (typeof window === 'undefined' || !db) {
@@ -174,6 +185,8 @@ export default function ContactPage() {
             packageName: `Contact Enquiry: ${formData.occasion} - ${cleanDest}`,
             message: fullMessage,
             sourceUrl: typeof window !== 'undefined' ? window.location.href : 'Contact Page',
+            [HONEYPOT_FIELD]: honeypot,
+            elapsedMs,
           },
         }),
       }).catch((emailError) => {
@@ -373,6 +386,17 @@ export default function ContactPage() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="grid gap-4 sm:gap-5 mt-6">
+                    {/* Honeypot: hidden from humans, bots fill it */}
+                    <input
+                      type="text"
+                      name={HONEYPOT_FIELD}
+                      value={honeypot}
+                      onChange={(e) => setHoneypot(e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                      aria-hidden="true"
+                      className="absolute left-[-9999px] w-px h-px opacity-0"
+                    />
                     {/* Names */}
                     <label className="block">
                       <div className="text-[14px] font-semibold">Your names</div>
