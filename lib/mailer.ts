@@ -15,6 +15,8 @@ export interface MailPayload {
   messageId?: string
   inReplyTo?: string
   references?: string[]
+  /** Files; set `cid` to show an image inline via <img src="cid:..."> */
+  attachments?: { filename: string; content: Buffer; contentType: string; cid?: string }[]
 }
 
 /** Returns the sent message's Message-ID, or undefined when SMTP is not configured. */
@@ -47,6 +49,7 @@ export async function sendMail(payload: MailPayload): Promise<string | undefined
     ...(payload.messageId ? { messageId: payload.messageId } : {}),
     ...(payload.inReplyTo ? { inReplyTo: payload.inReplyTo } : {}),
     ...(payload.references?.length ? { references: payload.references } : {}),
+    ...(payload.attachments?.length ? { attachments: payload.attachments } : {}),
   })
   return info.messageId
 }
@@ -216,34 +219,6 @@ function smallNote(text: string) {
 }
 
 // ─── Email Builders ───────────────────────────────────────────────────────────
-
-export function buildCustomerWelcomeEmail(opts: { name: string }): MailPayload {
-  return {
-    to: '',
-    subject: `Welcome, ${opts.name} — Your journey starts here ✈️`,
-    html: emailWrap({
-      icon: '✈️',
-      preheader: `Hi ${opts.name}, your account is ready. Let's plan something amazing!`,
-      title: `Welcome, ${opts.name}!`,
-      subtitle: 'Your adventure begins here',
-      body: `
-        ${greeting(opts.name)}
-        ${body("We're thrilled to have you on board. Enjoy AI-powered travel planning, handpicked packages, and seamless booking — all in one beautiful place.")}
-
-        ${featureBox([
-          { icon: '🤖', text: '<strong>AI Trip Planner</strong> — Get a personalised itinerary tailored to your preferences in minutes' },
-          { icon: '🏖️', text: '<strong>Curated Packages</strong> — Explore handpicked deals from top-rated travel agents' },
-          { icon: '💬', text: '<strong>Expert Support</strong> — Chat with travel professionals at every step' },
-          { icon: '📱', text: '<strong>Share & Save</strong> — Save your favourites and share itineraries with friends' },
-        ])}
-
-        ${ctaBtn('Start Exploring →', APP_URL)}
-        ${divider()}
-        ${smallNote("If you didn't create this account, you can safely ignore this email.")}
-      `,
-    }),
-  }
-}
 
 export function buildDmcSignupEmail(opts: { contactName: string; companyName: string }): MailPayload {
   return {
@@ -501,75 +476,6 @@ export function buildMessageToDmcEmail(opts: {
   }
 }
 
-export function buildOtpEmail(opts: { name?: string; otp: string }): MailPayload {
-  return {
-    to: '',
-    subject: `Your Verification Code: ${opts.otp} - Travelzada`,
-    html: emailWrap({
-      icon: '🔒',
-      preheader: `Your Travelzada verification code is ${opts.otp}. Valid for 10 minutes.`,
-      title: 'Verify Your Email',
-      subtitle: opts.name ? `Welcome, ${opts.name}` : 'Enter your 6-digit verification code',
-      body: `
-        ${opts.name ? greeting(opts.name) : ''}
-        ${body("Thank you for starting your journey with Travelzada! Please use the 6-digit verification code below to complete your registration:")}
 
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0">
-          <tr><td align="center">
-            <div style="display:inline-block;background:#f3e8ff;border:2px dashed #9333ea;border-radius:16px;padding:18px 36px;letter-spacing:10px;font-family:monospace;font-size:36px;font-weight:800;color:#6b21a8">
-              ${opts.otp}
-            </div>
-          </td></tr>
-        </table>
-
-        ${smallNote("This verification code is valid for <strong>10 minutes</strong>.")}
-        ${divider()}
-        ${smallNote("If you did not request this code, please ignore this email. Do not share this code with anyone.")}
-      `,
-    }),
-  }
-}
-
-export function buildLeadNotificationEmail(opts: {
-  name: string
-  mobile: string
-  packageName?: string
-  sourceUrl?: string
-  message?: string
-  email?: string
-}): MailPayload {
-  const pkgName = opts.packageName || 'General Enquiry'
-  const rows: [string, string][] = [
-    ['Customer Name', `<strong>${opts.name}</strong>`],
-    ['Mobile Number', `<strong><a href="tel:${opts.mobile}">${opts.mobile}</a></strong> &nbsp;(<a href="https://wa.me/91${opts.mobile.replace(/\D/g, '')}" target="_blank" style="color:#059669;font-weight:bold">WhatsApp</a>)`],
-    ...(opts.email ? [['Email Address', `<a href="mailto:${opts.email}">${opts.email}</a>`] as [string, string]] : []),
-    ['Package / Experience', `<strong>${pkgName}</strong>`],
-    ...(opts.sourceUrl ? [['Page URL', `<a href="${opts.sourceUrl}" target="_blank" style="color:#7c3aed">${opts.sourceUrl}</a>`] as [string, string]] : []),
-    ...(opts.message ? [['Message', opts.message] as [string, string]] : []),
-  ]
-
-  return {
-    to: 'info@travelzada.com, ravindra@travelzada.com',
-    subject: `🚨 New Lead Received: ${opts.name} — ${pkgName}`,
-    html: emailWrap({
-      icon: '🎯',
-      preheader: `New lead from ${opts.name} (${opts.mobile}) for ${pkgName}`,
-      title: 'New Lead Notification',
-      subtitle: 'A new enquiry has been submitted on Travelzada',
-      gradient: 'linear-gradient(135deg,#059669 0%,#10b981 100%)',
-      brand: 'Travelzada Lead Desk',
-      body: `
-        ${greeting('Team')}
-        ${body(`You have received a new customer lead from the website! Please reach out to the customer promptly so no lead is missed.`)}
-
-        ${infoCard(rows, '#059669')}
-
-        ${ctaBtn(`Call ${opts.name} (${opts.mobile}) →`, `tel:${opts.mobile}`, '#059669')}
-        ${divider()}
-        ${smallNote('This email notification was automatically sent to <strong>info@travelzada.com</strong> and <strong>ravindra@travelzada.com</strong>.')}
-      `,
-    }),
-  }
-}
-
-
+// Travelzada brand emails (welcome, OTP, lead alert, voucher)
+export { buildCustomerWelcomeEmail, buildOtpEmail, buildLeadNotificationEmail, buildVoucherCodeEmail } from '@/lib/travelzadaEmails'

@@ -2806,6 +2806,25 @@ export default function AdminDashboard() {
               </button>
             )}
 
+            {hasPermission('leads') && (
+              <button
+                onClick={() => router.push('/admin/vouchers')}
+                className="group relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all border-gray-200 bg-white hover:border-blue-400 hover:shadow-sm"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                  </svg>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-700">
+                    Vouchers
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">QR codes</div>
+                </div>
+              </button>
+            )}
+
             {hasPermission('contacts') && (
               <button
                 onClick={() => setActiveTab('contacts')}

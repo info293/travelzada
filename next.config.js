@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Native renderer used for voucher images (lib/voucherArtwork.tsx); must not be bundled by webpack
+    serverComponentsExternalPackages: ['@resvg/resvg-js'],
+  },
   images: {
     // All external images (Unsplash, Firebase Storage) are already CDN-served with
     // URL-based optimisation (?w=800&q=80). Proxying them through /_next/image adds
