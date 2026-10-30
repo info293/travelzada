@@ -279,15 +279,11 @@ function WorldTour() {
         </motion.div>
         <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 grid md:grid-cols-2 gap-10 items-center">
           <motion.div style={{ y: textY }} className="text-white order-2 md:order-1 text-center md:text-left">
-            <Eyebrow light>Our founders, on the road</Eyebrow>
             <h2 className="font-figtree font-extrabold text-[clamp(48px,8vw,120px)] leading-[0.95] tracking-[-0.03em]">
               World
               <br />
               <span className="font-pinyon font-normal text-[#A9C1FF] text-[1.1em] tracking-normal">Tour</span>
             </h2>
-            <p className="mt-6 text-white/70 text-[17px] max-w-[420px] mx-auto md:mx-0 leading-relaxed">
-              We test every experience before we sell it. From London’s Big Ben to Bali’s rice terraces, this is where our itineraries begin.
-            </p>
           </motion.div>
           <div className="order-1 md:order-2 flex justify-center">
             <motion.div style={{ scale, rotate }} className="relative w-[min(72vw,340px)] aspect-[9/16] rounded-[38px] overflow-hidden ring-[10px] ring-white/10 shadow-[0_60px_120px_-40px_rgba(43,89,224,.6)]">
