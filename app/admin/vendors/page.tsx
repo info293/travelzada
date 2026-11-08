@@ -1,1 +1,5 @@
-export { default } from '../vendor/page'
+import { redirect } from 'next/navigation'
+
+export default function VendorsRedirect() {
+  redirect('/admin/vendor')
+}

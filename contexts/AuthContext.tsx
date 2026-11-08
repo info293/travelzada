@@ -117,8 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } else {
                   const adminEmails = ['admin@travelzada.com', 'admin@example.com']
                   const emailLower = user.email.toLowerCase()
-                  const isAdminEmail = adminEmails.includes(emailLower) ||
-                    emailLower.split('@')[0].includes('admin')
+                  // Only exact, known admin emails — never pattern-match (bots sign up as "admin123@...")
+                  const isAdminEmail = adminEmails.includes(emailLower)
                   setIsAdmin(isAdminEmail)
                   setIsAgent(false)
                   setIsSubAgent(false)

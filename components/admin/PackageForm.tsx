@@ -1,845 +1,487 @@
 'use client'
 
+/**
+ * Package editor. Grouped into 5 short tabs; anything that can be computed is computed:
+ *  - Nights → Duration ("5N / 6D"), Duration_Nights, Duration_Days
+ *  - Price from / up to → Price_Min_INR, Price_Max_INR, Price_Range_INR (the site shows only the "from" price)
+ *  - One structured day-by-day list → Day_Wise_Itinerary_Details + the old "Day 1: … | Day 2: …" text
+ *  - Slug, SEO title/description, Meta_Image_URL, Last_Updated, Created_By are filled on save
+ *
+ * Controlled component: the parent owns `formData` and saving. Props stay compatible with the
+ * old admin page (formData / setFormData / editingPackage / onSubmit / onCancel).
+ */
+import { FormEvent, useMemo, useState } from 'react'
+import { AlertCircle, CalendarDays, ExternalLink, Image as ImageIcon, ListChecks, Search, Sparkles, Tag, Wand2 } from 'lucide-react'
 import ImageUploader from './ImageUploader'
+import { Button, cx, inputClass } from './ui'
+import { ChipSelect, Collapsible, FormField, LinesInput, RowsEditor, SectionTitle, YesNo, errorInput } from './catalog/fields'
+import {
+  ERROR_TAB,
+  TAGS,
+  applyDerived,
+  durationLabel,
+  formatIN,
+  itineraryRows,
+  nextPackageCode,
+  packageSiteUrl,
+  prefixForDestination,
+  slugify,
+  slugTyping,
+  splitList,
+  suggestSeoDescription,
+  suggestSeoTitle,
+  tagValues,
+  toNum,
+  validatePackage,
+  type FormErrors,
+  type TagField,
+  type TagSuggestions,
+} from './catalog/packageUtils'
+import type { DestinationRecord, FaqItem, GuestReview, ItineraryDay, PackageDraft, WhyBookItem } from './catalog/types'
 
-interface DestinationPackage {
-  id?: string
-  Destination_ID: string
-  Destination_Name: string
-  Overview: string
-  Duration: string
-  Mood: string
-  Occasion: string
-  Travel_Type: string
-  Budget_Category: string
-  Price_Range_INR: string
-  Theme: string
-  Adventure_Level: string
-  Stay_Type: string
-  Star_Category: string
-  Meal_Plan: string
-  Group_Size: string
-  Child_Friendly: string
-  Elderly_Friendly: string
-  Language_Preference: string
-  Seasonality: string
-  Hotel_Examples: string
-  Inclusions: string
-  Exclusions: string
-  Day_Wise_Itinerary: string
-  Rating: string
-  Location_Breakup: string
-  Airport_Code: string
-  Transfer_Type: string
-  Currency: string
-  Climate_Type: string
-  Safety_Score: string
-  Sustainability_Score: string
-  Ideal_Traveler_Persona: string
-  Created_By: string
-  Last_Updated: string
-  Slug: string
-  Primary_Image_URL: string
-  Booking_URL: string
-  Price_Min_INR: number
-  Price_Max_INR: number
-  Duration_Nights: number
-  Duration_Days: number
-  SEO_Title: string
-  SEO_Description: string
-  SEO_Keywords: string
-  Meta_Image_URL: string
-  Guest_Reviews?: Array<{
-    name: string
-    content: string
-    date: string
-    rating?: string
-  }>
-  Booking_Policies?: {
-    booking?: string[]
-    payment?: string[]
-    cancellation?: string[]
-  }
-  FAQ_Items?: Array<{
-    question: string
-    answer: string
-  }>
-  Why_Book_With_Us?: Array<{
-    label: string
-    description: string
-  }>
-  Highlights?: string[]
-  Day_Wise_Itinerary_Details?: Array<{
-    day: number
-    title: string
-    description: string
-    activities: string[]
-  }>
-}
+type TabId = 'basics' | 'details' | 'tags' | 'extras' | 'seo'
+const TABS: Array<{ id: TabId; label: string; icon: typeof Sparkles }> = [
+  { id: 'basics', label: 'Basics', icon: Sparkles },
+  { id: 'details', label: 'Trip details', icon: CalendarDays },
+  { id: 'tags', label: 'Tags', icon: Tag },
+  { id: 'extras', label: 'Page extras', icon: ListChecks },
+  { id: 'seo', label: 'SEO & advanced', icon: Search },
+]
 
-interface PackageFormProps {
-  formData: Partial<DestinationPackage>
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
-  setFormData?: (updater: (prev: Partial<DestinationPackage>) => Partial<DestinationPackage>) => void
-  editingPackage: DestinationPackage | null
-  onSubmit: (e: React.FormEvent) => void
+export interface PackageFormProps {
+  formData: PackageDraft
+  /** Preferred: functional updater for the parent's state */
+  setFormData?: (updater: (prev: any) => any) => void
+  /** Legacy fallback when setFormData isn't provided */
+  handleInputChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+  editingPackage: { id?: string } | null
+  onSubmit: (e: FormEvent) => void
   onCancel: () => void
+  saving?: boolean
+  /** Tag values already used in the catalogue */
+  suggestions?: TagSuggestions
+  /** Every other package — used for unique code/slug checks and code generation */
+  otherPackages?: PackageDraft[]
+  /** When given, shows a destination picker that generates the package code and links the package */
+  destinations?: DestinationRecord[]
+  destinationId?: string
+  onDestinationChange?: (id: string) => void
+  /** Extra line under the destination picker (e.g. how that destination lists packages) */
+  destinationNote?: React.ReactNode
+  /** Save error from the parent, shown in the footer */
+  error?: string
 }
 
 export default function PackageForm({
   formData,
-  handleInputChange,
   setFormData,
+  handleInputChange,
   editingPackage,
   onSubmit,
   onCancel,
+  saving,
+  suggestions,
+  otherPackages = [],
+  destinations,
+  destinationId = '',
+  onDestinationChange,
+  destinationNote,
+  error,
 }: PackageFormProps) {
+  const [tab, setTab] = useState<TabId>('basics')
+  const [errors, setErrors] = useState<FormErrors>({})
+  const isNew = !editingPackage?.id
+  const f = formData
+
+  const set = (patch: PackageDraft) => {
+    if (setFormData) setFormData((prev: PackageDraft) => applyDerived(prev, patch))
+    else if (handleInputChange) {
+      const next = applyDerived(f, patch)
+      Object.keys(next).forEach((name) => {
+        const value = (next as any)[name]
+        if (value !== (f as any)[name]) handleInputChange({ target: { name, value, type: 'text' } } as any)
+      })
+    }
+    const keys = Object.keys(patch)
+    if (keys.some((k) => (errors as any)[k])) setErrors((e) => { const n = { ...e }; keys.forEach((k) => delete (n as any)[k]); return n })
+  }
+
+  const str = (k: keyof PackageDraft) => String((f as any)[k] ?? '')
+  const tagOpts = (field: TagField) => suggestions?.[field] || TAGS[field].defaults
+  const tagValue = (field: TagField) => tagValues(TAGS[field], f[field])
+  const setTag = (field: TagField, v: string[]) => set({ [field]: v.join(TAGS[field].joiner || '') } as PackageDraft)
+
+  const nights = toNum(f.Duration_Nights)
+  const minPrice = toNum(f.Price_Min_INR)
+  const maxPrice = toNum(f.Price_Max_INR)
+  const days = useMemo(() => itineraryRows(f), [f.Day_Wise_Itinerary_Details, f.Day_Wise_Itinerary]) // eslint-disable-line react-hooks/exhaustive-deps
+  const errorCount = (t: TabId) => Object.keys(errors).filter((k) => (ERROR_TAB[k] || 'basics') === t).length
+
+  const generateCode = (destId = destinationId) => {
+    const dest = destinations?.find((d) => d.id === destId)
+    const prefix = prefixForDestination(dest, otherPackages) || String(f.Destination_Name || '').replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'PKG'
+    set({ Destination_ID: nextPackageCode(prefix, otherPackages) })
+  }
+
+  const pickDestination = (id: string) => {
+    onDestinationChange?.(id)
+    if (isNew && id) generateCode(id)
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const errs = validatePackage(f, otherPackages)
+    setErrors(errs)
+    const first = Object.keys(errs)[0]
+    if (first) {
+      setTab((ERROR_TAB[first] as TabId) || 'basics')
+      return
+    }
+    onSubmit(e)
+  }
+
+  const setDays = (rows: ItineraryDay[]) => set({ Day_Wise_Itinerary_Details: rows.map((r, i) => ({ ...r, day: i + 1 })) })
+  const hasErrors = Object.keys(errors).length > 0
+  const seoTitleSuggestion = suggestSeoTitle(f)
+  const slugSuggestion = slugify(str('Destination_Name'))
+
   return (
-    <form onSubmit={onSubmit} className="space-y-8 relative">
-      {/* Sticky Action Bar */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 py-4 mb-6 flex justify-between items-center shadow-sm -mx-6 px-6 rounded-t-xl">
-        <h3 className="text-lg font-bold text-gray-900">
-          {editingPackage ? 'Edit Package' : 'Create Package'}
-        </h3>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors text-sm"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-dark transition-colors text-sm shadow-sm"
-          >
-            {editingPackage ? 'Update' : 'Create'}
-          </button>
-        </div>
-      </div>
-      {/* Basic Information Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Basic Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Destination ID *</label>
-            <input
-              type="text"
-              name="Destination_ID"
-              value={formData.Destination_ID || ''}
-              onChange={handleInputChange}
-              required
-              placeholder="DEST_001_BALI"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Destination Name *</label>
-            <input
-              type="text"
-              name="Destination_Name"
-              value={formData.Destination_Name || ''}
-              onChange={handleInputChange}
-              required
-              placeholder="Bali, Indonesia"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Overview </label>
-            <textarea
-              name="Overview"
-              value={formData.Overview || ''}
-              onChange={handleInputChange}
-              rows={3}
-              placeholder="Romantic island escape with beaches, temples, and luxury villas."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration </label>
-            <input
-              type="text"
-              name="Duration"
-              value={formData.Duration || ''}
-              onChange={handleInputChange}
-              placeholder="5 Nights / 6 Days"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Nights </label>
-            <input
-              type="number"
-              name="Duration_Nights"
-              value={formData.Duration_Nights !== undefined && formData.Duration_Nights !== null ? formData.Duration_Nights : ''}
-              onChange={handleInputChange}
-              placeholder="5"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Duration Days </label>
-            <input
-              type="number"
-              name="Duration_Days"
-              value={formData.Duration_Days !== undefined && formData.Duration_Days !== null ? formData.Duration_Days : ''}
-              onChange={handleInputChange}
-              placeholder="6"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Slug </label>
-            <input
-              type="text"
-              name="Slug"
-              value={formData.Slug || ''}
-              onChange={handleInputChange}
-              placeholder="bali-romantic-island-escape"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+    <form onSubmit={submit} noValidate className="relative flex min-h-full flex-col">
+      {/* Tabs */}
+      <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-5 border-b border-gray-200 bg-white/95 px-3 backdrop-blur">
+        <div className="flex gap-1 overflow-x-auto py-2">
+          {TABS.map((t) => {
+            const n = errorCount(t.id)
+            const Icon = t.icon
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={cx(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors',
+                  tab === t.id ? 'bg-bordeaux-50 text-bordeaux-700' : 'text-gray-600 hover:bg-gray-100',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {t.label}
+                {n > 0 && <span className="rounded-full bg-red-600 px-1.5 text-[10px] text-white">{n}</span>}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* Travel Details Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Travel Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Mood </label>
-            <select
-              name="Mood"
-              value={formData.Mood || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Mood</option>
-              <option value="Romantic">Romantic</option>
-              <option value="Explore">Explore</option>
-              <option value="Relax">Relax</option>
-              <option value="Adventure">Adventure</option>
-              <option value="Luxury">Luxury</option>
-              {formData.Mood && !['Romantic', 'Explore', 'Relax', 'Adventure', 'Luxury'].includes(formData.Mood) && (
-                <option value={formData.Mood}>{formData.Mood} (Current)</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Occasion </label>
-            <input
-              type="text"
-              name="Occasion"
-              value={formData.Occasion || ''}
-              onChange={handleInputChange}
-              placeholder="Honeymoon, Family Vacation, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Travel Type </label>
-            <select
-              name="Travel_Type"
-              value={formData.Travel_Type || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Type</option>
-              <option value="Couple">Couple</option>
-              <option value="Family">Family</option>
-              <option value="Solo">Solo</option>
-              <option value="Friends">Friends</option>
-              <option value="Friends / Solo">Friends / Solo</option>
-              <option value="Solo / Small Group">Solo / Small Group</option>
-              <option value="Couple / Solo / Family">Couple / Solo / Family</option>
-              {formData.Travel_Type && !['Couple', 'Family', 'Solo', 'Friends', 'Friends / Solo', 'Solo / Small Group', 'Couple / Solo / Family'].includes(formData.Travel_Type) && (
-                <option value={formData.Travel_Type}>{formData.Travel_Type} (Current)</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Theme </label>
-            <input
-              type="text"
-              name="Theme"
-              value={formData.Theme || ''}
-              onChange={handleInputChange}
-              placeholder="Beach / Culture / Relax"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Adventure Level </label>
-            <select
-              name="Adventure_Level"
-              value={formData.Adventure_Level || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Level</option>
-              <option value="Light">Light</option>
-              <option value="Moderate">Moderate</option>
-              <option value="High">High</option>
-              {formData.Adventure_Level && !['Light', 'Moderate', 'High'].includes(formData.Adventure_Level) && (
-                <option value={formData.Adventure_Level}>{formData.Adventure_Level} (Current)</option>
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Group Size </label>
-            <input
-              type="text"
-              name="Group_Size"
-              value={formData.Group_Size || ''}
-              onChange={handleInputChange}
-              placeholder="2 Adults, 2 Adults + 1 Child, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Child Friendly </label>
-            <select
-              name="Child_Friendly"
-              value={formData.Child_Friendly || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Elderly Friendly </label>
-            <select
-              name="Elderly_Friendly"
-              value={formData.Elderly_Friendly || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select</option>
-              <option value="Yes">Yes</option>
-              <option value="No">No</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Language Preference </label>
-            <input
-              type="text"
-              name="Language_Preference"
-              value={formData.Language_Preference || ''}
-              onChange={handleInputChange}
-              placeholder="English"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Seasonality </label>
-            <input
-              type="text"
-              name="Seasonality"
-              value={formData.Seasonality || ''}
-              onChange={handleInputChange}
-              placeholder="April–October, All Year, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Ideal Traveler Persona </label>
-            <textarea
-              name="Ideal_Traveler_Persona"
-              value={formData.Ideal_Traveler_Persona || ''}
-              onChange={handleInputChange}
-              rows={2}
-              placeholder="Couples aged 25–35 seeking a private romantic escape"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+      <div className="flex-1 space-y-6 pb-6">
+        {/* ---------------- BASICS ---------------- */}
+        {tab === 'basics' && (
+          <>
+            <FormField label="Package name" required error={errors.Destination_Name} hint="The title customers see, e.g. “Romantic Bali Escape with Private Pool Villa”.">
+              <input value={str('Destination_Name')} onChange={(e) => set({ Destination_Name: e.target.value })} className={errorInput(errors.Destination_Name)} placeholder="Romantic Bali Escape" autoFocus={isNew} />
+            </FormField>
 
-      {/* Pricing Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Pricing</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Budget Category </label>
-            <select
-              name="Budget_Category"
-              value={formData.Budget_Category || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Category</option>
-              <option value="Economy">Economy</option>
-              <option value="Mid">Mid</option>
-              <option value="Premium">Premium</option>
-              <option value="Luxury">Luxury</option>
-              {formData.Budget_Category && !['Economy', 'Mid', 'Premium', 'Luxury'].includes(formData.Budget_Category) && (
-                <option value={formData.Budget_Category}>{formData.Budget_Category} (Current)</option>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {destinations && (
+                <FormField label="Destination" hint={destinationId ? destinationNote : 'Pick where this trip goes — we create the package code and add it to that destination page.'}>
+                  <select value={destinationId} onChange={(e) => pickDestination(e.target.value)} className={inputClass}>
+                    <option value="">— Choose destination —</option>
+                    {[...destinations].sort((a, b) => String(a.name).localeCompare(String(b.name))).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}{d.country && d.country !== d.name ? `, ${d.country}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
               )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range (INR) </label>
-            <input
-              type="text"
-              name="Price_Range_INR"
-              value={formData.Price_Range_INR || ''}
-              onChange={handleInputChange}
-              placeholder="₹95,000 – ₹1,10,000 per couple"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Min (INR) <span className="text-gray-400 font-normal">(Optional)</span></label>
-            <input
-              type="number"
-              name="Price_Min_INR"
-              value={formData.Price_Min_INR !== undefined && formData.Price_Min_INR !== null ? formData.Price_Min_INR : ''}
-              onChange={handleInputChange}
-              placeholder="95000"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Price Max (INR) <span className="text-gray-400 font-normal">(Optional)</span></label>
-            <input
-              type="number"
-              name="Price_Max_INR"
-              value={formData.Price_Max_INR !== undefined && formData.Price_Max_INR !== null ? formData.Price_Max_INR : ''}
-              onChange={handleInputChange}
-              placeholder="110000"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+              <FormField
+                label="Package code"
+                required
+                error={errors.Destination_ID}
+                hint={isNew ? 'Unique code like BAL_007. Destinations link packages by this code.' : 'Destination pages link to this code — change it only if you know why.'}
+              >
+                <div className="flex gap-2">
+                  <input value={str('Destination_ID')} onChange={(e) => set({ Destination_ID: e.target.value.toUpperCase().replace(/\s+/g, '_') })} className={cx(errorInput(errors.Destination_ID), 'font-mono')} placeholder="BAL_007" />
+                  {isNew && (
+                    <Button type="button" variant="secondary" size="sm" onClick={() => generateCode()} title="Generate next free code">
+                      <Wand2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
+              </FormField>
+            </div>
 
-      {/* Accommodation Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Accommodation</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Star Category </label>
-            <select
-              name="Star_Category"
-              value={formData.Star_Category || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Category</option>
-              <option value="3-Star">3-Star</option>
-              <option value="4-Star">4-Star</option>
-              <option value="5-Star">5-Star</option>
-              {formData.Star_Category && !['3-Star', '4-Star', '5-Star'].includes(formData.Star_Category) && (
-                <option value={formData.Star_Category}>{formData.Star_Category} (Current)</option>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <FormField label="Nights" required error={errors.Duration_Nights} hint={nights ? `Shown as ${durationLabel(nights)}` : 'Days are worked out for you'}>
+                <input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={nights ?? ''}
+                  onChange={(e) => set({ Duration_Nights: e.target.value === '' ? (undefined as any) : Number(e.target.value) })}
+                  className={errorInput(errors.Duration_Nights)}
+                  placeholder="5"
+                />
+              </FormField>
+              <FormField label="Price from (₹)" required error={errors.Price_Min_INR} hint={minPrice ? `Site shows “₹${formatIN(minPrice)}”` : 'Per couple / per person, as you sell it'}>
+                <input type="number" min={0} inputMode="numeric" value={minPrice ?? ''} onChange={(e) => set({ Price_Min_INR: e.target.value === '' ? (undefined as any) : Number(e.target.value) })} className={errorInput(errors.Price_Min_INR)} placeholder="48500" />
+              </FormField>
+              <FormField label="Price up to (₹)" error={errors.Price_Max_INR} hint="Optional — used by the AI planner">
+                <input type="number" min={0} inputMode="numeric" value={maxPrice ?? ''} onChange={(e) => set({ Price_Max_INR: e.target.value === '' ? (undefined as any) : Number(e.target.value) })} className={errorInput(errors.Price_Max_INR)} placeholder="65000" />
+              </FormField>
+            </div>
+
+            <FormField label="Overview" hint="2–3 sentences. Also used as the Google description if you don't write one.">
+              <textarea rows={4} value={str('Overview')} onChange={(e) => set({ Overview: e.target.value })} className={inputClass} placeholder="Romantic island escape with beaches, temples and a private pool villa." />
+            </FormField>
+
+            <div>
+              <ImageUploader label="Main photo" value={str('Primary_Image_URL')} onChange={(url) => set({ Primary_Image_URL: url })} folder="/packages" required />
+              <input
+                value={str('Primary_Image_URL').startsWith('data:') ? '' : str('Primary_Image_URL')}
+                onChange={(e) => set({ Primary_Image_URL: e.target.value.trim() })}
+                className={cx(errorInput(errors.Primary_Image_URL), 'mt-2 text-xs')}
+                placeholder="…or paste an image link (https://…)"
+              />
+              {errors.Primary_Image_URL && (
+                <span className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />{errors.Primary_Image_URL}</span>
               )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Stay Type </label>
-            <input
-              type="text"
-              name="Stay_Type"
-              value={formData.Stay_Type || ''}
-              onChange={handleInputChange}
-              placeholder="Resort, Hotel, Villa, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Meal Plan </label>
-            <input
-              type="text"
-              name="Meal_Plan"
-              value={formData.Meal_Plan || ''}
-              onChange={handleInputChange}
-              placeholder="Breakfast Only, Half Board, Full Board"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Hotel Examples </label>
-            <input
-              type="text"
-              name="Hotel_Examples"
-              value={formData.Hotel_Examples || ''}
-              onChange={handleInputChange}
-              placeholder="The Anvaya Beach Resort, Amadea Resort Seminyak"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Location Breakup </label>
-            <input
-              type="text"
-              name="Location_Breakup"
-              value={formData.Location_Breakup || ''}
-              onChange={handleInputChange}
-              placeholder="3N Seminyak + 2N Ubud"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+            </div>
+          </>
+        )}
 
-      {/* Itinerary & Details Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Itinerary & Details</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Day Wise Itinerary </label>
-            <textarea
-              name="Day_Wise_Itinerary"
-              value={formData.Day_Wise_Itinerary || ''}
-              onChange={handleInputChange}
-              rows={4}
-              placeholder="Day 1: Arrive & relax | Day 2: Ubud Tour | Day 3: Watersports..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Highlights (JSON Array)</label>
-            <textarea
-              name="Highlights"
-              value={formData.Highlights ? JSON.stringify(formData.Highlights, null, 2) : ''}
-              onChange={(e) => {
-                try {
-                  const parsed = e.target.value ? JSON.parse(e.target.value) : []
-                  if (setFormData) {
-                    setFormData((prev: any) => ({ ...prev, Highlights: parsed }))
-                  } else {
-                    handleInputChange({ target: { name: 'Highlights', value: JSON.stringify(parsed) } } as any)
-                  }
-                } catch (err) {
-                  // Invalid JSON
+        {/* ---------------- TRIP DETAILS ---------------- */}
+        {tab === 'details' && (
+          <>
+            <div>
+              <SectionTitle title="Highlights" description="One per line. Shown as the “Highlights” list on the package page." />
+              <LinesInput value={Array.isArray(f.Highlights) ? f.Highlights : splitList(f.Highlights)} onChange={(v) => set({ Highlights: v })} rows={5} placeholder={'Sunset dinner cruise\nPrivate pool villa\nUbud temple tour'} />
+            </div>
+
+            <div>
+              <SectionTitle
+                title="Day-by-day itinerary"
+                description="Title is required for each day; description and activities make the page richer."
+                right={
+                  !days.length && nights ? (
+                    <Button type="button" size="sm" variant="secondary" onClick={() => setDays(Array.from({ length: nights + 1 }, (_, i) => ({ day: i + 1, title: i === 0 ? 'Arrival' : i === nights ? 'Departure' : '', description: '', activities: [] })))}>
+                      Add {nights + 1} days
+                    </Button>
+                  ) : undefined
                 }
-              }}
-              rows={4}
-              placeholder='["Sunset Dinner Cruise", "Private Pool Villa Stay"]'
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Detailed Day Wise Itinerary (JSON Array)</label>
-            <textarea
-              name="Day_Wise_Itinerary_Details"
-              value={formData.Day_Wise_Itinerary_Details ? JSON.stringify(formData.Day_Wise_Itinerary_Details, null, 2) : ''}
-              onChange={(e) => {
-                try {
-                  const parsed = e.target.value ? JSON.parse(e.target.value) : []
-                  if (setFormData) {
-                    setFormData((prev: any) => ({ ...prev, Day_Wise_Itinerary_Details: parsed }))
-                  } else {
-                    handleInputChange({ target: { name: 'Day_Wise_Itinerary_Details', value: JSON.stringify(parsed) } } as any)
-                  }
-                } catch (err) {
-                  // Invalid JSON
-                }
-              }}
-              rows={6}
-              placeholder='[{"day": 1, "title": "Arrival", "description": "...", "activities": []}]'
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Inclusions </label>
-            <textarea
-              name="Inclusions"
-              value={formData.Inclusions || ''}
-              onChange={handleInputChange}
-              rows={3}
-              placeholder="4★ stay with breakfast, private transfers, Ubud & Nusa Dua tours..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Exclusions</label>
-            <textarea
-              name="Exclusions"
-              value={formData.Exclusions || ''}
-              onChange={handleInputChange}
-              rows={2}
-              placeholder="Flights, visa, personal expenses"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Rating </label>
-            <input
-              type="text"
-              name="Rating"
-              value={formData.Rating || ''}
-              onChange={handleInputChange}
-              placeholder="4.8/5"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+              />
+              <RowsEditor<ItineraryDay>
+                rows={days}
+                onChange={setDays}
+                empty={() => ({ day: days.length + 1, title: '', description: '', activities: [] })}
+                rowTitle={(r, i) => `Day ${i + 1}${r.title ? ` · ${r.title}` : ''}`}
+                addLabel="Add day"
+                emptyText="No days yet."
+                fields={[
+                  { key: 'title', label: 'Title', placeholder: 'Arrive in Bali & check in' },
+                  { key: 'description', label: 'Description', type: 'textarea', placeholder: 'What happens on this day…' },
+                  { key: 'activities', label: 'Activities (one per line)', type: 'lines', placeholder: 'Airport pickup\nHotel check-in' },
+                ]}
+              />
+            </div>
 
-      {/* Location & Transfer Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Location & Transfer</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Airport Code </label>
-            <input
-              type="text"
-              name="Airport_Code"
-              value={formData.Airport_Code || ''}
-              onChange={handleInputChange}
-              placeholder="DPS, SIN, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Transfer Type </label>
-            <select
-              name="Transfer_Type"
-              value={formData.Transfer_Type || ''}
-              onChange={handleInputChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Select Type</option>
-              <option value="Private">Private</option>
-              <option value="Shared">Shared</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Currency </label>
-            <input
-              type="text"
-              name="Currency"
-              value={formData.Currency || ''}
-              onChange={handleInputChange}
-              placeholder="IDR, SGD, INR, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Climate Type </label>
-            <input
-              type="text"
-              name="Climate_Type"
-              value={formData.Climate_Type || ''}
-              onChange={handleInputChange}
-              placeholder="Tropical, Temperate, etc."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Safety Score </label>
-            <input
-              type="text"
-              name="Safety_Score"
-              value={formData.Safety_Score || ''}
-              onChange={handleInputChange}
-              placeholder="8.5/10"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Sustainability Score </label>
-            <input
-              type="text"
-              name="Sustainability_Score"
-              value={formData.Sustainability_Score || ''}
-              onChange={handleInputChange}
-              placeholder="7/10"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField label="Inclusions" hint="One per line">
+                <LinesInput value={splitList(f.Inclusions)} onChange={(v) => set({ Inclusions: v })} rows={6} placeholder={'4★ stay with breakfast\nPrivate airport transfers'} />
+              </FormField>
+              <FormField label="Exclusions" hint="One per line">
+                <LinesInput value={splitList(f.Exclusions)} onChange={(v) => set({ Exclusions: v })} rows={6} placeholder={'Flights\nVisa\nPersonal expenses'} />
+              </FormField>
+            </div>
 
-      {/* Media & SEO Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Media & SEO</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ImageUploader
-            label="Primary Image"
-            value={formData.Primary_Image_URL || ''}
-            onChange={url => setFormData?.(p => ({ ...p, Primary_Image_URL: url }))}
-            folder="/packages"
-          />
-          <ImageUploader
-            label="Meta Image"
-            value={formData.Meta_Image_URL || ''}
-            onChange={url => setFormData?.(p => ({ ...p, Meta_Image_URL: url }))}
-            folder="/packages/meta"
-          />
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Booking URL </label>
-            <input
-              type="url"
-              name="Booking_URL"
-              value={formData.Booking_URL || ''}
-              onChange={handleInputChange}
-              placeholder="https://travelzada.com/packages/DEST_001_BALI"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Title </label>
-            <input
-              type="text"
-              name="SEO_Title"
-              value={formData.SEO_Title || ''}
-              onChange={handleInputChange}
-              placeholder="Romantic Bali Island Escape | Luxury 5-Night Honeymoon Package"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Description </label>
-            <textarea
-              name="SEO_Description"
-              value={formData.SEO_Description || ''}
-              onChange={handleInputChange}
-              rows={3}
-              placeholder="Celebrate love in Bali with a 5-night luxury getaway..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">SEO Keywords </label>
-            <input
-              type="text"
-              name="SEO_Keywords"
-              value={formData.SEO_Keywords || ''}
-              onChange={handleInputChange}
-              placeholder="Bali honeymoon package, romantic Bali holiday, Ubud tour..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-        </div>
-      </div>
+            <div className="space-y-4 rounded-xl border border-gray-200 p-4">
+              <SectionTitle title="Stay" />
+              <FormField label="Hotel category">
+                <ChipSelect value={tagValue('Star_Category')} onChange={(v) => setTag('Star_Category', v)} options={tagOpts('Star_Category')} />
+              </FormField>
+              <FormField label="Meal plan">
+                <ChipSelect value={tagValue('Meal_Plan')} onChange={(v) => setTag('Meal_Plan', v)} options={tagOpts('Meal_Plan')} />
+              </FormField>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="Hotels (examples)">
+                  <input value={str('Hotel_Examples')} onChange={(e) => set({ Hotel_Examples: e.target.value })} className={inputClass} placeholder="The Anvaya Beach Resort, Amadea Resort" />
+                </FormField>
+                <FormField label="Route / nights split" hint="Shown under the package title">
+                  <input value={str('Location_Breakup')} onChange={(e) => set({ Location_Breakup: e.target.value })} className={inputClass} placeholder="3N Seminyak + 2N Ubud" />
+                </FormField>
+              </div>
+            </div>
+          </>
+        )}
 
-      {/* Guest Reviews, Policies & FAQ Section */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b">Guest Reviews, Policies & FAQ</h3>
+        {/* ---------------- TAGS ---------------- */}
+        {tab === 'tags' && (
+          <>
+            <p className="rounded-xl bg-bordeaux-50/60 px-4 py-3 text-xs text-bordeaux-800">
+              Tags decide where this package appears: homepage occasion rails, filters and the AI trip planner's matches.
+            </p>
+            {(['Occasion', 'Travel_Type', 'Mood', 'Theme', 'Budget_Category'] as TagField[]).map((field) => (
+              <FormField key={field} label={TAGS[field].label} hint={TAGS[field].hint || (TAGS[field].multi ? 'Pick one or more' : 'Pick one')}>
+                <ChipSelect value={tagValue(field)} onChange={(v) => setTag(field, v)} options={tagOpts(field)} multi={TAGS[field].multi} />
+              </FormField>
+            ))}
 
-        {/* Guest Reviews */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Guest Reviews (JSON Array)</label>
-          <textarea
-            name="Guest_Reviews"
-            value={formData.Guest_Reviews ? JSON.stringify(formData.Guest_Reviews, null, 2) : ''}
-            onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : []
-                if (setFormData) {
-                  setFormData((prev: any) => ({ ...prev, Guest_Reviews: parsed }))
-                } else {
-                  handleInputChange({ target: { name: 'Guest_Reviews', value: JSON.stringify(parsed) } } as any)
-                }
-              } catch {
-                // Invalid JSON, keep as string for now
+            <Collapsible title="More details for the AI planner" description="Optional. Helps the AI match the right travellers.">
+              <FormField label="Adventure level">
+                <ChipSelect value={tagValue('Adventure_Level')} onChange={(v) => setTag('Adventure_Level', v)} options={tagOpts('Adventure_Level')} allowCustom={false} />
+              </FormField>
+              <FormField label="Stay type">
+                <ChipSelect value={tagValue('Stay_Type')} onChange={(v) => setTag('Stay_Type', v)} options={tagOpts('Stay_Type')} />
+              </FormField>
+              <div className="flex flex-wrap gap-6">
+                <FormField label="Good for kids"><YesNo value={f.Child_Friendly} onChange={(v) => set({ Child_Friendly: v })} /></FormField>
+                <FormField label="Good for elderly"><YesNo value={f.Elderly_Friendly} onChange={(v) => set({ Elderly_Friendly: v })} /></FormField>
+                <FormField label="Transfers">
+                  <ChipSelect value={str('Transfer_Type') ? [str('Transfer_Type')] : []} onChange={(v) => set({ Transfer_Type: v[0] || '' })} options={['Private', 'Shared']} allowCustom={false} />
+                </FormField>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="Best season"><input value={str('Seasonality')} onChange={(e) => set({ Seasonality: e.target.value })} className={inputClass} placeholder="April–October" /></FormField>
+                <FormField label="Group size"><input value={str('Group_Size')} onChange={(e) => set({ Group_Size: e.target.value })} className={inputClass} placeholder="2 Adults" /></FormField>
+                <FormField label="Ideal traveller" className="sm:col-span-2"><input value={str('Ideal_Traveler_Persona')} onChange={(e) => set({ Ideal_Traveler_Persona: e.target.value })} className={inputClass} placeholder="Couples aged 25–35 wanting a private romantic escape" /></FormField>
+                <FormField label="Airport code"><input value={str('Airport_Code')} onChange={(e) => set({ Airport_Code: e.target.value.toUpperCase() })} className={inputClass} placeholder="DPS" /></FormField>
+                <FormField label="Local currency"><input value={str('Currency')} onChange={(e) => set({ Currency: e.target.value.toUpperCase() })} className={inputClass} placeholder="IDR" /></FormField>
+                <FormField label="Language"><input value={str('Language_Preference')} onChange={(e) => set({ Language_Preference: e.target.value })} className={inputClass} placeholder="English" /></FormField>
+                <FormField label="Climate"><input value={str('Climate_Type')} onChange={(e) => set({ Climate_Type: e.target.value })} className={inputClass} placeholder="Tropical" /></FormField>
+                <FormField label="Safety score"><input value={str('Safety_Score')} onChange={(e) => set({ Safety_Score: e.target.value })} className={inputClass} placeholder="8.5/10" /></FormField>
+                <FormField label="Sustainability score"><input value={str('Sustainability_Score')} onChange={(e) => set({ Sustainability_Score: e.target.value })} className={inputClass} placeholder="7/10" /></FormField>
+              </div>
+            </Collapsible>
+          </>
+        )}
+
+        {/* ---------------- PAGE EXTRAS ---------------- */}
+        {tab === 'extras' && (
+          <>
+            <p className="text-xs text-gray-500">All optional. When a section is empty the package page shows our standard text.</p>
+            <Collapsible title="FAQs" count={f.FAQ_Items?.length} defaultOpen={!!f.FAQ_Items?.length}>
+              <RowsEditor<FaqItem>
+                rows={f.FAQ_Items || []}
+                onChange={(rows) => set({ FAQ_Items: rows })}
+                empty={() => ({ question: '', answer: '' })}
+                addLabel="Add question"
+                rowTitle={(r, i) => r.question || `Question ${i + 1}`}
+                fields={[
+                  { key: 'question', label: 'Question', placeholder: 'Is breakfast included?' },
+                  { key: 'answer', label: 'Answer', type: 'textarea' },
+                ]}
+              />
+            </Collapsible>
+            <Collapsible title="Guest reviews" count={f.Guest_Reviews?.length}>
+              <RowsEditor<GuestReview>
+                rows={f.Guest_Reviews || []}
+                onChange={(rows) => set({ Guest_Reviews: rows })}
+                empty={() => ({ name: '', content: '', date: '', rating: '5/5' })}
+                addLabel="Add review"
+                rowTitle={(r, i) => r.name || `Review ${i + 1}`}
+                fields={[
+                  { key: 'name', label: 'Name', span: 3, placeholder: 'Anjali Mehta' },
+                  { key: 'date', label: 'Date', span: 2, placeholder: '14 November 2025' },
+                  { key: 'rating', label: 'Rating', span: 1, placeholder: '5/5' },
+                  { key: 'content', label: 'Review', type: 'textarea' },
+                ]}
+              />
+            </Collapsible>
+            <Collapsible title="Booking, payment & cancellation policy" count={['booking', 'payment', 'cancellation'].filter((k) => (f.Booking_Policies as any)?.[k]?.length).length}>
+              {(['booking', 'payment', 'cancellation'] as const).map((k) => (
+                <FormField key={k} label={k === 'booking' ? 'Booking terms' : k === 'payment' ? 'Payment' : 'Cancellation'} hint="One per line">
+                  <LinesInput
+                    rows={3}
+                    value={splitList(f.Booking_Policies?.[k], /\r?\n/)}
+                    onChange={(v) => set({ Booking_Policies: { ...(f.Booking_Policies || {}), [k]: v } })}
+                    placeholder={k === 'booking' ? 'Instant confirmation\nFlexible dates' : k === 'payment' ? 'Pay in 2 instalments\nZero cost EMI' : 'Free cancellation up to 7 days'}
+                  />
+                </FormField>
+              ))}
+            </Collapsible>
+            <Collapsible title="Why book with us" count={f.Why_Book_With_Us?.length}>
+              <RowsEditor<WhyBookItem>
+                rows={f.Why_Book_With_Us || []}
+                onChange={(rows) => set({ Why_Book_With_Us: rows })}
+                empty={() => ({ label: '', description: '' })}
+                addLabel="Add reason"
+                rowTitle={(r, i) => r.label || `Reason ${i + 1}`}
+                fields={[
+                  { key: 'label', label: 'Heading', placeholder: 'Best price guarantee' },
+                  { key: 'description', label: 'Description', type: 'textarea' },
+                ]}
+              />
+            </Collapsible>
+          </>
+        )}
+
+        {/* ---------------- SEO & ADVANCED ---------------- */}
+        {tab === 'seo' && (
+          <>
+            <FormField
+              label="Web address (slug)"
+              error={errors.Slug}
+              auto={isNew && !str('Slug')}
+              hint={
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="truncate">travelzada.com{packageSiteUrl({ ...f, Slug: str('Slug') || (isNew ? slugSuggestion : '') })}</span>
+                  {!str('Slug') && slugSuggestion && (
+                    <button type="button" className="font-semibold text-bordeaux-700 hover:underline" onClick={() => set({ Slug: slugSuggestion })}>Use “{slugSuggestion}”</button>
+                  )}
+                </span>
               }
-            }}
-            rows={6}
-            placeholder={`[\n  {\n    "name": "Anjali Mehta",\n    "content": "Best vacation ever!",\n    "date": "14 November 2025",\n    "rating": "5/5"\n  }\n]`}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each review should have: name, content, date, and optional rating.</p>
-        </div>
+            >
+              <input value={str('Slug')} onChange={(e) => set({ Slug: slugTyping(e.target.value) })}
+                onBlur={() => str('Slug') && set({ Slug: slugify(str('Slug')) })} className={errorInput(errors.Slug)} placeholder={isNew ? `${slugSuggestion || 'made-from-the-name'} (automatic)` : 'Uses the package code if empty'} />
+            </FormField>
+            <FormField label="Google title" auto={!str('SEO_Title')} hint={!str('SEO_Title') && seoTitleSuggestion ? `If empty we use: “${seoTitleSuggestion}”` : `${str('SEO_Title').length}/60 characters`}>
+              <input value={str('SEO_Title')} onChange={(e) => set({ SEO_Title: e.target.value })} className={inputClass} placeholder={seoTitleSuggestion} />
+            </FormField>
+            <FormField label="Google description" auto={!str('SEO_Description')} hint={!str('SEO_Description') ? 'If empty we use the first lines of the overview.' : `${str('SEO_Description').length}/155 characters`}>
+              <textarea rows={3} value={str('SEO_Description')} onChange={(e) => set({ SEO_Description: e.target.value })} className={inputClass} placeholder={suggestSeoDescription(f)} />
+            </FormField>
+            <FormField label="Keywords" hint="Comma separated">
+              <input value={str('SEO_Keywords')} onChange={(e) => set({ SEO_Keywords: e.target.value })} className={inputClass} placeholder="bali honeymoon package, romantic bali holiday" />
+            </FormField>
 
-        {/* Booking Policies */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Booking Policies (JSON Object)</label>
-          <textarea
-            name="Booking_Policies"
-            value={formData.Booking_Policies ? JSON.stringify(formData.Booking_Policies, null, 2) : ''}
-            onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : {}
-                if (setFormData) {
-                  setFormData((prev: any) => ({ ...prev, Booking_Policies: parsed }))
-                } else {
-                  handleInputChange({ target: { name: 'Booking_Policies', value: JSON.stringify(parsed) } } as any)
-                }
-              } catch {
-                // Invalid JSON
-              }
-            }}
-            rows={6}
-            placeholder={`{\n  "booking": ["Instant confirmation", "Flexible dates", "24/7 support"],\n  "payment": ["Pay in instalments", "Zero cost EMI", "Secure transactions"],\n  "cancellation": ["Free cancellation up to 7 days", "Partial refund available"]\n}`}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Enter as JSON object with booking, payment, and cancellation arrays.</p>
-        </div>
-
-        {/* FAQ Items */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">FAQ Items (JSON Array)</label>
-          <textarea
-            name="FAQ_Items"
-            value={formData.FAQ_Items ? JSON.stringify(formData.FAQ_Items, null, 2) : ''}
-            onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : []
-                if (setFormData) {
-                  setFormData((prev: any) => ({ ...prev, FAQ_Items: parsed }))
-                } else {
-                  handleInputChange({ target: { name: 'FAQ_Items', value: JSON.stringify(parsed) } } as any)
-                }
-              } catch {
-                // Invalid JSON
-              }
-            }}
-            rows={6}
-            placeholder={`[\n  {\n    "question": "What is the best time to visit?",\n    "answer": "The dry season from April to October..."\n  }\n]`}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each FAQ should have: question and answer.</p>
-        </div>
-
-        {/* Why Book With Us */}
-        <div className="mb-6">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Why Book With Us (JSON Array)</label>
-          <textarea
-            name="Why_Book_With_Us"
-            value={formData.Why_Book_With_Us ? JSON.stringify(formData.Why_Book_With_Us, null, 2) : ''}
-            onChange={(e) => {
-              try {
-                const parsed = e.target.value ? JSON.parse(e.target.value) : []
-                if (setFormData) {
-                  setFormData((prev: any) => ({ ...prev, Why_Book_With_Us: parsed }))
-                } else {
-                  handleInputChange({ target: { name: 'Why_Book_With_Us', value: JSON.stringify(parsed) } } as any)
-                }
-              } catch {
-                // Invalid JSON
-              }
-            }}
-            rows={5}
-            placeholder={`[\n  {\n    "label": "Best Price Guarantee",\n    "description": "Direct contracts with premium hotels"\n  }\n]`}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">Enter as JSON array. Each item should have: label and description.</p>
-        </div>
+            <Collapsible title="Advanced" description="Rarely needed">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="Photo caption / alt text" className="sm:col-span-2" hint="Shown under the main photo and read by Google Images">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4 shrink-0 text-gray-400" />
+                    <input value={str('Image_Alt_Text')} onChange={(e) => set({ Image_Alt_Text: e.target.value })} className={inputClass} placeholder="Couple at Tanah Lot temple at sunset" />
+                  </div>
+                </FormField>
+                <FormField label="Rating"><input value={str('Rating')} onChange={(e) => set({ Rating: e.target.value })} className={inputClass} placeholder="4.8/5" /></FormField>
+                <FormField label="External booking URL"><input value={str('Booking_URL')} onChange={(e) => set({ Booking_URL: e.target.value })} className={inputClass} placeholder="https://…" /></FormField>
+              </div>
+              <p className="text-xs text-gray-500">
+                Duration text, price label, social-share image, “last updated” and “created by” are filled in automatically when you save.
+              </p>
+            </Collapsible>
+          </>
+        )}
       </div>
 
-      {/* Bottom Action Bar */}
-      <div className="flex gap-4 pt-4 border-t border-gray-200 mt-8">
-        <button
-          type="submit"
-          className="bg-primary text-white px-6 py-3 rounded-lg font-semibold hover:bg-primary-dark transition-colors"
-        >
-          {editingPackage ? 'Update Package' : 'Create Package'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-        >
-          Cancel
-        </button>
+      {/* Footer */}
+      <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-white px-5 py-3">
+        <div className="min-w-0 text-xs">
+          {error && !hasErrors ? (
+            <span className="flex items-center gap-1 font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />{error}</span>
+          ) : hasErrors ? (
+            <span className="flex items-center gap-1 font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />Fix {Object.keys(errors).length} thing{Object.keys(errors).length > 1 ? 's' : ''} before saving</span>
+          ) : !isNew && (f.Slug || f.Destination_ID) ? (
+            <a href={packageSiteUrl(f)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-gray-600 hover:text-bordeaux-700">
+              <ExternalLink className="h-3.5 w-3.5" /> View on site
+            </a>
+          ) : (
+            <span className="text-gray-500">Fields marked * are required</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={saving}>Cancel</Button>
+          <Button type="submit" loading={saving}>{isNew ? 'Create package' : 'Save changes'}</Button>
+        </div>
       </div>
     </form>
   )
 }
-

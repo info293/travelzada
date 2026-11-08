@@ -5,6 +5,8 @@ import {
   doc, setDoc, getDoc, collection, query, where, getDocs, serverTimestamp
 } from 'firebase/firestore'
 import { sendMail, buildDmcSignupEmail } from '@/lib/mailer'
+import { HONEYPOT_FIELD, isRateLimited } from '@/lib/spamGuard'
+import { agentSignupProblem } from '@/lib/admin/botDetection'
 
 function slugify(text: string): string {
   return text
@@ -18,6 +20,26 @@ function slugify(text: string): string {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+
+    // ── Bot protection ──────────────────────────────────────────────
+    // Honeypot: a hidden field humans never fill.
+    if (typeof body?.[HONEYPOT_FIELD] === 'string' && body[HONEYPOT_FIELD].trim()) {
+      return NextResponse.json({ error: 'Registration could not be completed.' }, { status: 400 })
+    }
+    const nameProblem = agentSignupProblem({ companyName: body?.companyName, contactName: body?.contactName })
+    if (nameProblem) {
+      return NextResponse.json({ error: nameProblem }, { status: 400 })
+    }
+    // The sign-up page calls this with { precheck: true } BEFORE it creates the login,
+    // so the per-IP limit stops bulk sign-ups before any account is made.
+    if (body?.precheck === true) {
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown'
+      if (isRateLimited(`agent-register:${ip}`, 5, 60 * 60 * 1000)) {
+        return NextResponse.json({ error: 'Too many registration attempts from your network. Please try again in an hour, or contact us.' }, { status: 429 })
+      }
+      return NextResponse.json({ success: true, precheck: true })
+    }
+
     const {
       uid,
       email,

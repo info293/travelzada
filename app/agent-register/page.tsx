@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -8,6 +8,8 @@ import {
   Building2, User, Phone, FileText, Mail, Lock, Eye, EyeOff,
   Loader2, CheckCircle, Globe, BarChart3, Users, Sparkles, ChevronRight,
 } from 'lucide-react'
+import { HONEYPOT_FIELD, MIN_FILL_MS } from '@/lib/spamGuard'
+import { agentSignupProblem } from '@/lib/admin/botDetection'
 
 const AGENCY_TYPES = [
   { value: 'individual', label: 'Solo Agent', desc: 'Just me' },
@@ -30,6 +32,8 @@ export default function AgentRegisterPage() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [honeypot, setHoneypot] = useState('')
+  const formStartedAt = useRef(Date.now())
 
   const [form, setForm] = useState({
     companyName: '',
@@ -60,8 +64,36 @@ export default function AgentRegisterPage() {
       return
     }
 
+    // Bots: hidden field filled or form submitted inhumanly fast → pretend success, create nothing.
+    if (honeypot.trim() || Date.now() - formStartedAt.current < MIN_FILL_MS) {
+      setSubmitted(true)
+      return
+    }
+    const nameProblem = agentSignupProblem({ companyName: form.companyName, contactName: form.contactName })
+    if (nameProblem) {
+      setError(nameProblem)
+      return
+    }
+
     setLoading(true)
     try {
+      // Server-side check (honeypot, names, per-IP rate limit) before any login is created
+      const pre = await fetch('/api/agent/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          precheck: true,
+          companyName: form.companyName,
+          contactName: form.contactName,
+          email: form.email,
+          [HONEYPOT_FIELD]: honeypot,
+        }),
+      })
+      if (!pre.ok) {
+        const preData = await pre.json().catch(() => ({}))
+        throw new Error(preData.error || 'Registration failed')
+      }
+
       const { auth, db } = await import('@/lib/firebase')
       const { createUserWithEmailAndPassword } = await import('firebase/auth')
       const { doc, setDoc, serverTimestamp } = await import('firebase/firestore')
@@ -92,6 +124,7 @@ export default function AgentRegisterPage() {
           gstNumber: form.gstNumber,
           agencyType: form.agencyType,
           desiredSlug: form.desiredSlug || form.companyName,
+          [HONEYPOT_FIELD]: honeypot,
         }),
       })
 
@@ -210,7 +243,18 @@ export default function AgentRegisterPage() {
               <p className="text-gray-500 text-sm mt-1">Takes 2 minutes · Active within 48 hours</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6 relative">
+              {/* Honeypot: hidden from humans, bots fill it */}
+              <input
+                type="text"
+                name={HONEYPOT_FIELD}
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="absolute left-[-9999px] w-px h-px opacity-0"
+              />
               {/* Agency details */}
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Agency Details</p>

@@ -4,56 +4,30 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import Header from '@/components/Header'
 import JobForm from '@/components/admin/JobForm'
-import { useAuth } from '@/contexts/AuthContext'
+import { Button, Card, EmptyState, PageHeader, Spinner } from '@/components/admin/ui'
 
 export default function EditJobPage({ params }: { params: { id: string } }) {
     const router = useRouter()
-    const { isAdmin, permissions } = useAuth()
     const [job, setJob] = useState<any>(null)
     const [loading, setLoading] = useState(true)
-
-    const hasAccess = isAdmin || (permissions && permissions.includes('jobs'))
+    const [notFound, setNotFound] = useState(false)
 
     useEffect(() => {
         const fetchJob = async () => {
             try {
-                const docRef = doc(db, 'jobs', params.id)
-                const docSnap = await getDoc(docRef)
-                if (docSnap.exists()) {
-                    setJob({ id: docSnap.id, ...docSnap.data() })
-                } else {
-                    alert('Job not found')
-                    router.push('/admin?tab=jobs')
-                }
+                const docSnap = await getDoc(doc(db, 'jobs', params.id))
+                if (docSnap.exists()) setJob({ id: docSnap.id, ...docSnap.data() })
+                else setNotFound(true)
             } catch (error) {
                 console.error('Error fetching job:', error)
+                setNotFound(true)
             } finally {
                 setLoading(false)
             }
         }
-
-        if (hasAccess) {
-            fetchJob()
-        }
-    }, [params.id, hasAccess, router])
-
-    if (!hasAccess) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <p className="text-xl text-gray-600">You do not have permission to view this page.</p>
-            </div>
-        )
-    }
-
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        )
-    }
+        fetchJob()
+    }, [params.id])
 
     const handleUpdateJob = async (data: any) => {
         try {
@@ -61,37 +35,33 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
                 ...data,
                 updatedAt: serverTimestamp(),
             })
-            router.push('/admin?tab=jobs')
+            router.push('/admin/jobs')
         } catch (error) {
             console.error('Error updating job:', error)
             alert('Failed to update job. Please try again.')
         }
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <Header />
-            <div className="max-w-4xl mx-auto px-4 py-12">
-                <div className="mb-8 flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-gray-900">Edit Job</h1>
-                    <button
-                        onClick={() => router.back()}
-                        className="text-gray-600 hover:text-gray-900 font-medium"
-                    >
-                        ← Back to Dashboard
-                    </button>
-                </div>
+    if (loading) return <Spinner label="Loading job…" />
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    {job && (
-                        <JobForm
-                            job={job}
-                            onSubmit={handleUpdateJob}
-                            onCancel={() => router.back()}
-                        />
-                    )}
-                </div>
-            </div>
+    if (notFound || !job) {
+        return (
+            <Card>
+                <EmptyState
+                    title="Job not found"
+                    description="It may have been deleted."
+                    action={<Button variant="secondary" onClick={() => router.push('/admin/jobs')}>All job openings</Button>}
+                />
+            </Card>
+        )
+    }
+
+    return (
+        <div className="max-w-4xl">
+            <PageHeader title="Edit job" description={job.title} />
+            <Card>
+                <JobForm job={job} onSubmit={handleUpdateJob} onCancel={() => router.push('/admin/jobs')} />
+            </Card>
         </div>
     )
 }

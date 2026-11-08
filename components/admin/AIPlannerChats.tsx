@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { MessageCircle, Trash2, ChevronDown, ChevronUp, RefreshCw, User, Bot, Search, Calendar, MapPin, Clock } from 'lucide-react'
+import { PageHeader, SearchInput, Button } from './ui'
 
 interface ChatMessage {
     role: 'user' | 'assistant'
@@ -77,42 +78,22 @@ export default function AIPlannerChats() {
     })
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-                <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                            <MessageCircle className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-900">AI Planner Chats</h1>
-                            <p className="text-sm text-gray-500">{sessions.length} session{sessions.length !== 1 ? 's' : ''} recorded</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search by destination or content..."
-                                value={search}
-                                onChange={e => setSearch(e.target.value)}
-                                className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-72 bg-white"
-                            />
-                        </div>
-                        <button
-                            onClick={fetchSessions}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-semibold text-gray-700 transition-colors"
-                        >
+        <div>
+            <PageHeader
+                title="AI Planner Chats"
+                description={`${sessions.length} conversation${sessions.length !== 1 ? 's' : ''} visitors had with the AI trip planner`}
+                actions={
+                    <>
+                        <SearchInput value={search} onChange={setSearch} placeholder="Search destination or message…" className="w-full sm:w-72" />
+                        <Button variant="secondary" onClick={fetchSessions}>
                             <RefreshCw className="w-4 h-4" /> Refresh
-                        </button>
-                    </div>
-                </div>
-            </div>
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Content */}
-            <div className="max-w-6xl mx-auto px-6 py-6 space-y-4">
+            <div className="space-y-4">
                 {loading ? (
                     <div className="flex items-center justify-center py-24">
                         <div className="flex flex-col items-center gap-3">

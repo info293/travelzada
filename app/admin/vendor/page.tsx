@@ -1,34 +1,21 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import VendorsSection from '@/components/admin/VendorsSection'
 import { Vendor, VendorLead } from '@/components/admin/types'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { ArrowLeft, Building2 } from 'lucide-react'
-import Link from 'next/link'
+import { PageHeader, Spinner } from '@/components/admin/ui'
 
 export default function AdminVendorPage() {
-  const { currentUser, isAdmin, loading: authLoading } = useAuth()
-  const router = useRouter()
-
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [vendorLeads, setVendorLeads] = useState<VendorLead[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (!authLoading) {
-      if (!currentUser || !isAdmin) {
-        router.push('/')
-        return
-      }
-      fetchAllData()
-    }
-  }, [currentUser, isAdmin, authLoading, router])
+    fetchAllData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const fetchAllData = async () => {
     setIsLoading(true)
@@ -129,51 +116,24 @@ export default function AdminVendorPage() {
     await fetchVendorLeads()
   }
 
-  if (authLoading || isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">Loading Vendor Marketing System...</p>
-        </div>
-      </div>
-    )
-  }
+  if (isLoading) return <Spinner label="Loading vendors…" />
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Navigation Breadcrumb */}
-        <div className="mb-6 flex items-center justify-between">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-amber-600 transition"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Admin Dashboard
-          </Link>
-          <span className="text-xs text-gray-400 font-mono">http://localhost:3000/admin/vendor</span>
-        </div>
-
-        {/* Vendors Section Component */}
-        <VendorsSection
-          vendors={vendors}
-          vendorLeads={vendorLeads}
-          onAddVendor={handleAddVendor}
-          onUpdateVendor={handleUpdateVendor}
-          onDeleteVendor={handleDeleteVendor}
-          onUpdateLeadStatus={handleUpdateVendorLeadStatus}
-          onDeleteLead={handleDeleteVendorLead}
-          refreshData={() => {
-            fetchVendors()
-            fetchVendorLeads()
-          }}
-        />
-      </main>
-
-      <Footer />
+    <div>
+      <PageHeader title="Vendors" description="Vendor QR campaigns, quiz questions, spin-wheel rewards and the leads they bring in" />
+      <VendorsSection
+        vendors={vendors}
+        vendorLeads={vendorLeads}
+        onAddVendor={handleAddVendor}
+        onUpdateVendor={handleUpdateVendor}
+        onDeleteVendor={handleDeleteVendor}
+        onUpdateLeadStatus={handleUpdateVendorLeadStatus}
+        onDeleteLead={handleDeleteVendorLead}
+        refreshData={() => {
+          fetchVendors()
+          fetchVendorLeads()
+        }}
+      />
     </div>
   )
 }

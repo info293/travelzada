@@ -271,45 +271,33 @@ export default function VendorsSection({
   return (
     <div className="space-y-6">
       
-      {/* Top Header & Section Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Building2 className="w-7 h-7 text-amber-500" />
-            Vendor Marketing & Rewards CRM
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage vendor QR campaigns, quiz questions, 5-reward spin wheels, and captured lead records.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="bg-gray-100 p-1 rounded-xl flex">
-            <button
-              onClick={() => setActiveSubTab('vendors')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-                activeSubTab === 'vendors' ? 'bg-amber-500 text-white shadow' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Vendors ({vendors.length})
-            </button>
-            <button
-              onClick={() => setActiveSubTab('leads')}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
-                activeSubTab === 'leads' ? 'bg-amber-500 text-white shadow' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Leads CRM ({vendorLeads.length})
-            </button>
-          </div>
-
+      {/* Section selector + primary action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="bg-white border border-gray-200 p-1 rounded-xl inline-flex self-start">
           <button
-            onClick={handleOpenAddForm}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow transition active:scale-95"
+            onClick={() => setActiveSubTab('vendors')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              activeSubTab === 'vendors' ? 'bg-bordeaux-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            }`}
           >
-            <Plus className="w-4 h-4" /> Add Vendor
+            Vendors ({vendors.length})
+          </button>
+          <button
+            onClick={() => setActiveSubTab('leads')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              activeSubTab === 'leads' ? 'bg-bordeaux-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Leads CRM ({vendorLeads.length})
           </button>
         </div>
+
+        <button
+          onClick={handleOpenAddForm}
+          className="inline-flex items-center justify-center gap-2 bg-bordeaux-600 hover:bg-bordeaux-700 text-white px-4 py-2 rounded-xl font-semibold text-sm shadow-sm transition"
+        >
+          <Plus className="w-4 h-4" /> Add Vendor
+        </button>
       </div>
 
       {/* Summary KPI Cards */}

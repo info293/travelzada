@@ -1,13 +1,11 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc, where, writeBatch } from 'firebase/firestore'
-import { ArrowLeft, Copy, ExternalLink, Printer, RefreshCw, Search, Send, Ticket } from 'lucide-react'
-import Header from '@/components/Header'
+import { Copy, ExternalLink, Printer, RefreshCw, Search, Send } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { db } from '@/lib/firebase'
+import { PageHeader, StatCard, StatRow, Spinner, cx } from '@/components/admin/ui'
 import {
   CLAIM_STATUSES,
   VOUCHER_CARDS_COLLECTION,
@@ -27,24 +25,18 @@ import {
 type Tab = 'claims' | 'cards' | 'settings'
 
 export default function AdminVouchersPage() {
-  const { currentUser, loading, isAdmin, permissions } = useAuth()
-  const router = useRouter()
-  const canView = isAdmin || permissions.includes('leads')
+  const { currentUser } = useAuth()
   const [tab, setTab] = useState<Tab>('claims')
   const [claims, setClaims] = useState<VoucherClaim[]>([])
   const [cards, setCards] = useState<VoucherCard[]>([])
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    if (loading) return
-    if (!currentUser) router.push('/login')
-    else if (!canView) router.push('/admin')
-  }, [currentUser, loading, canView, router])
-
-  useEffect(() => {
-    if (!currentUser || !canView) return
-    const u1 = onSnapshot(query(collection(db, VOUCHER_CLAIMS_COLLECTION), orderBy('createdAt', 'desc')), (s) =>
+    if (!currentUser) return
+    const u1 = onSnapshot(query(collection(db, VOUCHER_CLAIMS_COLLECTION), orderBy('createdAt', 'desc')), (s) => {
       setClaims(s.docs.map((d) => d.data() as VoucherClaim))
-    )
+      setReady(true)
+    }, () => setReady(true))
     const u2 = onSnapshot(query(collection(db, VOUCHER_CARDS_COLLECTION), orderBy('code', 'asc')), (s) =>
       setCards(s.docs.map((d) => d.data() as VoucherCard))
     )
@@ -52,7 +44,7 @@ export default function AdminVouchersPage() {
       u1()
       u2()
     }
-  }, [currentUser, canView])
+  }, [currentUser])
 
   const authFetch = async (url: string, init?: RequestInit) => {
     const token = await currentUser!.getIdToken()
@@ -62,68 +54,43 @@ export default function AdminVouchersPage() {
     return json
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-  if (!currentUser || !canView) return null
-
-  const stats = [
-    { label: 'Cards issued', value: cards.length },
-    { label: 'Codes claimed', value: claims.length },
-    { label: 'Active', value: claims.filter((c) => c.status === 'active' && !isClaimExpired(c)).length },
-    { label: 'Applied to bookings', value: claims.filter((c) => c.status === 'applied').length },
-  ]
+  if (!currentUser) return null
 
   return (
-    <>
-      <Header />
-      <main className="min-h-screen bg-gray-50 pt-4 pb-12">
-        <div className="max-w-7xl mx-auto px-4">
-          <Link href="/admin" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-blue-600 font-medium">
-            <ArrowLeft className="w-4 h-4" /> Back to Admin Dashboard
-          </Link>
-
-          <div className="flex flex-wrap items-end justify-between gap-4 mt-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Ticket className="w-6 h-6 text-blue-700" /> Vouchers
-              </h1>
-              <p className="text-sm text-gray-500 mt-1">Printed voucher cards, customer codes and redemptions.</p>
-            </div>
-            <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1">
-              {(['claims', 'cards', 'settings'] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold capitalize ${tab === t ? 'bg-blue-700 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                >
-                  {t === 'claims' ? 'Customer codes' : t === 'cards' ? 'Voucher cards' : 'WhatsApp'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-            {stats.map((s) => (
-              <div key={s.label} className="bg-white border border-gray-200 rounded-xl p-4">
-                <div className="text-xs text-gray-500 font-medium">{s.label}</div>
-                <div className="text-2xl font-bold text-gray-900 mt-1">{s.value}</div>
-              </div>
+    <div>
+      <PageHeader
+        title="Gift Vouchers"
+        description="Printed voucher cards, customer codes and redemptions."
+        actions={
+          <div className="flex gap-1 bg-white border border-gray-200 rounded-xl p-1">
+            {(['claims', 'cards', 'settings'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cx('px-4 py-2 rounded-lg text-sm font-semibold', tab === t ? 'bg-bordeaux-600 text-white' : 'text-gray-600 hover:bg-gray-100')}
+              >
+                {t === 'claims' ? 'Customer codes' : t === 'cards' ? 'Voucher cards' : 'WhatsApp'}
+              </button>
             ))}
           </div>
+        }
+      />
 
-          <div className="mt-5">
-            {tab === 'claims' && <ClaimsTab claims={claims} authFetch={authFetch} />}
-            {tab === 'cards' && <CardsTab cards={cards} createdBy={currentUser.email || currentUser.uid} />}
-            {tab === 'settings' && <SettingsTab authFetch={authFetch} />}
-          </div>
-        </div>
-      </main>
-    </>
+      <StatRow>
+        <StatCard label="Cards issued" value={cards.length} />
+        <StatCard label="Codes claimed" value={claims.length} />
+        <StatCard label="Active" value={claims.filter((c) => c.status === 'active' && !isClaimExpired(c)).length} tone="green" />
+        <StatCard label="Applied to bookings" value={claims.filter((c) => c.status === 'applied').length} tone="blue" />
+      </StatRow>
+
+      {!ready ? <Spinner label="Loading vouchers…" /> : (
+        <>
+          {tab === 'claims' && <ClaimsTab claims={claims} authFetch={authFetch} />}
+          {tab === 'cards' && <CardsTab cards={cards} createdBy={currentUser.email || currentUser.uid} />}
+          {tab === 'settings' && <SettingsTab authFetch={authFetch} />}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -213,7 +180,7 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
                   <tr key={c.code} className="align-top hover:bg-gray-50/60">
                     <td className="px-4 py-3 font-mono font-semibold text-gray-900 whitespace-nowrap">
                       {c.code}
-                      <button onClick={() => navigator.clipboard?.writeText(c.code)} className="ml-1.5 text-gray-400 hover:text-blue-600 align-middle" title="Copy">
+                      <button onClick={() => navigator.clipboard?.writeText(c.code)} className="ml-1.5 text-gray-400 hover:text-bordeaux-600 align-middle" title="Copy">
                         <Copy className="w-3.5 h-3.5 inline" />
                       </button>
                     </td>
@@ -258,7 +225,7 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1.5 items-start">
                         {c.status === 'active' && (
-                          <button disabled={busy === c.code} onClick={() => setApplying(c)} className="text-xs font-semibold text-blue-700 hover:underline whitespace-nowrap">
+                          <button disabled={busy === c.code} onClick={() => setApplying(c)} className="text-xs font-semibold text-bordeaux-700 hover:underline whitespace-nowrap">
                             Apply to booking
                           </button>
                         )}
@@ -342,7 +309,7 @@ function ApplyModal({ claim, onClose, onSave }: { claim: VoucherClaim; onClose: 
           <button
             disabled={!ref.trim() || belowMin}
             onClick={() => onSave(ref.trim(), amount, note.trim())}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-bordeaux-700 disabled:opacity-50"
           >
             Mark as applied
           </button>
@@ -448,7 +415,7 @@ function CardsTab({ cards, createdBy }: { cards: VoucherCard[]; createdBy: strin
             Internal note
             <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2.5" placeholder="e.g. Wedding expo, Jaipur" />
           </label>
-          <button onClick={create} disabled={creating} className="mt-1 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-xl py-3 disabled:opacity-60">
+          <button onClick={create} disabled={creating} className="mt-1 bg-bordeaux-700 hover:bg-bordeaux-800 text-white font-semibold rounded-xl py-3 disabled:opacity-60">
             {creating ? 'Creating…' : `Create ${Math.max(1, form.quantity || 1)} card${form.quantity > 1 ? 's' : ''}`}
           </button>
         </div>
@@ -496,7 +463,7 @@ function CardsTab({ cards, createdBy }: { cards: VoucherCard[]; createdBy: strin
                   return (
                     <tr key={c.code} className="hover:bg-gray-50/60">
                       <td className="px-4 py-3">
-                        <input type="checkbox" checked={selected.includes(c.code)} onChange={() => toggle(c.code)} className="w-4 h-4 accent-blue-700" />
+                        <input type="checkbox" checked={selected.includes(c.code)} onChange={() => toggle(c.code)} className="w-4 h-4 accent-bordeaux-700" />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="font-mono font-semibold text-gray-900">{c.code}</div>
@@ -519,13 +486,13 @@ function CardsTab({ cards, createdBy }: { cards: VoucherCard[]; createdBy: strin
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex gap-3 text-gray-500">
-                          <a href={`/voucher/${c.code}`} target="_blank" rel="noopener noreferrer" title="Open redeem page" className="hover:text-blue-700">
+                          <a href={`/voucher/${c.code}`} target="_blank" rel="noopener noreferrer" title="Open redeem page" className="hover:text-bordeaux-700">
                             <ExternalLink className="w-4 h-4" />
                           </a>
-                          <button onClick={() => navigator.clipboard?.writeText(cardRedeemUrl(c.code))} title="Copy redeem link" className="hover:text-blue-700">
+                          <button onClick={() => navigator.clipboard?.writeText(cardRedeemUrl(c.code))} title="Copy redeem link" className="hover:text-bordeaux-700">
                             <Copy className="w-4 h-4" />
                           </button>
-                          <a href={printUrl([c.code])} target="_blank" rel="noopener noreferrer" title="Print" className="hover:text-blue-700">
+                          <a href={printUrl([c.code])} target="_blank" rel="noopener noreferrer" title="Print" className="hover:text-bordeaux-700">
                             <Printer className="w-4 h-4" />
                           </a>
                         </div>
@@ -573,7 +540,7 @@ function SettingsTab({ authFetch }: { authFetch: AuthFetch }) {
     <div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-2xl">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-gray-900">WhatsApp voucher message (GetGabs)</h2>
-        <button onClick={load} className="text-gray-400 hover:text-blue-700" title="Refresh">
+        <button onClick={load} className="text-gray-400 hover:text-bordeaux-700" title="Refresh">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>

@@ -259,20 +259,9 @@ export default function WhatsAppChats() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <MessageSquare className="w-7 h-7 text-emerald-600" />
-            WhatsApp Live Customer Inbox
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Real-time Meta WhatsApp Cloud API customer communications
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-[700px] flex">
+    <div>
+      {/* Fits under the admin shell's top bar + section tabs (≈ 6.5rem) and main padding */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-[calc(100vh-10rem)] min-h-[480px] flex">
         {/* Left Sidebar: Conversations List */}
         <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50/50">
           {/* Search bar */}

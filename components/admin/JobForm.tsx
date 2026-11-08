@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Button, Field, inputClass } from './ui'
 
 interface Job {
     id?: string
@@ -65,105 +66,49 @@ export default function JobForm({ job, onSubmit, onCancel }: JobFormProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-lg shadow">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                    <input
-                        type="text"
-                        name="title"
-                        required
-                        value={formData.title}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="e.g. Senior Travel Planner"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                    <input
-                        type="text"
-                        name="department"
-                        required
-                        value={formData.department}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="e.g. Operations"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <input
-                        type="text"
-                        name="location"
-                        required
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="e.g. Mumbai, India / Remote"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Employment Type</label>
-                    <select
-                        name="type"
-                        value={formData.type}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
+        <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <Field label="Job title">
+                    <input type="text" name="title" required value={formData.title} onChange={handleChange} className={inputClass} placeholder="e.g. Senior Travel Planner" />
+                </Field>
+                <Field label="Department">
+                    <input type="text" name="department" required value={formData.department} onChange={handleChange} className={inputClass} placeholder="e.g. Operations" />
+                </Field>
+                <Field label="Location">
+                    <input type="text" name="location" required value={formData.location} onChange={handleChange} className={inputClass} placeholder="e.g. Mumbai, India / Remote" />
+                </Field>
+                <Field label="Employment type">
+                    <select name="type" value={formData.type} onChange={handleChange} className={inputClass}>
                         <option value="Full-time">Full-time</option>
                         <option value="Part-time">Part-time</option>
                         <option value="Contract">Contract</option>
                         <option value="Freelance">Freelance</option>
                         <option value="Internship">Internship</option>
                     </select>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
+                </Field>
+                <Field label="Status" hint="Only active openings are shown on the Careers page.">
+                    <select name="status" value={formData.status} onChange={handleChange} className={inputClass}>
                         <option value="active">Active</option>
                         <option value="closed">Closed</option>
                     </select>
-                </div>
+                </Field>
             </div>
 
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <Field label="Description">
                 <textarea
                     name="description"
                     required
-                    rows={5}
+                    rows={8}
                     value={formData.description}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                    className={inputClass}
                     placeholder="Job description, responsibilities, and requirements..."
                 />
-            </div>
+            </Field>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-dark disabled:opacity-50"
-                >
-                    {isSubmitting ? 'Saving...' : job ? 'Update Job' : 'Post Job'}
-                </button>
+            <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+                <Button type="submit" loading={isSubmitting}>{job ? 'Update job' : 'Post job'}</Button>
             </div>
         </form>
     )

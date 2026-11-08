@@ -491,16 +491,16 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 bg-bordeaux-50 text-bordeaux-700 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900">AI Package Generator</h2>
-                        <p className="text-gray-500">Upload an Excel file and let AI generate complete package details</p>
+                        <h2 className="text-base font-bold text-gray-900">Upload your Excel sheet</h2>
+                        <p className="text-sm text-gray-500">AI fills in overview, day-wise plan, highlights, FAQs and SEO for every new package</p>
                     </div>
                 </div>
 
@@ -517,7 +517,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                 </div>
 
                 {/* File Upload */}
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-primary transition-colors">
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-bordeaux-400 transition-colors">
                     <input
                         type="file"
                         accept=".xlsx,.xls"
@@ -556,7 +556,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
 
             {/* Parsed Data Preview */}
             {parsedData && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Parsed Data Preview</h3>
 
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -572,9 +572,9 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                             <div className="text-2xl font-bold text-yellow-600">{duplicateIds.length}</div>
                             <div className="text-sm text-yellow-700">⏭️ Already Exist</div>
                         </div>
-                        <div className="bg-purple-50 rounded-lg p-4 text-center">
-                            <div className="text-2xl font-bold text-purple-600">{parsedData.itinerary.length}</div>
-                            <div className="text-sm text-purple-700">Itinerary Days</div>
+                        <div className="bg-bordeaux-50 rounded-lg p-4 text-center">
+                            <div className="text-2xl font-bold text-bordeaux-600">{parsedData.itinerary.length}</div>
+                            <div className="text-sm text-bordeaux-700">Itinerary Days</div>
                         </div>
                         <div className="bg-orange-50 rounded-lg p-4 text-center">
                             <div className="text-2xl font-bold text-orange-600">{parsedData.inclusionsExclusions.length}</div>
@@ -632,7 +632,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                         <button
                             onClick={handleGenerate}
                             disabled={isGenerating || newIds.length === 0}
-                            className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            className="bg-gradient-to-r from-bordeaux-600 to-bordeaux-700 text-white px-6 py-3 rounded-lg font-semibold hover:from-bordeaux-700 hover:to-bordeaux-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                             {isGenerating ? (
                                 <>
@@ -658,7 +658,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                                 <div
-                                    className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2 rounded-full transition-all"
+                                    className="bg-gradient-to-r from-bordeaux-600 to-bordeaux-700 h-2 rounded-full transition-all"
                                     style={{ width: `${(progress.current / progress.total) * 100}%` }}
                                 ></div>
                             </div>
@@ -669,7 +669,7 @@ export default function AIPackageGenerator({ onImportPackages }: AIPackageGenera
 
             {/* Generated Packages */}
             {generatedPackages.length > 0 && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+                <div className="bg-white rounded-2xl border border-gray-200/80 shadow-[0_1px_2px_rgba(16,24,40,0.04)] p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-bold text-gray-900">Generated Packages</h3>
                         <div className="flex gap-2">
