@@ -294,10 +294,10 @@ export default function Step2Nights({
         <div className="animate-fade-in-up">
             <div className="text-center mb-8">
                 <h2 className="text-3xl sm:text-5xl font-medium text-gray-900 mb-3 tracking-tight">
-                    Customize Your Journey
+                    {isDmcMode ? 'Customize Your Journey' : 'How many nights?'}
                 </h2>
                 <p className="text-sm sm:text-lg text-gray-500 font-medium">
-                    Select how many nights you'd like at each stop.
+                    {isDmcMode ? "Select how many nights you'd like at each stop." : 'These are the trip lengths we have ready for you.'}
                 </p>
             </div>
 
@@ -493,7 +493,7 @@ export default function Step2Nights({
                     ) : isDmcMode ? (
                         'Generate Itinerary ✨'
                     ) : (
-                        'Group Details →'
+                        'Budget & stay →'
                     )}
                 </button>
             </div>

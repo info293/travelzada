@@ -13,7 +13,7 @@ The admin lives at **/admin**. Log in with your Travelzada account. The left men
 | Role | Who it's for | Pages they see |
 |---|---|---|
 | **Admin** | Owner / founders | Everything, plus Travel Agents and changing other people's access |
-| **Sales Executive** | People who call and close leads | Overview, Meta Leads, Website Leads, Contact Messages, Customers, WhatsApp, AI Planner Chats, Create Quote PDF, Gift Vouchers |
+| **Sales Executive** | People who call and close leads | Overview, Meta Leads, Website Leads, Contact Messages, Customers, WhatsApp, AI Planner Chats, Planner Activity, Create Quote PDF, Gift Vouchers |
 | **Sales Manager** | Team lead for sales | Everything Sales has + Packages, Destinations, AI Package Writer, Vendors |
 | **Content & SEO** | Blog writers, website editors | Overview, Packages, Destinations, Blogs, Authors, Testimonials, Newsletter, AI Package Writer |
 | **Operations** | People who handle confirmed trips | Overview, Customers, Packages, Vendors, Gift Vouchers |
@@ -36,7 +36,7 @@ To remove access: open the person → **Remove all access**. You cannot remove y
 | Section | Pages inside | Use it for |
 |---|---|---|
 | **Overview** | Overview | Today's numbers, leads to call first, overdue follow-ups, upcoming trips |
-| **Sales & CRM** | Meta Leads · Website Leads · Contact Messages · Customers · WhatsApp · AI Planner Chats | Every enquiry in one place, and every customer after they get a quote |
+| **Sales & CRM** | Meta Leads · Website Leads · Contact Messages · Customers · WhatsApp · AI Planner Chats · Planner Activity | Every enquiry in one place, and every customer after they get a quote |
 | **Quotes & Itineraries** | Create Quote PDF · AI Package Writer | Making the PDF you send to a customer; drafting new packages with AI |
 | **Packages & Destinations** | Packages · Destinations | What the website sells |
 | **Content & Marketing** | Blogs · Authors · Testimonials · Newsletter | SEO content, reviews, email list |
@@ -59,6 +59,17 @@ When you open a section, its pages appear as **tabs across the top** so you can 
 - **Website Leads** (package pages + AI trip planner): change the status right in the list (*New → Contacted → Quote sent → Follow-up → Converted / Lost*). Calling or WhatsApp-ing a *New* lead moves it to *Contacted* automatically. Click **Edit** to add notes and a **follow-up date** (shortcuts: Tomorrow / 3 days / Next week).
 - **Contact Messages**: opening a message marks it read. Use *Reply on WhatsApp* or *Reply by email*; it is then marked *Replied*.
 - **WhatsApp**: the live inbox for all WhatsApp chats.
+
+**Itinerary Upload & AI Planner leads**
+- On **travelzada.com/tailored-travel/compare** customers upload an itinerary they got from another agency or a friend (PDF, screenshot or pasted text). The AI reads it, finds our closest package and marks every item *Included*, *Similar* or *Not in our package*. Customers tap **Add to my trip** on what they want, then leave their number.
+- These leads arrive in **Website Leads** with the source **Itinerary Upload** (AI planner searches show as *AI Planner* / *AI Smart search*). Open the lead → the **Planner details** box shows: what they want added (a checklist to price), their itinerary, **their quote and agency** (the price to beat), our matched package (with link), their original file (**Their file**) and a link to the planner activity.
+- Before calling, open **Their file** and the matched package. In the quote, include the items they added — or tell them honestly if we can't.
+- The AI can misread a blurry file — always check the original before quoting.
+
+**Planner Activity (Sales & CRM → Planner Activity)**
+- Shows **every** AI planner search and itinerary upload, even from people who never left a number (*Anonymous*). Use it to see what people look for and what other agencies are quoting.
+- Filter by *Itinerary uploads*, *Smart searches*, *Wizard searches*, *Became leads* or *Anonymous*. Click a row for the full details: the extracted itinerary, each item's status, preferences and the packages we showed. **Open file** opens what they uploaded; **WhatsApp** appears when the person became a lead.
+- The **Lead** badge opens that person in Website Leads.
 
 **Sending a quote (the most important step)**
 1. From any lead click **Create quote PDF** — the customer's name, phone, email, destination, date and travellers are filled in for you. (Or open *Quotes & Itineraries → Create Quote PDF* directly.)

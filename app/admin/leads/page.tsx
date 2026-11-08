@@ -12,7 +12,7 @@
  * Facebook lead-ad copies that the old sync wrote into `leads` (source "Facebook Lead Ad" / leadgenId) are hidden by
  * default because they are worked on the Meta Leads page; a chip keeps them reachable.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   collection, getDocs, query, orderBy, updateDoc, deleteDoc, doc, deleteField, serverTimestamp,
@@ -32,7 +32,7 @@ import {
 // ---------------------------------------------------------------------------------------------------------------------
 
 type LeadCollection = 'leads' | 'ai_planner_leads'
-type SourceKind = 'website' | 'ai' | 'facebook'
+type SourceKind = 'website' | 'ai' | 'upload' | 'facebook'
 
 interface Lead {
   id: string
@@ -55,6 +55,11 @@ interface Lead {
   createdAt: any
   convertedAt: any
   statusUpdatedAt: any
+  /** Raw `source` string as saved (e.g. "AI Planner – Smart search") */
+  rawSource: string
+  /** Full AI planner / itinerary-upload context (lib/planner/records.ts) */
+  planner: Record<string, any> | null
+  plannerActivityId: string
 }
 
 const PIPELINE = [
@@ -89,9 +94,10 @@ function toStage(raw?: string): Stage {
   return 'contacted'
 }
 
-const SOURCE_META: Record<SourceKind, { label: string; tone: 'wine' | 'purple' | 'blue' }> = {
+const SOURCE_META: Record<SourceKind, { label: string; tone: 'wine' | 'purple' | 'blue' | 'amber' }> = {
   website: { label: 'Website', tone: 'wine' },
   ai: { label: 'AI Planner', tone: 'purple' },
+  upload: { label: 'Itinerary Upload', tone: 'amber' },
   facebook: { label: 'Facebook ad', tone: 'blue' },
 }
 
@@ -144,6 +150,9 @@ function mapDoc(id: string, data: any, col: LeadCollection): Lead {
     ? data.travelersCount
     : parseInt(data.travelersCount || data.members || data.totalGuests || data.peopleCount || data.adults || '', 10)
   const isFb = col === 'leads' && (data.source === 'Facebook Lead Ad' || !!data.leadgenId)
+  const rawSource = typeof data.source === 'string' ? data.source : ''
+  const isUpload = col === 'leads' && rawSource === 'Itinerary Upload'
+  const isAiPlanner = col === 'ai_planner_leads' || /^AI Planner/i.test(rawSource)
   return {
     id,
     _collection: col,
@@ -158,14 +167,23 @@ function mapDoc(id: string, data: any, col: LeadCollection): Lead {
     budget: data.budget || '',
     notes: data.notes || data.message || '',
     sourceUrl: data.sourceUrl || '',
-    source: col === 'ai_planner_leads' ? 'ai' : isFb ? 'facebook' : 'website',
+    source: isUpload ? 'upload' : isAiPlanner ? 'ai' : isFb ? 'facebook' : 'website',
     status: data.status || 'new',
     read: !!data.read,
     followUpAt: data.followUpAt || '',
     createdAt: data.createdAt || null,
     convertedAt: data.convertedAt || null,
     statusUpdatedAt: data.statusUpdatedAt || null,
+    rawSource,
+    planner: data.planner && typeof data.planner === 'object' ? data.planner : null,
+    plannerActivityId: data.plannerActivityId || data.planner?.activityId || '',
   }
+}
+
+/** "AI Planner – Smart search" etc. get their own label; everything else uses the kind's label */
+function sourceLabel(l: Lead): string {
+  if (l.source === 'ai' && /smart search/i.test(l.rawSource)) return 'AI Smart search'
+  return SOURCE_META[l.source].label
 }
 
 async function fetchCollection(col: LeadCollection): Promise<Lead[]> {
@@ -214,6 +232,7 @@ export default function WebsiteLeadsPage() {
   const [form, setForm] = useState<EditForm | null>(null)
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const openEditRef = useRef<((lead: Lead) => void) | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -231,6 +250,16 @@ export default function WebsiteLeadsPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  // Deep link from Planner Activity: /admin/leads?lead=<id>
+  const [deepLinked, setDeepLinked] = useState(false)
+  useEffect(() => {
+    if (deepLinked || loading || !leads.length) return
+    setDeepLinked(true)
+    const id = new URLSearchParams(window.location.search).get('lead')
+    const hit = id ? leads.find((l) => l.id === id) : undefined
+    if (hit) { if (hit.source === 'facebook') setSource('facebook'); openEditRef.current?.(hit) }
+  }, [deepLinked, loading, leads])
 
   /** Optimistic local update + Firestore write */
   const patchLead = useCallback(async (lead: Lead, payload: Record<string, any>, local: Partial<Lead>) => {
@@ -294,6 +323,7 @@ export default function WebsiteLeadsPage() {
     if (!lead.read) patchLead(lead, { read: true }, { read: true })
   }, [patchLead])
   const closeEdit = useCallback(() => { setEditing(null); setForm(null) }, [])
+  openEditRef.current = openEdit
   /** Call / WhatsApp from inside the drawer: same as touch(), and keep the open form in sync */
   const drawerTouch = () => {
     if (!editing) return
@@ -407,7 +437,7 @@ export default function WebsiteLeadsPage() {
       Travellers: l.travelersCount ?? '',
       'Travel type': l.travelType,
       Budget: l.budget,
-      Source: SOURCE_META[l.source].label,
+      Source: sourceLabel(l),
       Status: STAGE_LABEL[toStage(l.status)],
       'Next follow-up': l.followUpAt,
       Received: formatDate(l.createdAt, true),
@@ -423,6 +453,7 @@ export default function WebsiteLeadsPage() {
     { value: 'all', label: 'All sources' },
     { value: 'website', label: 'Website' },
     { value: 'ai', label: 'AI Planner' },
+    { value: 'upload', label: 'Itinerary Upload' },
     ...(fbCount ? [{ value: 'facebook' as SourceFilter, label: 'Old Facebook copies', count: fbCount }] : []),
   ]
   const rangeOptions: Array<{ value: DateRange; label: string }> = [
@@ -553,7 +584,7 @@ export default function WebsiteLeadsPage() {
       <Drawer
         open={!!editing && !!form}
         onClose={closeEdit}
-        title={editing ? <span className="flex items-center gap-2">{editing.name || 'Lead'} <Badge tone={SOURCE_META[editing.source].tone}>{SOURCE_META[editing.source].label}</Badge></span> : ''}
+        title={editing ? <span className="flex items-center gap-2">{editing.name || 'Lead'} <Badge tone={SOURCE_META[editing.source].tone}>{sourceLabel(editing)}</Badge></span> : ''}
         footer={
           <>
             {editing && <Button variant="ghost" className="mr-auto text-red-600 hover:bg-red-50" onClick={() => handleDelete(editing)}><Trash2 className="w-4 h-4" /> Delete</Button>}
@@ -582,6 +613,8 @@ export default function WebsiteLeadsPage() {
                 <FileText className="w-4 h-4" /> Create quote PDF
               </Link>
             </div>
+
+            {editing.planner && <PlannerDetails lead={editing} />}
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Status">
@@ -626,7 +659,7 @@ export default function WebsiteLeadsPage() {
             {formError && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{formError}</p>}
 
             <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-500 space-y-1">
-              <p>Received {formatDate(editing.createdAt, true)} ({timeAgo(editing.createdAt)}) via {SOURCE_META[editing.source].label}</p>
+              <p>Received {formatDate(editing.createdAt, true)} ({timeAgo(editing.createdAt)}) via {sourceLabel(editing)}</p>
               {editing.sourceUrl && (
                 <p className="truncate">
                   From page:{' '}
@@ -656,7 +689,7 @@ function LeadIdentity({ lead, onOpen, onTouch }: { lead: Lead; onOpen: () => voi
           {lead.name || 'Unnamed'}
         </button>
         <Badge tone={SOURCE_META[lead.source].tone} className="!text-[10px]">
-          {lead.source === 'ai' && <Sparkles className="w-3 h-3" />}{SOURCE_META[lead.source].label}
+          {(lead.source === 'ai' || lead.source === 'upload') && <Sparkles className="w-3 h-3" />}{sourceLabel(lead)}
         </Badge>
       </div>
       <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
@@ -749,6 +782,107 @@ function RowActions({ lead, onTouch, onEdit, onDelete }: { lead: Lead; onTouch: 
       <button type="button" onClick={onDelete} title="Delete" className={cx(icon, 'text-gray-400 hover:text-red-600 hover:bg-red-50')}>
         <Trash2 className="w-4 h-4" />
       </button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// AI planner / itinerary upload context (lead.planner, written by lib/planner/records.ts)
+// ---------------------------------------------------------------------------------------------------------------------
+
+const ADDITION_STATUS: Record<string, string> = { not_included: 'not in our package', similar: 'we have similar', included: 'already included' }
+
+function PlannerDetails({ lead }: { lead: Lead }) {
+  const p = lead.planner || {}
+  const x = p.extraction && typeof p.extraction === 'object' ? p.extraction : null
+  const c = p.comparison && typeof p.comparison === 'object' ? p.comparison : null
+  const additions: any[] = Array.isArray(p.additions) ? p.additions : []
+  const best = p.bestPackage && typeof p.bestPackage === 'object' ? p.bestPackage : null
+  const prefs = p.prefs || p.preferences
+  const matches: any[] = Array.isArray(p.matches) ? p.matches : []
+  const activityId = lead.plannerActivityId || p.activityId
+  const prefRows = prefs && typeof prefs === 'object'
+    ? Object.entries(prefs).filter(([, v]) => v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length))
+    : []
+
+  return (
+    <div className="rounded-xl border border-bordeaux-100 bg-bordeaux-50/40 p-3 space-y-3 text-sm">
+      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-bordeaux-700"><Sparkles className="w-3.5 h-3.5" /> Planner details</p>
+
+      {additions.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-700 mb-1">Wants added ({additions.length})</p>
+          <ul className="space-y-1">
+            {additions.map((a, i) => (
+              <li key={a.id || i} className="flex items-start gap-2">
+                <span className="mt-0.5 inline-block h-3.5 w-3.5 shrink-0 rounded border border-gray-400 bg-white" aria-hidden />
+                <span className="text-gray-800">
+                  {a.day ? <b>Day {a.day}: </b> : null}{a.item}
+                  <span className="text-xs text-gray-500"> — {ADDITION_STATUS[a.status] || a.status}{a.status === 'similar' && a.ourOffer ? ` (ours: ${a.ourOffer})` : ''}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {x && (
+        <div>
+          <p className="text-xs font-semibold text-gray-700 mb-1">Their itinerary</p>
+          <p className="text-gray-800">
+            {[(x.destinations || []).join(', ') || x.country, x.nights && `${x.nights} nights`, x.travelDatesText, x.travellersText].filter(Boolean).join(' · ') || '—'}
+          </p>
+          {(x.hotels || []).length > 0 && (
+            <p className="text-xs text-gray-600 mt-0.5">Hotels: {x.hotels.map((h: any) => [h.name, h.city, h.stars && `${h.stars}★`].filter(Boolean).join(' ')).join('; ')}</p>
+          )}
+          {(x.days || []).length > 0 && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-xs font-medium text-bordeaux-700">Day-by-day ({x.days.length} days)</summary>
+              <ul className="mt-1 space-y-0.5 text-xs text-gray-600">
+                {x.days.map((d: any, i: number) => <li key={i}><b>Day {d.day}:</b> {d.title}{(d.items || []).length ? ` — ${d.items.join(', ')}` : ''}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+
+      {(p.competitorPrice || p.agency) && (
+        <p><span className="text-xs font-semibold text-gray-700">Their quote: </span>{p.competitorPrice || '—'}{p.agency ? ` from ${p.agency}` : ''}</p>
+      )}
+
+      {best?.name && (
+        <p>
+          <span className="text-xs font-semibold text-gray-700">Our match: </span>
+          {best.url ? <a href={best.url} target="_blank" rel="noopener noreferrer" className="text-bordeaux-700 hover:underline">{best.name}</a> : best.name}
+          {c?.matchPercent ? <span className="text-xs text-gray-500"> · {c.matchPercent}% match</span> : null}
+          {best.pricePerPerson ? <span className="text-xs text-gray-500"> · from ₹{Number(best.pricePerPerson).toLocaleString('en-IN')} pp</span> : null}
+        </p>
+      )}
+      {c?.summary && <p className="text-xs text-gray-600">{c.summary}</p>}
+      {c?.counts && <p className="text-xs text-gray-500">{c.counts.included || 0} included · {c.counts.similar || 0} similar · {c.counts.not_included || 0} not in our package</p>}
+
+      {prefRows.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-gray-700 mb-1">Preferences</p>
+          <p className="text-xs text-gray-600">{prefRows.map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : typeof v === 'object' ? JSON.stringify(v) : String(v)}`).join(' · ')}</p>
+        </div>
+      )}
+      {!best && matches.length > 0 && (
+        <p className="text-xs text-gray-600"><span className="font-semibold text-gray-700">Packages shown: </span>{matches.slice(0, 5).map((m) => m.name).filter(Boolean).join(', ')}</p>
+      )}
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        {p.fileUrl && (
+          <a href={p.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-50">
+            <FileText className="w-3.5 h-3.5" /> Their file
+          </a>
+        )}
+        {activityId && (
+          <Link href={`/admin/planner-activity?id=${activityId}`} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-50">
+            <ExternalLink className="w-3.5 h-3.5" /> Planner activity
+          </Link>
+        )}
+      </div>
     </div>
   )
 }

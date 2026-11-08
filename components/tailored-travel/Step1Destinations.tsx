@@ -2,17 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import indianDestinationsData from '@/data/indian-destinations-data.json'
-
-const OPTIONS_EXPERIENCE = [
-    { id: 'adventure', label: 'Adventure', icon: '🏂' },
-    { id: 'wellness', label: 'Wellness', icon: '🧘‍♀️' },
-    { id: 'party', label: 'Party', icon: '🎉' },
-    { id: 'culture', label: 'Culture', icon: '🏛️' },
-    { id: 'romance', label: 'Romance', icon: '❤️' },
-    { id: 'food_wine', label: 'Food & Wine', icon: '🍷' },
-    { id: 'instagram', label: 'Instagram', icon: '📸' },
-    { id: 'relax', label: 'Relax', icon: '🏖️' }
-]
+import { OCCASIONS, MONTH_LONG, nextMonths } from './smart/shared'
 
 const HOTEL_STAR_OPTIONS = [
     { id: '3-star', label: '3-Star', desc: 'Comfortable & Budget-Friendly', icon: '⭐⭐⭐' },
@@ -156,14 +146,18 @@ export default function Step1Destinations({
         updateData({ destinations: newDestinations })
     }
 
-    const toggleExperience = (id: string) => {
-        const current = new Set(data.experiences)
-        if (current.has(id)) {
-            current.delete(id)
+    const MONTHS = nextMonths(12)
+
+    const setOccasion = (id: string) => {
+        updateData({ occasion: data.occasion === id ? null : id })
+    }
+
+    const setMonth = (m: { month: number; year: number } | null) => {
+        if (!m || (data.month === m.month && data.monthYear === m.year)) {
+            updateData({ month: null, monthYear: null, dateRange: 'Flexible' })
         } else {
-            current.add(id)
+            updateData({ month: m.month, monthYear: m.year, dateRange: `${MONTH_LONG[m.month - 1]} ${m.year}` })
         }
-        updateData({ experiences: Array.from(current) })
     }
 
     const toggleHotelStar = (id: string) => {
@@ -223,7 +217,7 @@ export default function Step1Destinations({
                     Where would you like to go?
                 </h2>
                 <p className="text-sm sm:text-lg text-gray-500 font-medium px-2">
-                    Tell us your dream destinations and when you want to travel.
+                    Pick a place, the occasion and when you would like to go.
                 </p>
             </div>
 
@@ -336,7 +330,42 @@ export default function Step1Destinations({
                     </div>
                 </div>
 
-                {/* ── Section 2: Travel Date ── */}
+                {/* ── Section 2 (main site): Travel month ── */}
+                {!isDmcMode && (
+                    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-5 py-5">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
+                                <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">2</span>
+                                When are you travelling?
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide sm:flex-wrap">
+                                <button
+                                    type="button"
+                                    onClick={() => setMonth(null)}
+                                    className={`shrink-0 px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${!data.month ? 'bg-bordeaux-600 border-bordeaux-600 text-white' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'}`}
+                                >
+                                    Not sure yet
+                                </button>
+                                {MONTHS.map((m) => {
+                                    const isSelected = data.month === m.month && data.monthYear === m.year
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={`${m.year}-${m.month}`}
+                                            onClick={() => setMonth(m)}
+                                            className={`shrink-0 px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all ${isSelected ? 'bg-bordeaux-600 border-bordeaux-600 text-white shadow-md' : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-100'}`}
+                                        >
+                                            {m.label}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Section 2 (DMC): Travel Date ── */}
+                {isDmcMode && (
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-5 py-5">
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
@@ -360,6 +389,7 @@ export default function Step1Destinations({
                         </div>
                     </div>
                 </div>
+                )}
 
                 {/* ── Section 3: Hotel Preference (DMC only) ── */}
                 {isDmcMode && (
@@ -440,29 +470,30 @@ export default function Step1Destinations({
                     </div>
                 )}
 
-                {/* ── Section 3 (main site): Vibe / Experiences ── */}
+                {/* ── Section 3 (main site): Occasion ── */}
                 {!isDmcMode && (
                     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
                         <div className="px-5 py-5">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em] flex items-center gap-2 mb-4">
                                 <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-black flex-shrink-0">3</span>
-                                Choose your vibe
+                                What's the occasion?
                             </p>
                             <div className="flex flex-wrap gap-2">
-                                {OPTIONS_EXPERIENCE.map((exp) => {
-                                    const isSelected = data.experiences.includes(exp.id)
+                                {OCCASIONS.map((occ) => {
+                                    const isSelected = data.occasion === occ.id
                                     return (
                                         <button
-                                            key={exp.id}
-                                            onClick={() => toggleExperience(exp.id)}
+                                            type="button"
+                                            key={occ.id}
+                                            onClick={() => setOccasion(occ.id)}
                                             className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 text-sm font-semibold transition-all duration-200 select-none ${
                                                 isSelected
-                                                    ? 'bg-gray-900 border-gray-900 text-white shadow-md scale-[1.03]'
+                                                    ? 'bg-bordeaux-600 border-bordeaux-600 text-white shadow-md scale-[1.03]'
                                                     : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200 hover:bg-gray-100'
                                             }`}
                                         >
-                                            <span className={`text-base ${isSelected ? '' : 'grayscale opacity-60'}`}>{exp.icon}</span>
-                                            {exp.label}
+                                            <span className="text-base">{occ.icon}</span>
+                                            {occ.label}
                                         </button>
                                     )
                                 })}
@@ -479,7 +510,7 @@ export default function Step1Destinations({
                     disabled={data.destinations.length === 0}
                     className="px-10 py-3.5 bg-gray-900 text-white rounded-full font-bold text-base shadow-xl hover:shadow-2xl hover:bg-gray-800 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                 >
-                    {isDmcMode ? 'Next →' : 'Customize Route →'}
+                    {isDmcMode ? 'Next →' : 'Choose nights →'}
                 </button>
             </div>
 

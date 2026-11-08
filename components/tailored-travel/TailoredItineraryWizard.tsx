@@ -9,6 +9,7 @@ import StepDmc2Cities from './StepDmc2Cities'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import WizardSidePanel from './WizardSidePanel'
+import { getPlannerSessionId } from './smart/shared'
 
 interface TailoredItineraryWizardProps {
     agentSlug?: string
@@ -19,7 +20,7 @@ interface TailoredItineraryWizardProps {
 
 // DMC mode: 2 steps. Main mode: 3 steps.
 const DMC_STEPS = ['Your Journey', 'Package Details']
-const MAIN_STEPS = ['Start', 'Route', 'Group & Stay']
+const MAIN_STEPS = ['Trip', 'Nights', 'Budget & Stay']
 
 export default function TailoredItineraryWizard({ agentSlug, subAgentId, sessionId, isEmbed }: TailoredItineraryWizardProps = {}) {
     const [currentStep, setCurrentStep] = useState(1)
@@ -50,6 +51,12 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
         availableNights: [] as { nights: number; label: string }[],
         pickupCity: '',
         dropCity: '',
+        // Main-site planner fields (fit the couple catalog)
+        occasion: null as string | null,
+        month: null as number | null, // 1-12
+        monthYear: null as number | null,
+        budgetKey: null as string | null,
+        budgetPerPerson: null as number | null, // max INR per person, null = no cap
     })
 
     useState(() => {
@@ -88,6 +95,7 @@ export default function TailoredItineraryWizard({ agentSlug, subAgentId, session
             if (agentSlug) dataToSave.agentSlug = agentSlug
             if (subAgentId) dataToSave.subAgentId = subAgentId
             if (sessionId) dataToSave.sessionId = sessionId
+            if (!agentSlug) dataToSave.plannerSessionId = getPlannerSessionId()
             sessionStorage.setItem('tailored_wizard_data', JSON.stringify(dataToSave))
         }
 

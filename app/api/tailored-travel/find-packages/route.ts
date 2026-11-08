@@ -4,6 +4,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { db } from '@/lib/firebase'
 import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore'
+import { loadCatalog, scorePackages, type ScoredPackage } from '@/lib/planner/catalog'
+import { clientIp, logPlannerActivity } from '@/lib/planner/records'
+import { reasonsLine, sanitisePrefs, writeFitLines } from '../_lib/plannerServer'
 
 const anthropic = process.env.ANTHROPIC_API_KEY
     ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -136,11 +139,11 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
         try {
             console.log('[AI Planner] 🤖 Using Claude (Anthropic) for package matching...')
             const res = await anthropic.messages.create({
-                model: 'claude-sonnet-4-5-20250929',
+                model: 'claude-opus-5-5',
                 max_tokens: 2048,
                 system: systemPrompt,
                 messages: [{ role: 'user', content: userPrompt }],
-                temperature: 0.1,
+                // No `temperature`: newer Claude models reject sampling parameters
             })
             const text = (res.content.find(b => b.type === 'text') as any)?.text?.trim() || '[]'
             console.log('[AI Planner] ✅ Claude responded successfully.')
@@ -172,6 +175,16 @@ async function callAI(systemPrompt: string, userPrompt: string): Promise<string>
 }
 
 export async function POST(request: Request) {
+    let body: any
+    try {
+        body = await request.json()
+    } catch {
+        return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+    }
+
+    // MAIN SITE (no agent): deterministic catalog scoring + AI one-liners. Never fails because of AI.
+    if (!body?.agentSlug) return handleMainMode(body || {}, request)
+
     if (!anthropic && !openai) {
         return NextResponse.json(
             { error: 'No AI provider configured.' },
@@ -180,7 +193,6 @@ export async function POST(request: Request) {
     }
 
     try {
-        const body = await request.json()
         // agentSlug is optional — if present, scope to that agent's packages only
         const { agentSlug, ...wizardData } = body
 
@@ -531,4 +543,94 @@ async function fetchMainPackages(requestedDestinations: string[]) {
         }
     })
     return result
+}
+
+// ── MAIN SITE MODE ───────────────────────────────────────────────────────────
+// Wizard data → TravellerPrefs → deterministic scorePackages (lib/planner/catalog).
+// Claude (askJson) only writes the positive `matchReason` for the top 3; if it fails we use the scorer's reasons.
+
+const MAIN_LIMIT = 12
+const MIN_DECENT_SCORE = 40
+
+function toLegacyShape(p: ScoredPackage, raw: any, matchReason: string) {
+    return {
+        id: p.id,
+        source: 'travelzada',
+        Destination_ID: p.code,
+        Slug: p.slug,
+        Destination_Name: p.name,
+        Destination: p.destination,
+        Overview: p.overview,
+        Duration_Days: p.days,
+        Duration_Nights: p.nights,
+        Price_Min_INR: p.pricePerPerson,
+        Travel_Type: raw?.Travel_Type || 'Couple',
+        Mood: p.mood,
+        Star_Category: p.starLabel,
+        Meal_Plan: p.mealPlan,
+        Theme: raw?.Theme || '',
+        Primary_Image_URL: p.image,
+        Day_Wise_Itinerary: raw?.Day_Wise_Itinerary || p.dayTitles.join(' | '),
+        Day_Wise_Itinerary_Details: Array.isArray(raw?.Day_Wise_Itinerary_Details) ? raw.Day_Wise_Itinerary_Details : [],
+        Inclusions: raw?.Inclusions || p.inclusions.join(', '),
+        matchScore: p.score,
+        matchReason,
+        reasons: p.reasons,
+        notes: p.notes,
+        url: p.url,
+    }
+}
+
+async function handleMainMode(wizardData: any, request: Request) {
+    try {
+        const destinations: string[] = (wizardData.destinations || []).map((d: unknown) => String(d)).filter(Boolean)
+        if (!destinations.length) {
+            return NextResponse.json({ error: 'No destinations provided.' }, { status: 400 })
+        }
+
+        const totalNights = (wizardData.routeItems || []).reduce((acc: number, item: any) => acc + (Number(item?.nights) || 0), 0)
+        const prefs = sanitisePrefs({
+            destinations,
+            nights: totalNights || null,
+            stars: (wizardData.hotelTypes || []).map((t: unknown) => parseInt(String(t).match(/(\d)/)?.[1] || '0', 10)),
+            budgetPerPerson: wizardData.budgetPerPerson,
+            occasion: wizardData.occasion,
+            month: wizardData.month,
+            adults: wizardData.passengers?.adults || 2,
+        })
+
+        const { packages } = await loadCatalog()
+        const scored = scorePackages(packages, prefs)
+        let picked = scored.filter((p) => p.score >= MIN_DECENT_SCORE).slice(0, MAIN_LIMIT)
+        if (picked.length < 3) picked = scored.slice(0, Math.min(3, scored.length))
+
+        // AI one-liners for the top 3 + raw docs (for the day-wise itinerary details) in parallel
+        const [lines, rawDocs] = await Promise.all([
+            writeFitLines(picked.slice(0, 3), prefs),
+            Promise.all(picked.map((p) => getDoc(doc(db, 'packages', p.id)).then((s) => s.data()).catch(() => null))),
+        ])
+
+        const result = picked.map((p, i) => toLegacyShape(p, rawDocs[i], (i < 3 && lines[p.id]) || reasonsLine(p)))
+
+        const activityId = await logPlannerActivity({
+            type: 'wizard_search',
+            summary: `${destinations.join(', ')}${prefs.nights ? ` · ${prefs.nights}N` : ''}${prefs.occasion ? ` · ${prefs.occasion}` : ''}`,
+            details: {
+                prefs,
+                dateRange: wizardData.dateRange || null,
+                budgetKey: wizardData.budgetKey || null,
+                hotelTypes: wizardData.hotelTypes || [],
+                passengers: wizardData.passengers || null,
+            },
+            matches: result.map((r) => ({ id: r.id, name: r.Destination_Name, score: r.matchScore })),
+            sessionId: wizardData.plannerSessionId ? String(wizardData.plannerSessionId).slice(0, 80) : null,
+            ip: clientIp(request),
+            userAgent: request.headers.get('user-agent') || null,
+        })
+
+        return NextResponse.json({ success: true, packages: result, prefs, activityId })
+    } catch (error: any) {
+        console.error('[AI Planner] main mode failed:', error?.message || error)
+        return NextResponse.json({ error: 'We could not load trips right now. Please try again.' }, { status: 500 })
+    }
 }

@@ -73,6 +73,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Customers', href: '/admin/customers', icon: 'users', perms: ['customer-records'], description: 'Every quote sent and booking made, with payments' },
       { label: 'WhatsApp', href: '/admin/whatsapp-chats', icon: 'message', perms: ['whatsapp', 'leads'], description: 'Live WhatsApp inbox' },
       { label: 'AI Planner Chats', href: '/admin/ai-chats', icon: 'bot', perms: ['ai-chats', 'leads'], description: 'Conversations visitors had with the AI trip planner' },
+      { label: 'Planner Activity', href: '/admin/planner-activity', icon: 'sparkles', perms: ['leads'], description: 'Every AI planner search and uploaded itinerary, even without contact details' },
     ],
   },
   {
