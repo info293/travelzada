@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore'
-import { AlertTriangle, Copy, ExternalLink, ImageOff, MapPin, Package, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, Copy, ExternalLink, ImageOff, MapPin, Package, Pencil, Plus, RefreshCw, SearchCheck, Sparkles, Trash2, Upload } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import PackageForm from '@/components/admin/PackageForm'
+import SeoAuditBadge from '@/components/admin/seo/SeoAuditBadge'
+import SeoReviewDrawer from '@/components/admin/seo/SeoReviewDrawer'
+import BulkSeoFixer from '@/components/admin/seo/BulkSeoFixer'
+import { runSeoOptimize } from '@/components/admin/seo/api'
+import { auditCatalog, isDuplicateAudit } from '@/lib/seo/packageAudit'
+import type { OptimizeResult, SeoPatch } from '@/lib/seo/types'
 import ImportPackagesModal from '@/components/admin/catalog/ImportPackagesModal'
 import { ConfirmDialog } from '@/components/admin/catalog/fields'
 import {
@@ -32,7 +38,6 @@ import {
   SearchInput,
   Spinner,
   StatCard,
-  StatRow,
   Table,
   Td,
   Th,
@@ -44,7 +49,7 @@ import {
   toMillis,
 } from '@/components/admin/ui'
 
-type Sort = 'updated' | 'name' | 'price-asc' | 'price-desc'
+type Sort = 'updated' | 'name' | 'price-asc' | 'price-desc' | 'seo'
 type Editor = { draft: PackageDraft; original: PackageDraft | null; destinationId: string; snapshot: string }
 
 const priceOf = (p: PackageDraft) => toNum(p.Price_Min_INR) ?? (Number(String(p.Price_Range_INR || '').replace(/[^0-9]/g, '')) || undefined)
@@ -80,6 +85,14 @@ export default function AdminPackagesPage() {
   const [toast, setToast] = useState('')
   const deepLinkDone = useRef(false)
 
+  // SEO & GEO
+  const [seoFilter, setSeoFilter] = useState<'all' | 'fix' | 'dup'>('all')
+  const [rowFix, setRowFix] = useState<{ pkg: PackageDraft; loading: boolean; error: string; result: OptimizeResult | null } | null>(null)
+  const [savingFix, setSavingFix] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const rowAbort = useRef<AbortController | null>(null)
+
   const load = useCallback(async () => {
     setLoadError('')
     try {
@@ -113,6 +126,55 @@ export default function AdminPackagesPage() {
   }, [packages, destinations])
 
   const suggestions = useMemo(() => computeSuggestions(packages), [packages])
+
+  // ---------- SEO & GEO ----------
+  const audits = useMemo(() => auditCatalog(packages), [packages])
+  const seoGood = useMemo(() => packages.filter((p) => audits.get(p.id!)?.grade === 'good').length, [packages, audits])
+  const seoDup = useMemo(() => packages.filter((p) => isDuplicateAudit(audits.get(p.id!))).length, [packages, audits])
+
+  /** Save AI-rewritten text fields only (never prices, nights, hotels…). */
+  const saveSeoPatch = useCallback(async (p: PackageDraft, patch: SeoPatch) => {
+    if (!p.id || !Object.keys(patch).length) return
+    const payload: Record<string, any> = { ...patch, Last_Updated: new Date().toISOString().split('T')[0] }
+    await updateDoc(doc(db, 'packages', p.id), payload)
+    setPackages((ps) => ps.map((x) => (x.id === p.id ? ({ ...x, ...payload } as PackageDraft) : x)))
+  }, [])
+
+  const aiBusy = bulkBusy || !!rowFix?.loading
+
+  const runRowFix = useCallback(async (p: PackageDraft) => {
+    rowAbort.current?.abort()
+    const ctrl = new AbortController()
+    rowAbort.current = ctrl
+    setRowFix({ pkg: p, loading: true, error: '', result: null })
+    try {
+      const result = await runSeoOptimize(p as Record<string, any>, p.id, ctrl.signal)
+      if (!ctrl.signal.aborted) setRowFix({ pkg: p, loading: false, error: '', result })
+    } catch (e) {
+      if (!ctrl.signal.aborted) setRowFix({ pkg: p, loading: false, error: (e as Error)?.message || 'Something went wrong.', result: null })
+    }
+  }, [])
+
+  const closeRowFix = useCallback(() => {
+    rowAbort.current?.abort()
+    rowAbort.current = null
+    setRowFix(null)
+  }, [])
+
+  const applyRowFix = async (patch: SeoPatch) => {
+    if (!rowFix) return
+    setSavingFix(true)
+    try {
+      await saveSeoPatch(rowFix.pkg, patch)
+      setRowFix(null)
+      setToast('SEO changes saved')
+    } catch (e) {
+      console.error('Error saving SEO changes:', e)
+      setToast('Could not save the SEO changes. Please try again.')
+    } finally {
+      setSavingFix(false)
+    }
+  }
 
   // ---------- editor ----------
   const openEditor = useCallback((draft: PackageDraft, original: PackageDraft | null, destinationId: string) => {
@@ -245,14 +307,17 @@ export default function AdminPackagesPage() {
       if (destFilter !== 'all' && destFilter !== 'none' && d?.id !== destFilter) return false
       if (budget !== 'all' && String(p.Budget_Category || '').trim() !== budget) return false
       if (attention && !packageGaps(p).some((g) => g === 'photo' || g === 'price')) return false
+      if (seoFilter === 'fix' && audits.get(p.id!)?.grade === 'good') return false
+      if (seoFilter === 'dup' && !isDuplicateAudit(audits.get(p.id!))) return false
       if (!q) return true
       return [p.Destination_Name, p.Destination_ID, p.Slug, p.Occasion, p.Travel_Type, d?.name].some((v) => String(v || '').toLowerCase().includes(q))
     })
     if (sort === 'name') list.sort((a, b) => String(a.Destination_Name || '').localeCompare(String(b.Destination_Name || '')))
     if (sort === 'price-asc') list.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity))
     if (sort === 'price-desc') list.sort((a, b) => (priceOf(b) ?? -1) - (priceOf(a) ?? -1))
+    if (sort === 'seo') list.sort((a, b) => (audits.get(a.id!)?.score ?? 100) - (audits.get(b.id!)?.score ?? 100))
     return list
-  }, [packages, destOf, search, destFilter, budget, attention, sort])
+  }, [packages, destOf, search, destFilter, budget, attention, sort, seoFilter, audits])
 
   const sortedDestinations = useMemo(() => [...destinations].sort((a, b) => String(a.name).localeCompare(String(b.name))), [destinations])
   const others = useMemo(() => (editor ? packages.filter((p) => p.id !== editor.draft.id) : packages), [packages, editor])
@@ -268,6 +333,9 @@ export default function AdminPackagesPage() {
   const actions = (p: PackageDraft) => (
     <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
       <IconBtn title="Edit" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></IconBtn>
+      <IconBtn title={aiBusy ? 'AI is busy with another package' : 'Fix SEO & GEO with AI'} onClick={() => !aiBusy && runRowFix(p)}>
+        <Sparkles className={cx('h-4 w-4', aiBusy ? 'opacity-40' : 'text-bordeaux-600')} />
+      </IconBtn>
       <IconBtn title="Duplicate" onClick={() => duplicate(p)}><Copy className="h-4 w-4" /></IconBtn>
       <a href={packageSiteUrl(p)} target="_blank" rel="noreferrer" title="View on site" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800">
         <ExternalLink className="h-4 w-4" />
@@ -284,6 +352,9 @@ export default function AdminPackagesPage() {
         actions={
           <>
             <Button variant="ghost" onClick={() => { setLoading(true); load() }} title="Refresh"><RefreshCw className="h-4 w-4" /></Button>
+            <Button variant="secondary" onClick={() => setBulkOpen(true)} disabled={loading || !!rowFix?.loading} title="Rewrite weak and duplicate package pages for SEO & GEO">
+              <Sparkles className="h-4 w-4 text-bordeaux-600" /> Fix all weak pages with AI
+            </Button>
             <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4" /> Import</Button>
             <Button onClick={openNew}><Plus className="h-4 w-4" /> New package</Button>
           </>
@@ -296,12 +367,20 @@ export default function AdminPackagesPage() {
         <Card><EmptyState title="Something went wrong" description={loadError} action={<Button onClick={() => { setLoading(true); load() }}>Try again</Button>} /></Card>
       ) : (
         <>
-          <StatRow>
-            <StatCard label="Packages" value={packages.length} icon={<Package className="h-5 w-5" />} onClick={() => { setAttention(false); setDestFilter('all'); setBudget('all') }} />
+          <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <StatCard label="Packages" value={packages.length} icon={<Package className="h-5 w-5" />} onClick={() => { setAttention(false); setDestFilter('all'); setBudget('all'); setSeoFilter('all') }} />
+            <StatCard
+              label="SEO health"
+              value={<>{seoGood}<span className="text-base font-semibold text-gray-400">/{packages.length} good</span></>}
+              hint={`${packages.length - seoGood} need fixing · ${seoDup} duplicates`}
+              tone={seoGood === packages.length ? 'green' : seoDup ? 'red' : 'amber'}
+              icon={<SearchCheck className="h-5 w-5" />}
+              onClick={() => { setSeoFilter('fix'); setSort('seo') }}
+            />
             <StatCard label="Updated in 30 days" value={recentlyUpdated} tone="blue" icon={<RefreshCw className="h-5 w-5" />} onClick={() => setSort('updated')} />
             <StatCard label="Missing photo or price" value={needsAttention} tone={needsAttention ? 'amber' : 'green'} icon={<AlertTriangle className="h-5 w-5" />} onClick={() => setAttention(true)} />
             <StatCard label="Not on a destination" value={unassigned} tone={unassigned ? 'amber' : 'green'} icon={<MapPin className="h-5 w-5" />} onClick={() => setDestFilter('none')} />
-          </StatRow>
+          </div>
 
           <Toolbar>
             <SearchInput value={search} onChange={setSearch} placeholder="Search name, code, occasion…" className="md:w-80" />
@@ -316,12 +395,23 @@ export default function AdminPackagesPage() {
                 <option value="name">Name A–Z</option>
                 <option value="price-asc">Price: low to high</option>
                 <option value="price-desc">Price: high to low</option>
+                <option value="seo">SEO score: worst first</option>
               </select>
             </div>
           </Toolbar>
 
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <FilterChips options={budgetOptions} value={budget} onChange={setBudget} />
+            <span className="mx-1 hidden h-5 w-px bg-gray-200 sm:block" />
+            <FilterChips
+              options={[
+                { value: 'all', label: 'Any SEO' },
+                { value: 'fix', label: 'SEO: needs fixing', count: packages.length - seoGood },
+                { value: 'dup', label: 'SEO: duplicates', count: seoDup },
+              ]}
+              value={seoFilter}
+              onChange={setSeoFilter}
+            />
             {attention && (
               <button type="button" onClick={() => setAttention(false)} className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
                 Missing photo or price ✕
@@ -335,7 +425,7 @@ export default function AdminPackagesPage() {
                 icon={<Package className="h-6 w-6" />}
                 title={packages.length ? 'No packages match' : 'No packages yet'}
                 description={packages.length ? 'Try a different search or clear the filters.' : 'Create your first package or import a spreadsheet.'}
-                action={packages.length ? <Button variant="secondary" onClick={() => { setSearch(''); setDestFilter('all'); setBudget('all'); setAttention(false) }}>Clear filters</Button> : <Button onClick={openNew}><Plus className="h-4 w-4" /> New package</Button>}
+                action={packages.length ? <Button variant="secondary" onClick={() => { setSearch(''); setDestFilter('all'); setBudget('all'); setAttention(false); setSeoFilter('all') }}>Clear filters</Button> : <Button onClick={openNew}><Plus className="h-4 w-4" /> New package</Button>}
               />
             ) : (
               <>
@@ -349,6 +439,7 @@ export default function AdminPackagesPage() {
                         <Th>Duration</Th>
                         <Th>Price from</Th>
                         <Th>Tags</Th>
+                        <Th onClick={() => setSort('seo')}>SEO</Th>
                         <Th>Updated</Th>
                         <Th className="text-right">Actions</Th>
                       </tr>
@@ -379,6 +470,7 @@ export default function AdminPackagesPage() {
                                 {gaps.includes('photo') && <Badge tone="amber">No photo</Badge>}
                               </div>
                             </Td>
+                            <Td><SeoAuditBadge audit={audits.get(p.id!)} onFix={() => runRowFix(p)} fixDisabled={aiBusy} /></Td>
                             <Td className="whitespace-nowrap text-xs text-gray-500">{timeAgo(p.Last_Updated)}</Td>
                             <Td>{actions(p)}</Td>
                           </tr>
@@ -397,7 +489,10 @@ export default function AdminPackagesPage() {
                       <li key={p.id} onClick={() => openEdit(p)} className="flex gap-3 p-3 active:bg-gray-50">
                         <Thumb url={p.Primary_Image_URL} size="lg" />
                         <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm font-semibold text-gray-900">{p.Destination_Name || 'Untitled'}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="line-clamp-2 text-sm font-semibold text-gray-900">{p.Destination_Name || 'Untitled'}</p>
+                            <SeoAuditBadge audit={audits.get(p.id!)} onFix={() => runRowFix(p)} fixDisabled={aiBusy} />
+                          </div>
                           <p className="mt-0.5 text-xs text-gray-500">
                             {[d?.name, p.Duration, price ? formatINR(price) : null].filter(Boolean).join(' · ')}
                           </p>
@@ -451,6 +546,29 @@ export default function AdminPackagesPage() {
             />
         )}
       </Drawer>
+
+      <SeoReviewDrawer
+        open={!!rowFix}
+        title={rowFix ? `SEO & GEO — ${rowFix.pkg.Destination_Name || 'Package'}` : undefined}
+        loading={rowFix?.loading}
+        error={rowFix?.error}
+        result={rowFix?.result || null}
+        before={(rowFix?.pkg as Record<string, any>) || {}}
+        applyLabel="Apply & save"
+        applying={savingFix}
+        onApply={applyRowFix}
+        onRetry={() => rowFix && runRowFix(rowFix.pkg)}
+        onClose={closeRowFix}
+      />
+
+      <BulkSeoFixer
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        packages={packages as Array<Record<string, any>>}
+        audits={audits}
+        onSave={(p, patch) => saveSeoPatch(p as PackageDraft, patch)}
+        onBusyChange={setBulkBusy}
+      />
 
       <ImportPackagesModal open={importOpen} onClose={() => setImportOpen(false)} existing={packages} userEmail={currentUser?.email} onImported={load} />
 

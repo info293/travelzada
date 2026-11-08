@@ -334,8 +334,13 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
   }
 
   // Extract image URL from Primary_Image_URL (handle markdown format)
-  const galleryImages = [
-    (packageData.Primary_Image_URL ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim() : 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85'),
+  // Package's own gallery (set in Admin → Packages, e.g. AI-generated images); generic photos only as a fallback
+  const ownGallery: string[] = Array.isArray((packageData as any).Gallery_Images)
+    ? (packageData as any).Gallery_Images.map((u: unknown) => String(u || '').trim()).filter(Boolean)
+    : []
+  const primaryImage = packageData.Primary_Image_URL ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim() : ''
+  const galleryImages = ownGallery.length ? [primaryImage, ...ownGallery.filter((u) => u !== primaryImage)].filter(Boolean) : [
+    (primaryImage || 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85'),
     'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85',
     'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=85',
     'https://images.unsplash.com/photo-1548013146-72479768bada?w=1600&q=85',
@@ -455,10 +460,10 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
             day: `Day ${dayNum}`,
             title: title,
             description: index === 0
-              ? `Arrive in ${packageData.Destination_Name || 'Bali'} and check into your hotel. ${packageData.Overview || ''}`
+              ? `Arrive in ${packageData.Destination_Name || 'your destination'} and check into your hotel.`
               : index === itineraryItems.length - 1
-                ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
-                : `Enjoy ${title.toLowerCase()} in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
+                ? `Final day in ${packageData.Destination_Name || 'your destination'}. Check out and depart with wonderful memories.`
+                : `Enjoy ${title.toLowerCase()} in ${packageData.Destination_Name || 'your destination'}.`,
             details: index === 0
               ? ['Airport pickup', 'Hotel check-in', 'Welcome briefing']
               : index === itineraryItems.length - 1
@@ -470,7 +475,7 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
           return {
             day: `Day ${index + 1}`,
             title: item.replace(/^Day\s*\d+:\s*/i, '').trim() || `Day ${index + 1} Activities`,
-            description: packageData.Overview || `Experience the beauty of ${packageData.Destination_Name}`,
+            description: `Experience the beauty of ${packageData.Destination_Name || 'your destination'}.`,
             details: inclusions.slice(0, 3)
           }
         }
@@ -484,10 +489,10 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
         day: `Day ${i}`,
         title: i === 1 ? 'Arrival & Check-in' : i === days ? 'Departure' : `Day ${i} Activities`,
         description: i === 1
-          ? `Arrive in ${packageData.Destination_Name || 'Bali'} and check into your hotel. ${packageData.Overview || ''}`
+          ? `Arrive in ${packageData.Destination_Name || 'your destination'} and check into your hotel.`
           : i === days
-            ? `Final day in ${packageData.Destination_Name || 'Bali'}. Check out and depart with wonderful memories.`
-            : `Enjoy your stay in ${packageData.Destination_Name || 'Bali'}. ${packageData.Overview || ''}`,
+            ? `Final day in ${packageData.Destination_Name || 'your destination'}. Check out and depart with wonderful memories.`
+            : `Enjoy your stay in ${packageData.Destination_Name || 'your destination'}.`,
         details: i === 1
           ? ['Airport pickup', 'Hotel check-in', 'Welcome briefing']
           : i === days

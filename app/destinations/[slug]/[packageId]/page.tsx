@@ -15,11 +15,16 @@ interface PageProps {
   params: { slug: string; packageId: string }
 }
 
-const DEFAULT_FAQ_ITEMS = [
-  { question: 'What is the best time to visit Bali?', answer: 'The dry season from April to October offers sunny skies, calm waters and fewer showers—perfect for sightseeing and water adventures.' },
-  { question: 'Do I need a visa for Bali?', answer: 'Indian passport holders can obtain a visa on arrival for tourist travel up to 30 days. Carry a return ticket and proof of accommodation.' },
-  { question: 'Can I customize the itinerary?', answer: 'Absolutely. Our destination experts can tweak hotel categories, add private experiences or extend nights on request.' }
-];
+/** Fallback FAQs for a package with none of its own — built from the package itself, never destination-specific claims */
+function defaultFaqItems(p: any) {
+  const name = p?.Destination_Name || 'this trip'
+  const duration = p?.Duration || (p?.Duration_Nights ? `${p.Duration_Nights} nights` : '')
+  return [
+    { question: `How long is ${name}?`, answer: duration ? `${name} is a ${duration} trip. We can add or remove nights on request.` : `We can plan ${name} for the number of nights you prefer.` },
+    { question: 'What hotels are included?', answer: p?.Star_Category ? `The package uses ${p.Star_Category} hotels${p?.Meal_Plan ? ` with ${p.Meal_Plan}` : ''}. You can upgrade on request.` : 'Hotel options are shared with your quote and can be upgraded on request.' },
+    { question: 'Can I customize the itinerary?', answer: 'Yes. Our travel designers can change hotels, add private experiences or extend nights on request.' },
+  ]
+}
 
 const DEFAULT_GUEST_REVIEWS = [
     { name: 'Anjali Mehta', content: 'Best vacation ever...', date: '14 November 2025', rating: '5/5' },
@@ -111,19 +116,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? packageData.Primary_Image_URL.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$2').trim()
     : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80'
     
+  // Use the package's own SEO fields (set in Admin → Packages); fall back to name / overview.
+  const seoTitle = String(packageData.SEO_Title || '').trim() || `${packageTitle} - Travelzada`
+  const seoDescription =
+    String(packageData.SEO_Description || '').trim() ||
+    String(packageData.Overview || '').trim().slice(0, 160) ||
+    `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`
+  // Canonical = the one URL this package is served on (other slugs 301-redirect there)
+  const canonicalPath = `/destinations/${getCanonicalDestinationSlug(packageData, decodeURIComponent(params.slug))}/${packageData.Slug || params.packageId}`
+
   return {
-    title: `${packageTitle} - Travelzada`,
-    description: packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`,
+    title: seoTitle,
+    description: seoDescription,
+    alternates: { canonical: canonicalPath },
+    ...(packageData.SEO_Keywords ? { keywords: String(packageData.SEO_Keywords) } : {}),
     openGraph: {
-      title: `${packageTitle} - Travelzada`,
-      description: packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`,
-      images: [imageUrl],
+      title: seoTitle,
+      description: seoDescription,
+      url: canonicalPath,
+      images: [{ url: imageUrl, alt: String(packageData.Image_Alt_Text || packageTitle) }],
       type: 'article',
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${packageTitle} - Travelzada`,
-      description: packageData.Overview || `Explore ${packageTitle} with Travelzada. Book your dream vacation today!`,
+      title: seoTitle,
+      description: seoDescription,
       images: [imageUrl],
     }
   }
@@ -157,8 +174,9 @@ export default async function PackagePage({ params }: PageProps) {
   
   const itineraryData = Array.isArray(packageData.Day_Wise_Itinerary_Details) 
     ? packageData.Day_Wise_Itinerary_Details.map((day: any) => ({
-        dayTitle: day.Title || day.Day_Title || day.Headline || 'Day',
-        description: day.Description || day.Activities || day.Summary || 'Activities planned for the day'
+        // Admin saves lowercase keys ({ day, title, description, activities }); older imports used capitalised ones
+        dayTitle: day.title || day.Title || day.Day_Title || day.Headline || `Day ${day.day || ''}`.trim(),
+        description: day.description || day.Description || (Array.isArray(day.activities) ? day.activities.join(', ') : '') || day.Activities || day.Summary || ''
       })).filter((day: any) => day.dayTitle && day.description)
     : undefined;
 
@@ -202,7 +220,7 @@ export default async function PackagePage({ params }: PageProps) {
     { name: packageTitle, url: packageUrl },
   ], `${packageUrl}#breadcrumb`)
 
-  const faqs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0 ? packageData.FAQ_Items : DEFAULT_FAQ_ITEMS
+  const faqs = packageData.FAQ_Items && packageData.FAQ_Items.length > 0 ? packageData.FAQ_Items : defaultFaqItems(packageData)
   const faqSchema = generateFAQSchema(faqs)
 
   return (

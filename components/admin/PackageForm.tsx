@@ -38,6 +38,9 @@ import {
   type TagSuggestions,
 } from './catalog/packageUtils'
 import type { DestinationRecord, FaqItem, GuestReview, ItineraryDay, PackageDraft, WhyBookItem } from './catalog/types'
+import AiCreatePanel, { AiDraftBanner, type AiCreateResponse } from './catalog/ai/AiCreatePanel'
+import { AiImagesPanel, GalleryEditor } from './catalog/ai/AiImagesPanel'
+import SeoFixButton from '@/components/admin/seo/SeoFixButton'
 
 type TabId = 'basics' | 'details' | 'tags' | 'extras' | 'seo'
 const TABS: Array<{ id: TabId; label: string; icon: typeof Sparkles }> = [
@@ -90,6 +93,7 @@ export default function PackageForm({
 }: PackageFormProps) {
   const [tab, setTab] = useState<TabId>('basics')
   const [errors, setErrors] = useState<FormErrors>({})
+  const [aiResult, setAiResult] = useState<AiCreateResponse | null>(null)
   const isNew = !editingPackage?.id
   const f = formData
 
@@ -140,6 +144,15 @@ export default function PackageForm({
     onSubmit(e)
   }
 
+  /** Fill the form with an AI draft (keeps any photo already added). Not saved until the admin clicks Create. */
+  const applyAiDraft = (res: AiCreateResponse) => {
+    const { Gallery_Images, ...draft } = res.draft
+    set({ ...draft, ...(Array.isArray(f.Gallery_Images) && f.Gallery_Images.length ? {} : { Gallery_Images: Gallery_Images || [] }) })
+    if (res.destinationId && res.destinationId !== destinationId) onDestinationChange?.(res.destinationId)
+    setErrors({})
+    setAiResult(res)
+  }
+
   const setDays = (rows: ItineraryDay[]) => set({ Day_Wise_Itinerary_Details: rows.map((r, i) => ({ ...r, day: i + 1 })) })
   const hasErrors = Object.keys(errors).length > 0
   const seoTitleSuggestion = suggestSeoTitle(f)
@@ -173,9 +186,20 @@ export default function PackageForm({
       </div>
 
       <div className="flex-1 space-y-6 pb-6">
+        {!isNew && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+            <span className="text-xs text-gray-600">Make this page unique for Google (rewrites duplicate wording, fills SEO fields).</span>
+            <SeoFixButton draft={f as Record<string, any>} packageId={editingPackage?.id} onApply={(patch) => set(patch as PackageDraft)} />
+          </div>
+        )}
+        {aiResult && <AiDraftBanner res={aiResult} onDismiss={() => setAiResult(null)} />}
+
         {/* ---------------- BASICS ---------------- */}
         {tab === 'basics' && (
           <>
+            {isNew && !aiResult && (
+              <AiCreatePanel destinations={destinations} otherPackages={otherPackages} destinationId={destinationId} onDraft={applyAiDraft} />
+            )}
             <FormField label="Package name" required error={errors.Destination_Name} hint="The title customers see, e.g. “Romantic Bali Escape with Private Pool Villa”.">
               <input value={str('Destination_Name')} onChange={(e) => set({ Destination_Name: e.target.value })} className={errorInput(errors.Destination_Name)} placeholder="Romantic Bali Escape" autoFocus={isNew} />
             </FormField>
@@ -246,6 +270,9 @@ export default function PackageForm({
                 <span className="mt-1 flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />{errors.Primary_Image_URL}</span>
               )}
             </div>
+
+            <AiImagesPanel draft={f} onChange={set} />
+            <GalleryEditor draft={f} onChange={set} />
           </>
         )}
 

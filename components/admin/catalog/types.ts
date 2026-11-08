@@ -48,6 +48,8 @@ export interface PackageRecord {
   Price_Min_INR: number
   Price_Max_INR: number
   Primary_Image_URL: string
+  /** Extra photos for the package page gallery (the main photo is always shown first). */
+  Gallery_Images: string[]
   Image_Alt_Text: string
   Meta_Image_URL: string
   Mood: string

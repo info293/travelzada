@@ -313,8 +313,8 @@ export function buildPackagePayload(
   ;(['Inclusions', 'Exclusions'] as const).forEach((k) => {
     if (Array.isArray(p[k])) {
       const items = p[k].map((x: string) => String(x).trim()).filter(Boolean)
-      // The site accepts arrays or comma-strings; keep the original shape.
-      p[k] = Array.isArray(opts.original?.[k]) ? items : items.join(', ')
+      // The site accepts arrays or comma-strings; keep the original shape (new packages: arrays, so items may contain commas).
+      p[k] = opts.isNew || Array.isArray(opts.original?.[k]) ? items : items.join(', ')
     }
   })
   ;(['Guest_Reviews', 'FAQ_Items', 'Why_Book_With_Us'] as const).forEach((k) => {
@@ -330,6 +330,7 @@ export function buildPackagePayload(
   }
 
   // Images & SEO defaults
+  if (p.Gallery_Images !== undefined) p.Gallery_Images = cleanGallery(p.Gallery_Images)
   if (p.Primary_Image_URL && !String(p.Meta_Image_URL || '').trim()) p.Meta_Image_URL = p.Primary_Image_URL
   if (opts.isNew && !String(p.Slug || '').trim()) p.Slug = slugify(p.Destination_Name)
   if (!String(p.SEO_Title || '').trim()) p.SEO_Title = suggestSeoTitle(draft)
@@ -343,6 +344,29 @@ export function buildPackagePayload(
     if (p[k] === undefined || k.startsWith('_')) delete p[k]
   })
   return p
+}
+
+/** Gallery URLs as saved: trimmed, http(s) only, no duplicates. */
+export function cleanGallery(v: unknown): string[] {
+  const list = Array.isArray(v) ? v : splitList(v, /\r?\n/)
+  const out: string[] = []
+  list.forEach((u) => {
+    const url = packageImage(String(u ?? ''))
+    if (/^https?:\/\//i.test(url) && !out.includes(url)) out.push(url)
+  })
+  return out
+}
+
+/** `base` made unique against every package's Slug (adds -2, -3 …). */
+export function uniqueSlug(base: string, pkgs: Array<Pick<PackageDraft, 'id' | 'Slug'>>, selfId?: string): string {
+  const root = slugify(base) || 'package'
+  const taken = new Set(pkgs.filter((p) => !selfId || p.id !== selfId).map((p) => String(p.Slug || '').toLowerCase()).filter(Boolean))
+  if (!taken.has(root)) return root
+  for (let i = 2; i < 500; i++) {
+    const s = `${root.slice(0, 76)}-${i}`
+    if (!taken.has(s)) return s
+  }
+  return `${root.slice(0, 70)}-${Date.now().toString(36)}`
 }
 
 export function suggestSeoTitle(p: PackageDraft) {
