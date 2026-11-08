@@ -1,41 +1,46 @@
+import Link from 'next/link'
+import { ArrowRight, FileSearch } from 'lucide-react'
 import Header from '@/components/Header'
 import Footer from '@/components/Footer'
-import TailoredItineraryWizard from '@/components/tailored-travel/TailoredItineraryWizard'
+import TripGame from '@/components/tailored-travel/game/TripGame'
 import SmartSearch from '@/components/tailored-travel/smart/SmartSearch'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
     title: 'AI Trip Planner for Couples | Travelzada',
     description:
-        'Describe your honeymoon, anniversary or birthday trip in one line and get hand-picked romantic packages for Bali, Kashmir, Andaman, Thailand, Kerala and more — with honest prices per person.',
+        'Find your perfect honeymoon, anniversary or birthday trip in 60 seconds — a few fun taps and we reveal the one romantic package made for you two, for Bali, Kashmir, Andaman, Thailand, Kerala and more.',
 }
 
 export default function TailoredTravelPage() {
     return (
         <main className="min-h-screen flex flex-col pt-16 md:pt-24 relative overflow-x-hidden bg-gray-50">
-            {/* Soft Light Background */}
-            <div className="absolute inset-0 pointer-events-none -z-10">
-                <img
-                    src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop"
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover opacity-10"
-                />
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]"></div>
-            </div>
-
             <Header />
 
-            {/* Hero: describe your trip in one line */}
-            <SmartSearch />
+            {/* Hero: the "find your perfect trip" game */}
+            <TripGame />
 
-            {/* Step-by-step planner */}
-            <section id="plan-step-by-step" className="scroll-mt-24 pt-12 sm:pt-16 pb-16 flex-1 flex flex-col">
-                <div className="text-center px-4 mb-4 sm:mb-6">
-                    <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900">Prefer to plan step by step?</h2>
-                    <p className="mt-1 text-sm sm:text-base text-gray-600">Pick a place, your nights and budget — we'll match the best trips.</p>
-                </div>
-                <TailoredItineraryWizard />
-            </section>
+            {/* Prefer to type? */}
+            <div className="pt-12 sm:pt-16">
+                <SmartSearch />
+            </div>
+
+            {/* Compare another agent's itinerary */}
+            <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-16">
+                <Link
+                    href="/tailored-travel/compare"
+                    className="group flex items-center gap-4 rounded-3xl bg-gradient-to-r from-bordeaux-700 to-bordeaux-500 p-5 sm:p-6 text-white shadow-xl shadow-bordeaux-900/10 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-bordeaux-300"
+                >
+                    <span className="shrink-0 w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center">
+                        <FileSearch className="w-6 h-6" />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                        <span className="block font-semibold text-base sm:text-lg">Got an itinerary from another travel agent?</span>
+                        <span className="block text-sm text-white/85 mt-0.5">Upload it — we&apos;ll show what&apos;s included and match it.</span>
+                    </span>
+                    <ArrowRight className="w-5 h-5 shrink-0 group-hover:translate-x-1 transition-transform" />
+                </Link>
+            </div>
 
             <Footer />
         </main>

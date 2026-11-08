@@ -2,7 +2,7 @@
  * POST /api/planner/lead — "Get this plan on WhatsApp" from the AI Planner (smart search + wizard results).
  *
  * Body: { name, phone, email?, travelDate?, packageId?, packageName?, prefs?, query?, activityId?, sessionId?,
- *         shownMatches?: [{id,name,score}], source: 'AI Planner' | 'AI Planner – Smart search', honeypot?, startedAt? }
+ *         shownMatches?: [{id,name,score}], source: 'AI Planner' | 'AI Planner – Smart search' | 'AI Planner – Game', honeypot?, startedAt? }
  * Reply: { ok: true, leadId } | { error } (400 invalid / 429 too many)
  */
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,7 @@ import { isRateLimited, isSpamLead } from '@/lib/spamGuard'
 import { buildLeadNotificationEmail, sendMail } from '@/lib/mailer'
 import { sanitisePrefs, understoodLine } from '../../tailored-travel/_lib/plannerServer'
 
-const SOURCES = ['AI Planner', 'AI Planner – Smart search'] as const
+const SOURCES = ['AI Planner', 'AI Planner – Smart search', 'AI Planner – Game'] as const
 
 const str = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max)
 

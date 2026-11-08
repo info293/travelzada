@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowDown, ArrowRight, FileSearch, Loader2, Search, Sparkles, X } from 'lucide-react'
+import { Loader2, Search, Sparkles, X } from 'lucide-react'
 import { HONEYPOT_FIELD } from '@/lib/spamGuard'
-import MatchCard from './MatchCard'
+import MatchReveal from '../game/MatchReveal'
 import LeadSheet from './LeadSheet'
 import { getPlannerSessionId, shortINR, type PlannerMatch, type PlannerPrefs } from './shared'
 
@@ -39,7 +38,6 @@ export default function SmartSearch() {
   const [query, setQuery] = useState('')
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [loadingIdx, setLoadingIdx] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<SearchResponse | null>(null)
   const [lastQuery, setLastQuery] = useState('')
@@ -47,19 +45,13 @@ export default function SmartSearch() {
   const [leadPkg, setLeadPkg] = useState<PlannerMatch | null>(null)
   const [leadOpen, setLeadOpen] = useState(false)
   const resultsRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (query) return
     const t = setInterval(() => setPlaceholderIdx((i) => (i + 1) % PLACEHOLDERS.length), 3200)
     return () => clearInterval(t)
   }, [query])
-
-  useEffect(() => {
-    if (!loading) return
-    setLoadingIdx(0)
-    const t = setInterval(() => setLoadingIdx((i) => (i + 1) % LOADING_LINES.length), 1600)
-    return () => clearInterval(t)
-  }, [loading])
 
   const run = async (opts: { q?: string; prefs?: PlannerPrefs }) => {
     const q = (opts.q ?? lastQuery).trim()
@@ -103,26 +95,31 @@ export default function SmartSearch() {
   }
 
   const prefs = data?.prefs || {}
-  const top = data?.results.slice(0, 3) || []
-  const more = data?.results.slice(3) || []
+  const closeLead = useCallback(() => setLeadOpen(false), [])
+
+  const focusSearch = () => {
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }
 
   return (
-    <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-4 sm:pt-8">
-      {/* ── Hero ── */}
+    <section id="describe-your-trip" className="w-full max-w-6xl mx-auto px-4 sm:px-6 scroll-mt-24">
+      {/* ── Heading ── */}
       <div className="text-center max-w-3xl mx-auto">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-bordeaux-50 text-bordeaux-700 text-xs font-semibold px-3 py-1">
-          <Sparkles className="w-3.5 h-3.5" /> AI Trip Planner for couples
+          <Sparkles className="w-3.5 h-3.5" /> Prefer to type?
         </span>
-        <h1 className="mt-3 text-3xl sm:text-5xl font-semibold tracking-tight text-gray-900">
-          Describe your dream trip. <span className="text-bordeaux-600">We'll find it.</span>
-        </h1>
-        <p className="mt-2 text-gray-600 text-sm sm:text-base">Write it the way you'd tell a friend — place, month, nights, budget, occasion.</p>
+        <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900">
+          Describe your trip. <span className="text-bordeaux-600">We&apos;ll find the one.</span>
+        </h2>
+        <p className="mt-1.5 text-gray-600 text-sm sm:text-base">Write it the way you&apos;d tell a friend — place, month, nights, budget, occasion.</p>
       </div>
 
       <form onSubmit={onSubmit} className="mt-6 max-w-3xl mx-auto">
         <div className="relative flex items-center rounded-2xl sm:rounded-full bg-white border-2 border-gray-200 focus-within:border-bordeaux-400 focus-within:ring-4 focus-within:ring-bordeaux-50 shadow-lg shadow-gray-200/60 transition">
           <Search className="absolute left-4 w-5 h-5 text-gray-400 pointer-events-none" />
           <input
+            ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={PLACEHOLDERS[placeholderIdx]}
@@ -172,33 +169,12 @@ export default function SmartSearch() {
         ))}
       </div>
 
-      <div className="mt-4 text-center">
-        <a href="#plan-step-by-step" className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-bordeaux-700">
-          or plan step by step <ArrowDown className="w-4 h-4" />
-        </a>
-      </div>
-
       {/* ── Results ── */}
       <div ref={resultsRef} className="scroll-mt-24">
         <AnimatePresence mode="wait">
           {loading ? (
-            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-8">
-              <p className="text-center text-bordeaux-700 font-medium flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> {LOADING_LINES[loadingIdx]}
-              </p>
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className={`rounded-3xl bg-white border border-gray-200 overflow-hidden ${i > 0 ? 'hidden sm:block' : ''}`}>
-                    <div className="aspect-[16/10] bg-gray-100 animate-pulse" />
-                    <div className="p-4 space-y-2.5">
-                      <div className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />
-                      <div className="h-6 w-1/2 bg-gray-100 rounded animate-pulse" />
-                      <div className="h-3 w-full bg-gray-100 rounded animate-pulse" />
-                      <div className="h-3 w-4/5 bg-gray-100 rounded animate-pulse" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-6">
+              <MatchReveal loading results={null} onLead={openLead} tone="light" lines={LOADING_LINES} holdShuffle />
             </motion.div>
           ) : error ? (
             <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 max-w-xl mx-auto text-center rounded-2xl bg-white border border-gray-200 p-6">
@@ -247,62 +223,33 @@ export default function SmartSearch() {
                 </div>
               </div>
 
-              {data.results.length === 0 ? (
-                <div className="mt-6 text-center rounded-2xl bg-white border border-gray-200 p-8">
-                  <p className="text-gray-900 font-semibold">No trips match that yet.</p>
-                  <p className="text-gray-600 text-sm mt-1">Tell us what you want and a trip expert will build it for you.</p>
-                  <button onClick={() => openLead(null)} className="mt-4 rounded-xl bg-bordeaux-600 text-white font-semibold px-5 py-2.5">
-                    Get a custom plan on WhatsApp
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {top.map((p, i) => (
-                      <MatchCard key={p.id} pkg={p} rank={i} adults={prefs.adults} onLead={openLead} />
-                    ))}
-                  </div>
-                  {more.length > 0 && (
-                    <div className="mt-8">
-                      <h3 className="text-base font-semibold text-gray-900">More options for you</h3>
-                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {more.map((p, i) => (
-                          <MatchCard key={p.id} pkg={p} rank={i + 3} adults={prefs.adults} onLead={openLead} compact />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <p className="mt-6 text-center text-sm text-gray-600">
-                    Not quite right?{' '}
-                    <button onClick={() => openLead(null)} className="font-semibold text-bordeaux-600 hover:underline">
-                      Ask a trip expert to customise it
-                    </button>
-                  </p>
-                </>
-              )}
+              <div className="mt-6">
+                <MatchReveal
+                  loading={false}
+                  results={data.results}
+                  adults={prefs.adults}
+                  onLead={openLead}
+                  maxOptions={data.results.length}
+                  minShuffleMs={0}
+                  tone="light"
+                  changeLabel="Try a different search"
+                  onChangeAnswers={focusSearch}
+                />
+              </div>
+              <p className="mt-6 text-center text-sm text-gray-600">
+                Not quite right?{' '}
+                <button onClick={() => openLead(null)} className="font-semibold text-bordeaux-600 hover:underline">
+                  Ask a trip expert to customise it
+                </button>
+              </p>
             </motion.div>
           ) : null}
         </AnimatePresence>
       </div>
 
-      {/* ── Compare another agent's itinerary ── */}
-      <Link
-        href="/tailored-travel/compare"
-        className="group mt-8 sm:mt-10 flex items-center gap-4 rounded-3xl bg-gradient-to-r from-bordeaux-700 to-bordeaux-500 p-5 sm:p-6 text-white shadow-xl shadow-bordeaux-900/10"
-      >
-        <span className="shrink-0 w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center">
-          <FileSearch className="w-6 h-6" />
-        </span>
-        <span className="flex-1 min-w-0">
-          <span className="block font-semibold text-base sm:text-lg">Got an itinerary from another travel agent?</span>
-          <span className="block text-sm text-white/85 mt-0.5">Upload it — we'll show what's included and match it.</span>
-        </span>
-        <ArrowRight className="w-5 h-5 shrink-0 group-hover:translate-x-1 transition-transform" />
-      </Link>
-
       <LeadSheet
         open={leadOpen}
-        onClose={() => setLeadOpen(false)}
+        onClose={closeLead}
         pkg={leadPkg}
         prefs={data?.prefs}
         query={lastQuery}

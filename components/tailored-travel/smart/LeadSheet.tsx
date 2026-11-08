@@ -22,7 +22,7 @@ interface LeadSheetProps {
   query?: string
   activityId?: string | null
   shownMatches?: Array<{ id: string; name: string; score: number }>
-  source: 'AI Planner' | 'AI Planner – Smart search'
+  source: 'AI Planner' | 'AI Planner – Smart search' | 'AI Planner – Game'
 }
 
 /** Bottom sheet (mobile) / centred card (desktop): name + phone (+ optional date) → lead → WhatsApp */
