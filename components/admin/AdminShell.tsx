@@ -10,7 +10,7 @@ import {
   LogOut, ExternalLink, Lock, Loader2, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { NAV_GROUPS, canAccessItem, findNavGroup, findNavItem, type IconName, type NavItem } from '@/lib/admin/nav'
+import { NAV_GROUPS, canAccessItem, canAccessSubPage, findNavGroup, findNavItem, findSubPage, type IconName, type NavItem } from '@/lib/admin/nav'
 import { cx } from './ui'
 
 const ICONS: Record<IconName, React.ComponentType<{ className?: string }>> = {
@@ -43,7 +43,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const currentItem = findNavItem(pathname)
   const currentGroup = findNavGroup(pathname)
   const groupTabs = currentGroup ? currentGroup.items.filter((i) => canAccessItem(i, isAdmin, permissions)) : []
-  const allowedHere = !currentItem || canAccessItem(currentItem, isAdmin, permissions)
+  const currentSub = findSubPage(pathname)
+  const subTabs = (currentItem?.subPages || []).filter((p) => canAccessSubPage(p, isAdmin, permissions))
+  const allowedHere =
+    !currentItem || (canAccessItem(currentItem, isAdmin, permissions) && (!currentSub || canAccessSubPage(currentSub, isAdmin, permissions)))
 
   // Not logged in → login page
   useEffect(() => {
@@ -200,6 +203,27 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                     )}
                   >
                     <NavIcon name={t.icon} className="w-4 h-4" />
+                    {t.label}
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+          {/* Tabs inside the current page (e.g. Website Leads → Leads / Contact Messages / Planner Activity) */}
+          {subTabs.length > 1 && (
+            <div className="px-4 lg:px-8 py-2 flex gap-1.5 overflow-x-auto no-scrollbar bg-gray-50/80 border-t border-gray-100">
+              {subTabs.map((t) => {
+                const active = currentSub?.href === t.href
+                return (
+                  <Link
+                    key={t.href}
+                    href={t.href}
+                    className={cx(
+                      'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors',
+                      active ? 'bg-bordeaux-600 text-white border-bordeaux-600' : 'bg-white text-gray-600 border-gray-200 hover:border-bordeaux-300',
+                    )}
+                  >
+                    <NavIcon name={t.icon} className="w-3.5 h-3.5" />
                     {t.label}
                   </Link>
                 )

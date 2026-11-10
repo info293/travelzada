@@ -14,11 +14,11 @@ The admin lives at **/admin**. Log in with your Travelzada account. The left men
 
 | Role | Who it's for | Pages they see |
 |---|---|---|
-| **Admin** | Owner / founders | Everything, plus Travel Agents and changing other people's access |
-| **Sales Executive** | People who call and close leads | Overview, Meta Leads, Website Leads, Contact Messages, Customers, WhatsApp, AI Planner Chats, Planner Activity, Create Quote PDF, Gift Vouchers |
+| **Admin** | Owner / founders | Everything, plus Travel Agents, AI Planner Chats and changing other people's access |
+| **Sales Executive** | People who call and close leads | Overview, Meta Leads, Website Leads (Leads · Contact Messages · Planner Activity), Customers, WhatsApp, Create Quote PDF, Sent Quotes, Gift Vouchers |
 | **Sales Manager** | Team lead for sales | Everything Sales has + Packages, Destinations, AI Package Writer, Vendors |
 | **Content & SEO** | Blog writers, website editors | Overview, Packages, Destinations, Blogs, Authors, Testimonials, Newsletter, AI Package Writer |
-| **Operations** | People who handle confirmed trips | Overview, Customers, Packages, Vendors, Gift Vouchers |
+| **Operations** | People who handle confirmed trips | Overview, Customers, Sent Quotes, Packages, Vendors, Gift Vouchers |
 | **HR / Hiring** | Hiring | Overview, Job Openings, Applications |
 
 An admin can also tick/untick single pages for a person ("customised" role).
@@ -38,15 +38,19 @@ To remove access: open the person → **Remove all access**. You cannot remove y
 | Section | Pages inside | Use it for |
 |---|---|---|
 | **Overview** | Overview | Today's numbers, leads to call first, overdue follow-ups, upcoming trips |
-| **Sales & CRM** | Meta Leads · Website Leads · Contact Messages · Customers · WhatsApp · AI Planner Chats · Planner Activity | Every enquiry in one place, and every customer after they get a quote |
-| **Quotes & Itineraries** | Create Quote PDF · AI Package Writer | Making the PDF you send to a customer; drafting new packages with AI |
-| **Packages & Destinations** | Packages · Destinations | What the website sells |
+| **Sales & CRM** | Meta Leads · Website Leads · Customers · WhatsApp · AI Planner Chats (admins only) | Every enquiry in one place, and every customer once they have booked |
+| **Quotes & Itineraries** | Create Quote PDF · Sent Quotes | Making the PDF you send to a customer; following up every quote until it is booked or lost |
+| **Packages & Destinations** | Packages · Destinations · AI Package Writer | What the website sells; drafting new packages with AI |
 | **Content & Marketing** | Blogs · Authors · Testimonials · Newsletter | SEO content, reviews, email list |
 | **Partners** | Travel Agents · Vendors · Gift Vouchers | B2B agents, vendor partners, QR gift vouchers |
 | **Team & Hiring** | Team & Roles · Job Openings · Applications | Staff access and recruitment |
 | **Help** | How to use | This guide |
 
 When you open a section, its pages appear as **tabs across the top** so you can switch quickly.
+
+**Website Leads** has its own tabs: **Leads** (package pages + AI trip planner) · **Contact Messages** (Contact Us form) · **Planner Activity** (every AI planner search and upload).
+
+**Quotes vs Customers:** a *quote* is a PDF you sent — it lives in **Sent Quotes** until the customer says yes or no. A *customer* is someone who has **booked** — only confirmed bookings appear in **Customers**.
 
 ---
 
@@ -59,7 +63,7 @@ When you open a section, its pages appear as **tabs across the top** so you can 
 **Working a lead**
 - **Meta Leads** (Facebook/Instagram ads): open a lead → log the call outcome, set the next follow-up, move the stage (*New → Contacted → Qualified → Proposal Sent → Negotiation → Won / Lost*). Use the AI sales assistant for reply suggestions.
 - **Website Leads** (package pages + AI trip planner): change the status right in the list (*New → Contacted → Quote sent → Follow-up → Converted / Lost*). Calling or WhatsApp-ing a *New* lead moves it to *Contacted* automatically. Click **Edit** to add notes and a **follow-up date** (shortcuts: Tomorrow / 3 days / Next week).
-- **Contact Messages**: opening a message marks it read. Use *Reply on WhatsApp* or *Reply by email*; it is then marked *Replied*.
+- **Contact Messages** (Website Leads → Contact Messages tab): opening a message marks it read. Use *Reply on WhatsApp* or *Reply by email*; it is then marked *Replied*.
 - **WhatsApp**: the live inbox for all WhatsApp chats.
 
 **Itinerary Upload & AI Planner leads**
@@ -68,7 +72,7 @@ When you open a section, its pages appear as **tabs across the top** so you can 
 - Before calling, open **Their file** and the matched package. In the quote, include the items they added — or tell them honestly if we can't.
 - The AI can misread a blurry file — always check the original before quoting.
 
-**Planner Activity (Sales & CRM → Planner Activity)**
+**Planner Activity (Website Leads → Planner Activity tab)**
 - Shows **every** AI planner search and itinerary upload, even from people who never left a number (*Anonymous*). Use it to see what people look for and what other agencies are quoting.
 - Filter by *Itinerary uploads*, *Smart searches*, *Wizard searches*, *Became leads* or *Anonymous*. Click a row for the full details: the extracted itinerary, each item's status, preferences and the packages we showed. **Open file** opens what they uploaded; **WhatsApp** appears when the person became a lead.
 - The **Lead** badge opens that person in Website Leads.
@@ -80,10 +84,18 @@ When you open a section, its pages appear as **tabs across the top** so you can 
 4. Click **Share on WhatsApp** to open a chat with the customer, then attach the downloaded PDF (WhatsApp doesn't allow attaching files automatically).
 5. Set the lead to *Quote sent* and add a follow-up date (2 days is a good default).
 
-Every PDF you create is saved automatically in **Customers** as a *Quote*.
+Every PDF you create is saved automatically in **Quotes & Itineraries → Sent Quotes** (as a *Draft*; click **Mark sent** once you've shared it).
 
-**When the customer books**
-- Open **Customers** → the record → change status to **Booked** and enter the advance received. The *Balance due* view shows who still has to pay; the WhatsApp button sends a polite balance reminder.
+**Following up quotes (Sent Quotes)**
+- Cards at the top: *Open quotes*, *Quoted value*, *Expiring this week* (validity ends within 7 days) and *Older than 7 days* (needs a follow-up call).
+- Filters: *All* · *Awaiting reply* · *Drafts* · *Expiring this week* · *Expired* · *Needs follow-up* · *Lost*.
+- **WhatsApp** on a row opens the business inbox with that customer.
+- Customer said **yes** → **Mark as booked** → check the final price, enter the advance received (optional) → **Confirm booking**. The quote leaves Sent Quotes and appears in **Customers** (the message at the bottom has a *View in Customers* link).
+- Customer said **no** → **Mark as lost** → pick a reason (price, booked elsewhere, no reply…). Lost quotes stay under the *Lost* filter and can be **reopened**; they never show in Customers.
+
+**After the customer books (Customers)**
+- **Customers** shows confirmed bookings only. Default view *Upcoming* (soonest trip first; *Travelling now* and trips in the next 7 days are highlighted). The *Balance due* view shows who still has to pay; the WhatsApp button sends a polite balance reminder.
+- Update payments in the record as money comes in; after the trip set the status to **Trip done**.
 - Mark the lead *Converted* (Website Leads) or *Won* with the deal value (Meta Leads).
 
 ---
@@ -92,8 +104,9 @@ Every PDF you create is saved automatically in **Customers** as a *Quote*.
 
 Everything above, plus:
 - **Overview** pipeline bar shows where all Meta leads stand; overdue follow-ups are listed under it — chase these with the team.
-- **Customers** → *Upcoming trips* (soonest first, trips in the next 7 days highlighted) and *Balance due*.
-- **Packages** / **AI Package Writer** to add new products, **Vendors** for partner deals.
+- **Sent Quotes** → *Needs follow-up* and *Expiring this week* — make sure no quote goes cold; check *Lost* reasons to spot pricing problems.
+- **Customers** → *Upcoming* (soonest first, trips in the next 7 days highlighted) and *Balance due*.
+- **Packages** / **AI Package Writer** (both under *Packages & Destinations*) to add new products, **Vendors** for partner deals.
 - Export any list to Excel with **Export CSV**.
 
 ---
@@ -120,7 +133,8 @@ Everything above, plus:
 
 ## 6. Operations
 
-- **Customers**: views *Quotes*, *Booked*, *Balance due*, *Trip done*, *Cancelled*. Open a record to edit hotels, flights, payments; every change is kept in its history.
+- **Customers** (confirmed bookings only): views *Upcoming*, *Balance due*, *Trip done*, *Cancelled* (bookings cancelled after they were confirmed), *All*. Open a record to edit trip details and payments; every change is kept in its history. When a trip is over, set it to **Trip done**.
+- **Sent Quotes**: quotes that haven't been booked yet. Sales normally handle these; use **Mark as booked** if a customer pays you directly.
 - **Vendors**: vendor partners, their rewards and the leads they bring.
 - **Gift Vouchers**: issue QR vouchers, track and mark them redeemed; *Print* gives a print-ready sheet.
 
@@ -138,6 +152,7 @@ Everything above, plus:
 - **Travel Agents** (B2B): approve, suspend or reject agents, set commission and notes.
 - **Spam cleanup** (on the Travel Agents page): bots keep signing up as fake agents (e.g. "Inorxrhkt LLC"). Click **Spam cleanup** → review the suggested list (each row says why it looks fake; real agents with packages/bookings are never listed) → type **DELETE**. A backup file downloads first.
 - Agent sign-up now blocks bots automatically (hidden bot trap, random-name check, max 5 sign-ups per hour per IP).
+- **AI Planner Chats** (Sales & CRM): full conversations visitors had with the AI trip planner — admins only.
 - **Team & Roles**: see section 1.
 
 ---
@@ -149,6 +164,8 @@ Everything above, plus:
 **The PDF images are missing.** The package photo couldn't be loaded; the PDF uses a coloured background instead. Use an ImageKit/Firebase image URL on the package.
 
 **A lead appears in both Meta Leads and Website Leads?** Old Facebook copies are hidden from Website Leads by default — work Facebook leads in Meta Leads only.
+
+**Where did the quotes go from Customers?** They now live in **Quotes & Itineraries → Sent Quotes**. Customers only lists people who have booked. Click **Mark as booked** on a quote to move it to Customers.
 
 **Where did the old big admin page go?** Every section is now its own page in the left menu, so links, refresh and the back button work and nothing opens at the bottom of the page.
 `

@@ -44,6 +44,16 @@ export interface NavItem {
   adminOnly?: boolean
   /** One line shown on the page header and in quick search */
   description: string
+  /** Pages shown as tabs INSIDE this item (e.g. Website Leads → Leads / Contact Messages / Planner Activity) */
+  subPages?: NavSubPage[]
+}
+
+export interface NavSubPage {
+  label: string
+  href: string
+  icon: IconName
+  perms: PermissionKey[]
+  description: string
 }
 
 export interface NavGroup {
@@ -68,12 +78,21 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: 'target',
     items: [
       { label: 'Meta Leads', href: '/admin/meta-leads', icon: 'target', perms: ['leads'], description: 'Facebook / Instagram ad leads with full CRM pipeline' },
-      { label: 'Website Leads', href: '/admin/leads', icon: 'globe', perms: ['leads'], description: 'Enquiries from package pages and the AI trip planner' },
-      { label: 'Contact Messages', href: '/admin/enquiries', icon: 'inbox', perms: ['contacts'], description: 'Messages sent from the Contact Us form' },
-      { label: 'Customers', href: '/admin/customers', icon: 'users', perms: ['customer-records'], description: 'Every quote sent and booking made, with payments' },
+      {
+        label: 'Website Leads',
+        href: '/admin/leads',
+        icon: 'globe',
+        perms: ['leads', 'contacts'],
+        description: 'Everything that came in through the website: enquiries, contact form and AI planner',
+        subPages: [
+          { label: 'Leads', href: '/admin/leads', icon: 'globe', perms: ['leads'], description: 'Enquiries from package pages and the AI trip planner' },
+          { label: 'Contact Messages', href: '/admin/enquiries', icon: 'inbox', perms: ['contacts'], description: 'Messages sent from the Contact Us form' },
+          { label: 'Planner Activity', href: '/admin/planner-activity', icon: 'sparkles', perms: ['leads'], description: 'Every AI planner search and uploaded itinerary, even without contact details' },
+        ],
+      },
+      { label: 'Customers', href: '/admin/customers', icon: 'users', perms: ['customer-records'], description: 'Confirmed bookings: trips, payments and balance due' },
       { label: 'WhatsApp', href: '/admin/whatsapp-chats', icon: 'message', perms: ['whatsapp', 'leads'], description: 'Live WhatsApp inbox' },
-      { label: 'AI Planner Chats', href: '/admin/ai-chats', icon: 'bot', perms: ['ai-chats', 'leads'], description: 'Conversations visitors had with the AI trip planner' },
-      { label: 'Planner Activity', href: '/admin/planner-activity', icon: 'sparkles', perms: ['leads'], description: 'Every AI planner search and uploaded itinerary, even without contact details' },
+      { label: 'AI Planner Chats', href: '/admin/ai-chats', icon: 'bot', perms: ['ai-chats'], adminOnly: true, description: 'Conversations visitors had with the AI trip planner (admins only)' },
     ],
   },
   {
@@ -82,7 +101,7 @@ export const NAV_GROUPS: NavGroup[] = [
     icon: 'file',
     items: [
       { label: 'Create Quote PDF', href: '/admin/itinerary', icon: 'file', perms: ['create-itinerary'], description: 'Build a branded itinerary PDF to share with a customer' },
-      { label: 'AI Package Writer', href: '/admin/ai-packages', icon: 'sparkles', perms: ['ai-generator'], description: 'Draft a complete package with AI, then save it to the catalog' },
+      { label: 'Sent Quotes', href: '/admin/quotes', icon: 'clipboard', perms: ['create-itinerary', 'customer-records'], description: 'Quotes sent to customers — follow up and mark as booked' },
     ],
   },
   {
@@ -92,6 +111,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Packages', href: '/admin/packages', icon: 'package', perms: ['packages'], description: 'Holiday packages shown on the website' },
       { label: 'Destinations', href: '/admin/destinations', icon: 'map', perms: ['destinations'], description: 'Destination pages and which packages they list' },
+      { label: 'AI Package Writer', href: '/admin/ai-packages', icon: 'sparkles', perms: ['ai-generator'], description: 'Draft a complete package with AI, then save it to the catalog' },
     ],
   },
   {
@@ -145,13 +165,32 @@ export function canAccessItem(item: NavItem, isAdmin: boolean, permissions: stri
 }
 
 /** The nav item a pathname belongs to (longest matching prefix). `/admin` only matches exactly. */
+const pathMatches = (pathname: string, href: string) =>
+  href === '/admin' ? pathname === '/admin' : pathname === href || pathname.startsWith(href + '/')
+
+/** The nav item a pathname belongs to (longest matching prefix, including its sub-pages). `/admin` only matches exactly. */
 export function findNavItem(pathname: string): NavItem | undefined {
   let best: NavItem | undefined
+  let bestLen = 0
   for (const item of ALL_NAV_ITEMS) {
-    const match = item.href === '/admin' ? pathname === '/admin' : pathname === item.href || pathname.startsWith(item.href + '/')
-    if (match && (!best || item.href.length > best.href.length)) best = item
+    for (const href of [item.href, ...(item.subPages || []).map((p) => p.href)]) {
+      if (pathMatches(pathname, href) && href.length > bestLen) {
+        best = item
+        bestLen = href.length
+      }
+    }
   }
   return best
+}
+
+/** The sub-page (tab inside a nav item) a pathname belongs to, if any */
+export function findSubPage(pathname: string): NavSubPage | undefined {
+  const item = findNavItem(pathname)
+  return item?.subPages?.filter((p) => pathMatches(pathname, p.href)).sort((a, b) => b.href.length - a.href.length)[0]
+}
+
+export function canAccessSubPage(page: NavSubPage, isAdmin: boolean, permissions: string[] | null | undefined): boolean {
+  return isAdmin || page.perms.length === 0 || page.perms.some((p) => permissions?.includes(p))
 }
 
 export function findNavGroup(pathname: string): NavGroup | undefined {

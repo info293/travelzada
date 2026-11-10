@@ -2,7 +2,7 @@
 
 import CustomerRecordsManager from '@/components/admin/CustomerRecordsManager'
 
-/** Quotes and bookings (customer_itineraries). Auth, permissions and chrome come from app/admin/layout.tsx. */
+/** Customers: confirmed bookings only (customer_itineraries). Quotes live at /admin/quotes. Auth, permissions and chrome come from app/admin/layout.tsx. */
 export default function CustomersPage() {
   return <CustomerRecordsManager />
 }

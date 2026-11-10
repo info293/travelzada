@@ -935,7 +935,7 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                         <div>
                                             <p className="font-semibold text-emerald-900">PDF downloaded · {(result.blob.size / 1024 / 1024).toFixed(1)} MB</p>
                                             <p className="text-sm text-emerald-800">
-                                                Saved to customer records. <b>WhatsApp links can&apos;t attach files</b> — after the chat opens, tap 📎 and attach <span className="font-mono text-xs">{result.fileName}</span>.
+                                                Saved to <Link href="/admin/quotes" className="font-semibold underline">Sent Quotes</Link>. <b>WhatsApp links can&apos;t attach files</b> — after the chat opens, tap 📎 and attach <span className="font-mono text-xs">{result.fileName}</span>.
                                             </p>
                                         </div>
                                     </div>

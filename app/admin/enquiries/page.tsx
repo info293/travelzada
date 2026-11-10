@@ -4,12 +4,16 @@
  * Contact Messages: what people send from the Contact Us form (Firestore `contact_messages`).
  * Inbox layout: list on the left, the open message on the right (a drawer on phones).
  * Status values kept from the old admin: new | read | replied. Opening a message marks it read.
+ * Bot spam (random-letter names + random/number-only messages, see lib/admin/spam.ts) is hidden by default behind a
+ * "Spam (N)" chip; admins can back it up as JSON and delete it in one go. Deep link: /admin/enquiries?msg=<id>.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { collection, getDocs, query, orderBy, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, updateDoc, deleteDoc, doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { CheckCheck, Download, FileText, Inbox, Mail, MailOpen, MessageCircle, RefreshCw, Trash2 } from 'lucide-react'
+import { CheckCheck, Download, FileText, Inbox, Mail, MailOpen, MessageCircle, RefreshCw, ShieldAlert, Trash2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { isSpamContact } from '@/lib/admin/spam'
 import {
   PageHeader, Card, Toolbar, SearchInput, FilterChips, Button, Drawer, Badge, EmptyState, Spinner,
   formatDate, timeAgo, toMillis, exportToCsv, cx,
@@ -31,6 +35,10 @@ interface ContactMessage {
   read: boolean
   createdAt: any
   repliedAt: any
+  /** Looks like bot spam (lib/admin/spam.ts) */
+  spam: boolean
+  /** Raw Firestore data, kept for the JSON backup before deleting spam */
+  raw: Record<string, any>
 }
 
 const STATUS_LABEL: Record<MsgStatus, string> = { new: 'Unread', read: 'Read', replied: 'Replied' }
@@ -68,10 +76,12 @@ function quoteHref(m: ContactMessage, canSeePhone: boolean) {
   return `/admin/itinerary${qs ? `?${qs}` : ''}`
 }
 
-type Filter = 'all' | MsgStatus
+type Filter = 'all' | MsgStatus | 'spam'
 
 export default function EnquiriesPage() {
   const { canSeePhone } = usePhoneAccess()
+  const { isAdmin } = useAuth()
+  const [deletingSpam, setDeletingSpam] = useState(false)
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -106,6 +116,8 @@ export default function EnquiriesPage() {
           read: !!data.read,
           createdAt: data.createdAt || null,
           repliedAt: data.repliedAt || null,
+          spam: isSpamContact(data),
+          raw: data,
         }
       })
       list.sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt))
@@ -165,14 +177,73 @@ export default function EnquiriesPage() {
     return messages.filter((m) => [m.name, m.email, canSeePhone ? m.phone : '', m.destination, m.message, m.occasion].some((v) => String(v || '').toLowerCase().includes(q)))
   }, [messages, search, canSeePhone])
 
-  const counts = useMemo(() => ({
-    all: searched.length,
-    new: searched.filter((m) => m.status === 'new').length,
-    read: searched.filter((m) => m.status === 'read').length,
-    replied: searched.filter((m) => m.status === 'replied').length,
-  }), [searched])
+  // Spam never shows in the normal views — only under the "Spam" chip
+  const counts = useMemo(() => {
+    const real = searched.filter((m) => !m.spam)
+    return {
+      all: real.length,
+      new: real.filter((m) => m.status === 'new').length,
+      read: real.filter((m) => m.status === 'read').length,
+      replied: real.filter((m) => m.status === 'replied').length,
+      spam: searched.length - real.length,
+    }
+  }, [searched])
 
-  const visible = useMemo(() => (filter === 'all' ? searched : searched.filter((m) => m.status === filter)), [searched, filter])
+  const visible = useMemo(() => {
+    if (filter === 'spam') return searched.filter((m) => m.spam)
+    const real = searched.filter((m) => !m.spam)
+    return filter === 'all' ? real : real.filter((m) => m.status === filter)
+  }, [searched, filter])
+
+  // Deep link from the Overview: /admin/enquiries?msg=<id>
+  const [deepLinked, setDeepLinked] = useState(false)
+  useEffect(() => {
+    if (deepLinked || loading || !messages.length) return
+    setDeepLinked(true)
+    const id = new URLSearchParams(window.location.search).get('msg')
+    const hit = id ? messages.find((m) => m.id === id) : undefined
+    if (hit) { if (hit.spam) setFilter('spam'); open(hit) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinked, loading, messages])
+
+  /** Admin only: download a JSON backup of every spam message, then delete them in batches of ≤400. */
+  const deleteAllSpam = async () => {
+    if (!db || !isAdmin) return
+    const spam = messages.filter((m) => m.spam)
+    if (!spam.length) return
+    const typed = window.prompt(
+      `Delete ${spam.length} spam message${spam.length === 1 ? '' : 's'}?\n\nA JSON backup downloads first. This cannot be undone.\nType DELETE to confirm.`
+    )
+    if (typed !== 'DELETE') return
+    setDeletingSpam(true)
+    try {
+      const backup = JSON.stringify(spam.map((m) => ({ id: m.id, ...m.raw })), null, 2)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([backup], { type: 'application/json' }))
+      a.download = `travelzada-contact-spam-backup-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+
+      const deleted = new Set<string>()
+      for (let i = 0; i < spam.length; i += 400) {
+        const chunk = spam.slice(i, i + 400)
+        const batch = writeBatch(db)
+        chunk.forEach((m) => batch.delete(doc(db, 'contact_messages', m.id)))
+        await batch.commit()
+        chunk.forEach((m) => deleted.add(m.id))
+      }
+      setMessages((prev) => prev.filter((m) => !deleted.has(m.id)))
+      if (selectedId && deleted.has(selectedId)) { setSelectedId(null); setMobileOpen(false) }
+      setFilter('all')
+      alert(`Deleted ${deleted.size} spam messages. The backup file is in your downloads.`)
+    } catch (e) {
+      console.error('Spam delete failed', e)
+      alert('Could not delete all spam (some may have been deleted). Refresh and try again.')
+      load()
+    } finally {
+      setDeletingSpam(false)
+    }
+  }
   const selected = messages.find((m) => m.id === selectedId) || null
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
@@ -201,12 +272,25 @@ export default function EnquiriesPage() {
             { value: 'new' as Filter, label: 'Unread', count: counts.new },
             { value: 'read' as Filter, label: 'Needs reply', count: counts.read },
             { value: 'replied' as Filter, label: 'Replied', count: counts.replied },
+            ...(counts.spam ? [{ value: 'spam' as Filter, label: 'Spam', count: counts.spam }] : []),
           ]}
           value={filter}
           onChange={setFilter}
         />
         <SearchInput value={search} onChange={setSearch} placeholder="Search name, email, destination…" className="w-full md:w-80" />
       </Toolbar>
+
+      {filter === 'spam' && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <ShieldAlert className="w-4 h-4 shrink-0" />
+          <span className="flex-1 min-w-[12rem]">These look like bot submissions (random-letter names with random or number-only messages). They are hidden from the inbox and the Overview.</span>
+          {isAdmin && counts.spam > 0 && (
+            <Button variant="danger" size="sm" onClick={deleteAllSpam} loading={deletingSpam}>
+              {!deletingSpam && <Trash2 className="w-4 h-4" />} Delete all spam ({messages.filter((m) => m.spam).length})
+            </Button>
+          )}
+        </div>
+      )}
 
       {error && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</p>}
 
@@ -235,6 +319,7 @@ export default function EnquiriesPage() {
                       </div>
                       <div className="mt-0.5 flex items-center gap-2">
                         {m.destination && <span className="truncate text-xs font-medium text-bordeaux-700">{m.destination}</span>}
+                        {m.spam && <Badge tone="red">Spam</Badge>}
                         {m.status === 'replied' && <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
                       </div>
                       <p className={cx('mt-0.5 text-xs line-clamp-2', unread ? 'text-gray-700' : 'text-gray-500')}>{m.message || '(no message)'}</p>
