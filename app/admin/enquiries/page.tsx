@@ -9,11 +9,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { collection, getDocs, query, orderBy, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { CheckCheck, Download, FileText, Inbox, Mail, MailOpen, MessageCircle, Phone, RefreshCw, Trash2 } from 'lucide-react'
+import { CheckCheck, Download, FileText, Inbox, Mail, MailOpen, MessageCircle, RefreshCw, Trash2 } from 'lucide-react'
 import {
   PageHeader, Card, Toolbar, SearchInput, FilterChips, Button, Drawer, Badge, EmptyState, Spinner,
-  formatDate, timeAgo, toMillis, waLink, exportToCsv, cx,
+  formatDate, timeAgo, toMillis, exportToCsv, cx,
 } from '@/components/admin/ui'
+import { PhoneLink, inboxHref, redactForExport, usePhoneAccess } from '@/lib/admin/privacy'
 
 type MsgStatus = 'new' | 'read' | 'replied'
 
@@ -45,19 +46,22 @@ function normalizeStatus(raw: any, read: boolean): MsgStatus {
 const firstName = (n: string) => (n || '').trim().split(/\s+/)[0] || 'there'
 const hasPhone = (p?: string) => String(p || '').replace(/\D/g, '').length >= 10
 
-function replyWhatsApp(m: ContactMessage) {
-  return `Hi ${firstName(m.name)}, this is Travelzada. Thanks for reaching out${m.destination ? ` about ${m.destination}` : ''}! I'm happy to help plan your trip. Is now a good time to talk?`
-}
+/** Firestore path of the message — the WhatsApp inbox / quote builder resolve the number from it */
+const msgRef = (m: ContactMessage) => `contact_messages/${m.id}`
 function replyMailto(m: ContactMessage) {
   const subject = `Re: Your enquiry${m.destination ? ` about ${m.destination}` : ''} | Travelzada`
   const quoted = m.message ? `\n\n\n---\nYou wrote:\n${m.message}` : ''
   const body = `Hi ${firstName(m.name)},\n\nThank you for contacting Travelzada.${quoted}`
   return `mailto:${m.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
-function quoteHref(m: ContactMessage) {
+/** Only admins get the number in the URL; everyone else passes a ref the quote builder resolves */
+function quoteHref(m: ContactMessage, canSeePhone: boolean) {
   const p = new URLSearchParams()
   if (m.name) p.set('name', m.name)
-  if (hasPhone(m.phone)) p.set('phone', m.phone)
+  if (hasPhone(m.phone)) {
+    p.set('ref', msgRef(m)) // lets the builder open the WhatsApp inbox on this message
+    if (canSeePhone) p.set('phone', m.phone)
+  }
   if (m.email) p.set('email', m.email)
   if (m.destination) p.set('destination', m.destination)
   const qs = p.toString()
@@ -67,6 +71,7 @@ function quoteHref(m: ContactMessage) {
 type Filter = 'all' | MsgStatus
 
 export default function EnquiriesPage() {
+  const { canSeePhone } = usePhoneAccess()
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -156,8 +161,9 @@ export default function EnquiriesPage() {
   const searched = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return messages
-    return messages.filter((m) => [m.name, m.email, m.phone, m.destination, m.message, m.occasion].some((v) => String(v || '').toLowerCase().includes(q)))
-  }, [messages, search])
+    // Phone digits are searchable for admins only
+    return messages.filter((m) => [m.name, m.email, canSeePhone ? m.phone : '', m.destination, m.message, m.occasion].some((v) => String(v || '').toLowerCase().includes(q)))
+  }, [messages, search, canSeePhone])
 
   const counts = useMemo(() => ({
     all: searched.length,
@@ -170,10 +176,10 @@ export default function EnquiriesPage() {
   const selected = messages.find((m) => m.id === selectedId) || null
   const closeMobile = useCallback(() => setMobileOpen(false), [])
 
-  const handleExport = () => exportToCsv(`travelzada-contact-messages-${new Date().toISOString().slice(0, 10)}.csv`, visible.map((m) => ({
+  const handleExport = () => exportToCsv(`travelzada-contact-messages-${new Date().toISOString().slice(0, 10)}.csv`, redactForExport(visible.map((m) => ({
     Name: m.name, Email: m.email, Phone: m.phone, Destination: m.destination, Occasion: m.occasion, When: m.when,
     Status: STATUS_LABEL[m.status], Received: formatDate(m.createdAt, true), Message: m.message,
-  })))
+  })), canSeePhone, ['Phone']))
 
   return (
     <div>
@@ -264,6 +270,7 @@ export default function EnquiriesPage() {
 
 function MessageDetail({ m, onReplied, onUnread, onDelete }: { m: ContactMessage; onReplied: () => void; onUnread: () => void; onDelete: () => void }) {
   const btn = 'inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors'
+  const { canSeePhone } = usePhoneAccess()
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -275,7 +282,7 @@ function MessageDetail({ m, onReplied, onUnread, onDelete }: { m: ContactMessage
       </div>
 
       <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-        <div><dt className="text-xs text-gray-500">Phone</dt><dd>{m.phone ? <a href={`tel:${m.phone}`} className="font-medium text-gray-900 hover:text-bordeaux-700">{m.phone}</a> : '—'}</dd></div>
+        <div><dt className="text-xs text-gray-500">Phone</dt><dd>{m.phone ? <PhoneLink phone={m.phone} name={m.name} refPath={msgRef(m)} /> : '—'}</dd></div>
         <div className="min-w-0"><dt className="text-xs text-gray-500">Email</dt><dd className="truncate">{m.email ? <a href={`mailto:${m.email}`} className="font-medium text-gray-900 hover:text-bordeaux-700">{m.email}</a> : '—'}</dd></div>
         {m.destination && <div><dt className="text-xs text-gray-500">Destination</dt><dd className="font-medium text-gray-900">{m.destination}</dd></div>}
         {(m.occasion || m.when) && <div><dt className="text-xs text-gray-500">Occasion / when</dt><dd className="font-medium text-gray-900">{[m.occasion, m.when].filter(Boolean).join(' · ')}</dd></div>}
@@ -285,21 +292,17 @@ function MessageDetail({ m, onReplied, onUnread, onDelete }: { m: ContactMessage
 
       <div className="mt-4 flex flex-wrap gap-2">
         {hasPhone(m.phone) && (
-          <>
-            <a href={waLink(m.phone, replyWhatsApp(m))} target="_blank" rel="noopener noreferrer" onClick={onReplied} className={cx(btn, 'bg-emerald-600 text-white hover:bg-emerald-700')}>
-              <MessageCircle className="w-4 h-4" /> Reply on WhatsApp
-            </a>
-            <a href={`tel:${m.phone}`} className={cx(btn, 'border border-gray-300 text-gray-800 hover:bg-gray-50')}>
-              <Phone className="w-4 h-4" /> Call
-            </a>
-          </>
+          // Replies go through the business WhatsApp inbox (call icon is next to the number, admins only)
+          <Link href={inboxHref({ ref: msgRef(m), name: m.name }, canSeePhone)} onClick={onReplied} className={cx(btn, 'bg-emerald-600 text-white hover:bg-emerald-700')}>
+            <MessageCircle className="w-4 h-4" /> Reply on WhatsApp
+          </Link>
         )}
         {m.email && (
           <a href={replyMailto(m)} onClick={onReplied} className={cx(btn, 'border border-gray-300 text-gray-800 hover:bg-gray-50')}>
             <Mail className="w-4 h-4" /> Reply by email
           </a>
         )}
-        <Link href={quoteHref(m)} className={cx(btn, 'bg-bordeaux-600 text-white hover:bg-bordeaux-700')}>
+        <Link href={quoteHref(m, canSeePhone)} className={cx(btn, 'bg-bordeaux-600 text-white hover:bg-bordeaux-700')}>
           <FileText className="w-4 h-4" /> Create quote PDF
         </Link>
       </div>

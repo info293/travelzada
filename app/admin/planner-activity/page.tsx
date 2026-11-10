@@ -12,11 +12,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { collection, doc, getDoc, getDocs, limit, orderBy, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { Download, ExternalLink, FileText, MessageCircle, RefreshCw, Search, Sparkles, Upload, UserCheck, Users } from 'lucide-react'
+import { Download, ExternalLink, FileText, RefreshCw, Search, Sparkles, Upload, UserCheck, Users } from 'lucide-react'
 import {
   PageHeader, StatRow, StatCard, Card, Toolbar, SearchInput, FilterChips, Button, Table, Th, Td, Drawer, Badge, EmptyState,
-  Spinner, formatDate, timeAgo, toMillis, waLink, exportToCsv, cx,
+  Spinner, formatDate, timeAgo, toMillis, exportToCsv, cx,
 } from '@/components/admin/ui'
+import { WhatsAppInboxButton } from '@/lib/admin/privacy'
 
 type ActivityType = 'smart_search' | 'wizard_search' | 'itinerary_upload' | string
 
@@ -326,14 +327,9 @@ function ActivityDrawer({ activity: a, onClose }: { activity: Activity | null; o
               <UserCheck className="w-4 h-4" /> Open lead{lead?.name ? ` · ${lead.name}` : ''}
             </Link>
           )}
-          {lead?.mobile && (
-            <a
-              href={waLink(lead.mobile, `Hi ${lead.name.split(' ')[0] || 'there'}, this is Travelzada 👋 Thanks for sharing your ${destinationOf(a) || ''} itinerary! I'm preparing your matched quote — when are you planning to travel?`)}
-              target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
-            >
-              <MessageCircle className="w-4 h-4" /> WhatsApp
-            </a>
+          {/* WhatsApp goes through the business inbox; the lead ref keeps the number out of the URL */}
+          {a.leadId && lead?.mobile && (
+            <WhatsAppInboxButton refPath={`leads/${a.leadId}`} name={lead.name} label="WhatsApp" className="!px-3 !py-1.5 !text-xs" />
           )}
         </div>
 

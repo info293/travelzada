@@ -51,7 +51,6 @@ import {
   setProposalStatus,
   stageInfo,
   updateCrmFields,
-  whatsappNumber,
   type ActivityTypeId,
   type CrmActivity,
   type CrmTravel,
@@ -65,6 +64,7 @@ import { useCrmRecord, useCurrentUserRef, useMetaAds, useSalesTeam } from './use
 import ItineraryGenerator, { type GeneratedItinerarySummary, type ItineraryPrefill } from '@/components/admin/ItineraryGenerator'
 import AiSalesAssistant, { type AiProposal } from './AiSalesAssistant'
 import LeadConversation from './LeadConversation'
+import { formatPhone, inboxHref, isPhoneKey, maskPhone, usePhoneAccess } from '@/lib/admin/privacy'
 
 /** Form answers like "2", "2_people", "4 adults" → 2 / 4 */
 const parseCount = (v: string) => {
@@ -154,6 +154,8 @@ const ACTIVITY_ICONS: Record<ActivityTypeId, typeof Phone> = {
 
 export default function LeadCrmDetail({ leadId }: { leadId: string }) {
   const { currentUser } = useAuth()
+  // Only admins see the customer's number; everyone else chats through the business WhatsApp inbox
+  const { canSeePhone } = usePhoneAccess()
   const me = useCurrentUserRef()
   const team = useSalesTeam()
   const { record, loading: recordLoading } = useCrmRecord(leadId)
@@ -275,7 +277,8 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
     return {
       clientName: name,
       clientEmail: email,
-      clientPhone: phone,
+      clientPhone: phone, // shown masked to non-admins by the builder
+      clientPhoneRef: `meta_lead_crm/${leadId}`,
       travelDate: isoDateOrUndefined(travel.travelDate) || isoDateOrUndefined(formDate),
       adults: travel.adults ?? formPeople ?? 2,
       children: travel.children ?? 0,
@@ -364,17 +367,27 @@ export default function LeadCrmDetail({ leadId }: { leadId: string }) {
             {phone && (
               <>
                 <Link
-                  href={`/admin/whatsapp-chats?phone=${whatsappNumber(phone)}&name=${encodeURIComponent(name)}`}
+                  href={inboxHref({ ref: `meta_lead_crm/${leadId}`, name }, canSeePhone)}
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
                 >
                   <MessageCircle className="w-4 h-4" /> WhatsApp
                 </Link>
-                <a
-                  href={`tel:${phone}`}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
-                  <Phone className="w-4 h-4" /> {phone}
-                </a>
+                {canSeePhone ? (
+                  <a
+                    href={`tel:${phone}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    title="Call (admin only)"
+                  >
+                    <Phone className="w-4 h-4" /> {formatPhone(phone)}
+                  </a>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-500 tabular-nums"
+                    title="Only admins can see the number — use WhatsApp"
+                  >
+                    <Phone className="w-4 h-4" /> {maskPhone(phone)}
+                  </span>
+                )}
               </>
             )}
             {email && (
@@ -613,6 +626,7 @@ function MetaInfoCard({
   leadError: { message: string } | null
 }) {
   const label = (key: string) => form?.questions?.find((q) => q.key === key)?.label || humanize(key)
+  const { canSeePhone } = usePhoneAccess()
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -628,7 +642,9 @@ function MetaInfoCard({
           {(lead.field_data || []).map((f) => (
             <div key={f.name} className="px-5 py-2">
               <dt className="text-xs text-gray-500">{label(f.name)}</dt>
-              <dd className="text-sm text-gray-900 break-words">{f.values.join(', ') || '—'}</dd>
+              <dd className="text-sm text-gray-900 break-words">
+                {(!canSeePhone && isPhoneKey(f.name) ? maskPhone(f.values.join(', ')) : f.values.join(', ')) || '—'}
+              </dd>
             </div>
           ))}
           <div className="px-5 py-3 bg-gray-50">

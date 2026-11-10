@@ -10,6 +10,7 @@ import {
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
 import ImageUploader from './ImageUploader'
+import { PhoneLink, redactForExport, usePhoneAccess } from '@/lib/admin/privacy'
 
 interface VendorsSectionProps {
   vendors: Vendor[]
@@ -96,6 +97,8 @@ export default function VendorsSection({
   const [leadVendorFilter, setLeadVendorFilter] = useState('all')
   const [leadStatusFilter, setLeadStatusFilter] = useState('all')
   const [leadSearchTerm, setLeadSearchTerm] = useState('')
+  // Vendor LEADS are customers: only admins see their numbers (vendor businesses' own phones are not affected)
+  const { canSeePhone } = usePhoneAccess()
 
   // Generate QR Code when QR modal is opened
   useEffect(() => {
@@ -225,7 +228,7 @@ export default function VendorsSection({
       return
     }
 
-    const exportData = filteredLeads.map((l) => ({
+    const exportData = redactForExport(filteredLeads.map((l) => ({
       'Lead ID': l.id || '',
       'User Name': l.userName,
       'User Phone': l.userPhone,
@@ -237,7 +240,7 @@ export default function VendorsSection({
       'Claim Voucher Code': l.claimCode,
       'Status': l.status.toUpperCase(),
       'Claimed Date': l.createdAt ? new Date(l.createdAt).toLocaleString() : '',
-    }))
+    })), canSeePhone, ['User Phone'])
 
     const worksheet = XLSX.utils.json_to_sheet(exportData)
     const workbook = XLSX.utils.book_new()
@@ -259,7 +262,7 @@ export default function VendorsSection({
     const matchesVendor = leadVendorFilter === 'all' || l.vendorId === leadVendorFilter || l.vendorKey === leadVendorFilter
     const matchesStatus = leadStatusFilter === 'all' || l.status === leadStatusFilter
     const matchesSearch = l.userName.toLowerCase().includes(leadSearchTerm.toLowerCase()) ||
-      l.userPhone.includes(leadSearchTerm) ||
+      (canSeePhone && !!leadSearchTerm && l.userPhone.includes(leadSearchTerm)) ||
       l.claimCode.toLowerCase().includes(leadSearchTerm.toLowerCase())
     return matchesVendor && matchesStatus && matchesSearch
   })
@@ -584,7 +587,7 @@ export default function VendorsSection({
                 <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search user name, phone, code..."
+                  placeholder={canSeePhone ? 'Search user name, phone, code...' : 'Search user name, code...'}
                   value={leadSearchTerm}
                   onChange={(e) => setLeadSearchTerm(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-amber-500"
@@ -653,9 +656,9 @@ export default function VendorsSection({
                       {/* User */}
                       <td className="px-6 py-4">
                         <p className="font-bold text-gray-900">{lead.userName}</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                          <Phone className="w-3 h-3 text-amber-500" /> {lead.userPhone}
-                        </p>
+                        <div className="mt-0.5">
+                          <PhoneLink phone={lead.userPhone} name={lead.userName} refPath={lead.id ? `vendor_leads/${lead.id}` : undefined} className="text-xs" />
+                        </div>
                         {lead.userEmail && (
                           <p className="text-[11px] text-gray-400 flex items-center gap-1">
                             <Mail className="w-3 h-3 text-blue-400" /> {lead.userEmail}

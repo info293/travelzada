@@ -19,13 +19,14 @@ import {
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import {
-  BellRing, CalendarDays, CheckCircle2, Download, ExternalLink, FileText, Mail, MessageCircle, MessagesSquare,
+  BellRing, CalendarDays, CheckCircle2, Download, ExternalLink, FileText, Mail, MessageCircle,
   Pencil, Phone, PhoneOff, RefreshCw, Sparkles, Trash2, UserPlus, Users, Wallet,
 } from 'lucide-react'
 import {
   PageHeader, StatRow, StatCard, Card, Toolbar, SearchInput, FilterChips, Button, Table, Th, Td, Drawer, Field,
-  inputClass, Badge, EmptyState, Spinner, formatDate, timeAgo, toMillis, waLink, exportToCsv, cx,
+  inputClass, Badge, EmptyState, Spinner, formatDate, timeAgo, toMillis, exportToCsv, cx,
 } from '@/components/admin/ui'
+import { PhoneLink, inboxHref, maskPhone, redactForExport, usePhoneAccess } from '@/lib/admin/privacy'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Types & helpers
@@ -117,19 +118,19 @@ function toDateInput(value?: string): string {
 const phoneDigits = (p?: string) => String(p || '').replace(/\D/g, '')
 const hasPhone = (p?: string) => phoneDigits(p).length >= 10
 const tripOf = (l: Lead) => l.destination || l.packageName
-const firstName = (n: string) => (n || '').trim().split(/\s+/)[0] || 'there'
 
-function waMessage(l: Lead): string {
-  const trip = tripOf(l)
-  const tripText = trip && !/custom trip/i.test(trip) ? ` for ${trip.replace(/\s*package$/i, '')}` : ''
-  return `Hi ${firstName(l.name)}, this is Travelzada 👋 Thanks for your enquiry${tripText}! I'd love to plan this for you. When are you planning to travel, and how many of you will be going?`
-}
+/** Firestore path of the lead — the WhatsApp inbox / quote builder resolve the number from it */
+const leadRef = (l: Lead) => `${l._collection}/${l.id}`
 
-function quoteHref(l: Lead): string {
+/** Quote builder link. Only admins get the number in the URL; everyone else passes a ref the builder resolves. */
+function quoteHref(l: Lead, canSeePhone: boolean): string {
   const p = new URLSearchParams()
   const set = (k: string, v?: string | number) => { if (v !== undefined && v !== null && String(v).trim()) p.set(k, String(v).trim()) }
   set('name', l.name)
-  if (hasPhone(l.mobile)) set('phone', l.mobile)
+  if (hasPhone(l.mobile)) {
+    set('ref', leadRef(l)) // lets the builder open the WhatsApp inbox on this lead
+    if (canSeePhone) set('phone', l.mobile)
+  }
   set('email', l.email)
   set('destination', tripOf(l) && !/custom trip/i.test(tripOf(l)) ? tripOf(l).replace(/\s*package$/i, '') : '')
   set('date', toDateInput(l.travelDate))
@@ -221,6 +222,7 @@ interface EditForm {
 // ---------------------------------------------------------------------------------------------------------------------
 
 export default function WebsiteLeadsPage() {
+  const { canSeePhone } = usePhoneAccess()
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -293,7 +295,7 @@ export default function WebsiteLeadsPage() {
 
   const handleDelete = useCallback(async (lead: Lead) => {
     if (!db) return
-    if (!window.confirm(`Delete the lead from ${lead.name || lead.mobile || 'this person'}? This cannot be undone.`)) return
+    if (!window.confirm(`Delete the lead from ${lead.name || (canSeePhone ? lead.mobile : maskPhone(lead.mobile)) || 'this person'}? This cannot be undone.`)) return
     try {
       await deleteDoc(doc(db, lead._collection, lead.id))
       setLeads((prev) => prev.filter((l) => !(l.id === lead.id && l._collection === lead._collection)))
@@ -302,14 +304,15 @@ export default function WebsiteLeadsPage() {
       console.error('Delete failed', e)
       alert('Could not delete the lead. Please try again.')
     }
-  }, [editing])
+  }, [editing, canSeePhone])
 
   const openEdit = useCallback((lead: Lead) => {
     setEditing(lead)
     setFormError(null)
     setForm({
       name: lead.name,
-      mobile: hasPhone(lead.mobile) ? lead.mobile : '',
+      // Non-admins never get the number into the form (the field is read-only and masked for them)
+      mobile: canSeePhone && hasPhone(lead.mobile) ? lead.mobile : '',
       email: lead.email,
       destination: lead.destination || lead.packageName,
       travelDate: toDateInput(lead.travelDate),
@@ -321,7 +324,7 @@ export default function WebsiteLeadsPage() {
       status: toStage(lead.status),
     })
     if (!lead.read) patchLead(lead, { read: true }, { read: true })
-  }, [patchLead])
+  }, [patchLead, canSeePhone])
   const closeEdit = useCallback(() => { setEditing(null); setForm(null) }, [])
   openEditRef.current = openEdit
   /** Call / WhatsApp from inside the drawer: same as touch(), and keep the open form in sync */
@@ -347,7 +350,7 @@ export default function WebsiteLeadsPage() {
     if (!form.name.trim()) { setFormError('Name is required'); return }
     payload.name = form.name.trim(); local.name = form.name.trim()
     // Keep "Not provided" placeholders from the AI planner unless a real number is typed
-    if (form.mobile.trim()) { payload.mobile = form.mobile.trim(); local.mobile = form.mobile.trim() }
+    if (canSeePhone && form.mobile.trim()) { payload.mobile = form.mobile.trim(); local.mobile = form.mobile.trim() }
     assign('email', form.email)
     assign('destination', form.destination)
     assign('travelDate', form.travelDate)
@@ -388,7 +391,8 @@ export default function WebsiteLeadsPage() {
   /** Search + source + date filters (status chips are counted on this set) */
   const baseList = useMemo(() => {
     const q = search.trim().toLowerCase()
-    const qDigits = phoneDigits(search)
+    // Only admins may find a lead by phone digits (otherwise the search box could be used to probe numbers)
+    const qDigits = canSeePhone ? phoneDigits(search) : ''
     const since = range === 'today' ? startOfToday() : range === '7d' ? Date.now() - 7 * DAY : range === '30d' ? Date.now() - 30 * DAY : 0
     return leads.filter((l) => {
       if (source === 'all' ? l.source === 'facebook' : l.source !== source) return false
@@ -397,7 +401,7 @@ export default function WebsiteLeadsPage() {
       if (qDigits.length >= 4 && phoneDigits(l.mobile).includes(qDigits)) return true
       return [l.name, l.email, l.destination, l.packageName, l.notes, l.budget].some((v) => String(v || '').toLowerCase().includes(q))
     })
-  }, [leads, search, source, range])
+  }, [leads, search, source, range, canSeePhone])
 
   const stageCounts = useMemo(() => {
     const c: Record<string, number> = { all: baseList.length, due: 0 }
@@ -428,7 +432,7 @@ export default function WebsiteLeadsPage() {
   }, [leads])
 
   const handleExport = () => {
-    exportToCsv(`travelzada-website-leads-${todayIso()}.csv`, visible.map((l) => ({
+    exportToCsv(`travelzada-website-leads-${todayIso()}.csv`, redactForExport(visible.map((l) => ({
       Name: l.name,
       Phone: l.mobile,
       Email: l.email,
@@ -443,7 +447,7 @@ export default function WebsiteLeadsPage() {
       Received: formatDate(l.createdAt, true),
       Notes: l.notes,
       Page: l.sourceUrl,
-    })))
+    })), canSeePhone, ['Phone']))
   }
 
   const resetFilters = () => { setSearch(''); setSource('all'); setRange('all'); setStage('all') }
@@ -505,7 +509,7 @@ export default function WebsiteLeadsPage() {
             ))}
           </div>
         </div>
-        <SearchInput value={search} onChange={setSearch} placeholder="Search name, phone, destination…" className="w-full md:w-80" />
+        <SearchInput value={search} onChange={setSearch} placeholder={canSeePhone ? 'Search name, phone, destination…' : 'Search name, email, destination…'} className="w-full md:w-80" />
       </Toolbar>
 
       {source === 'facebook' && (
@@ -598,18 +602,18 @@ export default function WebsiteLeadsPage() {
             <div className="flex flex-wrap gap-2">
               {hasPhone(editing.mobile) && (
                 <>
-                  <a href={waLink(editing.mobile, waMessage(editing))} target="_blank" rel="noopener noreferrer" onClick={drawerTouch} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
+                  {/* WhatsApp always goes through the business inbox (tracked, from the business number) */}
+                  <Link href={inboxHref({ ref: leadRef(editing), name: editing.name }, canSeePhone)} onClick={drawerTouch} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
                     <MessageCircle className="w-4 h-4" /> WhatsApp
-                  </a>
-                  <a href={`tel:${editing.mobile}`} onClick={drawerTouch} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50">
-                    <Phone className="w-4 h-4" /> Call
-                  </a>
-                  <Link href={`/admin/whatsapp-chats?phone=${encodeURIComponent(phoneDigits(editing.mobile))}&name=${encodeURIComponent(editing.name)}`} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50">
-                    <MessagesSquare className="w-4 h-4" /> Open in inbox
                   </Link>
+                  {canSeePhone && (
+                    <a href={`tel:${editing.mobile}`} onClick={drawerTouch} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50">
+                      <Phone className="w-4 h-4" /> Call
+                    </a>
+                  )}
                 </>
               )}
-              <Link href={quoteHref(editing)} className="inline-flex items-center gap-1.5 rounded-xl bg-bordeaux-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-bordeaux-700">
+              <Link href={quoteHref(editing, canSeePhone)}className="inline-flex items-center gap-1.5 rounded-xl bg-bordeaux-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-bordeaux-700">
                 <FileText className="w-4 h-4" /> Create quote PDF
               </Link>
             </div>
@@ -641,7 +645,13 @@ export default function WebsiteLeadsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Name"><input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-              <Field label="Phone"><input className={inputClass} value={form.mobile} placeholder={hasPhone(editing.mobile) ? '' : 'Not provided'} onChange={(e) => setForm({ ...form, mobile: e.target.value })} /></Field>
+              <Field label="Phone">
+                {canSeePhone ? (
+                  <input className={inputClass} value={form.mobile} placeholder={hasPhone(editing.mobile) ? '' : 'Not provided'} onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+                ) : (
+                  <input className={cx(inputClass, 'bg-gray-50 text-gray-500')} value={hasPhone(editing.mobile) ? maskPhone(editing.mobile) : ''} placeholder="Not provided" readOnly title="Only admins can see or change the number" />
+                )}
+              </Field>
               <Field label="Email" className="col-span-2"><input type="email" className={inputClass} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
               <Field label="Destination / package" className="col-span-2"><input className={inputClass} value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} /></Field>
               <Field label="Travel date"><input type="date" className={inputClass} value={form.travelDate} onChange={(e) => setForm({ ...form, travelDate: e.target.value })} /></Field>
@@ -694,7 +704,8 @@ function LeadIdentity({ lead, onOpen, onTouch }: { lead: Lead; onOpen: () => voi
       </div>
       <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
         {hasPhone(lead.mobile) ? (
-          <a href={`tel:${lead.mobile}`} onClick={onTouch} className="font-medium text-gray-700 hover:text-bordeaux-700 tabular-nums">{lead.mobile}</a>
+          // Capture phase: PhoneLink stops propagation of its own click
+          <span onClickCapture={onTouch}><PhoneLink phone={lead.mobile} name={lead.name} refPath={leadRef(lead)} showCall={false} className="text-xs" /></span>
         ) : (
           <span className="italic text-gray-400">No phone</span>
         )}
@@ -756,16 +767,19 @@ function FollowUpLine({ lead }: { lead: Lead }) {
 function RowActions({ lead, onTouch, onEdit, onDelete }: { lead: Lead; onTouch: () => void; onEdit: () => void; onDelete: () => void }) {
   const icon = 'p-2 rounded-lg transition-colors'
   const phoneOk = hasPhone(lead.mobile)
+  const { canSeePhone } = usePhoneAccess()
   return (
     <div className="inline-flex items-center justify-end gap-0.5">
       {phoneOk && (
         <>
-          <a href={waLink(lead.mobile, waMessage(lead))} target="_blank" rel="noopener noreferrer" onClick={onTouch} title="WhatsApp" className={cx(icon, 'text-emerald-600 hover:bg-emerald-50')}>
+          <Link href={inboxHref({ ref: leadRef(lead), name: lead.name }, canSeePhone)} onClick={onTouch} title="WhatsApp (business inbox)" className={cx(icon, 'text-emerald-600 hover:bg-emerald-50')}>
             <MessageCircle className="w-4 h-4" />
-          </a>
-          <a href={`tel:${lead.mobile}`} onClick={onTouch} title="Call" className={cx(icon, 'text-gray-600 hover:bg-gray-100')}>
-            <Phone className="w-4 h-4" />
-          </a>
+          </Link>
+          {canSeePhone && (
+            <a href={`tel:${lead.mobile}`} onClick={onTouch} title="Call (admin only)" className={cx(icon, 'text-gray-600 hover:bg-gray-100')}>
+              <Phone className="w-4 h-4" />
+            </a>
+          )}
         </>
       )}
       {lead.email && (
@@ -773,7 +787,7 @@ function RowActions({ lead, onTouch, onEdit, onDelete }: { lead: Lead; onTouch: 
           <Mail className="w-4 h-4" />
         </a>
       )}
-      <Link href={quoteHref(lead)} title="Create quote PDF" className={cx(icon, 'text-bordeaux-600 hover:bg-bordeaux-50')}>
+      <Link href={quoteHref(lead, canSeePhone)} title="Create quote PDF" className={cx(icon, 'text-bordeaux-600 hover:bg-bordeaux-50')}>
         <FileText className="w-4 h-4" />
       </Link>
       <button type="button" onClick={onEdit} title="Edit details & follow-up" className={cx(icon, 'text-gray-600 hover:bg-gray-100')}>

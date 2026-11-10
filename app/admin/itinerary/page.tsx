@@ -22,7 +22,11 @@ const toCount = (raw: string | null) => {
   return Number.isFinite(n) ? n : undefined
 }
 
-/** Reads ?name=&phone=&email=&destination=&date=&adults=&children= (links from leads) into a builder prefill */
+/**
+ * Reads ?name=&phone=&email=&destination=&date=&adults=&children= (links from leads) into a builder prefill.
+ * Links made for non-admins carry `ref=<collection>/<id>` instead of `phone=`: the builder resolves the number from it
+ * and keeps it masked (lib/admin/privacy.tsx).
+ */
 function ItineraryBuilder() {
   const sp = useSearchParams()
   const key = sp.toString()
@@ -35,6 +39,7 @@ function ItineraryBuilder() {
     const p: ItineraryPrefill = {
       clientName: get('name') || undefined,
       clientPhone: get('phone') || undefined,
+      clientPhoneRef: get('ref') || undefined,
       clientEmail: get('email') || undefined,
       destinationName: get('destination') || undefined,
       travelDate: isoDate || undefined,

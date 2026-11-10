@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Search,
   Download,
-  Phone,
   Mail,
   MessageCircle,
   Facebook,
@@ -43,7 +42,6 @@ import {
   leadPhone,
   salesStats,
   stageInfo,
-  whatsappNumber,
   type CrmRecord,
   type MetaForm,
   type MetaLead,
@@ -53,6 +51,7 @@ import MetaLeadsReports from './meta-crm/MetaLeadsReports'
 import AdInsights from './meta-crm/AdInsights'
 import AutomationPanel, { useAutomationHeartbeat } from './meta-crm/AutomationPanel'
 import LeadsSheet, { STANDARD_ANSWERS, buildColumns } from './meta-crm/LeadsSheet'
+import { PreparedPhoneLink, isPhoneKey, maskPhone, useOpenInbox, usePhoneAccess } from '@/lib/admin/privacy'
 
 type Stats = ReturnType<typeof salesStats>
 
@@ -143,6 +142,9 @@ export default function MetaLeadsSection() {
   const me = useCurrentUserRef()
   const team = useSalesTeam()
   const { records } = useCrmRecords()
+  // Only admins see customers' numbers; everyone else chats through the business WhatsApp inbox
+  const { canSeePhone } = usePhoneAccess()
+  const openInbox = useOpenInbox()
 
   const [data, setData] = useState<MetaLeadsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -215,8 +217,8 @@ export default function MetaLeadsSection() {
 
   // Same columns, in the same order, as the Excel sheet view
   const sheetColumns = useMemo(
-    () => buildColumns(answerKeys.filter((k) => !STANDARD_ANSWERS.some((a) => a.replace(/\?$/, '') === k.replace(/\?$/, '')))),
-    [answerKeys]
+    () => buildColumns(answerKeys.filter((k) => !STANDARD_ANSWERS.some((a) => a.replace(/\?$/, '') === k.replace(/\?$/, ''))), canSeePhone),
+    [answerKeys, canSeePhone]
   )
   const visibleColumns = pickedColumns || sheetColumns.map((c) => `sheet:${c.key}`)
 
@@ -225,7 +227,8 @@ export default function MetaLeadsSection() {
 
   const columnCell = (id: string, lead: MetaLead, rec?: CrmRecord) => {
     if (!id.startsWith('sheet:')) {
-      const value = columnValue(id, lead, rec)
+      let value = columnValue(id, lead, rec)
+      if (!canSeePhone && id.startsWith('answer:') && isPhoneKey(id.slice(7)) && value !== '—') value = maskPhone(value)
       return { value, tone: value === 'Yes' ? 'text-emerald-700 font-semibold' : value === 'No' ? 'text-red-600' : '' }
     }
     const col = sheetColumns.find((c) => `sheet:${c.key}` === id)
@@ -322,13 +325,14 @@ export default function MetaLeadsSection() {
         lead.adset_name,
         lead.campaign_name,
         rec?.assignedTo?.name,
-        ...(lead.field_data || []).flatMap((f) => f.values),
+        // Phone answers are searchable for admins only
+        ...(lead.field_data || []).filter((f) => canSeePhone || !isPhoneKey(f.name)).flatMap((f) => f.values),
       ]
         .join(' ')
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [data, records, search, formFilter, campaignFilter, platformFilter, dateRange, ownerFilter, followUpFilter, me])
+  }, [data, records, search, formFilter, campaignFilter, platformFilter, dateRange, ownerFilter, followUpFilter, me, canSeePhone])
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -396,7 +400,10 @@ export default function MetaLeadsSection() {
       const s = salesStats(rec, lead.created_time)
       return [
         ...metaCols.map((c) => lead[c]),
-        ...fieldKeys.map((k) => lead.field_data?.find((f) => f.name === k)?.values.join(' | ')),
+        ...fieldKeys.map((k) => {
+          const v = lead.field_data?.find((f) => f.name === k)?.values.join(' | ')
+          return !canSeePhone && isPhoneKey(k) && v ? maskPhone(v) : v
+        }),
         stageInfo(rec?.stage).label,
         rec?.assignedTo?.name,
         rec?.priority,
@@ -642,7 +649,7 @@ export default function MetaLeadsSection() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, phone, answers, salesperson..."
+                placeholder={canSeePhone ? 'Search name, phone, answers, salesperson...' : 'Search name, answers, salesperson...'}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
               />
             </div>
@@ -763,9 +770,13 @@ export default function MetaLeadsSection() {
                       </td>
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         {phone && (
-                          <a href={`tel:${phone}`} className="flex items-center gap-1 text-gray-700 hover:text-primary">
-                            <Phone className="w-3 h-3" /> {phone}
-                          </a>
+                          <PreparedPhoneLink
+                            phone={phone}
+                            name={name}
+                            refPath={`meta_lead_crm/${lead.id}`}
+                            prepare={rec ? undefined : () => ensureCrmRecord(lead)}
+                            className="text-xs"
+                          />
                         )}
                         {email && (
                           <a href={`mailto:${email}`} className="flex items-center gap-1 text-gray-500 hover:text-primary text-xs mt-0.5">
@@ -874,13 +885,14 @@ export default function MetaLeadsSection() {
                             </select>
                           </div>
                           {phone && (
-                            <Link
-                              href={`/admin/whatsapp-chats?phone=${whatsappNumber(phone)}&name=${encodeURIComponent(name)}`}
-                              title="Chat on WhatsApp"
+                            <button
+                              type="button"
+                              onClick={() => openInbox({ ref: `meta_lead_crm/${lead.id}`, name }, rec ? undefined : () => ensureCrmRecord(lead))}
+                              title="Chat on WhatsApp (business inbox)"
                               className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50"
                             >
                               <MessageCircle className="w-4 h-4" />
-                            </Link>
+                            </button>
                           )}
                           <Link
                             href={`/admin/meta-leads/${lead.id}`}

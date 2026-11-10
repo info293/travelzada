@@ -17,7 +17,6 @@ import {
   salesStats,
   stageInfo,
   updateCrmFields,
-  whatsappNumber,
   leadName,
   leadPhone,
   type CrmRecord,
@@ -25,6 +24,7 @@ import {
   type MetaLead,
   type StageId,
 } from '@/lib/metaLeadsCrm'
+import { isPhoneKey, maskPhone, useOpenInbox, usePhoneAccess } from '@/lib/admin/privacy'
 
 type Stats = ReturnType<typeof salesStats>
 
@@ -93,7 +93,8 @@ export const STANDARD_ANSWERS = [
   'city',
 ]
 
-export function buildColumns(extraAnswerKeys: string[]): Column[] {
+/** `canSeePhone = false` masks phone answers (only admins may see customers' numbers) */
+export function buildColumns(extraAnswerKeys: string[], canSeePhone = true): Column[] {
   const meta = (key: keyof MetaLead, width = 140, fmt?: (v: any) => string): Column => ({
     key,
     header: key,
@@ -106,7 +107,10 @@ export function buildColumns(extraAnswerKeys: string[]): Column[] {
     header: key,
     width,
     group: 'answer',
-    value: ({ lead }) => answer(lead, key, key.replace(/\?$/, ''), `${key.replace(/\?$/, '')}?`),
+    value: ({ lead }) => {
+      const v = answer(lead, key, key.replace(/\?$/, ''), `${key.replace(/\?$/, '')}?`)
+      return !canSeePhone && v && isPhoneKey(key) ? maskPhone(v) : v
+    },
   })
 
   return [
@@ -302,7 +306,9 @@ export default function LeadsSheet({
       ),
     [leads]
   )
-  const columns = useMemo(() => buildColumns(extraAnswerKeys), [extraAnswerKeys])
+  const { canSeePhone } = usePhoneAccess()
+  const openInbox = useOpenInbox()
+  const columns = useMemo(() => buildColumns(extraAnswerKeys, canSeePhone), [extraAnswerKeys, canSeePhone])
   const rows: Ctx[] = useMemo(
     () => leads.map((lead) => ({ lead, rec: records[lead.id], s: salesStats(records[lead.id], lead.created_time) })),
     [leads, records]
@@ -548,14 +554,20 @@ export default function LeadsSheet({
                           {col.key === 'w_chat' && leadPhone(row.lead) ? (
                             <span className="inline-flex items-center gap-1">
                               {text}
-                              <Link
-                                href={`/admin/whatsapp-chats?phone=${whatsappNumber(leadPhone(row.lead))}&name=${encodeURIComponent(leadName(row.lead))}`}
-                                onClick={(e) => e.stopPropagation()}
-                                title="Open WhatsApp chat"
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openInbox(
+                                    { ref: `meta_lead_crm/${row.lead.id}`, name: leadName(row.lead) },
+                                    row.rec ? undefined : () => ensureCrmRecord(row.lead)
+                                  )
+                                }}
+                                title="Open WhatsApp chat (business inbox)"
                                 className="text-emerald-600 hover:text-emerald-800"
                               >
                                 <MessageCircle className="w-3 h-3" />
-                              </Link>
+                              </button>
                             </span>
                           ) : (
                             text

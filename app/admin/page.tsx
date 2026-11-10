@@ -16,7 +16,8 @@ import {
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { STAGES, isFollowUpOverdue, type CrmRecord } from '@/lib/metaLeadsCrm'
-import { Badge, Card, EmptyState, StatCard, Spinner, StatusBadge, formatDate, formatINR, timeAgo, toMillis, waLink } from '@/components/admin/ui'
+import { Badge, Card, EmptyState, StatCard, Spinner, StatusBadge, formatDate, formatINR, timeAgo, toMillis } from '@/components/admin/ui'
+import { PhoneLink } from '@/lib/admin/privacy'
 
 interface LeadLite {
   id: string
@@ -27,6 +28,8 @@ interface LeadLite {
   createdAt: any
   source: 'Website' | 'AI Planner' | 'Meta Ad'
   href: string
+  /** Firestore path of the record — opens the WhatsApp inbox on it without exposing the number */
+  refPath: string
 }
 
 interface TripLite {
@@ -110,6 +113,7 @@ export default function AdminOverviewPage() {
           createdAt: x.createdAt,
           source,
           href: '/admin/leads',
+          refPath: `${source === 'AI Planner' ? 'ai_planner_leads' : 'leads'}/${d.id}`,
         }
       }
       const metaLeads: LeadLite[] = crmRecords.map((r: CrmRecord) => ({
@@ -121,6 +125,7 @@ export default function AdminOverviewPage() {
         createdAt: r.leadCreatedAt,
         source: 'Meta Ad',
         href: `/admin/meta-leads/${r.leadId}`,
+        refPath: `meta_lead_crm/${r.leadId}`,
       }))
       const isFbCopy = (d: any) => { const x = d.data(); return !!x.leadgenId || /facebook/i.test(String(x.source || '')) }
       const all = [...web.filter((d: any) => !isFbCopy(d)).map((d: any) => mapLead(d, 'Website')), ...ai.map((d: any) => mapLead(d, 'AI Planner')), ...metaLeads]
@@ -232,17 +237,8 @@ export default function AdminOverviewPage() {
                           </Link>
                           <Badge tone={l.source === 'Meta Ad' ? 'blue' : l.source === 'AI Planner' ? 'purple' : 'gray'} className="hidden sm:inline-flex">{l.source}</Badge>
                           {l.phone && (
-                            <div className="flex gap-1.5 shrink-0">
-                              <a href={`tel:${l.phone}`} className="p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" title="Call"><Phone className="w-4 h-4" /></a>
-                              <a
-                                href={waLink(l.phone, `Hi ${l.name.split(' ')[0]}, this is Travelzada 😊 Thanks for your enquiry${l.destination ? ` about ${l.destination}` : ''}! When is a good time to plan your trip together?`)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600"
-                                title="WhatsApp"
-                              >
-                                <MessageCircle className="w-4 h-4" />
-                              </a>
+                            <div className="shrink-0">
+                              <PhoneLink phone={l.phone} name={l.name} refPath={l.refPath} />
                             </div>
                           )}
                         </li>

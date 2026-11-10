@@ -16,6 +16,8 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { DestinationPackage } from './types';
 import { Badge, Button, Card, Field, cx, formatINR, inputClass, waLink } from './ui';
+import Link from 'next/link';
+import { inboxHref, maskPhone, resolveRefPhone, usePhoneAccess } from '@/lib/admin/privacy';
 import ProposalDocument from './proposal/ProposalDocument';
 import { buildProposalData, cleanImageUrl, makeQuoteRef, parseList } from './proposal/buildProposalData';
 import { PAGE_H, PAGE_W, formatLongDate, nightsBetween, type ProposalData } from './proposal/types';
@@ -79,6 +81,9 @@ export interface ItineraryPrefill {
     clientName?: string;
     clientEmail?: string;
     clientPhone?: string;
+    /** Firestore path of the lead the quote is for (e.g. "leads/abc"). Non-admins get this instead of the number:
+     *  the builder resolves it, keeps the number masked, and opens the WhatsApp inbox on it. */
+    clientPhoneRef?: string;
     travelDate?: string;
     adults?: number;
     children?: number;
@@ -207,6 +212,26 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
         validDays: 7,
     });
     const set = <K extends keyof ItineraryData>(key: K, value: ItineraryData[K]) => setFormData((prev) => ({ ...prev, [key]: value }));
+
+    // Customer phone privacy: a number that came from a lead is shown masked + read-only to non-admins
+    const { canSeePhone } = usePhoneAccess();
+    const phoneLocked = !canSeePhone && !!(prefill?.clientPhone || prefill?.clientPhoneRef);
+    /** Where the WhatsApp inbox should open: the source lead, else the saved quote record */
+    const [savedRecordId, setSavedRecordId] = useState('');
+    const chatRef = prefill?.clientPhoneRef || (savedRecordId ? `customer_itineraries/${savedRecordId}` : '');
+
+    // ?ref= from a lead (non-admin links carry no number): resolve it so the quote record still gets the phone
+    useEffect(() => {
+        if (!prefill?.clientPhoneRef || prefill.clientPhone) return;
+        let cancelled = false;
+        resolveRefPhone(prefill.clientPhoneRef)
+            .then((hit) => {
+                if (cancelled || !hit) return;
+                setFormData((prev) => ({ ...prev, clientPhone: prev.clientPhone || hit.phone, clientName: prev.clientName || hit.name }));
+            })
+            .catch((e) => console.warn('Could not resolve the lead phone', e));
+        return () => { cancelled = true; };
+    }, [prefill?.clientPhoneRef, prefill?.clientPhone]);
 
     // Travel designer defaults to the signed-in sales person
     useEffect(() => {
@@ -407,7 +432,8 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
         if (!selectedPackage) return null;
         return buildProposalData({
             pkg: selectedPackage,
-            client: { name: formData.clientName, phone: formData.clientPhone, email: formData.clientEmail },
+            // The customer's own phone never goes into the customer-facing PDF
+            client: { name: formData.clientName, email: formData.clientEmail },
             travelDate: formData.travelDate,
             adults: formData.adults || 0,
             children: formData.children || 0,
@@ -499,7 +525,8 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                     updatedAt: now,
                     createdBy: (currentUser as any)?.email || 'admin'
                 };
-                await addDoc(collection(db, 'customer_itineraries'), JSON.parse(JSON.stringify(customerRecord)));
+                const saved = await addDoc(collection(db, 'customer_itineraries'), JSON.parse(JSON.stringify(customerRecord)));
+                setSavedRecordId(saved.id);
             } catch (saveError) {
                 console.error('Failed to save customer record:', saveError);
             }
@@ -532,7 +559,9 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
           (formData.totalCost > 0 ? `Total: ${formatINR(formData.totalCost)} for ${formData.adults} adult${formData.adults === 1 ? '' : 's'}${formData.children ? ` + ${formData.children} child${formData.children === 1 ? '' : 'ren'}` : ''}\n` : '') +
           `Valid till ${formatLongDate(proposalData.validUntil)}.\n\nI've attached the PDF — have a look and tell me if you'd like any changes!`
         : '';
-    const clientWa = waLink(formData.clientPhone, waMessage);
+    // Personal wa.me share (needs the number) is admin-only; everyone gets the business WhatsApp inbox
+    const clientWa = canSeePhone ? waLink(formData.clientPhone, waMessage) : '';
+    const clientInbox = chatRef ? inboxHref({ ref: chatRef, name: formData.clientName }, canSeePhone) : '';
 
     const canShareFile = typeof navigator !== 'undefined' && !!(navigator as any).canShare && !!result &&
         (() => { try { return (navigator as any).canShare({ files: [new File([result.blob], result.fileName, { type: 'application/pdf' })] }); } catch { return false; } })();
@@ -596,7 +625,11 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                             <input className={inputClass} placeholder="e.g. Priya & Rohan Sharma" value={formData.clientName} onChange={(e) => set('clientName', e.target.value)} autoFocus />
                         </Field>
                         <Field label="WhatsApp / phone" hint="Used for the “Share on WhatsApp” button">
-                            <input className={inputClass} type="tel" placeholder="98765 43210" value={formData.clientPhone} onChange={(e) => set('clientPhone', e.target.value)} />
+                            {phoneLocked ? (
+                                <input className={cx(inputClass, 'bg-gray-50 text-gray-500')} value={maskPhone(formData.clientPhone) || (prefill?.clientPhoneRef ? 'From the lead (hidden)' : '')} readOnly title="Only admins can see the customer's number" />
+                            ) : (
+                                <input className={inputClass} type="tel" placeholder="98765 43210" value={formData.clientPhone} onChange={(e) => set('clientPhone', e.target.value)} />
+                            )}
                         </Field>
                         <Field label="Email">
                             <input className={inputClass} type="email" placeholder="name@email.com" value={formData.clientEmail} onChange={(e) => set('clientEmail', e.target.value)} />
@@ -910,11 +943,16 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                         {canShareFile && (
                                             <Button variant="secondary" onClick={shareFile}><Share2 className="w-4 h-4" /> Share PDF…</Button>
                                         )}
-                                        {clientWa ? (
-                                            <a href={clientWa} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-[#25D366] text-white hover:bg-[#1ebe5a] shadow-sm">
+                                        {clientInbox && (
+                                            <Link href={clientInbox} className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm">
+                                                <MessageCircle className="w-4 h-4" /> Open WhatsApp chat
+                                            </Link>
+                                        )}
+                                        {canSeePhone && clientWa ? (
+                                            <a href={clientWa} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-[#25D366] text-white hover:bg-[#1ebe5a] shadow-sm" title="Admin only: opens WhatsApp with the number so you can attach the PDF">
                                                 <MessageCircle className="w-4 h-4" /> Share on WhatsApp
                                             </a>
-                                        ) : (
+                                        ) : clientInbox ? null : (
                                             <span className="text-xs text-emerald-800 self-center">Add the customer&apos;s phone in step 1 to share on WhatsApp.</span>
                                         )}
                                     </div>

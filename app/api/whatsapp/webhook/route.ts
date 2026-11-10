@@ -66,6 +66,10 @@ export async function POST(req: NextRequest) {
           if (!value) continue
 
           const contactName = value.contacts?.[0]?.profile?.name || ''
+          // Which of OUR numbers received this. The Meta webhook can deliver messages for every number in the
+          // WhatsApp Business Account, so a message to the GetGabs number (88900) may arrive here too.
+          const businessDigits = String(value.metadata?.display_phone_number || '').replace(/\D/g, '')
+          const inboundChannel: 'meta' | 'getgabs' = businessDigits === '918890059568' ? 'getgabs' : 'meta'
 
           // A. Process Inbound WhatsApp Messages
           if (value.messages && value.messages.length > 0) {
@@ -112,6 +116,8 @@ export async function POST(req: NextRequest) {
                 mediaUrl,
                 status: 'received',
                 timestamp: messageTimestamp,
+                channel: inboundChannel,
+                ...(businessDigits ? { businessNumber: businessDigits } : {}),
                 createdAt: serverTimestamp(),
               })
 
@@ -125,6 +131,9 @@ export async function POST(req: NextRequest) {
                   lastMessage: messageText,
                   lastMessageTimestamp: messageTimestamp,
                   lastDirection: 'inbound',
+                  lastInboundAt: messageTimestamp,
+                  lastInboundChannel: inboundChannel,
+                  channel: inboundChannel,
                   unreadCount: increment(1),
                   updatedAt: serverTimestamp(),
                 },
@@ -137,7 +146,8 @@ export async function POST(req: NextRequest) {
               )
 
               // Template quick-reply buttons: "Show me options" / "Call me back" / "Not interested"
-              if (messageType === 'button' || messageType === 'interactive' || messageType === 'text') {
+              // (only for the Meta number — the automation replies via Meta, which would be the wrong number for 88900)
+              if (inboundChannel === 'meta' && (messageType === 'button' || messageType === 'interactive' || messageType === 'text')) {
                 await handleWhatsAppButton(senderPhone, messageText).catch((e) =>
                   console.error('[WhatsApp Automation] button handling failed:', e)
                 )

@@ -15,6 +15,7 @@ import {
   type CrmUserRef,
   type LeadMessage,
 } from '@/lib/metaLeadsCrm'
+import { inboxHref, maskPhone, usePhoneAccess } from '@/lib/admin/privacy'
 
 interface Item {
   key: string
@@ -29,6 +30,8 @@ interface Item {
 
 export default function LeadConversation({ record, me }: { record: CrmRecord; me: CrmUserRef | null }) {
   const { currentUser } = useAuth()
+  // Only admins see the customer's number; WhatsApp opens the business inbox via the CRM record ref
+  const { canSeePhone } = usePhoneAccess()
   const [emails, setEmails] = useState<LeadMessage[]>([])
   const [whatsapp, setWhatsapp] = useState<any[]>([])
   const [reply, setReply] = useState('')
@@ -153,7 +156,7 @@ export default function LeadConversation({ record, me }: { record: CrmRecord; me
           )}
           {phone && (
             <Link
-              href={`/admin/whatsapp-chats?phone=${phone}&name=${encodeURIComponent(record.name)}`}
+              href={inboxHref({ ref: `meta_lead_crm/${record.leadId}`, name: record.name }, canSeePhone)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
             >
               <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
@@ -182,7 +185,7 @@ export default function LeadConversation({ record, me }: { record: CrmRecord; me
             </span>
           ) : wa?.sentAt ? (
             <>
-              WhatsApp welcome + {wa.destination || ''} proposal PDF sent {formatDateTime(wa.sentAt)} to +{wa.to}
+              WhatsApp welcome + {wa.destination || ''} proposal PDF sent {formatDateTime(wa.sentAt)} to {canSeePhone || wa.test ? `+${wa.to}` : maskPhone(String(wa.to || ''))}
               {wa.test ? ' (test number)' : ''}
               {wa.followUpSentAt ? ` · follow-up ${wa.followUpError ? 'failed' : 'sent'} ${formatDateTime(wa.followUpSentAt)}` : ''}.
             </>

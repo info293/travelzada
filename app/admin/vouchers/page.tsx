@@ -6,6 +6,7 @@ import { Copy, ExternalLink, Printer, RefreshCw, Search, Send } from 'lucide-rea
 import { useAuth } from '@/contexts/AuthContext'
 import { db } from '@/lib/firebase'
 import { PageHeader, StatCard, StatRow, Spinner, cx } from '@/components/admin/ui'
+import { PhoneLink, usePhoneAccess } from '@/lib/admin/privacy'
 import {
   CLAIM_STATUSES,
   VOUCHER_CARDS_COLLECTION,
@@ -103,6 +104,7 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
   const [status, setStatus] = useState<'all' | 'active' | 'applied' | 'cancelled' | 'expired'>('all')
   const [applying, setApplying] = useState<VoucherClaim | null>(null)
   const [busy, setBusy] = useState('')
+  const { canSeePhone } = usePhoneAccess()
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -110,9 +112,10 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
       const s = isClaimExpired(c) ? 'expired' : c.status
       if (status !== 'all' && s !== status) return false
       if (!q) return true
-      return [c.code, c.cardCode, c.name, c.phone, c.email, c.destination, c.bookingRef].some((v) => v?.toLowerCase().includes(q))
+      // Phone is searchable for admins only
+      return [c.code, c.cardCode, c.name, canSeePhone ? c.phone : '', c.email, c.destination, c.bookingRef].some((v) => v?.toLowerCase().includes(q))
     })
-  }, [claims, search, status])
+  }, [claims, search, status, canSeePhone])
 
   const setClaimStatus = async (c: VoucherClaim, next: VoucherClaim['status'], extra: Partial<VoucherClaim> = {}) => {
     setBusy(c.code)
@@ -145,7 +148,7 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search code, name, phone, email, booking ref…"
+            placeholder={canSeePhone ? 'Search code, name, phone, email, booking ref…' : 'Search code, name, email, booking ref…'}
             className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
           />
         </div>
@@ -186,9 +189,7 @@ function ClaimsTab({ claims, authFetch }: { claims: VoucherClaim[]; authFetch: A
                     </td>
                     <td className="px-4 py-3 min-w-[180px]">
                       <div className="font-semibold text-gray-900">{c.name}</div>
-                      <a href={`https://wa.me/${c.phoneNorm}`} target="_blank" rel="noopener noreferrer" className="text-emerald-700 hover:underline block">
-                        +91 {c.phone}
-                      </a>
+                      <div><PhoneLink phone={c.phoneNorm || c.phone} name={c.name} refPath={`${VOUCHER_CLAIMS_COLLECTION}/${c.code}`} /></div>
                       <a href={`mailto:${c.email}`} className="text-gray-500 hover:underline block truncate max-w-[200px]">{c.email}</a>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">

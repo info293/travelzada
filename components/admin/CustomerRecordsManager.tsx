@@ -13,8 +13,12 @@ import { CalendarClock, Download, FileText, IndianRupee, MessageCircle, Phone, P
 import { CustomerItinerary, HistoryEntry } from './types';
 import {
     PageHeader, StatRow, StatCard, Card, Toolbar, SearchInput, FilterChips, Button, Table, Th, Td, Drawer, Field, inputClass,
-    Badge, EmptyState, Spinner, formatDate, formatINR, waLink, exportToCsv, toMillis, cx,
+    Badge, EmptyState, Spinner, formatDate, formatINR, exportToCsv, toMillis, cx,
 } from './ui';
+import { PhoneLink, inboxHref, maskPhone, redactForExport, usePhoneAccess } from '@/lib/admin/privacy';
+
+/** Firestore path of the record — the WhatsApp inbox resolves the number from it */
+const recordRef = (r: CustomerItinerary) => `customer_itineraries/${r.id}`;
 
 interface CustomerRecordsManagerProps {
     onRefresh?: () => void;
@@ -63,6 +67,7 @@ const balanceOf = (r: CustomerItinerary) => Math.max(0, (Number(r.totalCost) || 
 const isActiveBooking = (r: CustomerItinerary) => r.status === 'confirmed';
 
 export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsManagerProps) {
+    const { canSeePhone } = usePhoneAccess();
     const [records, setRecords] = useState<CustomerItinerary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -159,7 +164,8 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
             if (view === 'cancelled' && r.status !== 'cancelled') return false;
             if (view === 'balance' && !((r.status === 'confirmed' || r.status === 'completed') && balanceOf(r) > 0)) return false;
             if (!q) return true;
-            return [r.clientName, r.clientEmail, r.clientPhone, r.packageName, r.destinationName]
+            // Phone is searchable for admins only
+            return [r.clientName, r.clientEmail, canSeePhone ? r.clientPhone : '', r.packageName, r.destinationName]
                 .some((v) => String(v || '').toLowerCase().includes(q));
         });
         const rank = (r: CustomerItinerary) => {
@@ -172,7 +178,7 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
             if (ra === 0) return toMillis(a.travelDate) - toMillis(b.travelDate);
             return toMillis(b.createdAt) - toMillis(a.createdAt);
         });
-    }, [records, searchTerm, view]);
+    }, [records, searchTerm, view, canSeePhone]);
 
     // ---- Writes --------------------------------------------------------------
     const handleStatusChange = async (record: CustomerItinerary, newStatus: Status) => {
@@ -252,7 +258,8 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
             const updateData = {
                 clientName: editForm.clientName || '',
                 clientEmail: editForm.clientEmail || '',
-                clientPhone: editForm.clientPhone || '',
+                // Only admins can change the number (non-admins see it masked + read-only)
+                clientPhone: (canSeePhone ? editForm.clientPhone : selected.clientPhone) || '',
                 packageName: editForm.packageName || '',
                 destinationName: editForm.destinationName || '',
                 travelDate: editForm.travelDate || '',
@@ -281,7 +288,7 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
     const handleExport = () => {
         exportToCsv(
             `travelzada-customers-${new Date().toISOString().slice(0, 10)}.csv`,
-            filteredRecords.map((r) => ({
+            redactForExport(filteredRecords.map((r) => ({
                 Name: r.clientName,
                 Phone: r.clientPhone,
                 Email: r.clientEmail,
@@ -296,20 +303,8 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
                 'Balance (INR)': balanceOf(r),
                 Created: r.createdAt,
                 Notes: r.notes,
-            })),
+            })), canSeePhone, ['Phone']),
         );
-    };
-
-    const waMessage = (r: CustomerItinerary) => {
-        const first = (r.clientName || '').split(' ')[0] || 'there';
-        const trip = r.packageName || r.destinationName || 'your trip';
-        if (r.status === 'confirmed' && balanceOf(r) > 0) {
-            return `Hi ${first}, this is Travelzada. A quick reminder about ${trip}${r.travelDate ? ` on ${formatDate(r.travelDate)}` : ''}: the balance of ${formatINR(balanceOf(r))} is pending. Let us know if you need the payment details again.`;
-        }
-        if (r.status === 'draft' || r.status === 'sent') {
-            return `Hi ${first}, this is Travelzada. Did you get a chance to look at the quote for ${trip}? Happy to tweak anything for you.`;
-        }
-        return `Hi ${first}, this is Travelzada regarding ${trip}.`;
     };
 
     const viewOptions: Array<{ value: View; label: string; count: number }> = [
@@ -352,7 +347,7 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
 
             <Toolbar>
                 <FilterChips options={viewOptions} value={view} onChange={setView} />
-                <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search name, phone, email, package…" className="w-full md:w-80" />
+                <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder={canSeePhone ? 'Search name, phone, email, package…' : 'Search name, email, package…'} className="w-full md:w-80" />
             </Toolbar>
 
             <Card padded={false}>
@@ -391,9 +386,7 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
                                         <Td>
                                             <div className="font-semibold text-gray-900">{r.clientName || 'Unnamed'}</div>
                                             {r.clientPhone && (
-                                                <a href={`tel:${r.clientPhone}`} onClick={(e) => e.stopPropagation()} className="text-xs text-gray-500 hover:text-bordeaux-700">
-                                                    {r.clientPhone}
-                                                </a>
+                                                <div><PhoneLink phone={r.clientPhone} name={r.clientName} refPath={recordRef(r)} showCall={false} /></div>
                                             )}
                                         </Td>
                                         <Td>
@@ -443,12 +436,14 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
                                             <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                                                 {r.clientPhone && (
                                                     <>
-                                                        <a href={waLink(r.clientPhone, waMessage(r))} target="_blank" rel="noopener noreferrer" title="WhatsApp" className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50">
+                                                        <Link href={inboxHref({ ref: recordRef(r), name: r.clientName }, canSeePhone)} title="WhatsApp (business inbox)" className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50">
                                                             <MessageCircle className="w-4 h-4" />
-                                                        </a>
-                                                        <a href={`tel:${r.clientPhone}`} title="Call" className="p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                                                            <Phone className="w-4 h-4" />
-                                                        </a>
+                                                        </Link>
+                                                        {canSeePhone && (
+                                                            <a href={`tel:${r.clientPhone}`} title="Call (admin only)" className="p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                                                                <Phone className="w-4 h-4" />
+                                                            </a>
+                                                        )}
                                                     </>
                                                 )}
                                                 <button type="button" onClick={() => handleDelete(r)} title="Delete" className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50">
@@ -486,12 +481,14 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
                     <div className="space-y-6">
                         {selected.clientPhone && (
                             <div className="flex flex-wrap gap-2">
-                                <a href={waLink(selected.clientPhone, waMessage(selected))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
+                                <Link href={inboxHref({ ref: recordRef(selected), name: selected.clientName }, canSeePhone)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
                                     <MessageCircle className="w-4 h-4" /> WhatsApp
-                                </a>
-                                <a href={`tel:${selected.clientPhone}`} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50">
-                                    <Phone className="w-4 h-4" /> Call
-                                </a>
+                                </Link>
+                                {canSeePhone && (
+                                    <a href={`tel:${selected.clientPhone}`} className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50">
+                                        <Phone className="w-4 h-4" /> Call
+                                    </a>
+                                )}
                             </div>
                         )}
 
@@ -499,7 +496,13 @@ export default function CustomerRecordsManager({ onRefresh }: CustomerRecordsMan
                             <h4 className="text-sm font-semibold text-gray-900 mb-3">Customer</h4>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <Field label="Name"><input className={inputClass} value={editForm.clientName || ''} onChange={(e) => setEditForm({ ...editForm, clientName: e.target.value })} /></Field>
-                                <Field label="Phone"><input className={inputClass} value={editForm.clientPhone || ''} onChange={(e) => setEditForm({ ...editForm, clientPhone: e.target.value })} /></Field>
+                                <Field label="Phone">
+                                    {canSeePhone ? (
+                                        <input className={inputClass} value={editForm.clientPhone || ''} onChange={(e) => setEditForm({ ...editForm, clientPhone: e.target.value })} />
+                                    ) : (
+                                        <input className={cx(inputClass, 'bg-gray-50 text-gray-500')} value={maskPhone(selected.clientPhone)} placeholder="Not provided" readOnly title="Only admins can see or change the number" />
+                                    )}
+                                </Field>
                                 <Field label="Email"><input type="email" className={inputClass} value={editForm.clientEmail || ''} onChange={(e) => setEditForm({ ...editForm, clientEmail: e.target.value })} /></Field>
                             </div>
                         </section>
