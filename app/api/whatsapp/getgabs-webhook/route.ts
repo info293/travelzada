@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import { businessNumberFor, parseGetGabsWebhook, type GetGabsWebhookEvent } from '@/lib/getgabs'
 import { markWhatsAppReply } from '@/lib/leadAutomation'
+import { handleOptOutReply } from '@/lib/whatsapp/broadcasts'
 
 /**
  * GetGabs inbound webhook (GetGabs → Settings → Developer Tools → "Webhook URL for All Chats"):
@@ -117,6 +118,8 @@ async function handleInbound(ev: GetGabsWebhookEvent) {
 
   // Same as the Meta webhook: link the reply to the CRM lead with this phone number
   await markWhatsAppReply(ev.from, ev.text, ev.timestamp).catch((e) => console.error('[CRM] Could not link GetGabs reply:', e))
+  // "STOP" / "Stop promotions" → exclude from future broadcasts; "START" re-subscribes (never throws)
+  await handleOptOutReply(ev.from, ev.text, { channel: 'getgabs', messageId: ev.messageId, timestamp: ev.timestamp })
   // NOTE: Meta-template button automation (handleWhatsAppButton) is intentionally NOT run here: it replies through
   // the Meta Cloud API number, not GetGabs.
   return 'stored'

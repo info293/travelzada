@@ -46,6 +46,8 @@ function ItineraryBuilder() {
       adults: toCount(sp.get('adults')) || undefined,
       children: toCount(sp.get('children')),
       notes: rawDate && !isoDate ? `Travel date (from enquiry): ${rawDate}` : undefined,
+      // ?quote=<customer_itineraries id> reopens a saved quote (Sent Quotes → Open in builder)
+      quoteDocId: get('quote') || undefined,
     }
     return p
     // eslint-disable-next-line react-hooks/exhaustive-deps

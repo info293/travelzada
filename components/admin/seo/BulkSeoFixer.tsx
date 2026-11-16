@@ -15,7 +15,7 @@ import type { PackageAudit } from '@/lib/seo/packageAudit'
 import { SIMILAR_AT } from '@/lib/seo/similarity'
 import type { OptimizeResult, SeoField, SeoPatch } from '@/lib/seo/types'
 import SeoReviewPanel, { SimilarityLine } from './SeoReviewPanel'
-import { fieldsIn, pickPatch, runSeoOptimize } from './api'
+import { applyEdits, fieldsIn, pickPatch, runSeoOptimize } from './api'
 
 type Pkg = Record<string, any> & { id?: string }
 type Mode = 'review' | 'auto'
@@ -77,6 +77,15 @@ export default function BulkSeoFixer({
   const [items, setItems] = useState<Item[]>([])
   const [paused, setPaused] = useState(false)
   const [selected, setSelected] = useState<Set<SeoField>>(new Set())
+  // Staff edits to the package currently under review (cleared whenever a new package comes up)
+  const [edits, setEdits] = useState<Record<string, any>>({})
+  const onEdit = (f: SeoField, v: any) =>
+    setEdits((e) => {
+      const n = { ...e }
+      if (v === undefined) delete n[f]
+      else n[f] = v
+      return n
+    })
   const [reviewingHeld, setReviewingHeld] = useState<string | null>(null)
   const [savingHeld, setSavingHeld] = useState(false)
   const [savingReview, setSavingReview] = useState(false)
@@ -153,6 +162,7 @@ export default function BulkSeoFixer({
 
       // Review each
       setSelected(new Set(fieldsIn(result.patch)))
+      setEdits({})
       patchItem(it.id, { status: 'review', result })
       const decision = await new Promise<Decision>((res) => {
         decideRef.current = res
@@ -206,7 +216,7 @@ export default function BulkSeoFixer({
   const decide = async (apply: boolean, result?: OptimizeResult) => {
     if (!decideRef.current) return
     setSavingReview(apply)
-    decideRef.current({ apply, patch: apply && result ? pickPatch(result.patch, selected) : undefined })
+    decideRef.current({ apply, patch: apply && result ? pickPatch(applyEdits(result.patch, edits), selected) : undefined })
   }
   useEffect(() => {
     if (!items.some((i) => i.status === 'review')) setSavingReview(false)
@@ -216,7 +226,7 @@ export default function BulkSeoFixer({
     if (!it.result) return
     setSavingHeld(true)
     try {
-      await onSave(it.pkg, pickPatch(it.result.patch, selected))
+      await onSave(it.pkg, pickPatch(applyEdits(it.result.patch, edits), selected))
       patchItem(it.id, { status: 'applied' })
       setReviewingHeld(null)
     } catch (e) {
@@ -316,13 +326,13 @@ export default function BulkSeoFixer({
           ) : current?.result ? (
             <div>
               <p className="mb-3 text-sm font-semibold text-gray-900">{current.name}</p>
-              <SeoReviewPanel result={current.result} before={current.pkg} selected={selected} onToggle={toggle} />
+              <SeoReviewPanel result={current.result} before={current.pkg} selected={selected} onToggle={toggle} values={edits} onEdit={onEdit} />
             </div>
           ) : held?.result ? (
             <div>
               <button type="button" onClick={() => setReviewingHeld(null)} className="mb-3 text-xs font-semibold text-bordeaux-700 hover:underline">← Back to summary</button>
               <p className="mb-3 text-sm font-semibold text-gray-900">{held.name}</p>
-              <SeoReviewPanel result={held.result} before={held.pkg} selected={selected} onToggle={toggle} />
+              <SeoReviewPanel result={held.result} before={held.pkg} selected={selected} onToggle={toggle} values={edits} onEdit={onEdit} />
             </div>
           ) : (
             <div className="space-y-4">
@@ -352,6 +362,7 @@ export default function BulkSeoFixer({
                           variant="secondary"
                           onClick={() => {
                             setSelected(new Set(fieldsIn(it.result!.patch)))
+                            setEdits({})
                             setReviewingHeld(it.id)
                           }}
                         >

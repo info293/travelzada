@@ -3,11 +3,89 @@
  * The builder (ItineraryGenerator) maps its form + package into this shape; the page components render it.
  */
 
+/** Every photo in the proposal (cover, option mosaics, rooms, days, flight screenshots) */
+export interface ProposalImage {
+    url: string
+    caption?: string
+}
+
 export interface ProposalDay {
     day: string // "Day 1"
     title: string
     description: string
     activities?: string[]
+    /** Shown right-aligned on the day row, e.g. "Srinagar" */
+    location?: string
+    images?: ProposalImage[]
+}
+
+/** One hotel / room inside a stay option */
+export interface ProposalStay {
+    id?: string
+    city: string
+    nights: number
+    hotelName: string
+    roomType: string
+    mealPlan: string
+    checkIn?: string // yyyy-mm-dd (derived from the travel date when empty)
+    checkOut?: string
+    sizeSqm?: string
+    bullets: string[]
+    images: ProposalImage[]
+}
+
+/**
+ * A complete stay option (hotel set / resort). A quote has 1..4; exactly one is the quoted price (isQuoted).
+ * 1 option → single-quote layout; 2 → side-by-side "Your choice of stays"; 3–4 → comparison table.
+ */
+export interface StayOption {
+    id: string
+    label: string // "Premium · 4-star" or the resort name
+    tier?: string
+    isQuoted: boolean
+    price: number // total for all travellers
+    perPerson: number
+    priceNote: string // "Full Board Plus · 4 nights"
+    mealSummary: string
+    transfer: string // "Seaplane · 35 min"
+    location: string
+    starRating: number // 0 = hide
+    description: string
+    chooseIf: string
+    amenities: string[]
+    images: ProposalImage[] // mosaic, up to 6 (captions become tags)
+    included: string[]
+    hotels: ProposalStay[]
+}
+
+export type StayOptionDraft = Omit<StayOption, 'perPerson'> & { perPerson?: number }
+
+/**
+ * Builder-side design settings (images, options, closing-page copy). Empty strings / arrays mean "auto".
+ * Saved with the quote record (customer_itineraries.builder.design) so a quote can be reopened.
+ */
+export interface QuoteDesign {
+    version: 2
+    coverImage: ProposalImage[] // 0..1 — empty = package photo
+    coverTitle: string
+    coverScript: string
+    coverSubtitle: string
+    roomsLabel: string
+    stayOptions: StayOptionDraft[]
+    flightsMode: 'auto' | 'included' | 'not-included'
+    outboundShot: ProposalImage[] // 0..1
+    returnShot: ProposalImage[] // 0..1
+    outboundLabel: string
+    returnLabel: string
+    fareNote: string
+    dayPhotos: ProposalImage[] // featured photos on the day-by-day page (0..2) — empty = auto
+    atAGlance: string[]
+    chips: string[]
+    paymentText: string
+    cancellationText: string
+    peakLine: string
+    ratingLine: string
+    showcase: boolean // per-option photo pages
 }
 
 export interface ProposalHotel {
@@ -74,7 +152,61 @@ export interface ProposalData {
     whyUs: { label: string; description: string }[]
     reviews: { name: string; content: string; date?: string; rating?: string }[]
     logoUrl: string
+
+    /* ---- v2 design (house style) ---- */
+    cover: {
+        title: string // "Kashmir"
+        script: string // "for two"
+        subtitle: string // "Srinagar, Gulmarg & Pahalgam · hand-picked 4-star stays"
+        eyebrow: string // "A Travelzada proposal for Mr. Rahul"
+        roomsLabel: string // "1 double"
+        dateRange: string // "12 – 17 Dec 2026"
+        hotelsLabel: string // "4-star"
+    }
+    /** Running label in the page header, e.g. "Premium Kashmir" */
+    runningLabel: string
+    stayOptions: StayOption[]
+    flightInfo: {
+        show: boolean
+        included: boolean
+        outbound?: ProposalImage
+        inbound?: ProposalImage
+        outboundLabel: string
+        inboundLabel: string
+        outboundDate: string
+        inboundDate: string
+        fareNote: string
+    }
+    dayPhotos: ProposalImage[]
+    extras: {
+        atAGlance: string[]
+        chips: string[]
+        paymentText: string
+        cancellationText: string
+        peakLine: string
+        ratingLine: string
+        termsUrl: string
+        showcase: boolean
+    }
 }
+
+/** House-style palette (Quote Template v2): white pages, warm brown ink, tan rules, cream cards */
+export const HS = {
+    ink: '#3D2B1F',
+    inkSoft: '#6A5546',
+    muted: '#9A8472',
+    tan: '#B48A62',
+    line: '#E7DACB',
+    cream: '#F8F2EA',
+    creamDeep: '#EFE3D3',
+    dark: '#3A281D',
+    darkText: '#F8F2EA',
+    darkMuted: '#CDB7A1',
+    wine: '#651926',
+}
+
+export const BRAND_RATING_LINE = '★ 4.9 from 500+ couples · Travelzada (Sadaya Trips LLP), Jaipur'
+export const TERMS_URL = 'https://www.travelzada.com/terms-and-conditions'
 
 export const TZ = {
     wine: '#651926',

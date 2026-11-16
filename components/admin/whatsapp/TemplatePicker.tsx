@@ -1,22 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { FileText, Loader2, Send, X, Info, Link as LinkIcon } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, FileText, Info, Loader2, Send, Sparkles, X } from 'lucide-react'
+import { buildTemplateComponents, type WhatsAppTemplateSummary } from '@/lib/whatsapp'
 import {
-  buildTemplateComponents,
-  renderTemplateText,
-  type WhatsAppTemplateSummary,
-} from '@/lib/whatsapp'
-import {
-  buildGetGabsComponents,
-  documentFilename,
-  getGabsPreviewText,
-  getGabsTemplateFields,
-  isHttpsUrl,
-  type GetGabsTemplateListItem,
-  type GetGabsTemplateSummary,
-} from '@/lib/getgabsTemplates'
+  CATEGORY_LABEL,
+  FIRST_CONTACT_TEMPLATES,
+  REOPEN_TEMPLATES,
+  STAGE_FILTERS,
+  STAGE_LABEL,
+  getCatalogTemplate,
+  humanizeTemplateName,
+  type CatalogTemplate,
+  type VariableSource,
+} from '@/lib/whatsapp/templateCatalog'
+import WhatsAppPhonePreview from './templates/WhatsAppPhonePreview'
+import TemplateFields, { buildComponents, fieldDomId, missingFields, previewText, type HeaderMediaValue, type TemplateValues } from './templates/TemplateFields'
+import { useLiveTemplateDetail, useLiveTemplates } from './templates/useLiveTemplates'
+import { allTemplates, groupByStage, searchTemplates } from './templates/templateList'
 
 export interface TemplateSendPayload {
   templateName: string
@@ -25,196 +27,156 @@ export interface TemplateSendPayload {
   previewText: string
 }
 
-const CATEGORY_LABEL: Record<string, string> = { UTILITY: 'Utility', MARKETING: 'Marketing' }
+/* ------------------------------------------------------------------------------------------------
+ * Meta Cloud API provider (WHATSAPP_INBOX_PROVIDER=meta): Meta gives the body text, so convert it to a catalog
+ * shape and reuse the same form + preview.
+ * ---------------------------------------------------------------------------------------------- */
+
+function catalogFromMeta(m: WhatsAppTemplateSummary): { template: CatalogTemplate; keys: string[] } {
+  const keys = Array.from(new Set([...m.headerVariables, ...m.bodyVariables]))
+  const pos = (s?: string) => String(s || '').replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (all, k) => (keys.includes(k) ? `{{${keys.indexOf(k) + 1}}}` : all))
+  const entry = getCatalogTemplate(m.name)
+  const headerHasVars = m.headerVariables.length > 0
+  const template: CatalogTemplate = {
+    name: m.name,
+    title: entry?.title || humanizeTemplateName(m.name),
+    category: (m.category as any) || entry?.category || 'UTILITY',
+    language: m.language,
+    purpose: entry?.purpose || 'Approved template from WhatsApp Manager.',
+    whenToUse: entry?.whenToUse || '',
+    stage: entry?.stage || (m.category === 'MARKETING' ? 'campaign' : 'lead'),
+    header: m.headerText && !headerHasVars ? { type: 'TEXT', text: m.headerText } : undefined,
+    body: [headerHasVars && m.headerText ? `*${pos(m.headerText)}*` : '', pos(m.bodyText)].filter(Boolean).join('\n\n'),
+    footer: m.footerText,
+    buttons: [],
+    variables: keys.map(
+      (k, i) =>
+        (entry && entry.variables.length === keys.length && entry.variables[i]) || {
+          index: i + 1,
+          label: /^\d+$/.test(k) ? (i === 0 ? "Customer's first name" : `Value ${k}`) : humanizeTemplateName(k),
+          help: '',
+          example: '',
+          ...(i === 0 ? { source: 'customer_first_name' as VariableSource } : {}),
+        }
+    ),
+    notSendableReason: m.supported ? undefined : `This template ${m.unsupportedReason}.`,
+    wordingKnown: true,
+  }
+  return { template, keys }
+}
+
+/* ------------------------------------------------------------------------------------------------ */
 
 /**
- * Modal to pick an approved WhatsApp template and fill in its variables (the first one is prefilled with the
- * customer's first name). Works with GetGabs templates (variables come from GetGabs' sample payload — no body
- * text is available) and with Meta Cloud API templates.
+ * Modal to pick an approved WhatsApp template and fill it in, with a live preview of the customer's phone.
+ * Uses the template catalog (plain-English titles + field labels); live GetGabs data decides what is approved and
+ * how many values each template takes.
  */
 export default function TemplatePicker({
   open,
   onClose,
   customerFirstName,
+  autofill,
+  initialTemplate,
+  recommend = 'first',
   onSend,
 }: {
   open: boolean
   onClose: () => void
   customerFirstName?: string
+  /** Values we already know (customer name, destination from the lead, your name…) */
+  autofill?: Partial<Record<VariableSource, string>>
+  /** Open straight on this template's form */
+  initialTemplate?: string
+  /** Which recommendations to show on top: a brand-new customer, or re-opening a quiet chat */
+  recommend?: 'first' | 'reopen'
   /** Resolves when the send finished (either way); the picker closes itself afterwards */
   onSend: (payload: TemplateSendPayload) => Promise<void>
 }) {
-  const { currentUser } = useAuth()
-  const [provider, setProvider] = useState<'getgabs' | 'meta'>('getgabs')
-  const [templates, setTemplates] = useState<WhatsAppTemplateSummary[]>([])
-  const [ggTemplates, setGgTemplates] = useState<GetGabsTemplateListItem[]>([])
-  const [note, setNote] = useState<string | undefined>()
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState<string | undefined>()
-  const [selectedKey, setSelectedKey] = useState<string>('')
-  const [values, setValues] = useState<Record<string, string>>({})
+  const live = useLiveTemplates(open)
+  const [selectedName, setSelectedName] = useState<string | undefined>(initialTemplate)
+  const [query, setQuery] = useState('')
+  const [stage, setStage] = useState('all')
+  const [values, setValues] = useState<TemplateValues>({})
+  const [headerMedia, setHeaderMedia] = useState<HeaderMediaValue>({})
   const [sending, setSending] = useState(false)
-  // GetGabs: details (variables) of the selected template, loaded on demand
-  const [ggDetail, setGgDetail] = useState<GetGabsTemplateSummary | null>(null)
-  const [ggDetailState, setGgDetailState] = useState<{ loading: boolean; error?: string }>({ loading: false })
+  const [showErrors, setShowErrors] = useState(false)
 
-  const authHeaders = async (): Promise<Record<string, string>> => {
-    const idToken = await currentUser?.getIdToken()
-    return idToken ? { Authorization: `Bearer ${idToken}` } : {}
+  const fill = useMemo(() => ({ ...(customerFirstName ? { customer_first_name: customerFirstName } : {}), ...autofill }), [customerFirstName, autofill])
+
+  // Fresh form per template. Done in handlers / during render (not in an effect) so it can't wipe what
+  // TemplateFields auto-fills in its own effect.
+  const choose = (name?: string) => {
+    setSelectedName(name)
+    setValues({})
+    setHeaderMedia({})
+    setShowErrors(false)
   }
 
-  // Load the list once per open
-  useEffect(() => {
-    if (!open) return
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      setLoadError(undefined)
-      try {
-        const res = await fetch('/api/whatsapp/templates', { headers: await authHeaders() })
-        const data = await res.json().catch(() => ({}))
-        if (cancelled) return
-        if (!res.ok) throw new Error([data.error || `HTTP ${res.status}`, data.hint].filter(Boolean).join(' '))
-        setNote(data.note)
-        if (data.provider === 'getgabs') {
-          setProvider('getgabs')
-          const list: GetGabsTemplateListItem[] = data.templates || []
-          setGgTemplates(list)
-          setSelectedKey((k) => (k && list.some((t) => `${t.name}|${t.language}` === k) ? k : ''))
-        } else {
-          setProvider('meta')
-          const list: WhatsAppTemplateSummary[] = data.templates || []
-          setTemplates(list)
-          const first = list.find((t) => t.supported)
-          setSelectedKey((k) => k || (first ? `${first.name}|${first.language}` : ''))
-        }
-      } catch (e: any) {
-        if (!cancelled) setLoadError(e.message || 'Could not load templates')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
+  // Reset each time the picker opens (optionally straight onto a template)
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      choose(initialTemplate)
+      setQuery('')
+      setStage('all')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentUser])
+  }
 
-  // GetGabs: load the selected template's variables
-  useEffect(() => {
-    if (!open || provider !== 'getgabs' || !selectedKey) {
-      setGgDetail(null)
-      return
-    }
-    const [name, language] = selectedKey.split('|')
-    let cancelled = false
-    setGgDetail(null)
-    setGgDetailState({ loading: true })
-    ;(async () => {
-      try {
-        const q = new URLSearchParams({ name, ...(language ? { language } : {}) })
-        const res = await fetch(`/api/whatsapp/templates?${q}`, { headers: await authHeaders() })
-        const data = await res.json().catch(() => ({}))
-        if (cancelled) return
-        if (!res.ok || !data.template) throw new Error([data.error || `HTTP ${res.status}`, data.hint].filter(Boolean).join(' '))
-        setGgDetail(data.template)
-        setGgDetailState({ loading: false })
-      } catch (e: any) {
-        if (!cancelled) setGgDetailState({ loading: false, error: e.message || 'Could not load this template' })
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, provider, selectedKey])
+  const isMeta = live.provider === 'meta' && !live.loading
+  const metaMap = useMemo(() => new Map(live.metaTemplates.map((m) => [m.name, catalogFromMeta(m)])), [live.metaTemplates])
 
-  /* ---------------- Meta mode ---------------- */
-  const selected = useMemo(
-    () => (provider === 'meta' ? templates.find((t) => `${t.name}|${t.language}` === selectedKey) : undefined),
-    [provider, templates, selectedKey]
-  )
-  const allVars = useMemo(
-    () => (selected ? Array.from(new Set([...selected.headerVariables, ...selected.bodyVariables])) : []),
-    [selected]
-  )
+  const templates = useMemo(() => {
+    if (isMeta) return Array.from(metaMap.values()).map((x) => x.template)
+    return allTemplates(live.list)
+  }, [isMeta, metaMap, live.list])
 
-  /* ---------------- GetGabs mode ---------------- */
-  const ggFields = useMemo(() => (ggDetail ? getGabsTemplateFields(ggDetail) : []), [ggDetail])
-  const groupedGg = useMemo(() => {
-    const groups = new Map<string, GetGabsTemplateListItem[]>()
-    for (const t of ggTemplates) {
-      const g = CATEGORY_LABEL[t.category] || t.category || 'Other'
-      groups.set(g, [...(groups.get(g) || []), t])
-    }
-    return Array.from(groups.entries())
-  }, [ggTemplates])
+  /** Can it be picked? Hidden: team-only. Disabled: not approved / not sendable. */
+  const availability = (t: CatalogTemplate): { ok: boolean; reason?: string } => {
+    if (t.notSendableReason) return { ok: false, reason: t.notSendableReason }
+    if (isMeta) return { ok: true }
+    if (live.loading) return { ok: true }
+    if (live.error) return { ok: !!getCatalogTemplate(t.name) }
+    return live.approved.has(t.name) ? { ok: true } : { ok: false, reason: 'Not approved in GetGabs yet' }
+  }
 
-  // Prefill the first (body) variable with the customer's first name when a template is chosen
-  useEffect(() => {
-    if (provider === 'meta') {
-      if (!selected) return
-      const first = allVars[0]
-      setValues(first && customerFirstName ? { [first]: customerFirstName } : {})
-    } else {
-      setValues(ggDetail?.bodyParams.length && customerFirstName ? { b0: customerFirstName } : {})
-    }
-  }, [provider, selected, allVars, ggDetail, customerFirstName])
+  const visible = templates.filter((t) => t.stage !== 'internal')
+  const filtered = searchTemplates(visible, query, stage)
+  const groups = groupByStage(filtered)
+  const recommended = (recommend === 'reopen' ? REOPEN_TEMPLATES : FIRST_CONTACT_TEMPLATES)
+    .map((t) => templates.find((x) => x.name === t.name))
+    .filter((t): t is CatalogTemplate => !!t && availability(t).ok)
+
+  // Selected template, checked against GetGabs (counts / header / link buttons)
+  const detail = useLiveTemplateDetail(selectedName, open && !isMeta && !!selectedName && !live.loading && live.approved.has(selectedName))
+  const metaSelected = isMeta && selectedName ? metaMap.get(selectedName) : undefined
+  const selected: CatalogTemplate | undefined = metaSelected?.template || detail.template || templates.find((t) => t.name === selectedName)
+  const selectedAvail = selected ? availability(selected) : { ok: false }
+  // Templates we only know from GetGabs need their skeleton before they can be filled in
+  const needsDetail = !!selected && !isMeta && !getCatalogTemplate(selected.name) && !detail.live
+  const missing = selected ? missingFields(selected, values, headerMedia) : []
+  const canSend = !!selected && selectedAvail.ok && !needsDetail && !detail.loading && !sending
 
   if (!open) return null
 
-  const ggValues = ggDetail
-    ? {
-        headerLink: values.headerLink?.trim(),
-        headerFilename: ggDetail.headerMedia === 'document' && values.headerLink ? documentFilename(values.headerLink.trim(), ggDetail.name) : undefined,
-        headerText: ggDetail.headerTextParams.map((_, i) => values[`h${i}`] || ''),
-        body: ggDetail.bodyParams.map((_, i) => values[`b${i}`] || ''),
-        buttons: ggDetail.buttons.map((_, i) => values[`u${i}`] || ''),
-      }
-    : null
-
-  const missing =
-    provider === 'meta'
-      ? allVars.filter((k) => !values[k]?.trim())
-      : ggDetail
-        ? [
-            ...ggFields.filter((f) => !values[f.key]?.trim()).map((f) => f.key),
-            ...(ggDetail.headerMedia && !isHttpsUrl(values.headerLink) ? ['headerLink'] : []),
-          ]
-        : ['template']
-
-  const preview =
-    provider === 'meta'
-      ? selected
-        ? [selected.headerText && renderTemplateText(selected.headerText, values), renderTemplateText(selected.bodyText, values)]
-            .filter(Boolean)
-            .join('\n\n')
-        : ''
-      : ggDetail && ggValues
-        ? getGabsPreviewText(ggDetail, ggValues)
-        : ''
-
-  const canSend =
-    provider === 'meta' ? !!selected && selected.supported && !missing.length : !!ggDetail && ggDetail.supported && !missing.length
-
   const handleSend = async () => {
-    if (!canSend || sending) return
+    if (!selected || !canSend) return
+    if (missing.length) {
+      setShowErrors(true)
+      document.getElementById(fieldDomId(missing[0].key))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     setSending(true)
     try {
-      if (provider === 'meta' && selected) {
-        await onSend({
-          templateName: selected.name,
-          languageCode: selected.language,
-          components: buildTemplateComponents(selected, values),
-          previewText: preview,
-        })
-      } else if (ggDetail && ggValues) {
-        await onSend({
-          templateName: ggDetail.name,
-          languageCode: ggDetail.language || 'en',
-          components: buildGetGabsComponents(ggDetail, ggValues),
-          previewText: preview,
-        })
+      const text = previewText(selected, values, headerMedia)
+      if (metaSelected) {
+        const meta = live.metaTemplates.find((m) => m.name === selected.name)!
+        const named: Record<string, string> = {}
+        metaSelected.keys.forEach((k, i) => (named[k] = String(values[i + 1] ?? '').trim()))
+        await onSend({ templateName: meta.name, languageCode: meta.language, components: buildTemplateComponents(meta, named), previewText: text })
+      } else {
+        await onSend({ templateName: selected.name, languageCode: selected.language || 'en', components: buildComponents(selected, values, headerMedia), previewText: text })
       }
       onClose()
     } finally {
@@ -222,179 +184,229 @@ export default function TemplatePicker({
     }
   }
 
-  const inputCls = 'w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none'
-  const listEmpty = provider === 'meta' ? templates.length === 0 : ggTemplates.length === 0
+  const TemplateCard = ({ t, highlight }: { t: CatalogTemplate; highlight?: boolean }) => {
+    const a = availability(t)
+    return (
+      <button
+        type="button"
+        disabled={!a.ok}
+        onClick={() => choose(t.name)}
+        className={`w-full rounded-xl border p-3 text-left transition-colors ${
+          !a.ok
+            ? 'cursor-not-allowed border-gray-100 bg-gray-50 opacity-60'
+            : highlight
+              ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-400 hover:bg-emerald-50'
+              : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/30'
+        }`}
+      >
+        <span className="flex items-start justify-between gap-2">
+          <span className="text-sm font-semibold text-gray-900">{t.title}</span>
+          <span className={`shrink-0 rounded px-1.5 text-[10px] font-semibold ${t.category === 'MARKETING' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'}`}>
+            {CATEGORY_LABEL[t.category] || t.category}
+          </span>
+        </span>
+        <span className="mt-0.5 block text-xs text-gray-600">{t.purpose}</span>
+        {a.reason ? (
+          <span className="mt-1 block text-[11px] font-medium text-red-600">{a.reason}</span>
+        ) : t.wordingKnown === false ? (
+          <span className="mt-1 block text-[11px] font-medium text-amber-700">Wording unknown — check GetGabs</span>
+        ) : (
+          <span className="mt-1 block text-[11px] text-gray-400">{t.whenToUse}</span>
+        )}
+      </button>
+    )
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-gray-900">
-            <FileText className="w-4 h-4 text-emerald-600" /> Send a WhatsApp template
-          </h3>
-          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close">
-            <X className="w-4 h-4" />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="flex h-[92vh] w-full max-w-5xl flex-col rounded-t-2xl bg-white shadow-xl sm:h-[88vh] sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-5 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {selected && (
+              <button
+                type="button"
+                onClick={() => choose(undefined)}
+                className="-ml-1 rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                aria-label="Back to all templates"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
+            <h3 className="flex min-w-0 items-center gap-2 text-sm font-bold text-gray-900">
+              <FileText className="w-4 h-4 shrink-0 text-emerald-600" />
+              <span className="truncate">{selected ? selected.title : 'Choose a WhatsApp message'}</span>
+            </h3>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link
+              href={selected ? `/admin/whatsapp-templates?t=${encodeURIComponent(selected.name)}` : '/admin/whatsapp-templates'}
+              target="_blank"
+              className="hidden items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 sm:inline-flex"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> Template guide
+            </Link>
+            <button onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          <p className="text-xs text-gray-500">
-            Templates are pre-approved by Meta and can be sent at any time. When the customer replies, you can chat freely for 24 hours.
-          </p>
-          {note && (
-            <p className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              <Info className="w-4 h-4 shrink-0" /> {note}
+        {/* Body */}
+        {!selected ? (
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            <p className="mb-3 text-xs text-gray-500">
+              WhatsApp only allows pre-approved messages until the customer replies. Pick one, fill in the highlighted parts, and check the phone preview
+              before sending. Once they reply you can chat freely for 24 hours.
             </p>
-          )}
+            {live.note && (
+              <p className="mb-3 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <Info className="w-4 h-4 shrink-0" /> {live.note}
+              </p>
+            )}
+            {live.error && (
+              <p className="mb-3 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <AlertTriangle className="w-4 h-4 shrink-0" /> {live.error} You can still send the templates from our guide.
+              </p>
+            )}
 
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading templates…
-            </div>
-          ) : loadError ? (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{loadError}</p>
-          ) : listEmpty ? (
-            <p className="text-sm text-gray-500">No approved templates found in the WhatsApp account.</p>
-          ) : provider === 'meta' ? (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-700">Template</span>
-                <select value={selectedKey} onChange={(e) => setSelectedKey(e.target.value)} className={inputCls}>
-                  {templates.map((t) => (
-                    <option key={`${t.name}|${t.language}`} value={`${t.name}|${t.language}`} disabled={!t.supported}>
-                      {t.name} ({t.language}){t.category ? ` · ${t.category.toLowerCase()}` : ''}
-                      {!t.supported ? ` — not available here: ${t.unsupportedReason}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {allVars.map((k, i) => (
-                <label key={k} className="block">
-                  <span className="mb-1 block text-xs font-semibold text-gray-700">
-                    Variable {`{{${k}}}`}
-                    {i === 0 && customerFirstName ? <span className="font-normal text-gray-400"> (customer’s first name)</span> : null}
-                  </span>
-                  <input value={values[k] || ''} onChange={(e) => setValues((v) => ({ ...v, [k]: e.target.value }))} className={inputCls} />
-                </label>
-              ))}
-
-              {selected && (
-                <div>
-                  <span className="mb-1 block text-xs font-semibold text-gray-700">Preview</span>
-                  <div className="rounded-xl bg-[#efeae2]/60 p-3">
-                    <p className="whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm text-gray-800 shadow-xs">{preview}</p>
-                    {selected.footerText && <p className="mt-1 px-1 text-[11px] text-gray-500">{selected.footerText}</p>}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-gray-700">Template</span>
-                <select value={selectedKey} onChange={(e) => setSelectedKey(e.target.value)} className={inputCls}>
-                  <option value="">Choose a template…</option>
-                  {groupedGg.map(([group, list]) => (
-                    <optgroup key={group} label={group}>
-                      {list.map((t) => (
-                        <option key={`${t.name}|${t.language}`} value={`${t.name}|${t.language}`}>
-                          {t.name}
-                          {t.language && t.language !== 'en' ? ` (${t.language})` : ''}
-                        </option>
+            {live.loading ? (
+              <div className="flex items-center gap-2 py-6 text-sm text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading approved templates…
+              </div>
+            ) : (
+              <>
+                {!query && stage === 'all' && recommended.length > 0 && (
+                  <div className="mb-5">
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      <Sparkles className="w-3.5 h-3.5" /> {recommend === 'reopen' ? 'Best to restart the conversation' : 'Best for a first message'}
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {recommended.map((t) => (
+                        <TemplateCard key={t.name} t={t} highlight />
                       ))}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-
-              {ggDetailState.loading ? (
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading the template’s fields…
-                </div>
-              ) : ggDetailState.error ? (
-                <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{ggDetailState.error}</p>
-              ) : ggDetail && !ggDetail.supported ? (
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  This template {ggDetail.unsupportedReason}, so it can’t be sent from the inbox. Send it from GetGabs or pick another one.
-                </p>
-              ) : ggDetail ? (
-                <>
-                  {ggDetail.headerMedia && (
-                    <label className="block">
-                      <span className="mb-1 flex items-center gap-1 text-xs font-semibold text-gray-700">
-                        <LinkIcon className="w-3 h-3" />
-                        {ggDetail.headerMedia === 'document'
-                          ? 'Document link (e.g. the quote PDF)'
-                          : ggDetail.headerMedia === 'image'
-                            ? 'Image link'
-                            : 'Video link'}
-                      </span>
-                      <input
-                        type="url"
-                        value={values.headerLink || ''}
-                        onChange={(e) => setValues((v) => ({ ...v, headerLink: e.target.value }))}
-                        placeholder="https://… (paste a public link)"
-                        className={inputCls}
-                      />
-                      {values.headerLink && !isHttpsUrl(values.headerLink) && (
-                        <span className="mt-1 block text-[11px] text-red-600">Paste a public link that starts with https://</span>
-                      )}
-                      {ggDetail.headerMedia === 'document' && isHttpsUrl(values.headerLink) && (
-                        <span className="mt-1 block text-[11px] text-gray-500">
-                          Shown to the customer as “{documentFilename(values.headerLink!.trim(), ggDetail.name)}”
-                        </span>
-                      )}
-                    </label>
-                  )}
-
-                  {ggFields.map((f, i) => (
-                    <label key={f.key} className="block">
-                      <span className="mb-1 block text-xs font-semibold text-gray-700">
-                        {f.group === 'body' ? `Variable ${f.label}` : f.label}
-                        {f.key === 'b0' && customerFirstName ? (
-                          <span className="font-normal text-gray-400"> (customer’s first name)</span>
-                        ) : null}
-                      </span>
-                      <input
-                        value={values[f.key] || ''}
-                        onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-                        placeholder={f.sample ? `e.g. ${f.sample}` : undefined}
-                        className={inputCls}
-                        autoFocus={i === 0 && !customerFirstName}
-                      />
-                    </label>
-                  ))}
-                  {!ggFields.length && !ggDetail.headerMedia && (
-                    <p className="text-xs text-gray-500">This template has no variables.</p>
-                  )}
-
-                  <div>
-                    <span className="mb-1 block text-xs font-semibold text-gray-700">What will be sent</span>
-                    <div className="rounded-xl bg-[#efeae2]/60 p-3">
-                      <p className="whitespace-pre-wrap rounded-lg bg-white px-3 py-2 text-sm text-gray-800 shadow-xs">{preview}</p>
-                      <p className="mt-1 px-1 text-[11px] text-gray-500">
-                        GetGabs doesn’t share the template wording, so this shows the template name and your values.
-                      </p>
                     </div>
                   </div>
-                </>
-              ) : null}
-            </>
-          )}
-        </div>
+                )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-3">
+                <div className="sticky top-0 z-10 -mx-5 mb-3 space-y-2 bg-white/95 px-5 pb-2 pt-1 backdrop-blur">
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search: quote, payment, itinerary, Bali…"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[{ value: 'all', label: 'All' }, ...STAGE_FILTERS.filter((f) => f.value !== 'internal')].map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onClick={() => setStage(f.value)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                          stage === f.value ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-emerald-300'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {groups.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-gray-500">No templates match.</p>
+                ) : (
+                  groups.map(([s, list]) => (
+                    <div key={s} className="mb-4">
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500">{STAGE_LABEL[s]}</p>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {list.map((t) => (
+                          <TemplateCard key={t.name} t={t} />
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:overflow-hidden">
+            <div className="px-5 py-4 lg:overflow-y-auto">
+              <div className="mb-4 rounded-xl bg-gray-50 px-3 py-2.5">
+                <p className="text-sm text-gray-800">{selected.purpose}</p>
+                {selected.whenToUse && <p className="mt-0.5 text-xs text-gray-500">When: {selected.whenToUse}</p>}
+              </div>
+              {!selectedAvail.ok && (
+                <p className="mb-4 flex gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <AlertTriangle className="w-4 h-4 shrink-0" /> {selectedAvail.reason || 'This template cannot be sent from the inbox.'}
+                </p>
+              )}
+              {(selected.note || (detail.error && !isMeta)) && (
+                <p className="mb-4 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <Info className="w-4 h-4 shrink-0" />
+                  {[selected.note, detail.error && `Couldn't double-check it in GetGabs (${detail.error}).`].filter(Boolean).join(' ')}
+                </p>
+              )}
+              {needsDetail ? (
+                detail.error ? null : (
+                  <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" /> Loading the template’s fields from GetGabs…
+                  </div>
+                )
+              ) : (
+                <>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">Fill in</p>
+                  <TemplateFields
+                    template={selected}
+                    values={values}
+                    onChange={setValues}
+                    headerMedia={headerMedia}
+                    onHeaderMedia={setHeaderMedia}
+                    autofill={fill}
+                    showErrors={showErrors}
+                  />
+                </>
+              )}
+            </div>
+            <div className="border-t border-gray-100 bg-gray-50 px-5 py-4 lg:overflow-y-auto lg:border-l lg:border-t-0">
+              <p className="mb-2 text-center text-xs font-semibold text-gray-500">What the customer will see</p>
+              <WhatsAppPhonePreview template={selected} values={values} headerMedia={headerMedia} />
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 px-5 py-3">
+          {selected && (
+            <p className="mr-auto min-w-0 flex-1 text-xs">
+              {missing.length ? (
+                <span className="text-gray-500">
+                  Still to fill: <span className={showErrors ? 'font-semibold text-red-600' : 'font-medium text-gray-700'}>{missing.map((m) => m.label).join(' · ')}</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Ready to send — check the preview
+                </span>
+              )}
+            </p>
+          )}
           <button onClick={onClose} className="rounded-xl px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
             Cancel
           </button>
-          <button
-            onClick={handleSend}
-            disabled={!canSend || sending}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send template
-          </button>
+          {selected && (
+            <button
+              onClick={handleSend}
+              disabled={!canSend}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Send on WhatsApp
+            </button>
+          )}
         </div>
       </div>
     </div>

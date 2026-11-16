@@ -2,6 +2,7 @@
 
 import { staffFetch } from '@/lib/admin/staffFetch'
 import { SEO_FIELDS, type OptimizeResult, type SeoField, type SeoPatch } from '@/lib/seo/types'
+import { cleanEditedValue } from './SeoFieldEditor'
 
 /** Strip things the API doesn't need (and Firestore Timestamps that don't serialise well). */
 function slim(draft: Record<string, any>) {
@@ -25,6 +26,15 @@ export function pickPatch(patch: SeoPatch, selected: Set<SeoField>): SeoPatch {
   const out: SeoPatch = {}
   fieldsIn(patch).forEach((f) => {
     if (selected.has(f)) out[f] = patch[f]
+  })
+  return out
+}
+
+/** The AI patch with staff edits applied (edited values are cleaned: trimmed, empty rows removed) */
+export function applyEdits(patch: SeoPatch, edits: Record<string, any>): SeoPatch {
+  const out: SeoPatch = { ...patch }
+  fieldsIn(patch).forEach((f) => {
+    if (f in edits) out[f] = cleanEditedValue(f, edits[f])
   })
   return out
 }

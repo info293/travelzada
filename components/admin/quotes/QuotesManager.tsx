@@ -385,6 +385,11 @@ export default function QuotesManager() {
                                                     <WhatsAppInboxButton name={r.clientName} refPath={recordRef(r)} label="WhatsApp" className="!px-2.5 !py-1.5 !text-xs" />
                                                 )}
                                                 {quoteActions(r)}
+                                                {r.id && (
+                                                    <Link href={`/admin/itinerary?quote=${encodeURIComponent(r.id)}`} title="Open in builder — edit and re-download this quote" className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-bordeaux-700 hover:bg-bordeaux-50">
+                                                        Open in builder
+                                                    </Link>
+                                                )}
                                                 <button type="button" onClick={() => handleDelete(r)} title="Delete" className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>

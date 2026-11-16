@@ -9,6 +9,9 @@ import { whatsappErrorHint, whatsappFailureText } from '@/lib/whatsappDiagnostic
 import { useAuth } from '@/contexts/AuthContext'
 import { usePhoneAccess, maskPhone, formatPhone, resolveRefPhone } from '@/lib/admin/privacy'
 import TemplatePicker, { type TemplateSendPayload } from '@/components/admin/whatsapp/TemplatePicker'
+import StartConversationCard from '@/components/admin/whatsapp/templates/StartConversationCard'
+import { readLeadAutofill, type Autofill } from '@/components/admin/whatsapp/templates/leadAutofill'
+import { getCatalogTemplate } from '@/lib/whatsapp/templateCatalog'
 import { channelOf, WHATSAPP_BUSINESS_NUMBERS, type WhatsAppChannel } from '@/lib/getgabsTemplates'
 import {
   MessageSquare,
@@ -43,6 +46,8 @@ interface WhatsAppChat {
   /** Connection of the last activity: "getgabs" (+91 88900 59568) or "meta"/missing (old number +91 85298 70220) */
   channel?: WhatsAppChannel
   lastInboundAt?: string
+  /** Record the conversation was first started from (e.g. "leads/abc"), saved by the send route */
+  sourceRef?: string
   /** Client-only: record the conversation was opened from (e.g. "leads/abc"), used to send by reference */
   ref?: string
   /** Client-only: not yet in Firestore */
@@ -113,6 +118,8 @@ export default function WhatsAppChats() {
   const phoneParam = searchParams.get('phone')
   const refParam = searchParams.get('ref')
   const nameParam = searchParams.get('name')
+  // ?template=tz_quote_sent (from the Templates page): open the picker on it once a chat is selected
+  const templateParam = searchParams.get('template')
 
   const [chats, setChats] = useState<WhatsAppChat[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -125,6 +132,9 @@ export default function WhatsAppChats() {
   const [searchQuery, setSearchQuery] = useState('')
   const [linkState, setLinkState] = useState<{ state: 'idle' | 'resolving' | 'error'; message?: string }>({ state: 'idle' })
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [pickerTemplate, setPickerTemplate] = useState<string | undefined>()
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(() => (/^[a-z0-9_]{1,80}$/.test(templateParam || '') ? templateParam : null))
+  const [leadAutofill, setLeadAutofill] = useState<Autofill>({})
   const [forceText, setForceText] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [newChatOpen, setNewChatOpen] = useState(false)
@@ -314,6 +324,34 @@ export default function WhatsAppChats() {
     setNotice(null)
   }, [selectedId])
 
+  // Trip details (destination, package, dates…) from the lead this chat is linked to, to pre-fill templates.
+  // Only trip fields are read — never the phone number.
+  const linkedRef = selectedChat?.ref || selectedChat?.sourceRef
+  useEffect(() => {
+    setLeadAutofill({})
+    if (!linkedRef) return
+    let cancelled = false
+    readLeadAutofill(linkedRef)
+      .then((a) => !cancelled && setLeadAutofill(a))
+      .catch((e) => console.warn('[WhatsApp] could not read the linked lead for auto-fill', e))
+    return () => {
+      cancelled = true
+    }
+  }, [linkedRef])
+
+  // ?template= from the Templates page: open the picker on that template once a chat is open
+  useEffect(() => {
+    if (!pendingTemplate || !selectedChat) return
+    setPickerTemplate(pendingTemplate)
+    setTemplateOpen(true)
+    setPendingTemplate(null)
+  }, [pendingTemplate, selectedChat])
+
+  const openTemplatePicker = (name?: string) => {
+    setPickerTemplate(name)
+    setTemplateOpen(true)
+  }
+
   const chatLocalMessages = localMessages.filter((m) => m.chatId === selectedId)
 
   useEffect(() => {
@@ -480,7 +518,7 @@ export default function WhatsAppChats() {
           { templateName: msg.templateName, languageCode: msg.languageCode || 'en_US', components: msg.components || [], previewText: msg.text },
           { retryOf: msg.id }
         )
-      } else setTemplateOpen(true)
+      } else openTemplatePicker()
     } else sendMessage({ text: msg.text }, { retryOf: msg.id })
   }
 
@@ -532,6 +570,16 @@ export default function WhatsAppChats() {
 
   const firstName = realName(selectedChat).split(/\s+/)[0] || ''
   const headerBadge = channelBadge(selectedChat)
+  // Pre-filled template fields: customer's first name (only a real name, never a number), your name, trip details
+  const agentFirstName = (currentUser?.displayName || '').trim().split(/\s+/)[0] || ''
+  const autofill: Autofill = {
+    ...leadAutofill,
+    ...(firstName ? { customer_first_name: firstName } : {}),
+    ...(agentFirstName && !isPhoneLike(agentFirstName) ? { agent_name: agentFirstName } : {}),
+  }
+  // New customer (never wrote to this number) vs. a conversation whose 24-hour window closed
+  const startMode: 'first' | 'reopen' = lastInboundMs || lastOtherInboundMs || messages.some((m) => m.direction === 'outbound') ? 'reopen' : 'first'
+  const pendingTitle = pendingTemplate ? getCatalogTemplate(pendingTemplate)?.title || pendingTemplate : ''
 
   const failedActions = (opts: { onRetry: () => void; canSendTemplate?: boolean }) => (
     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -545,7 +593,7 @@ export default function WhatsAppChats() {
       {opts.canSendTemplate && (
         <button
           type="button"
-          onClick={() => setTemplateOpen(true)}
+          onClick={() => openTemplatePicker()}
           className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
         >
           <FileText className="w-3 h-3" /> Send a template instead
@@ -607,6 +655,17 @@ export default function WhatsAppChats() {
                   Open chat
                 </button>
               </form>
+            )}
+            {pendingTemplate && !selectedChat && (
+              <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                <FileText className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span className="flex-1">
+                  Choose a customer below to send <strong>“{pendingTitle}”</strong>.
+                </span>
+                <button type="button" onClick={() => setPendingTemplate(null)} className="text-emerald-600 hover:text-emerald-900" aria-label="Cancel">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -908,37 +967,41 @@ export default function WhatsAppChats() {
                 </div>
               )}
 
-              {/* Composer */}
-              {!loadingMessages && !windowOpen && (
-                <div className="px-4 py-3 bg-amber-50 border-t border-amber-200 flex flex-wrap items-center gap-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <p className="flex-1 min-w-[200px] text-xs text-amber-900">
-                    {lastInboundMs
-                      ? "The customer hasn't messaged in the last 24 hours, so WhatsApp only allows an approved template message."
+              {/* Composer: only a template is allowed → suggest the best ones with a phone preview */}
+              {!loadingMessages && !windowOpen && !forceText && (
+                <StartConversationCard
+                  key={selectedChat.id}
+                  mode={startMode}
+                  autofill={autofill}
+                  reason={
+                    lastInboundMs
+                      ? "The customer hasn't written in the last 24 hours, so WhatsApp only allows a pre-approved message."
                       : lastOtherInboundMs && provider === 'getgabs'
-                        ? `The customer has only messaged the old number. Replies now go from ${WHATSAPP_BUSINESS_NUMBERS.getgabs.display}, so the first message from it must be an approved template.`
-                        : 'This customer has not messaged the business number yet, so the first message must be an approved template.'}{' '}
-                    When they reply, you can chat freely for 24 hours.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setTemplateOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                  >
-                    <FileText className="w-4 h-4" /> Send template
+                        ? `The customer has only written to the old number. Replies now go from ${WHATSAPP_BUSINESS_NUMBERS.getgabs.display}, so the first message from it must be a pre-approved one.`
+                        : "This customer hasn't written to us yet, so the first message must be a pre-approved one."
+                  }
+                  onPick={(name) => openTemplatePicker(name)}
+                  onSeeAll={() => openTemplatePicker()}
+                  onTypeAnyway={() => setForceText(true)}
+                />
+              )}
+              {!loadingMessages && !windowOpen && forceText && (
+                <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 flex flex-wrap items-center gap-2 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span className="flex-1 min-w-[200px]">
+                    A normal message will probably not be delivered — WhatsApp only allows a pre-approved message right now. When the customer replies, you can
+                    chat freely for 24 hours.
+                  </span>
+                  <button type="button" onClick={() => setForceText(false)} className="font-semibold text-emerald-700 underline hover:text-emerald-900">
+                    Pick a template instead
                   </button>
-                  {!forceText && (
-                    <button type="button" onClick={() => setForceText(true)} className="text-xs text-amber-800 underline hover:text-amber-950">
-                      Type a message anyway
-                    </button>
-                  )}
                 </div>
               )}
               {(showTextBox || loadingMessages) && (
                 <form onSubmit={handleSendText} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setTemplateOpen(true)}
+                    onClick={() => openTemplatePicker()}
                     className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-emerald-700"
                     title="Send a template"
                   >
@@ -966,6 +1029,9 @@ export default function WhatsAppChats() {
                 open={templateOpen}
                 onClose={() => setTemplateOpen(false)}
                 customerFirstName={firstName}
+                autofill={autofill}
+                initialTemplate={pickerTemplate}
+                recommend={startMode}
                 onSend={(payload) => sendMessage(payload)}
               />
             </>

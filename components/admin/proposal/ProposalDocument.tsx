@@ -1,341 +1,647 @@
 'use client'
 
 /**
- * The customer-facing quote PDF, built as A4 pages (794 × 1123 CSS px) of plain HTML.
- * Used twice: scaled down as a live preview in the builder, and mounted offscreen by
- * renderProposalPdf() which captures every [data-proposal-page] with html2canvas.
+ * The customer-facing quote PDF ("Quote Template v2" house style on white pages), built as A4 pages
+ * (794 × 1123 CSS px) of plain HTML. Used twice: scaled down as a live preview in the builder, and mounted
+ * offscreen by renderProposalPdf() which captures every [data-proposal-page] with html2canvas.
  *
- * html2canvas-safe rules followed here: no object-fit (photos are background-image divs),
- * no clip-path / filters / backdrop-filter, every SVG icon gets an explicit colour
- * (currentColor does not survive SVG serialisation), no CSS line-clamp (text is truncated in JS).
- * Anything that should be clickable in the PDF carries data-pdf-link="<url>".
+ * Page set:  cover (arch photo) → "What we've put together" (price + at a glance + stays table + flights,
+ * or per-option cards for 3–4 options) → "Your choice of stays" (2 options: side-by-side cards; 3–4: comparison
+ * table + choose-if cards) → per-option showcase (photo mosaic, about, amenities, rooms) → "Your journey, day by
+ * day" → "Say yes, and we'll handle the rest" (inclusions, payment, cancellation, CTA band).
+ * Everything after the cover is a measured flow: blocks are measured in a hidden layer, then packed into pages.
+ *
+ * html2canvas-safe rules followed here: no object-fit (photos are background-image divs), no clip-path /
+ * filters / backdrop-filter, every SVG icon gets an explicit colour, no CSS line-clamp (text is truncated in JS),
+ * arch frame = border-radius + overflow hidden. Anything clickable in the PDF carries data-pdf-link="<url>".
  */
 import { CSSProperties, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { Check, Image as ImageIcon, MapPin, Minus, Plane, Star, Utensils } from 'lucide-react'
 import {
-    BadgeCheck, BedDouble, Calendar, CalendarDays, Camera, Car, Check, ClipboardList, Clock, CreditCard, Gift,
-    Globe, Headphones, Heart, HeartHandshake, Info, Mail, MapPin, MessageCircle, Moon, Phone, Plane, Quote,
-    Route, ShieldCheck, Sparkles, Star, Sun, Users, Utensils, Wallet, X,
-} from 'lucide-react'
-import {
-    CONTACT, PAGE_H, PAGE_W, TZ, formatLongDate, formatRupees, formatShortDate, nightsBetween, whatsappLink,
-    type ProposalData, type ProposalFlight, type ProposalHotel,
+    CONTACT, HS, PAGE_H, PAGE_W, formatLongDate, formatRupees, formatShortDate, whatsappLink,
+    type ProposalData, type ProposalFlight, type ProposalImage, type ProposalStay, type StayOption,
 } from './types'
 
 const SANS = "var(--font-sans), Figtree, 'Segoe UI', system-ui, sans-serif"
 const DISPLAY = "var(--font-display), 'Cormorant Garamond', Georgia, serif"
+const SCRIPT = "var(--font-script), 'Pinyon Script', 'Brush Script MT', cursive"
 
-const PAD_X = 48
-const CONTENT_W = PAGE_W - PAD_X * 2 // 698
-const FOOTER_H = 64
-const HEADER_FIRST = 196
-const HEADER_CONT = 152 // logo row + one-line title + breathing room
-const INLINE_TITLE_H = 64 // title of a section that starts part-way down a page
-const BLOCK_GAP = 18
-const SAFETY = 14
+const PAD_X = 56
+const CONTENT_W = PAGE_W - PAD_X * 2 // 682
+const CONTENT_TOP = 112
+const FOOTER_H = 60
+const CONT_H = 40
+const SECTION_GAP = 40
+const BLOCK_GAP = 20
+const SAFETY = 6
+const BASE_AVAIL = PAGE_H - FOOTER_H - CONTENT_TOP - SAFETY
 
 const clip = (s: string | undefined, n: number) => {
     const t = String(s || '').replace(/\s+/g, ' ').trim()
     return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t
 }
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const NUM_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+const numWord = (n: number) => NUM_WORDS[n] || String(n)
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-const bgImage = (src?: string, fallback = `linear-gradient(150deg, ${TZ.wineLight} 0%, ${TZ.wine} 40%, ${TZ.mauve} 75%, ${TZ.coffee} 100%)`) =>
-    src ? `url("${src}"), ${fallback}` : fallback
-
-function Ico({ icon: Icon, size = 22, color, stroke = 2 }: { icon: LucideIcon; size?: number; color: string; stroke?: number }) {
+function Ico({ icon: Icon, size = 16, color, stroke = 2 }: { icon: LucideIcon; size?: number; color: string; stroke?: number }) {
     return <Icon size={size} color={color} strokeWidth={stroke} style={{ display: 'block', flexShrink: 0 }} />
 }
 
+function travellersLabel(adults: number, children: number) {
+    const a = `${adults} adult${adults === 1 ? '' : 's'}`
+    return children ? `${a}, ${children} child${children === 1 ? '' : 'ren'}` : a
+}
+
 /* ------------------------------------------------------------------ */
-/* Page chrome                                                         */
+/* Primitives                                                          */
 /* ------------------------------------------------------------------ */
 
-function Footer({ pageNo, total, quoteRef, dark }: { pageNo: number; total: number; quoteRef: string; dark?: boolean }) {
-    const c = dark ? 'rgba(255,255,255,0.78)' : TZ.granite
+function Eyebrow({ children, color = HS.tan, size = 11.5, style }: { children: ReactNode; color?: string; size?: number; style?: CSSProperties }) {
+    return <div style={{ fontSize: size, fontWeight: 700, letterSpacing: 2.2, textTransform: 'uppercase', color, lineHeight: 1.35, ...style }}>{children}</div>
+}
+
+/** Photo as a background-image div (html2canvas has no object-fit). Empty url → cream block with a small icon. */
+function Photo({ img, width, height, radius = 16, caption, style, contain }: { img?: ProposalImage | string; width: number | string; height: number; radius?: number | string; caption?: string; style?: CSSProperties; contain?: boolean }) {
+    const url = typeof img === 'string' ? img : img?.url || ''
+    const cap = caption ?? (typeof img === 'object' ? img?.caption : '')
     return (
         <div
             style={{
-                position: 'absolute', left: 0, right: 0, bottom: 0, height: FOOTER_H, padding: `0 ${PAD_X}px`,
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 14, color: c,
-                borderTop: dark ? '1px solid rgba(255,255,255,0.14)' : `1px solid ${TZ.line}`,
+                position: 'relative', width, height, borderRadius: radius, overflow: 'hidden', flexShrink: 0,
+                backgroundColor: HS.cream, backgroundImage: url ? `url("${url}")` : undefined,
+                backgroundSize: contain ? 'contain' : 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+                ...style,
             }}
         >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span data-pdf-link="https://www.travelzada.com" style={{ fontWeight: 700, color: dark ? '#fff' : TZ.wine }}>{CONTACT.website}</span>
-                <span data-pdf-link={CONTACT.phoneHref}>{CONTACT.phone}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span>Quote {quoteRef}</span>
-                <span style={{ fontWeight: 700, color: dark ? '#fff' : TZ.coffee }}>{pageNo} / {total}</span>
-            </div>
-        </div>
-    )
-}
-
-function Page({ children, pageNo, total, quoteRef, background = '#ffffff', dark }: { children: ReactNode; pageNo: number; total: number; quoteRef: string; background?: string; dark?: boolean }) {
-    return (
-        <div
-            data-proposal-page=""
-            style={{
-                width: PAGE_W, height: PAGE_H, position: 'relative', overflow: 'hidden', background,
-                fontFamily: SANS, color: TZ.coffee, boxSizing: 'border-box', WebkitFontSmoothing: 'antialiased',
-            }}
-        >
-            {children}
-            <Footer pageNo={pageNo} total={total} quoteRef={quoteRef} dark={dark} />
-        </div>
-    )
-}
-
-function LogoPill({ src, height = 34 }: { src: string; height?: number }) {
-    return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', borderRadius: 999, padding: '10px 20px', boxShadow: '0 4px 14px rgba(15,4,6,0.12)' }}>
-            {src ? <img src={src} alt="Travelzada" style={{ height, width: 'auto', display: 'block' }} /> : <span style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 700, color: TZ.wine }}>Travelzada</span>}
-        </div>
-    )
-}
-
-function SectionHeader({ logo, eyebrow, title, cont, compact, icon }: { logo: string; eyebrow: string; title: string; cont?: boolean; compact?: boolean; icon: LucideIcon }) {
-    return (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: cont || compact ? HEADER_CONT : HEADER_FIRST, padding: `36px ${PAD_X}px 0`, boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                {logo ? <img src={logo} alt="Travelzada" style={{ height: 34, width: 'auto', display: 'block' }} /> : <span style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 700, color: TZ.wine }}>Travelzada</span>}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: TZ.roseSoft, color: TZ.wine, borderRadius: 999, padding: '8px 16px', fontSize: 15, fontWeight: 700 }}>
-                    <Ico icon={icon} size={18} color={TZ.wine} />
-                    {eyebrow}
+            {!url && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ico icon={ImageIcon} size={Math.min(30, Math.max(16, height / 6))} color={HS.tan} stroke={1.5} />
                 </div>
-            </div>
-            {cont || compact ? (
-                <div style={{ marginTop: 22, fontFamily: DISPLAY, fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: TZ.coffee }}>
-                    {title} {cont && <span style={{ fontFamily: SANS, fontSize: 18, fontWeight: 600, color: TZ.granite }}>· continued</span>}
-                </div>
-            ) : (
-                <div style={{ marginTop: 34 }}>
-                    <div style={{ width: 56, height: 5, borderRadius: 4, background: TZ.wine, marginBottom: 16 }} />
-                    <div style={{ fontFamily: DISPLAY, fontSize: 50, fontWeight: 700, lineHeight: 1.02, color: TZ.coffee, letterSpacing: -0.5 }}>{title}</div>
+            )}
+            {cap && (
+                <div style={{ position: 'absolute', left: 10, bottom: 10, maxWidth: '85%', background: 'rgba(255,255,255,0.93)', color: HS.ink, borderRadius: 999, padding: '5px 11px', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    {clip(cap, 34)}
                 </div>
             )}
         </div>
     )
 }
 
-function Chip({ icon, children, tone = 'light' }: { icon?: LucideIcon; children: ReactNode; tone?: 'light' | 'glass' | 'rose' | 'white' }) {
-    const styles: Record<string, { bg: string; fg: string; border?: string }> = {
-        light: { bg: TZ.mist, fg: TZ.coffee, border: `1px solid ${TZ.line}` },
-        glass: { bg: 'rgba(255,255,255,0.16)', fg: '#ffffff', border: '1px solid rgba(255,255,255,0.32)' },
-        rose: { bg: TZ.roseSoft, fg: TZ.wine },
-        white: { bg: '#ffffff', fg: TZ.coffee },
-    }
-    const s = styles[tone]
+function SectionHead({ eyebrow, title, italic, subtitle, script }: { eyebrow?: string; title: string; italic?: string; subtitle?: string; script?: string }) {
     return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: s.bg, color: s.fg, border: s.border, borderRadius: 999, padding: '9px 16px', fontSize: 17, fontWeight: 600, lineHeight: 1.2 }}>
-            {icon && <Ico icon={icon} size={18} color={s.fg} />}
-            {children}
-        </span>
+        <div>
+            {script && <div style={{ fontFamily: SCRIPT, fontSize: 44, lineHeight: 1.15, color: HS.tan, marginBottom: 2 }}>{script}</div>}
+            {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+            <div style={{ fontFamily: DISPLAY, fontSize: 44, fontWeight: 500, lineHeight: 1.08, color: HS.ink, letterSpacing: -0.3, marginTop: eyebrow ? 8 : 0 }}>
+                {title}{italic && <> <span style={{ fontStyle: 'italic', color: HS.wine }}>{italic}</span></>}
+            </div>
+            {subtitle && <div style={{ fontSize: 15.5, lineHeight: 1.5, color: HS.inkSoft, marginTop: 8 }}>{subtitle}</div>}
+        </div>
     )
 }
 
-function travellersLabel(adults: number, children: number) {
-    const a = `${adults} Adult${adults === 1 ? '' : 's'}`
-    return children ? `${a}, ${children} Child${children === 1 ? '' : 'ren'}` : a
+function Badge({ children, tone = 'wine' }: { children: ReactNode; tone?: 'wine' | 'cream' | 'outline' }) {
+    const s = tone === 'wine' ? { background: HS.wine, color: '#fff', border: `1px solid ${HS.wine}` }
+        : tone === 'cream' ? { background: HS.cream, color: HS.ink, border: `1px solid ${HS.cream}` }
+            : { background: 'transparent', color: HS.tan, border: `1px solid ${HS.tan}` }
+    return <span style={{ display: 'inline-block', borderRadius: 999, padding: '4px 10px', fontSize: 10, fontWeight: 800, letterSpacing: 1.6, textTransform: 'uppercase', lineHeight: 1.3, whiteSpace: 'nowrap', ...s }}>{children}</span>
 }
 
-function initials(name: string) {
-    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || 'TZ'
-}
-
-/* ------------------------------------------------------------------ */
-/* Page 1 — Cover                                                      */
-/* ------------------------------------------------------------------ */
-
-function CoverPage({ d, pageNo, total }: { d: ProposalData; pageNo: number; total: number }) {
-    const t = d.trip
-    const waText = `Hi ${d.designer.name.split(' ')[0] || 'Travelzada'}! I'm ${d.client.name}. I'm looking at my ${t.destination || 'trip'} quote (${d.quoteRef}).`
+function Stars({ n, color = HS.tan, size = 12 }: { n: number; color?: string; size?: number }) {
     return (
-        <Page pageNo={pageNo} total={total} quoteRef={d.quoteRef} background={TZ.coffee} dark>
-            {/* Hero photo */}
-            <div style={{ position: 'absolute', inset: 0, backgroundImage: bgImage(t.heroImage), backgroundSize: 'cover', backgroundPosition: 'center' }} />
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 260, backgroundImage: 'linear-gradient(180deg, rgba(15,4,6,0.62) 0%, rgba(15,4,6,0) 100%)' }} />
-            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 760, backgroundImage: 'linear-gradient(180deg, rgba(15,4,6,0) 0%, rgba(15,4,6,0.55) 30%, rgba(15,4,6,0.92) 62%, rgba(15,4,6,0.97) 100%)' }} />
+        <div style={{ display: 'flex', gap: 2 }}>
+            {Array.from({ length: Math.max(0, Math.min(5, n)) }).map((_, i) => <Star key={i} size={size} color={color} fill={color} strokeWidth={1.5} style={{ display: 'block' }} />)}
+        </div>
+    )
+}
 
+function Dot({ color = HS.tan, top = 9 }: { color?: string; top?: number }) {
+    return <div style={{ width: 6, height: 6, borderRadius: 999, background: color, marginTop: top, flexShrink: 0 }} />
+}
+
+/* ------------------------------------------------------------------ */
+/* Page chrome                                                         */
+/* ------------------------------------------------------------------ */
+
+function Logo({ src, height = 30 }: { src: string; height?: number }) {
+    return src
+        ? <img src={src} alt="Travelzada" style={{ height, width: 'auto', display: 'block' }} />
+        : <span style={{ fontFamily: DISPLAY, fontSize: height * 0.9, fontWeight: 700, color: HS.wine, lineHeight: 1 }}>Travelzada</span>
+}
+
+function PageFooter({ pageNo, footnote }: { pageNo: number; footnote?: ReactNode }) {
+    return (
+        <div style={{ position: 'absolute', left: PAD_X, right: PAD_X, bottom: 0, height: FOOTER_H, borderTop: `1px solid ${HS.line}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20 }}>
+            <div style={{ fontSize: 12.5, color: HS.inkSoft, minWidth: 0, lineHeight: 1.4 }}>{footnote}</div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 600, color: HS.ink, flexShrink: 0 }}>{pad2(pageNo)}</div>
+        </div>
+    )
+}
+
+function Page({ children, pageNo, footnote, d, header = true }: { children: ReactNode; pageNo: number; footnote?: ReactNode; d: ProposalData; header?: boolean }) {
+    return (
+        <div
+            data-proposal-page=""
+            style={{ width: PAGE_W, height: PAGE_H, position: 'relative', overflow: 'hidden', background: '#ffffff', fontFamily: SANS, color: HS.ink, boxSizing: 'border-box', WebkitFontSmoothing: 'antialiased' }}
+        >
+            {header && (
+                <>
+                    <div style={{ position: 'absolute', top: 30, left: PAD_X, right: PAD_X, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Logo src={d.logoUrl} height={30} />
+                        <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 2.2, textTransform: 'uppercase', color: HS.muted }}>
+                            {clip(d.runningLabel, 40)} · {d.quoteRef}
+                        </div>
+                    </div>
+                    <div style={{ position: 'absolute', top: 80, left: PAD_X, right: PAD_X, height: 1, background: HS.line }} />
+                </>
+            )}
+            {children}
+            <PageFooter pageNo={pageNo} footnote={footnote} />
+        </div>
+    )
+}
+
+/* ------------------------------------------------------------------ */
+/* Cover                                                               */
+/* ------------------------------------------------------------------ */
+
+function CoverPage({ d, pageNo }: { d: ProposalData; pageNo: number }) {
+    const c = d.cover
+    const t = d.trip
+    const n = d.stayOptions.length
+    const archW = 600
+    const archH = 560
+    const archTop = 124
+    const archLeft = (PAGE_W - archW) / 2
+    const ring = 11
+    const titleSize = c.title.length > 16 ? 60 : c.title.length > 11 ? 74 : 92
+    const allSingleCity = d.stayOptions.every((o) => new Set(o.hotels.map((h) => h.city.trim().toLowerCase()).filter(Boolean)).size <= 1)
+    const eyebrow = n >= 3
+        ? `${numWord(n)} ${allSingleCity ? 'resorts' : 'stay options'} compared${t.nights ? ` · ${numWord(t.nights)} nights` : ''}`
+        : c.eyebrow
+    const nights = t.nights || 0
+    const facts: Array<[string, string]> = ([
+        ['Travel dates', c.dateRange || (t.travelDate ? formatLongDate(t.travelDate) : 'Flexible')],
+        ['Travellers', travellersLabel(t.adults, t.children)],
+        ['Duration', nights ? `${nights}N / ${nights + 1}D` : t.durationLabel],
+        [n >= 2 ? 'Options' : 'Room', n >= 2 ? `${cap(numWord(n))} ${allSingleCity ? 'resorts' : 'stays'}` : c.roomsLabel],
+        ['Hotels', n >= 2 ? (d.stayOptions.map((o) => o.starRating).filter(Boolean).length ? Array.from(new Set(d.stayOptions.map((o) => o.starRating).filter(Boolean))).sort().join(' & ') + '-star' : '') : c.hotelsLabel],
+    ] as Array<[string, string]>).filter(([, v]) => v)
+    const phoneLink = `tel:+${d.designer.whatsapp}`
+    return (
+        <Page d={d} pageNo={pageNo} header={false} footnote={<span>Your planner · <b style={{ color: HS.ink }}>{clip(d.designer.name, 30)}</b> · <span data-pdf-link={phoneLink}>{d.designer.phone}</span></span>}>
             {/* Top bar */}
-            <div style={{ position: 'absolute', top: 36, left: PAD_X, right: PAD_X, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <LogoPill src={d.logoUrl} />
-                <div style={{ textAlign: 'right', color: '#fff' }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.85, letterSpacing: 1.5, textTransform: 'uppercase' }}>Personalised quote</div>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>{d.quoteRef}</div>
+            <div style={{ position: 'absolute', top: 34, left: PAD_X, right: PAD_X, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Logo src={d.logoUrl} height={36} />
+                <div style={{ textAlign: 'right' }}>
+                    <Eyebrow color={HS.tan} size={11}>Quote · {d.quoteRef}</Eyebrow>
+                    <div style={{ fontSize: 13, color: HS.inkSoft, marginTop: 3 }}>Prepared {formatLongDate(d.quoteDate)}</div>
                 </div>
             </div>
 
-            {/* Bottom content */}
-            <div style={{ position: 'absolute', left: PAD_X, right: PAD_X, bottom: FOOTER_H + 30 }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: TZ.wine, color: '#fff', borderRadius: 999, padding: '10px 20px', fontSize: 18, fontWeight: 700 }}>
-                    <Ico icon={Heart} size={18} color="#ffffff" />
-                    Prepared for {clip(d.client.name, 40)}
-                </div>
-                <div style={{ marginTop: 20, fontFamily: DISPLAY, fontSize: 68, lineHeight: 1.0, fontWeight: 700, color: '#fff', letterSpacing: -0.5 }}>{clip(t.title, 70)}</div>
-                {t.destination && (
-                    <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 10, color: TZ.rose, fontSize: 22, fontWeight: 600 }}>
-                        <Ico icon={MapPin} size={22} color={TZ.rose} />
-                        {t.destination}
-                    </div>
-                )}
-                <div style={{ marginTop: 24, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                    {t.durationLabel && <Chip tone="glass" icon={Moon}>{t.durationLabel}</Chip>}
-                    {t.travelDate && <Chip tone="glass" icon={Calendar}>{formatLongDate(t.travelDate)}</Chip>}
-                    <Chip tone="glass" icon={Users}>{travellersLabel(t.adults, t.children)}</Chip>
-                    {t.tripType && <Chip tone="glass" icon={Sparkles}>{t.tripType}</Chip>}
-                    {t.starCategory && <Chip tone="glass" icon={Star}>{clip(t.starCategory, 22)}</Chip>}
-                </div>
+            {/* Arch photo with a thin tan outline */}
+            <div style={{ position: 'absolute', left: archLeft - ring, top: archTop - ring, width: archW + ring * 2, height: archH + ring * 2, border: `1px solid ${HS.tan}`, borderRadius: `${archW / 2 + ring}px ${archW / 2 + ring}px ${24 + ring}px ${24 + ring}px`, boxSizing: 'border-box' }} />
+            <Photo img={t.heroImage} width={archW} height={archH} radius={`${archW / 2}px ${archW / 2}px 24px 24px`} style={{ position: 'absolute', left: archLeft, top: archTop }} />
 
-                {/* Travel designer strip */}
-                <div style={{ marginTop: 30, background: '#fff', borderRadius: 26, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 12px 30px rgba(0,0,0,0.25)' }}>
-                    <div style={{ width: 60, height: 60, borderRadius: 999, background: TZ.wine, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, flexShrink: 0 }}>
-                        {initials(d.designer.name)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: TZ.granite, letterSpacing: 1.2, textTransform: 'uppercase' }}>Your travel designer</div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: TZ.coffee, marginTop: 2 }}>{clip(d.designer.name, 32)}</div>
-                        <div style={{ fontSize: 16, color: TZ.granite, marginTop: 2 }}>{d.designer.phone} · {d.designer.email}</div>
-                    </div>
-                    <div data-pdf-link={whatsappLink(waText, d.designer.whatsapp)} style={{ display: 'flex', alignItems: 'center', gap: 8, background: TZ.whatsapp, color: '#fff', borderRadius: 999, padding: '14px 20px', fontSize: 17, fontWeight: 800, flexShrink: 0 }}>
-                        <Ico icon={MessageCircle} size={20} color="#ffffff" />
-                        Chat now
-                    </div>
+            {/* Title block */}
+            <div style={{ position: 'absolute', left: PAD_X, right: PAD_X, top: archTop + archH + 38, textAlign: 'center' }}>
+                <Eyebrow size={11.5}>{clip(eyebrow, 70)}</Eyebrow>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: 14, marginTop: 6 }}>
+                    <span style={{ fontFamily: DISPLAY, fontSize: titleSize, fontWeight: 500, lineHeight: 1.05, color: HS.ink, letterSpacing: -1 }}>{clip(c.title, 26)}</span>
+                    {c.script && <span style={{ fontFamily: SCRIPT, fontSize: Math.round(titleSize * 0.6), lineHeight: 1, color: HS.tan }}>{clip(c.script, 22)}</span>}
                 </div>
+                {c.subtitle && <div style={{ fontSize: 16, color: HS.inkSoft, marginTop: 6 }}>{clip(c.subtitle, 90)}</div>}
+            </div>
+
+            {/* Facts row */}
+            <div style={{ position: 'absolute', left: PAD_X, right: PAD_X, top: 922, borderTop: `1px solid ${HS.line}`, borderBottom: `1px solid ${HS.line}`, display: 'flex', padding: '14px 0' }}>
+                {facts.map(([label, value], i) => (
+                    <div key={label} style={{ flex: i === 0 ? 1.45 : 1, minWidth: 0, padding: '0 10px', borderLeft: i ? `1px solid ${HS.line}` : undefined, textAlign: 'center' }}>
+                        <Eyebrow size={10} color={HS.muted}>{label}</Eyebrow>
+                        <div style={{ fontSize: 15, fontWeight: 600, color: HS.ink, marginTop: 4, lineHeight: 1.3 }}>{clip(value, 30)}</div>
+                    </div>
+                ))}
             </div>
         </Page>
     )
 }
 
 /* ------------------------------------------------------------------ */
-/* Flow blocks                                                         */
+/* Overview blocks                                                     */
 /* ------------------------------------------------------------------ */
 
-interface FlowBlock { key: string; node: ReactNode; keepWithNext?: boolean }
-interface FlowSection { key: string; eyebrow: string; title: string; icon: LucideIcon; blocks: FlowBlock[]; compact?: boolean }
-
-function SubHeading({ icon, title, hint }: { icon: LucideIcon; title: string; hint?: string }) {
-    return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 6 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 14, background: TZ.roseSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Ico icon={icon} size={22} color={TZ.wine} />
-            </div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: TZ.coffee }}>{title}</div>
-            {hint && <div style={{ fontSize: 16, color: TZ.granite, fontWeight: 600 }}>· {hint}</div>}
-        </div>
-    )
-}
-
-/* --- Trip at a glance --- */
-
-function GlanceIntro({ d }: { d: ProposalData }) {
-    const t = d.trip
-    return (
-        <div>
-            <div style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.2, color: TZ.coffee }}>{clip(t.title, 80)}</div>
-            {t.route.length > 1 && <RouteLine stops={t.route.slice(0, 7)} />}
-            {t.overview && <div style={{ marginTop: 12, fontSize: 19, lineHeight: 1.55, color: '#43383C' }}>{clip(t.overview, 200)}</div>}
-        </div>
-    )
-}
-
-function PriceCard({ d }: { d: ProposalData }) {
-    const p = d.price
+function PriceGlance({ d, option, multi }: { d: ProposalData; option: StayOption; multi: boolean }) {
     const t = d.trip
     const pax = t.adults + t.children
-    const items: Array<{ icon: LucideIcon; label: string; on: boolean }> = [
-        { icon: BedDouble, label: 'Stay', on: d.included.stay },
-        { icon: Utensils, label: 'Meals', on: d.included.meals },
-        { icon: Car, label: 'Transfers', on: d.included.transfers },
-        { icon: Camera, label: 'Sightseeing', on: d.included.sightseeing },
-        { icon: Plane, label: 'Flights', on: d.included.flights },
-    ]
+    const label = multi ? `Your quote · ${option.label}` : `Total package · ${travellersLabel(t.adults, t.children)}`
+    const glance = d.extras.atAGlance.slice(0, 7)
     return (
-        <div style={{ borderRadius: 30, padding: '28px 30px', color: '#fff', backgroundImage: `linear-gradient(135deg, ${TZ.wineLight} 0%, ${TZ.wine} 45%, ${TZ.mauve} 100%)`, boxShadow: '0 14px 34px rgba(101,25,38,0.28)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24 }}>
-                <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase', opacity: 0.85 }}>Total trip price</div>
-                    <div style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.08, marginTop: 6, letterSpacing: -1 }}>{p.total > 0 ? formatRupees(p.total) : 'On request'}</div>
-                    <div style={{ fontSize: 18, marginTop: 6, opacity: 0.92 }}>
-                        for {travellersLabel(t.adults, t.children)}
-                        {p.perPerson > 0 && pax > 1 && <> · <b>{formatRupees(p.perPerson)}</b> per person{t.children ? ' (avg.)' : ''}</>}
+        <div style={{ display: 'flex', gap: 18, alignItems: 'stretch' }}>
+            <div style={{ width: 316, flexShrink: 0, boxSizing: 'border-box', background: HS.dark, color: HS.darkText, borderRadius: 22, padding: '24px 24px 22px' }}>
+                <Eyebrow color={HS.darkMuted} size={11}>{clip(label, 48)}</Eyebrow>
+                <div style={{ fontFamily: DISPLAY, fontSize: option.price > 0 ? 52 : 40, fontWeight: 500, lineHeight: 1, marginTop: 12 }}>{option.price > 0 ? formatRupees(option.price) : 'On request'}</div>
+                {option.price > 0 && pax > 1 && <div style={{ fontSize: 14.5, color: HS.darkMuted, marginTop: 8 }}>{formatRupees(option.perPerson)} per person{t.children ? ' (avg.)' : ''}</div>}
+                {d.price.note && <div style={{ fontSize: 13, color: HS.darkMuted, marginTop: 4 }}>{clip(d.price.note, 70)}</div>}
+                {d.price.advancePaid > 0 && (
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(248,242,234,0.18)', display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <div><div style={{ color: HS.darkMuted }}>Advance paid</div><div style={{ fontWeight: 700, marginTop: 2 }}>{formatRupees(d.price.advancePaid)}</div></div>
+                        <div style={{ textAlign: 'right' }}><div style={{ color: HS.darkMuted }}>Balance</div><div style={{ fontWeight: 700, marginTop: 2 }}>{formatRupees(d.price.balance)}</div></div>
                     </div>
-                    {p.note && <div style={{ fontSize: 15, marginTop: 6, opacity: 0.8 }}>{clip(p.note, 90)}</div>}
-                </div>
-                {p.total > 0 && (
-                    <div style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', borderRadius: 22, padding: '16px 20px', minWidth: 210, alignSelf: 'flex-start' }}>
-                        {p.advancePaid > 0 ? (
-                            <>
-                                <div style={{ fontSize: 14, opacity: 0.8, fontWeight: 600 }}>Advance paid</div>
-                                <div style={{ fontSize: 24, fontWeight: 800 }}>{formatRupees(p.advancePaid)}</div>
-                                <div style={{ height: 1, background: 'rgba(255,255,255,0.22)', margin: '10px 0' }} />
-                                <div style={{ fontSize: 14, opacity: 0.8, fontWeight: 600 }}>Balance due</div>
-                                <div style={{ fontSize: 24, fontWeight: 800, color: '#FFE3EA' }}>{formatRupees(p.balance)}</div>
-                            </>
-                        ) : (
-                            <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, fontWeight: 800 }}>
-                                    <Ico icon={Wallet} size={20} color="#ffffff" /> Easy booking
-                                </div>
-                                <div style={{ fontSize: 15, opacity: 0.88, marginTop: 6, lineHeight: 1.4 }}>Block your dates with a small advance. Pay the rest before you travel.</div>
-                            </>
-                        )}
+                )}
+                {d.extras.chips.length > 0 && (
+                    <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {d.extras.chips.slice(0, 4).map((c, i) => (
+                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, border: '1px solid rgba(248,242,234,0.35)', borderRadius: 999, padding: '5px 10px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                <Ico icon={Check} size={12} color={HS.darkText} stroke={2.5} /> {clip(c, 24)}
+                            </span>
+                        ))}
                     </div>
                 )}
             </div>
-            <div style={{ marginTop: 24, display: 'flex', gap: 10 }}>
-                {items.map((it) => (
-                    <div key={it.label} style={{ flex: 1, borderRadius: 18, padding: '12px 6px', textAlign: 'center', background: it.on ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.05)', border: it.on ? '1px solid rgba(255,255,255,0.3)' : '1px dashed rgba(255,255,255,0.22)', opacity: it.on ? 1 : 0.55 }}>
-                        <div style={{ display: 'flex', justifyContent: 'center' }}><Ico icon={it.on ? it.icon : X} size={26} color="#ffffff" /></div>
-                        <div style={{ fontSize: 15, fontWeight: 700, marginTop: 6 }}>{it.label}</div>
-                        <div style={{ fontSize: 12, marginTop: 1, opacity: 0.8 }}>{it.on ? 'Included' : 'Not included'}</div>
-                    </div>
-                ))}
+            <div style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${HS.line}`, borderRadius: 22, padding: '24px 26px' }}>
+                <Eyebrow>At a glance</Eyebrow>
+                <div style={{ marginTop: 8 }}>
+                    {glance.map((g, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', borderTop: i ? `1px solid ${HS.line}` : undefined }}>
+                            <Dot />
+                            <div style={{ fontSize: 14.5, lineHeight: 1.5, color: HS.ink }}>{clip(g, 90)}</div>
+                        </div>
+                    ))}
+                    {!glance.length && <div style={{ fontSize: 15, color: HS.inkSoft, lineHeight: 1.5 }}>{clip(d.trip.overview || d.trip.title, 260)}</div>}
+                </div>
             </div>
         </div>
     )
 }
 
-function FactsGrid({ d }: { d: ProposalData }) {
-    const t = d.trip
-    const facts: Array<{ icon: LucideIcon; label: string; value: string }> = [
-        { icon: Moon, label: 'Duration', value: t.durationLabel },
-        { icon: CalendarDays, label: 'Travel date', value: t.travelDate ? formatLongDate(t.travelDate) : 'Flexible' },
-        { icon: Users, label: 'Travellers', value: travellersLabel(t.adults, t.children) },
-        { icon: BedDouble, label: 'Hotels', value: t.starCategory || '' },
-        { icon: Utensils, label: 'Meal plan', value: t.mealPlan || '' },
-        { icon: Sun, label: 'Best time to go', value: t.bestTime || '' },
-        { icon: Car, label: 'Transfers', value: t.transferType || '' },
-        { icon: Star, label: 'Guest rating', value: t.rating ? `${t.rating} / 5` : '' },
-    ].filter((f) => f.value).slice(0, 6)
-    if (!facts.length) return null
+function ListHeader({ title, right }: { title: string; right?: string }) {
     return (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {facts.map((f) => (
-                <div key={f.label} style={{ width: (CONTENT_W - 24) / 3, boxSizing: 'border-box', background: TZ.mist, border: `1px solid ${TZ.line}`, borderRadius: 22, padding: '16px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Ico icon={f.icon} size={21} color={TZ.wine} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, paddingBottom: 8 }}>
+            <Eyebrow>{title}</Eyebrow>
+            {right && <div style={{ fontSize: 12.5, color: HS.muted, fontStyle: 'italic', textAlign: 'right' }}>{right}</div>}
+        </div>
+    )
+}
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const parseIso = (s?: string) => {
+    if (!s) return null
+    const d = new Date(s.length === 10 ? s + 'T00:00:00' : s)
+    return Number.isNaN(d.getTime()) ? null : d
+}
+/** "12 – 13 Dec" / "31 Dec – 2 Jan" */
+function stayDates(h: ProposalStay) {
+    const a = parseIso(h.checkIn)
+    if (!a) return ''
+    const b = parseIso(h.checkOut)
+    if (!b) return `${a.getDate()} ${MON[a.getMonth()]}`
+    return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${MON[b.getMonth()]}` : `${a.getDate()} ${MON[a.getMonth()]} – ${b.getDate()} ${MON[b.getMonth()]}`
+}
+
+function StayRow({ h, last }: { h: ProposalStay; last: boolean }) {
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '10px 0', borderTop: `1px solid ${HS.line}`, borderBottom: last ? `1px solid ${HS.line}` : undefined }}>
+            <div style={{ width: 62, flexShrink: 0, fontFamily: DISPLAY, fontSize: 34, fontWeight: 500, lineHeight: 1, color: HS.ink }}>{h.nights ? `${h.nights}N` : '—'}</div>
+            <div style={{ width: 150, flexShrink: 0 }}>
+                <div style={{ fontSize: 11.5, letterSpacing: 1.8, textTransform: 'uppercase', fontWeight: 700, color: HS.tan }}>{clip(h.city, 22) || 'Stay'}</div>
+                {h.checkIn && <div style={{ fontSize: 12.5, color: HS.muted, marginTop: 3 }}>{stayDates(h)}</div>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 600, lineHeight: 1.15, color: HS.ink }}>{clip(h.hotelName, 48) || 'Hotel to be confirmed'}</div>
+                {h.roomType && <div style={{ fontSize: 13.5, color: HS.tan, marginTop: 3 }}>{clip(h.roomType, 50)}</div>}
+            </div>
+            <div style={{ width: 150, flexShrink: 0, textAlign: 'right', fontSize: 13.5, color: HS.inkSoft, lineHeight: 1.35 }}>{clip(h.mealPlan, 40)}</div>
+        </div>
+    )
+}
+
+function MiniFlight({ f }: { f: ProposalFlight }) {
+    const code = (city: string) => {
+        const c = String(city || '').trim()
+        const paren = c.match(/\(([A-Za-z]{3})\)/)
+        if (paren) return paren[1].toUpperCase()
+        if (/^[A-Z]{3}$/.test(c)) return c
+        return c.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || '—'
+    }
+    return (
+        <div style={{ padding: '14px 18px' }}>
+            <div style={{ fontSize: 12.5, color: HS.muted, fontWeight: 600 }}>{[f.airline, f.flightNumber?.toUpperCase()].filter(Boolean).join(' · ') || 'Flight'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8 }}>
+                <div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 30, fontWeight: 600, lineHeight: 1 }}>{code(f.departureCity)}</div>
+                    {f.departureTime && <div style={{ fontSize: 13.5, color: HS.inkSoft, marginTop: 4 }}>{f.departureTime}</div>}
+                </div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, borderTop: `1px dashed ${HS.tan}` }} />
+                    <Ico icon={Plane} size={16} color={HS.tan} />
+                    <div style={{ flex: 1, borderTop: `1px dashed ${HS.tan}` }} />
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 30, fontWeight: 600, lineHeight: 1 }}>{code(f.arrivalCity)}</div>
+                    {f.arrivalTime && <div style={{ fontSize: 13.5, color: HS.inkSoft, marginTop: 4 }}>{f.arrivalTime}</div>}
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function FlightCard({ label, date, shot, flight }: { label: string; date: string; shot?: ProposalImage; flight?: ProposalFlight }) {
+    return (
+        <div style={{ flex: 1, minWidth: 0, border: `1px solid ${HS.line}`, borderRadius: 20, overflow: 'hidden', background: '#fff' }}>
+            <div style={{ padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 20, fontWeight: 600, color: HS.ink, whiteSpace: 'nowrap', overflow: 'hidden' }}>{clip(label, 32)}</div>
+                {date && <div style={{ fontSize: 12.5, color: HS.muted, whiteSpace: 'nowrap' }}>{formatShortDate(date)}</div>}
+            </div>
+            {shot ? (
+                <div style={{ padding: '0 14px 14px' }}>
+                    <Photo img={shot.url} width="100%" height={150} radius={12} contain caption="" />
+                </div>
+            ) : flight ? (
+                <div style={{ borderTop: `1px solid ${HS.line}` }}><MiniFlight f={flight} /></div>
+            ) : (
+                <div style={{ borderTop: `1px solid ${HS.line}`, padding: '16px 18px', fontSize: 13.5, color: HS.inkSoft }}>Flight details are shared once your tickets are booked.</div>
+            )}
+        </div>
+    )
+}
+
+function FlightsBlock({ d }: { d: ProposalData }) {
+    const fi = d.flightInfo
+    if (!fi.included) {
+        return (
+            <div style={{ background: HS.cream, borderRadius: 18, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Ico icon={Plane} size={18} color={HS.tan} />
+                <div style={{ fontSize: 14.5, color: HS.inkSoft }}>Flights are <b style={{ color: HS.ink }}>not included</b> in this price — we&apos;re happy to add them whenever you like.</div>
+            </div>
+        )
+    }
+    const flights = d.flights
+    if (!fi.outbound && !fi.inbound && flights.length > 2) {
+        return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+                {flights.slice(0, 6).map((f, i) => (
+                    <div key={i} style={{ width: (CONTENT_W - 14) / 2, boxSizing: 'border-box', border: `1px solid ${HS.line}`, borderRadius: 20, background: '#fff' }}>
+                        <div style={{ padding: '12px 18px 0', fontSize: 12.5, color: HS.muted }}>{f.date ? formatShortDate(f.date) : `Flight ${i + 1}`}</div>
+                        <MiniFlight f={f} />
                     </div>
+                ))}
+            </div>
+        )
+    }
+    return (
+        <div style={{ display: 'flex', gap: 14 }}>
+            <FlightCard label={fi.outboundLabel} date={fi.outboundDate} shot={fi.outbound} flight={flights[0]} />
+            <FlightCard label={fi.inboundLabel} date={fi.inboundDate} shot={fi.inbound} flight={flights.length > 1 ? flights[flights.length - 1] : undefined} />
+        </div>
+    )
+}
+
+/** "3N Beach Villa" (one place) or "1N Srinagar" (multi-city) lines for an option */
+function stayLines(o: StayOption) {
+    const multiCity = new Set(o.hotels.map((h) => h.city.trim().toLowerCase()).filter(Boolean)).size > 1
+    return o.hotels.map((h) => `${h.nights ? `${h.nights}N ` : ''}${multiCity ? h.city : h.roomType || h.hotelName || h.city}`.trim()).filter(Boolean)
+}
+
+function MiniFact({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div style={{ minWidth: 0 }}>
+            <Eyebrow size={10} color={HS.muted}>{label}</Eyebrow>
+            <div style={{ fontSize: 14, fontWeight: 600, color: HS.ink, marginTop: 3, lineHeight: 1.4 }}>{children}</div>
+        </div>
+    )
+}
+
+function OptionSummaryCard({ o, i, pax, compact }: { o: StayOption; i: number; pax: number; compact?: boolean }) {
+    const lines = stayLines(o)
+    return (
+        <div style={{ display: 'flex', border: `1px solid ${HS.line}`, borderRadius: 20, overflow: 'hidden', background: '#fff' }}>
+            <div style={{ width: 6, flexShrink: 0, background: o.isQuoted ? HS.wine : HS.tan }} />
+            <div style={{ flex: 1, minWidth: 0, padding: compact ? '15px 22px' : '18px 24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                     <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 14, color: TZ.granite, fontWeight: 600 }}>{f.label}</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: TZ.coffee, lineHeight: 1.25, marginTop: 2 }}>{clip(f.value, 34)}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Eyebrow>Option {i + 1}</Eyebrow>
+                            {o.isQuoted && <Badge>Your quote</Badge>}
+                        </div>
+                        <div style={{ fontFamily: DISPLAY, fontSize: compact ? 24 : 26, fontWeight: 600, marginTop: 4, lineHeight: 1.12 }}>{clip(o.label, 52)}</div>
+                        <div style={{ fontSize: 13.5, color: HS.inkSoft, marginTop: 4 }}>{[o.location, o.starRating ? `${o.starRating}-star` : ''].filter(Boolean).join(' · ')}</div>
                     </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontFamily: DISPLAY, fontSize: 28, fontWeight: 600, lineHeight: 1.1 }}>{o.price > 0 ? formatRupees(o.price) : 'On request'}</div>
+                        <div style={{ fontSize: 12.5, color: HS.muted, marginTop: 2 }}>{clip(o.priceNote, 40) || (o.price > 0 && pax > 1 ? `${formatRupees(o.perPerson)} per person` : '')}</div>
+                    </div>
+                </div>
+                {(lines.length > 0 || o.transfer || o.mealSummary) && (
+                    <div style={{ display: 'flex', gap: 28, marginTop: compact ? 10 : 12, paddingTop: compact ? 10 : 12, borderTop: `1px solid ${HS.line}` }}>
+                        {lines.length > 0 && <div style={{ flex: 1.4, minWidth: 0 }}><MiniFact label="Your stay">{clip(lines.join(' · '), 90)}</MiniFact></div>}
+                        {o.transfer && <div style={{ flex: 1, minWidth: 0 }}><MiniFact label="Transfer">{clip(o.transfer, 40)}</MiniFact></div>}
+                        {o.mealSummary && <div style={{ flex: 1, minWidth: 0 }}><MiniFact label="Meal plan">{clip(o.mealSummary, 40)}</MiniFact></div>}
+                    </div>
+                )}
+                {o.description && !compact && <div style={{ fontSize: 14, color: HS.inkSoft, marginTop: 10, lineHeight: 1.5 }}>{clip(o.description, 120)}</div>}
+            </div>
+        </div>
+    )
+}
+
+/* ------------------------------------------------------------------ */
+/* Choice of stays (2 options) / comparison (3–4)                      */
+/* ------------------------------------------------------------------ */
+
+function diffLabel(o: StayOption, quoted: StayOption, pax: number) {
+    if (o.isQuoted || !o.price || !quoted.price) return ''
+    const diff = o.price - quoted.price
+    if (!diff) return 'Same price'
+    const who = pax === 2 ? 'for two' : 'in total'
+    return `${diff > 0 ? '+' : '−'}${formatRupees(Math.abs(diff))} ${who}`
+}
+
+function optionTag(o: StayOption, quoted: StayOption) {
+    if (o.isQuoted) return 'Your quote'
+    if (o.price && quoted.price) return o.price > quoted.price ? 'Upgrade' : o.price < quoted.price ? 'Saver' : 'Alternative'
+    return 'Alternative'
+}
+
+function ChoiceCard({ o, quoted, dark, pax }: { o: StayOption; quoted: StayOption; dark: boolean; pax: number }) {
+    const fg = dark ? HS.darkText : HS.ink
+    const soft = dark ? HS.darkMuted : HS.inkSoft
+    const accent = dark ? HS.darkMuted : HS.tan
+    const rule = dark ? 'rgba(248,242,234,0.18)' : HS.line
+    const diff = diffLabel(o, quoted, pax)
+    return (
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box', background: dark ? HS.dark : '#fff', border: dark ? `1px solid ${HS.dark}` : `1px solid ${HS.line}`, borderRadius: 22, padding: '24px 24px 22px', color: fg }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                    <Eyebrow color={accent} size={11}>{clip(o.label, 34)}</Eyebrow>
+                    {o.starRating > 0 && <div style={{ marginTop: 6 }}><Stars n={o.starRating} color={accent} size={11} /></div>}
+                </div>
+                <Badge tone={o.isQuoted ? 'wine' : dark ? 'cream' : 'outline'}>{optionTag(o, quoted)}</Badge>
+            </div>
+            <div style={{ fontFamily: DISPLAY, fontSize: 42, fontWeight: 500, lineHeight: 1, marginTop: 14 }}>{o.price > 0 ? formatRupees(o.price) : 'On request'}</div>
+            <div style={{ fontSize: 13.5, color: soft, marginTop: 6 }}>
+                {o.price > 0 && pax > 1 ? `${formatRupees(o.perPerson)} per person` : ''}{diff ? `${o.price > 0 && pax > 1 ? ' · ' : ''}${diff}` : ''}
+            </div>
+            <div style={{ height: 1, background: rule, margin: '16px 0 4px' }} />
+            {o.hotels.slice(0, 6).map((h, i) => (
+                <div key={h.id || i} style={{ padding: '9px 0', borderTop: i ? `1px solid ${rule}` : undefined }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.8, textTransform: 'uppercase', color: accent }}>{[clip(h.city, 20), h.nights ? `${h.nights}N` : ''].filter(Boolean).join(' · ')}</div>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 19, fontWeight: 600, lineHeight: 1.2, marginTop: 2 }}>{clip(h.hotelName, 40) || 'To be confirmed'}</div>
+                    {h.roomType && <div style={{ fontSize: 12.5, color: soft, marginTop: 1 }}>{clip(h.roomType, 44)}</div>}
+                </div>
+            ))}
+            {(o.mealSummary || o.transfer) && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {o.mealSummary && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: soft }}><Ico icon={Utensils} size={14} color={accent} /> {clip(o.mealSummary, 46)}</div>}
+                    {o.transfer && <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: soft }}><Ico icon={Plane} size={14} color={accent} /> {clip(o.transfer, 46)}</div>}
+                </div>
+            )}
+            <div style={{ flex: 1 }} />
+            {o.chooseIf && (
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${rule}` }}>
+                    <Eyebrow color={accent} size={10.5}>Choose this if</Eyebrow>
+                    <div style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 18, lineHeight: 1.35, marginTop: 6 }}>{clip(o.chooseIf, 150)}</div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function CompareTable({ options, pax }: { options: StayOption[]; pax: number }) {
+    const labelW = 128
+    const colW = (CONTENT_W - labelW) / options.length
+    const rows: Array<{ label: string; cell: (o: StayOption) => ReactNode; strong?: boolean }> = [
+        { label: 'Meal plan', cell: (o) => clip(o.mealSummary, 40) },
+        { label: 'Getting there', cell: (o) => clip(o.transfer, 40) },
+        { label: 'Your rooms', cell: (o) => stayLines(o).slice(0, 4).map((l, i) => <div key={i}>{clip(l, 34)}</div>) },
+        { label: 'Where', cell: (o) => clip(o.location, 40) },
+        { label: 'Hotel class', cell: (o) => (o.starRating ? <Stars n={o.starRating} /> : '') },
+        { label: 'Your quote', cell: (o) => (o.price > 0 ? <><div>{formatRupees(o.price)}</div>{pax > 1 && <div style={{ fontFamily: SANS, fontSize: 12, fontWeight: 500, color: HS.muted, marginTop: 2 }}>{formatRupees(o.perPerson)} per person</div>}</> : 'On request'), strong: true },
+    ]
+    const shown = rows.filter((r) => r.strong || options.some((o) => { const v = r.cell(o); return Array.isArray(v) ? v.length > 0 : !!v }))
+    return (
+        <div>
+            <div style={{ display: 'flex' }}>
+                <div style={{ width: labelW, flexShrink: 0 }} />
+                {options.map((o, i) => (
+                    <div key={o.id} style={{ width: colW, boxSizing: 'border-box', padding: '14px 12px 12px', background: o.isQuoted ? HS.cream : 'transparent', borderRadius: '16px 16px 0 0' }}>
+                        <Badge tone={o.isQuoted ? 'wine' : 'outline'}>Option {i + 1}</Badge>
+                        <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 600, lineHeight: 1.15, marginTop: 8 }}>{clip(o.label, 40)}</div>
+                    </div>
+                ))}
+            </div>
+            {shown.map((r, ri) => (
+                <div key={r.label} style={{ display: 'flex', borderTop: `1px solid ${HS.line}`, borderBottom: ri === shown.length - 1 ? `1px solid ${HS.line}` : undefined }}>
+                    <div style={{ width: labelW, flexShrink: 0, padding: '12px 0', fontSize: 10.5, fontWeight: 700, letterSpacing: 1.6, textTransform: 'uppercase', color: HS.muted }}>{r.label}</div>
+                    {options.map((o) => (
+                        <div key={o.id} style={{ width: colW, boxSizing: 'border-box', padding: '12px', background: o.isQuoted ? HS.cream : 'transparent', fontSize: r.strong ? 19 : 13.5, fontFamily: r.strong ? DISPLAY : SANS, fontWeight: r.strong ? 600 : 500, color: HS.ink, lineHeight: 1.4, borderRadius: ri === shown.length - 1 ? '0 0 16px 16px' : 0 }}>
+                            {r.cell(o) || <span style={{ color: HS.muted }}>—</span>}
+                        </div>
+                    ))}
                 </div>
             ))}
         </div>
     )
 }
 
-function HighlightsBlock({ items }: { items: string[] }) {
+function ChooseIfRow({ items }: { items: Array<{ o: StayOption; i: number }> }) {
+    return (
+        <div style={{ display: 'flex', gap: 12 }}>
+            {items.map(({ o, i }) => (
+                <div key={o.id} style={{ width: (CONTENT_W - 12) / 2, boxSizing: 'border-box', background: HS.cream, borderRadius: 18, padding: '16px 20px' }}>
+                    <Eyebrow size={10.5}>Option {i + 1} · {clip(o.label, 30)}</Eyebrow>
+                    <div style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 18, lineHeight: 1.35, color: HS.ink, marginTop: 8 }}>…{clip(o.chooseIf, 160)}</div>
+                </div>
+            ))}
+        </div>
+    )
+}
+
+/* ------------------------------------------------------------------ */
+/* Option showcase                                                     */
+/* ------------------------------------------------------------------ */
+
+function ShowcaseHead({ o, i, total }: { o: StayOption; i: number; total: number }) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 20 }}>
+            <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Eyebrow>{total > 1 ? `Option ${i + 1}` : 'Your stay'}</Eyebrow>
+                    {o.isQuoted && total > 1 && <Badge>Your quote</Badge>}
+                </div>
+                <div style={{ fontFamily: DISPLAY, fontSize: o.label.length > 30 ? 33 : o.label.length > 22 ? 38 : 42, fontWeight: 500, lineHeight: 1.08, marginTop: 6, letterSpacing: -0.3 }}>{clip(o.label, 52)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+                    {o.location && <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: HS.inkSoft }}><Ico icon={MapPin} size={14} color={HS.tan} /> {clip(o.location, 50)}</div>}
+                    {o.mealSummary && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: HS.cream, borderRadius: 999, padding: '5px 12px', fontSize: 12.5, fontWeight: 600, color: HS.ink }}><Ico icon={Utensils} size={13} color={HS.tan} /> {clip(o.mealSummary, 34)}</span>}
+                </div>
+            </div>
+            {o.starRating > 0 && (
+                <div style={{ flexShrink: 0, border: `1px solid ${HS.line}`, borderRadius: 16, padding: '10px 18px', textAlign: 'center' }}>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 34, fontWeight: 600, lineHeight: 1 }}>{o.starRating}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}><Stars n={o.starRating} size={10} /></div>
+                    <Eyebrow size={9.5} color={HS.muted} style={{ marginTop: 4 }}>Star</Eyebrow>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function Mosaic({ images }: { images: ProposalImage[] }) {
+    const imgs = images.slice(0, 6)
+    const n = imgs.length
+    const G = 10
+    let grid: ReactNode
+    if (n === 1) grid = <Photo img={imgs[0]} width={CONTENT_W} height={420} />
+    else if (n === 2) grid = <div style={{ display: 'flex', gap: G }}>{imgs.map((im, i) => <Photo key={i} img={im} width={(CONTENT_W - G) / 2} height={380} />)}</div>
+    else {
+        const leftW = Math.round(CONTENT_W * 0.58)
+        const rightW = CONTENT_W - leftW - G
+        const topH = n === 3 ? 440 : n === 4 ? 390 : 360
+        const bottom = imgs.slice(3)
+        grid = (
+            <div>
+                <div style={{ display: 'flex', gap: G }}>
+                    <Photo img={imgs[0]} width={leftW} height={topH} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: G }}>
+                        <Photo img={imgs[1]} width={rightW} height={(topH - G) / 2} />
+                        <Photo img={imgs[2]} width={rightW} height={(topH - G) / 2} />
+                    </div>
+                </div>
+                {bottom.length > 0 && (
+                    <div style={{ display: 'flex', gap: G, marginTop: G }}>
+                        {bottom.map((im, i) => <Photo key={i} img={im} width={(CONTENT_W - G * (bottom.length - 1)) / bottom.length} height={bottom.length === 1 ? 170 : 140} />)}
+                    </div>
+                )}
+            </div>
+        )
+    }
     return (
         <div>
-            <SubHeading icon={Sparkles} title="Trip highlights" />
-            <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {items.map((h, i) => (
-                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: TZ.roseSoft, color: TZ.wine, borderRadius: 999, padding: '10px 16px', fontSize: 17, fontWeight: 700 }}>
-                        <Ico icon={Heart} size={16} color={TZ.wine} />
-                        {clip(h, 46)}
+            {grid}
+            <div style={{ fontSize: 11.5, fontStyle: 'italic', color: HS.muted, marginTop: 8 }}>* Hotel and room images are illustrative of the category booked; your exact room may differ.</div>
+        </div>
+    )
+}
+
+function AboutBlock({ title, text }: { title: string; text: string }) {
+    return (
+        <div>
+            <Eyebrow>{title}</Eyebrow>
+            <div style={{ fontSize: 15, lineHeight: 1.65, color: HS.inkSoft, marginTop: 8 }}>{clip(text, 620)}</div>
+        </div>
+    )
+}
+
+function AmenityChips({ items }: { items: string[] }) {
+    return (
+        <div>
+            <Eyebrow>Highlights &amp; amenities</Eyebrow>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                {items.slice(0, 16).map((a, i) => (
+                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: `1px solid ${HS.line}`, borderRadius: 999, padding: '7px 14px', fontSize: 13.5, color: HS.ink }}>
+                        <span style={{ width: 5, height: 5, borderRadius: 999, background: HS.tan, display: 'inline-block' }} /> {clip(a, 36)}
                     </span>
                 ))}
             </div>
@@ -343,186 +649,59 @@ function HighlightsBlock({ items }: { items: string[] }) {
     )
 }
 
-function RouteLine({ stops }: { stops: string[] }) {
-    return (
-        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            <Ico icon={Route} size={20} color={TZ.wine} />
-            {stops.map((s, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: `1px solid ${TZ.line}`, borderRadius: 999, padding: '6px 14px 6px 6px' }}>
-                        <div style={{ width: 24, height: 24, borderRadius: 999, background: TZ.wine, color: '#fff', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-                        <span style={{ fontSize: 16.5, fontWeight: 700 }}>{clip(s, 28)}</span>
-                    </div>
-                    {i < stops.length - 1 && <div style={{ width: 18, borderTop: `2px dashed ${TZ.rose}` }} />}
-                </div>
-            ))}
-        </div>
-    )
-}
+const hasRoomDetails = (h: ProposalStay) => h.bullets.length > 0 || h.images.length > 0 || !!h.sizeSqm
 
-/* --- Day by day --- */
-
-function DayCard({ day, index, date, isLast }: { day: ProposalData['days'][number]; index: number; date?: string; isLast: boolean }) {
-    const num = (String(day.day).match(/\d+/) || [String(index + 1)])[0]
-    const acts = (day.activities || []).filter(Boolean).slice(0, 6)
-    return (
-        <div style={{ display: 'flex', gap: 18 }}>
-            <div style={{ width: 76, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 76, height: 76, borderRadius: 24, background: index === 0 || isLast ? TZ.wine : TZ.coffee, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, opacity: 0.85 }}>DAY</div>
-                    <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>{num}</div>
+function RoomCard({ h, travellers }: { h: ProposalStay; travellers: string }) {
+    const title = h.roomType || h.hotelName || 'Your room'
+    const sub = h.roomType ? h.hotelName : ''
+    const meta = [stayDates(h), h.mealPlan, h.nights ? `${h.nights} night${h.nights === 1 ? '' : 's'}` : '', travellers].filter(Boolean).join(' · ')
+    const img = h.images[0]
+    if (!hasRoomDetails(h)) {
+        // Compact row for stays without photos / highlights
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18, border: `1px solid ${HS.line}`, borderRadius: 16, padding: '13px 20px', background: '#fff' }}>
+                <div style={{ width: 120, flexShrink: 0 }}>{h.city && <Eyebrow size={10.5}>{clip(h.city, 18)}</Eyebrow>}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: DISPLAY, fontSize: 20, fontWeight: 600, lineHeight: 1.15 }}>{clip(title, 46)}</div>
+                    {sub && <div style={{ fontSize: 12.5, color: HS.tan, marginTop: 1 }}>{clip(sub, 56)}</div>}
                 </div>
-                {!isLast && <div style={{ flex: 1, width: 0, borderLeft: `3px dotted ${TZ.rose}`, marginTop: 8, minHeight: 20 }} />}
+                <div style={{ width: 210, flexShrink: 0, textAlign: 'right', fontSize: 12.5, color: HS.inkSoft, lineHeight: 1.4 }}>{clip([stayDates(h), h.mealPlan, h.nights ? `${h.nights}N` : ''].filter(Boolean).join(' · '), 60)}</div>
             </div>
-            <div style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${TZ.line}`, borderRadius: 26, padding: '20px 24px', boxShadow: '0 2px 10px rgba(15,4,6,0.04)' }}>
-                {date && <div style={{ fontSize: 15, fontWeight: 700, color: TZ.wine, letterSpacing: 0.6, textTransform: 'uppercase' }}>{date}</div>}
-                <div style={{ fontSize: 25, fontWeight: 800, lineHeight: 1.22, color: TZ.coffee, marginTop: date ? 4 : 0 }}>{clip(day.title, 90) || `Day ${num}`}</div>
-                {day.description && day.description.trim() !== day.title.trim() && (
-                    <div style={{ fontSize: 18.5, lineHeight: 1.55, color: '#43383C', marginTop: 8 }}>{clip(day.description, 820)}</div>
-                )}
-                {acts.length > 0 && (
-                    <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {acts.map((a, i) => (
-                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: TZ.mist, border: `1px solid ${TZ.line}`, borderRadius: 999, padding: '7px 14px', fontSize: 15.5, fontWeight: 600, color: TZ.mauve }}>
-                                <Ico icon={Check} size={15} color={TZ.green} stroke={3} />
-                                {clip(a, 44)}
-                            </span>
+        )
+    }
+    return (
+        <div style={{ display: 'flex', gap: 20, border: `1px solid ${HS.line}`, borderRadius: 20, padding: 20, background: '#fff' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                {h.city && <Eyebrow size={10.5}>{clip(h.city, 30)}</Eyebrow>}
+                <div style={{ fontFamily: DISPLAY, fontSize: 24, fontWeight: 600, lineHeight: 1.15, marginTop: 4 }}>{clip(title, 50)}</div>
+                {sub && <div style={{ fontSize: 13.5, color: HS.tan, marginTop: 2 }}>{clip(sub, 56)}</div>}
+                {meta && <div style={{ fontSize: 13, color: HS.inkSoft, marginTop: 8 }}>{clip(meta, 110)}</div>}
+                {h.sizeSqm && <div style={{ fontSize: 13, color: HS.ink, fontWeight: 700, marginTop: 6 }}>{clip(h.sizeSqm, 20)}{/\d$/.test(h.sizeSqm.trim()) ? ' m²' : ''}</div>}
+                {h.bullets.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                        {h.bullets.slice(0, 6).map((b, i) => (
+                            <div key={i} style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                                <Dot top={8} />
+                                <div style={{ fontSize: 14, lineHeight: 1.5, color: HS.ink }}>{clip(b, 90)}</div>
+                            </div>
                         ))}
                     </div>
                 )}
             </div>
+            {img && <Photo img={img} width={230} height={170} radius={14} />}
         </div>
     )
 }
 
-/* --- Stays & flights --- */
-
-function HotelCard({ h, nightsFallback }: { h: ProposalHotel; nightsFallback?: number }) {
-    const nights = nightsBetween(h.checkIn, h.checkOut) || nightsFallback || 0
+function IncludedWithStay({ items }: { items: string[] }) {
     return (
-        <div style={{ display: 'flex', alignItems: 'stretch', background: '#fff', border: `1px solid ${TZ.line}`, borderRadius: 26, overflow: 'hidden', boxShadow: '0 2px 10px rgba(15,4,6,0.04)' }}>
-            <div style={{ width: 10, background: TZ.wine, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0, padding: '20px 22px' }}>
-                {h.city && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 800, color: TZ.wine, letterSpacing: 1, textTransform: 'uppercase' }}>
-                        <Ico icon={MapPin} size={16} color={TZ.wine} /> {clip(h.city, 30)}
-                    </div>
-                )}
-                <div style={{ fontSize: 25, fontWeight: 800, color: TZ.coffee, marginTop: 4, lineHeight: 1.2 }}>{clip(h.hotelName, 60) || 'Hotel to be confirmed'}</div>
-                <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {h.roomType && <Chip icon={BedDouble}>{clip(h.roomType, 34)}</Chip>}
-                    {h.mealPlan && <Chip icon={Utensils}>{clip(h.mealPlan, 34)}</Chip>}
-                </div>
-            </div>
-            <div style={{ width: 170, flexShrink: 0, background: TZ.mist, borderLeft: `2px dashed ${TZ.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 10px', textAlign: 'center' }}>
-                {nights > 0 && (
-                    <>
-                        <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1, color: TZ.wine }}>{nights}</div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: TZ.coffee }}>Night{nights === 1 ? '' : 's'}</div>
-                    </>
-                )}
-                {(h.checkIn || h.checkOut) && (
-                    <div style={{ fontSize: 14, color: TZ.granite, marginTop: 8, lineHeight: 1.35, fontWeight: 600 }}>
-                        {h.checkIn && <div>In: {formatShortDate(h.checkIn)}</div>}
-                        {h.checkOut && <div>Out: {formatShortDate(h.checkOut)}</div>}
-                    </div>
-                )}
-                {!nights && !h.checkIn && !h.checkOut && <Ico icon={BedDouble} size={36} color={TZ.wine} />}
-            </div>
-        </div>
-    )
-}
-
-const cityCode = (city: string) => {
-    const c = String(city || '').trim()
-    const paren = c.match(/\(([A-Za-z]{3})\)/)
-    if (paren) return paren[1].toUpperCase()
-    if (/^[A-Z]{3}$/.test(c)) return c
-    return c.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || '—'
-}
-
-function FlightCard({ f }: { f: ProposalFlight }) {
-    return (
-        <div style={{ background: '#fff', border: `1px solid ${TZ.line}`, borderRadius: 26, overflow: 'hidden', boxShadow: '0 2px 10px rgba(15,4,6,0.04)' }}>
-            <div style={{ background: TZ.coffee, color: '#fff', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, fontWeight: 800 }}>
-                    <Ico icon={Plane} size={20} color={TZ.rose} />
-                    {clip(f.airline, 30) || 'Flight'}
-                    {f.flightNumber && <span style={{ fontWeight: 600, opacity: 0.75 }}>· {f.flightNumber.toUpperCase()}</span>}
-                </div>
-                {f.date && <div style={{ fontSize: 16, fontWeight: 700 }}>{formatShortDate(f.date)}</div>}
-            </div>
-            <div style={{ padding: '20px 26px', display: 'flex', alignItems: 'center', gap: 18 }}>
-                <div style={{ width: 190 }}>
-                    <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: TZ.coffee }}>{cityCode(f.departureCity)}</div>
-                    <div style={{ fontSize: 16, color: TZ.granite, fontWeight: 600, marginTop: 4 }}>{clip(f.departureCity, 24)}</div>
-                    {f.departureTime && <div style={{ fontSize: 20, fontWeight: 800, color: TZ.wine, marginTop: 4 }}>{f.departureTime}</div>}
-                </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 999, background: TZ.rose }} />
-                    <div style={{ flex: 1, borderTop: `2px dashed ${TZ.rose}` }} />
-                    <div style={{ width: 46, height: 46, borderRadius: 999, background: TZ.roseSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ico icon={Plane} size={22} color={TZ.wine} />
-                    </div>
-                    <div style={{ flex: 1, borderTop: `2px dashed ${TZ.rose}` }} />
-                    <div style={{ width: 10, height: 10, borderRadius: 999, background: TZ.rose }} />
-                </div>
-                <div style={{ width: 190, textAlign: 'right' }}>
-                    <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1, color: TZ.coffee }}>{cityCode(f.arrivalCity)}</div>
-                    <div style={{ fontSize: 16, color: TZ.granite, fontWeight: 600, marginTop: 4 }}>{clip(f.arrivalCity, 24)}</div>
-                    {f.arrivalTime && <div style={{ fontSize: 20, fontWeight: 800, color: TZ.wine, marginTop: 4 }}>{f.arrivalTime}</div>}
-                </div>
-            </div>
-        </div>
-    )
-}
-
-/* --- Inclusions / policies / notes --- */
-
-function ListColumn({ title, items, good }: { title: string; items: string[]; good: boolean }) {
-    const fg = good ? TZ.green : TZ.red
-    const bg = good ? TZ.greenSoft : TZ.redSoft
-    return (
-        <div style={{ flex: 1, minWidth: 0, background: '#fff', border: `1px solid ${TZ.line}`, borderRadius: 26, padding: '20px 22px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 38, height: 38, borderRadius: 999, background: fg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ico icon={good ? Check : X} size={22} color="#ffffff" stroke={3} />
-                </div>
-                <div style={{ fontSize: 23, fontWeight: 800 }}>{title}</div>
-            </div>
-            {items.map((it, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '7px 0', borderTop: i ? `1px solid ${TZ.mist}` : undefined }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 999, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-                        <Ico icon={good ? Check : X} size={14} color={fg} stroke={3} />
-                    </div>
-                    <div style={{ fontSize: 17.5, lineHeight: 1.45, color: '#3B3135' }}>{clip(it, 130)}</div>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function IncExcBlock({ inc, exc }: { inc: string[]; exc: string[] }) {
-    return (
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            {inc.length > 0 && <ListColumn title="What's included" items={inc} good />}
-            {exc.length > 0 && <ListColumn title="Not included" items={exc} good={false} />}
-        </div>
-    )
-}
-
-function PolicyCard({ icon, title, items }: { icon: LucideIcon; title: string; items: string[] }) {
-    return (
-        <div style={{ background: TZ.mist, border: `1px solid ${TZ.line}`, borderRadius: 26, padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Ico icon={icon} size={24} color={TZ.wine} />
-                <div style={{ fontSize: 22, fontWeight: 800 }}>{title}</div>
-            </div>
-            <div style={{ marginTop: 10 }}>
-                {items.map((p, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 6 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 999, background: TZ.wine, marginTop: 10, flexShrink: 0 }} />
-                        <div style={{ fontSize: 17.5, lineHeight: 1.5, color: '#3B3135' }}>{clip(p, 260)}</div>
+        <div style={{ background: HS.cream, borderRadius: 20, padding: '20px 24px' }}>
+            <Eyebrow>Included with your stay</Eyebrow>
+            <div style={{ display: 'flex', flexWrap: 'wrap', marginTop: 8 }}>
+                {items.slice(0, 14).map((it, i) => (
+                    <div key={i} style={{ width: '50%', boxSizing: 'border-box', paddingRight: 14, display: 'flex', gap: 8, marginTop: 6 }}>
+                        <div style={{ marginTop: 3 }}><Ico icon={Check} size={14} color={HS.wine} stroke={2.5} /></div>
+                        <div style={{ fontSize: 14, lineHeight: 1.45, color: HS.ink }}>{clip(it, 70)}</div>
                     </div>
                 ))}
             </div>
@@ -530,300 +709,318 @@ function PolicyCard({ icon, title, items }: { icon: LucideIcon; title: string; i
     )
 }
 
-function NotesCard({ notes }: { notes: string[] }) {
+/* ------------------------------------------------------------------ */
+/* Day by day                                                          */
+/* ------------------------------------------------------------------ */
+
+function DayPhotos({ photos }: { photos: ProposalImage[] }) {
+    if (photos.length === 1) return <Photo img={photos[0]} width={CONTENT_W} height={260} radius={20} />
     return (
-        <div style={{ background: '#FFF8EC', border: '1px solid #F4DDB0', borderRadius: 26, padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Ico icon={Info} size={24} color="#A15C00" />
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#5B3600' }}>Important notes</div>
-            </div>
-            {notes.map((n, i) => (
-                <div key={i} style={{ fontSize: 17.5, lineHeight: 1.5, color: '#5B3600', marginTop: 8 }}>{clip(n, 300)}</div>
-            ))}
+        <div style={{ display: 'flex', gap: 12 }}>
+            {photos.slice(0, 2).map((p, i) => <Photo key={i} img={p} width={(CONTENT_W - 12) / 2} height={250} radius={20} />)}
         </div>
     )
 }
 
-/* ------------------------------------------------------------------ */
-/* Why Travelzada + closing CTA                                        */
-/* ------------------------------------------------------------------ */
-
-const WHY_ICONS: LucideIcon[] = [Headphones, HeartHandshake, BadgeCheck, Sparkles, Gift, ShieldCheck]
-
-function WhyPage({ d, pageNo, total }: { d: ProposalData; pageNo: number; total: number }) {
-    const why = d.whyUs.slice(0, 6)
-    const reviews = d.reviews.slice(0, 2)
+function DayRow({ day, index, date, thumb, last }: { day: ProposalData['days'][number]; index: number; date?: string; thumb?: ProposalImage; last?: boolean }) {
+    const num = Number((String(day.day).match(/\d+/) || [String(index + 1)])[0]) || index + 1
+    const acts = (day.activities || []).filter(Boolean).slice(0, 6)
     return (
-        <Page pageNo={pageNo} total={total} quoteRef={d.quoteRef} background={TZ.mist}>
-            <SectionHeader logo={d.logoUrl} eyebrow="Why Travelzada" title="Why couples choose us" icon={Heart} />
-            <div style={{ position: 'absolute', top: HEADER_FIRST, left: PAD_X, right: PAD_X }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-                    {why.map((w, i) => (
-                        <div key={i} style={{ width: (CONTENT_W - 14) / 2, boxSizing: 'border-box', background: '#fff', borderRadius: 26, padding: '18px 20px', display: 'flex', gap: 14, border: `1px solid ${TZ.line}` }}>
-                            <div style={{ width: 52, height: 52, borderRadius: 16, background: TZ.wine, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                <Ico icon={WHY_ICONS[i % WHY_ICONS.length]} size={26} color="#ffffff" />
-                            </div>
-                            <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.25 }}>{clip(w.label, 44)}</div>
-                                {w.description && <div style={{ fontSize: 16.5, lineHeight: 1.45, color: TZ.granite, marginTop: 4 }}>{clip(w.description, 72)}</div>}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {reviews.length > 0 ? (
-                    <div style={{ marginTop: 24 }}>
-                        <SubHeading icon={Star} title="What travellers say" />
-                        <div style={{ marginTop: 14, display: 'flex', gap: 14 }}>
-                            {reviews.map((r, i) => {
-                                const stars = Math.max(1, Math.min(5, Math.round(Number(r.rating) || 5)))
-                                return (
-                                    <div key={i} style={{ flex: 1, minWidth: 0, background: '#fff', borderRadius: 26, padding: '20px 22px', border: `1px solid ${TZ.line}` }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <Ico icon={Quote} size={28} color={TZ.rose} />
-                                            <div style={{ display: 'flex', gap: 2 }}>
-                                                {Array.from({ length: stars }).map((_, k) => <Star key={k} size={17} color="#E8A317" fill="#E8A317" style={{ display: 'block' }} />)}
-                                            </div>
-                                        </div>
-                                        <div style={{ fontSize: 17, lineHeight: 1.5, color: '#3B3135', marginTop: 10 }}>{clip(r.content, 120)}</div>
-                                        <div style={{ fontSize: 15, fontWeight: 800, marginTop: 10 }}>{clip(r.name, 30)}{r.date && <span style={{ fontWeight: 500, color: TZ.granite }}> · {clip(r.date, 24)}</span>}</div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
-                ) : (
-                    <div style={{ marginTop: 30 }}>
-                        <SubHeading icon={ClipboardList} title="How booking works" />
-                        <HowToBook />
-                    </div>
-                )}
+        <div style={{ display: 'flex', gap: 20, padding: '18px 0 20px', borderTop: `1px solid ${HS.line}`, borderBottom: last ? `1px solid ${HS.line}` : undefined }}>
+            <div style={{ width: 100, flexShrink: 0 }}>
+                <div style={{ fontSize: 11.5, letterSpacing: 2, fontWeight: 800, color: HS.wine }}>DAY {pad2(num)}</div>
+                {date && <div style={{ fontSize: 13.5, color: HS.inkSoft, marginTop: 4 }}>{date}</div>}
             </div>
-        </Page>
-    )
-}
-
-function HowToBook({ dark }: { dark?: boolean }) {
-    const steps = [
-        { icon: MessageCircle, title: 'Say yes on WhatsApp', text: 'Tell us the quote number. Want changes? We will tweak it.' },
-        { icon: CreditCard, title: 'Pay a small advance', text: 'Your hotels and dates get blocked right away.' },
-        { icon: BadgeCheck, title: 'Get your vouchers', text: 'Confirmed bookings & a day-wise plan before you fly.' },
-    ]
-    return (
-        <div style={{ marginTop: 14, display: 'flex', gap: 12 }}>
-            {steps.map((s, i) => (
-                <div key={i} style={{ flex: 1, minWidth: 0, background: dark ? 'rgba(255,255,255,0.1)' : '#fff', border: dark ? '1px solid rgba(255,255,255,0.18)' : `1px solid ${TZ.line}`, borderRadius: 24, padding: '18px 18px', color: dark ? '#fff' : TZ.coffee }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 999, background: dark ? '#fff' : TZ.wine, color: dark ? TZ.wine : '#fff', fontWeight: 800, fontSize: 17, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-                        <Ico icon={s.icon} size={22} color={dark ? TZ.rose : TZ.wine} />
-                    </div>
-                    <div style={{ fontSize: 18.5, fontWeight: 800, marginTop: 10, lineHeight: 1.25 }}>{s.title}</div>
-                    <div style={{ fontSize: 15.5, marginTop: 4, lineHeight: 1.45, opacity: dark ? 0.82 : 1, color: dark ? '#fff' : TZ.granite }}>{s.text}</div>
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function CtaPage({ d, pageNo, total }: { d: ProposalData; pageNo: number; total: number }) {
-    const t = d.trip
-    const waText = `Hi Travelzada! I'd like to go ahead with "${t.title}" (Quote ${d.quoteRef}). Please share the booking details.`
-    const mail = `mailto:${CONTACT.email}?subject=${encodeURIComponent(`Booking ${d.quoteRef} — ${t.title}`)}`
-    return (
-        <Page pageNo={pageNo} total={total} quoteRef={d.quoteRef} background={TZ.wine} dark>
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 470, backgroundImage: bgImage(t.heroImage), backgroundSize: 'cover', backgroundPosition: 'center' }} />
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 472, backgroundImage: `linear-gradient(180deg, rgba(15,4,6,0.45) 0%, rgba(101,25,38,0.55) 55%, ${TZ.wine} 100%)` }} />
-            <div style={{ position: 'absolute', left: 0, right: 0, top: 470, bottom: 0, backgroundImage: `linear-gradient(180deg, ${TZ.wine} 0%, ${TZ.mauve} 70%, ${TZ.coffee} 100%)` }} />
-
-            <div style={{ position: 'absolute', top: 36, left: PAD_X }}><LogoPill src={d.logoUrl} /></div>
-
-            <div style={{ position: 'absolute', left: PAD_X, right: PAD_X, top: 222, color: '#fff' }}>
-                <div style={{ fontFamily: DISPLAY, fontSize: 80, fontWeight: 700, lineHeight: 0.98, letterSpacing: -1 }}>Ready to say yes?</div>
-                <div style={{ fontSize: 21, lineHeight: 1.5, marginTop: 16, opacity: 0.92, maxWidth: 620 }}>
-                    Your {t.destination || 'dream'} escape is one message away. Reply on WhatsApp and we&apos;ll lock in your dates and hotels.
-                </div>
-
-                <div style={{ marginTop: 30, display: 'flex', gap: 12 }}>
-                    <div data-pdf-link={whatsappLink(waText, d.designer.whatsapp)} style={{ flex: 1.4, height: 80, borderRadius: 999, background: TZ.whatsapp, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 24, fontWeight: 800, boxShadow: '0 12px 28px rgba(0,0,0,0.28)' }}>
-                        <Ico icon={MessageCircle} size={28} color="#ffffff" /> Book on WhatsApp
-                    </div>
-                    <div data-pdf-link={CONTACT.phoneHref} style={{ flex: 1, height: 80, borderRadius: 999, background: '#fff', color: TZ.wine, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 22, fontWeight: 800 }}>
-                        <Ico icon={Phone} size={24} color={TZ.wine} /> Call us
-                    </div>
-                </div>
-                <div style={{ marginTop: 12, display: 'flex', gap: 12 }}>
-                    <div data-pdf-link={mail} style={{ flex: 1, height: 58, borderRadius: 999, border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 18, fontWeight: 700 }}>
-                        <Ico icon={Mail} size={20} color="#ffffff" /> {CONTACT.email}
-                    </div>
-                    {t.packageUrl && (
-                        <div data-pdf-link={t.packageUrl} style={{ flex: 1, height: 58, borderRadius: 999, border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 18, fontWeight: 700 }}>
-                            <Ico icon={Globe} size={20} color="#ffffff" /> View trip online
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: DISPLAY, fontSize: 23, fontWeight: 600, lineHeight: 1.2, color: HS.ink }}>{clip(day.title, 80) || `Day ${num}`}</div>
+                {day.description && <div style={{ fontSize: 14.5, lineHeight: 1.6, color: HS.inkSoft, marginTop: 6 }}>{clip(day.description, 650)}</div>}
+                {acts.length > 0 && <div style={{ fontSize: 12.5, color: HS.tan, fontWeight: 700, marginTop: 8, lineHeight: 1.5 }}>{acts.map((a) => clip(a, 40)).join('   ·   ')}</div>}
+            </div>
+            {(day.location || thumb) && (
+                <div style={{ width: 140, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    {day.location && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, color: HS.tan, textAlign: 'right' }}>
+                            <Ico icon={MapPin} size={12} color={HS.tan} /> {clip(day.location, 20)}
                         </div>
                     )}
+                    {thumb && <Photo img={thumb} width={140} height={96} radius={12} caption="" style={{ marginTop: day.location ? 10 : 0 }} />}
                 </div>
+            )}
+        </div>
+    )
+}
 
-                {/* Quote summary */}
-                <div style={{ marginTop: 26, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 26, padding: '18px 24px', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-                    {[
-                        { label: 'Quote number', value: d.quoteRef, icon: ClipboardList },
-                        { label: 'Valid until', value: formatLongDate(d.validUntil), icon: Clock },
-                        { label: 'Total price', value: d.price.total > 0 ? formatRupees(d.price.total) : 'On request', icon: Wallet },
-                    ].map((q) => (
-                        <div key={q.label} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                            <Ico icon={q.icon} size={24} color={TZ.rose} />
-                            <div>
-                                <div style={{ fontSize: 14, opacity: 0.78, fontWeight: 600 }}>{q.label}</div>
-                                <div style={{ fontSize: 20, fontWeight: 800 }}>{q.value}</div>
-                            </div>
-                        </div>
-                    ))}
+/* ------------------------------------------------------------------ */
+/* Closing                                                             */
+/* ------------------------------------------------------------------ */
+
+function IncExc({ inc, exc }: { inc: string[]; exc: string[] }) {
+    const col = (title: string, items: string[], good: boolean) => (
+        <div style={{ flex: 1, minWidth: 0, background: good ? HS.cream : '#fff', border: good ? `1px solid ${HS.cream}` : `1px solid ${HS.line}`, borderRadius: 20, padding: '20px 22px' }}>
+            <Eyebrow color={good ? HS.wine : HS.tan}>{title}</Eyebrow>
+            <div style={{ marginTop: 8 }}>
+                {items.map((it, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                        <div style={{ marginTop: 3 }}><Ico icon={good ? Check : Minus} size={14} color={good ? HS.wine : HS.tan} stroke={2.5} /></div>
+                        <div style={{ fontSize: 14, lineHeight: 1.45, color: HS.ink }}>{clip(it, 110)}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+    return (
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            {inc.length > 0 && col('Included', inc, true)}
+            {exc.length > 0 && col('Not included', exc, false)}
+        </div>
+    )
+}
+
+function TwoTexts({ items }: { items: Array<{ title: string; text: string }> }) {
+    return (
+        <div style={{ display: 'flex', gap: 28 }}>
+            {items.map((it) => (
+                <div key={it.title} style={{ flex: 1, minWidth: 0 }}>
+                    <Eyebrow>{it.title}</Eyebrow>
+                    <div style={{ fontSize: 14, lineHeight: 1.6, color: HS.inkSoft, marginTop: 8 }}>{clip(it.text, 560)}</div>
                 </div>
+            ))}
+        </div>
+    )
+}
 
-                <HowToBook dark />
+function GoodToKnow({ items }: { items: string[] }) {
+    return (
+        <div>
+            <Eyebrow>Good to know</Eyebrow>
+            <div style={{ marginTop: 6 }}>
+                {items.map((n, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, marginTop: 5 }}>
+                        <Dot top={8} />
+                        <div style={{ fontSize: 13.5, lineHeight: 1.5, color: HS.inkSoft }}>{clip(n, 220)}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
 
-                <div style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 10, fontSize: 16, opacity: 0.85 }}>
-                    <Ico icon={MapPin} size={18} color={TZ.rose} />
-                    Travelzada · {CONTACT.address}
+function TermsLine({ url }: { url: string }) {
+    return (
+        <div style={{ fontSize: 13.5, color: HS.inkSoft }}>
+            Full inclusions, notes and terms: <span data-pdf-link={url} style={{ color: HS.wine, fontWeight: 700 }}>{url.replace(/^https?:\/\/(www\.)?/, '')}</span>
+        </div>
+    )
+}
+
+function CtaBand({ d }: { d: ProposalData }) {
+    const quoted = d.stayOptions.find((o) => o.isQuoted) || d.stayOptions[0]
+    const first = d.designer.name.split(' ')[0] || 'Travelzada'
+    const waText = `Hi ${first}! I'd like to confirm my ${d.cover.title} trip${d.stayOptions.length > 1 ? ` — ${quoted.label}` : ''} (Quote ${d.quoteRef}).`
+    return (
+        <div style={{ background: HS.dark, color: HS.darkText, borderRadius: 26, padding: '28px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+            <div style={{ minWidth: 0 }}>
+                <Eyebrow color={HS.darkMuted} size={11}>This price is held until</Eyebrow>
+                <div style={{ fontFamily: DISPLAY, fontSize: 38, fontWeight: 500, lineHeight: 1.05, marginTop: 6 }}>{formatLongDate(d.validUntil)}</div>
+                <div style={{ fontSize: 13.5, color: HS.darkMuted, marginTop: 8, lineHeight: 1.5, maxWidth: 330 }}>{clip(d.extras.peakLine, 140)}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10, flexShrink: 0 }}>
+                <div data-pdf-link={whatsappLink(waText, d.designer.whatsapp)} style={{ display: 'flex', alignItems: 'center', gap: 10, background: HS.cream, color: HS.ink, borderRadius: 999, padding: '15px 24px', fontSize: 16, fontWeight: 800 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 999, background: '#25D366', display: 'inline-block' }} /> Confirm on WhatsApp
+                </div>
+                <div style={{ fontSize: 13, color: HS.darkMuted }}>
+                    or call {clip(d.designer.name, 24)} · <span data-pdf-link={CONTACT.phoneHref} style={{ color: HS.darkText, fontWeight: 700 }}>{d.designer.phone}</span>
                 </div>
             </div>
-        </Page>
+        </div>
     )
+}
+
+/* ------------------------------------------------------------------ */
+/* Flow sections                                                       */
+/* ------------------------------------------------------------------ */
+
+/** gap = space above this block when it follows another block on the same page (default BLOCK_GAP) */
+interface FlowBlock { key: string; node: ReactNode; keepWithNext?: boolean; gap?: number }
+const gapOf = (b?: FlowBlock) => (b?.gap ?? BLOCK_GAP)
+interface FlowSection { key: string; contTitle: string; blocks: FlowBlock[]; breakBefore?: boolean; footnote?: ReactNode }
+
+function buildSections(d: ProposalData): FlowSection[] {
+    const sections: FlowSection[] = []
+    const opts = d.stayOptions
+    const n = opts.length
+    const quoted = opts.find((o) => o.isQuoted) || opts[0]
+    const pax = d.trip.adults + d.trip.children
+    const travellers = travellersLabel(d.trip.adults, d.trip.children)
+    const replyNote = "Reply with the option you like — we'll lock it in."
+
+    /* What we've put together */
+    const ov: FlowBlock[] = [{
+        key: 'head', keepWithNext: true,
+        node: <SectionHead eyebrow={clip([n >= 3 ? `${numWord(n)} options for you` : '', d.trip.title, d.trip.durationLabel].filter(Boolean).join(' · '), 80)} title="What we've" italic="put together" />,
+    }]
+    if (n <= 2) {
+        ov.push({ key: 'price', node: <PriceGlance d={d} option={quoted} multi={n === 2} /> })
+        if (quoted.hotels.length) {
+            const totalN = quoted.hotels.reduce((s, h) => s + h.nights, 0)
+            ov.push({ key: 'sh', keepWithNext: true, node: <ListHeader title="Where you'll stay" right={[totalN ? `${totalN} nights` : '', n === 2 ? clip(quoted.label, 30) : ''].filter(Boolean).join(' · ')} /> })
+            quoted.hotels.forEach((h, i) => ov.push({ key: `s${i}`, gap: 0, node: <StayRow h={h} last={i === quoted.hotels.length - 1} /> }))
+        }
+    } else {
+        opts.forEach((o, i) => ov.push({ key: `o${i}`, gap: i ? 14 : BLOCK_GAP, node: <OptionSummaryCard o={o} i={i} pax={pax} compact={n >= 4} /> }))
+    }
+    if (d.flightInfo.show) {
+        ov.push({ key: 'fh', keepWithNext: true, node: <ListHeader title="Flights" right={d.flightInfo.included ? d.flightInfo.fareNote : ''} /> })
+        ov.push({ key: 'fl', gap: 2, node: <FlightsBlock d={d} /> })
+    }
+    sections.push({ key: 'overview', contTitle: "What we've put together", blocks: ov, footnote: `Prices in INR for ${travellers} · quote ${d.quoteRef} valid until ${formatLongDate(d.validUntil)}` })
+
+    /* Choice of stays / comparison */
+    if (n === 2) {
+        const sameRoute = opts.every((o) => o.hotels.map((h) => h.city.toLowerCase()).join('|') === quoted.hotels.map((h) => h.city.toLowerCase()).join('|'))
+        sections.push({
+            key: 'choice', contTitle: 'Your choice of stays', breakBefore: true, footnote: replyNote,
+            blocks: [
+                { key: 'head', keepWithNext: true, node: <SectionHead eyebrow="Two ways to stay" title="Your choice" italic="of stays" subtitle={sameRoute && quoted.hotels.length > 1 ? 'Same route, same days. Only the hotels change.' : 'Same dates — pick the stay that feels right.'} /> },
+                { key: 'cards', node: <div style={{ display: 'flex', gap: 18, alignItems: 'stretch' }}>{opts.map((o, i) => <ChoiceCard key={o.id} o={o} quoted={quoted} dark={i === 1} pax={pax} />)}</div> },
+            ],
+        })
+    } else if (n >= 3) {
+        const withChoose = opts.map((o, i) => ({ o, i })).filter((x) => x.o.chooseIf)
+        const rows: FlowBlock[] = []
+        for (let k = 0; k < withChoose.length; k += 2) rows.push({ key: `ci${k}`, gap: k ? 12 : 4, node: <ChooseIfRow items={withChoose.slice(k, k + 2)} /> })
+        sections.push({
+            key: 'compare', contTitle: 'Your options compared', breakBefore: true, footnote: replyNote,
+            blocks: [
+                { key: 'head', keepWithNext: true, node: <SectionHead eyebrow="Side by side · everything that changes" title="Your options" italic="compared" /> },
+                { key: 'table', node: <CompareTable options={opts} pax={pax} /> },
+                ...(rows.length ? [{ key: 'cih', keepWithNext: true, node: <ListHeader title="Choose this if…" /> }, ...rows] : []),
+            ],
+        })
+    }
+
+    /* Per-option showcase + rooms */
+    opts.forEach((o, i) => {
+        const showcase = d.extras.showcase && (o.images.length > 0 || o.amenities.length > 0)
+        const rooms = o.hotels.some(hasRoomDetails) || o.included.length > 0
+        if (showcase) {
+            const blocks: FlowBlock[] = [{ key: 'head', keepWithNext: true, node: <ShowcaseHead o={o} i={i} total={n} /> }]
+            if (o.images.length) blocks.push({ key: 'mosaic', node: <Mosaic images={o.images} /> })
+            if (o.description) blocks.push({ key: 'about', node: <AboutBlock title={n > 1 ? 'Why we picked it' : 'About your stay'} text={o.description} /> })
+            if (o.amenities.length) blocks.push({ key: 'amen', node: <AmenityChips items={o.amenities} /> })
+            sections.push({ key: `show${i}`, contTitle: o.label, breakBefore: true, blocks })
+        }
+        if (rooms) {
+            const blocks: FlowBlock[] = [{ key: 'head', keepWithNext: true, node: <SectionHead eyebrow={n > 1 ? `Option ${i + 1} · ${clip(o.label, 40)}` : clip(o.label, 50)} title="Where you'll" italic="sleep" /> }]
+            o.hotels.forEach((h, k) => {
+                blocks.push({ key: `r${k}`, gap: k > 0 && !hasRoomDetails(h) ? 10 : BLOCK_GAP, node: <RoomCard h={h} travellers={travellers} /> })
+                const next = o.hotels[k + 1]
+                if (next && next.checkIn && next.city.trim().toLowerCase() === h.city.trim().toLowerCase()) {
+                    blocks.push({ key: `rc${k}`, node: <div style={{ fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 18, color: HS.inkSoft, textAlign: 'center' }}>Your room changes on {formatShortDate(next.checkIn)} — we&apos;ll move your bags for you.</div> })
+                }
+            })
+            if (o.included.length) blocks.push({ key: 'inc', node: <IncludedWithStay items={o.included} /> })
+            sections.push({ key: `rooms${i}`, contTitle: "Where you'll sleep", breakBefore: !showcase, blocks })
+        }
+    })
+
+    /* Day by day */
+    if (d.days.length) {
+        const start = d.trip.travelDate ? new Date(d.trip.travelDate + 'T00:00:00') : null
+        const featured = new Set(d.dayPhotos.map((p) => p.url))
+        const cities = Array.from(new Set(quoted.hotels.map((h) => h.city).filter(Boolean)))
+        const blocks: FlowBlock[] = [{
+            key: 'head', keepWithNext: true,
+            node: <SectionHead eyebrow={`${d.days.length} days`} title="Your journey," italic="day by day" subtitle={[d.trip.durationLabel, cities.length > 1 ? cities.join(' → ') : ''].filter(Boolean).join(' · ')} />,
+        }]
+        if (d.dayPhotos.length) blocks.push({ key: 'photos', node: <DayPhotos photos={d.dayPhotos} /> })
+        d.days.forEach((day, i) => {
+            let date: string | undefined
+            if (start && !Number.isNaN(start.getTime())) {
+                const dt = new Date(start)
+                dt.setDate(dt.getDate() + i)
+                date = dt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+            }
+            const thumb = (day.images || []).find((im) => !featured.has(im.url))
+            blocks.push({ key: `d${i}`, gap: i === 0 && !d.dayPhotos.length ? BLOCK_GAP : i === 0 ? 24 : 0, node: <DayRow day={day} index={i} date={date} thumb={thumb} last={i === d.days.length - 1} /> })
+        })
+        sections.push({ key: 'days', contTitle: 'Your journey, day by day', breakBefore: true, blocks, footnote: cities.length > 1 ? 'Drive times are approximate and depend on weather and road conditions.' : undefined })
+    }
+
+    /* Closing */
+    const closing: FlowBlock[] = [{ key: 'head', keepWithNext: true, node: <SectionHead script="ready when you are" title="Say yes, and we'll" italic="handle the rest" /> }]
+    const inc = d.inclusions.slice(0, 12)
+    const exc = d.exclusions.slice(0, 12)
+    if (inc.length || exc.length) closing.push({ key: 'ie', node: <IncExc inc={inc} exc={exc} /> })
+    closing.push({ key: 'pc', node: <TwoTexts items={[{ title: 'Payment', text: d.extras.paymentText }, { title: 'Cancellation', text: d.extras.cancellationText }]} /> })
+    const notes = [...d.policies.booking.slice(0, 4), ...d.notes.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, 8)]
+    if (notes.length) closing.push({ key: 'gtk', node: <GoodToKnow items={notes} /> })
+    closing.push({ key: 'terms', node: <TermsLine url={d.extras.termsUrl} /> })
+    closing.push({ key: 'cta', node: <CtaBand d={d} /> })
+    sections.push({ key: 'closing', contTitle: "Say yes, and we'll handle the rest", breakBefore: true, blocks: closing, footnote: d.extras.ratingLine })
+
+    return sections
 }
 
 /* ------------------------------------------------------------------ */
 /* Pagination                                                          */
 /* ------------------------------------------------------------------ */
 
-function buildFlowSections(d: ProposalData): FlowSection[] {
-    const sections: FlowSection[] = []
+interface Seg { section: number; indices: number[] }
+interface FlowPageLayout { segs: Seg[]; cont: number | null }
 
-    // Trip at a glance
-    const glance: FlowBlock[] = [
-        { key: 'intro', node: <GlanceIntro d={d} /> },
-        { key: 'price', node: <PriceCard d={d} /> },
-        { key: 'facts', node: <FactsGrid d={d} /> },
-    ]
-    if (d.highlights.length) glance.push({ key: 'hl', node: <HighlightsBlock items={d.highlights.slice(0, 8)} /> })
-    sections.push({ key: 'glance', eyebrow: 'Trip at a glance', title: 'Your trip at a glance', icon: Sparkles, blocks: glance, compact: true })
-
-    // Day by day
-    if (d.days.length) {
-        const start = d.trip.travelDate ? new Date(d.trip.travelDate + 'T00:00:00') : null
-        sections.push({
-            key: 'days', eyebrow: `${d.days.length}-day plan`, title: 'Day-by-day itinerary', icon: CalendarDays,
-            blocks: d.days.map((day, i) => {
-                let date: string | undefined
-                if (start && !Number.isNaN(start.getTime())) {
-                    const dt = new Date(start); dt.setDate(dt.getDate() + i)
-                    date = dt.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })
-                }
-                return { key: `day${i}`, node: <DayCard day={day} index={i} date={date} isLast={i === d.days.length - 1} /> }
-            }),
-        })
-    }
-
-    // Stays & flights
-    const stays: FlowBlock[] = []
-    const hotels = d.hotels.filter((h) => h.hotelName || h.city)
-    const flights = d.flights.filter((f) => f.airline || f.departureCity || f.arrivalCity)
-    if (hotels.length) {
-        const totalNights = hotels.reduce((s, h) => s + nightsBetween(h.checkIn, h.checkOut), 0)
-        stays.push({ key: 'hh', keepWithNext: true, node: <SubHeading icon={BedDouble} title="Where you'll stay" hint={totalNights ? `${totalNights} nights` : `${hotels.length} hotel${hotels.length > 1 ? 's' : ''}`} /> })
-        hotels.forEach((h, i) => stays.push({ key: `h${i}`, node: <HotelCard h={h} /> }))
-    }
-    if (flights.length) {
-        stays.push({ key: 'fh', keepWithNext: true, node: <SubHeading icon={Plane} title="Your flights" hint={`${flights.length} sector${flights.length > 1 ? 's' : ''}`} /> })
-        flights.forEach((f, i) => stays.push({ key: `f${i}`, node: <FlightCard f={f} /> }))
-    }
-    if (stays.length) {
-        const title = hotels.length && flights.length ? 'Stays & flights' : hotels.length ? 'Your stays' : 'Your flights'
-        sections.push({ key: 'stays', eyebrow: hotels.length ? 'Hand-picked stays' : 'Flights', title, icon: hotels.length ? BedDouble : Plane, blocks: stays })
-    }
-
-    // Inclusions, policies, notes
-    const terms: FlowBlock[] = []
-    const inc = d.inclusions.slice(0, 14)
-    const exc = d.exclusions.slice(0, 14)
-    if (inc.length || exc.length) terms.push({ key: 'ie', node: <IncExcBlock inc={inc} exc={exc} /> })
-    const pol = d.policies
-    if (pol.payment.length) terms.push({ key: 'pp', node: <PolicyCard icon={CreditCard} title="Payment policy" items={pol.payment.slice(0, 6)} /> })
-    if (pol.cancellation.length) terms.push({ key: 'pc', node: <PolicyCard icon={ShieldCheck} title="Cancellation policy" items={pol.cancellation.slice(0, 6)} /> })
-    if (pol.booking.length) terms.push({ key: 'pb', node: <PolicyCard icon={ClipboardList} title="Booking terms" items={pol.booking.slice(0, 6)} /> })
-    const notes = d.notes.split('\n').map((s) => s.trim()).filter(Boolean)
-    if (notes.length) terms.push({ key: 'notes', node: <NotesCard notes={notes.slice(0, 10)} /> })
-    if (terms.length) sections.push({ key: 'terms', eyebrow: 'The fine print', title: "What's included & policies", icon: ShieldCheck, blocks: terms })
-
-    return sections
-}
-
-/** A run of blocks from one section placed on a page; `inline` = the section starts mid-page with its own title */
-interface Seg { section: number; indices: number[]; inline: boolean }
-interface FlowPageLayout { head: number; cont: boolean; segs: Seg[] }
-
-/**
- * Lays every flow section out across pages in one pass. A section starts on the previous page when its title
- * and first block(s) still fit there (no half-empty pages); otherwise it starts a fresh page with the big header.
- */
+/** Packs measured blocks into pages. Sections with breakBefore start a fresh page; keepWithNext glues a heading to what follows. */
 function layoutSections(sections: FlowSection[], heights: number[][]): FlowPageLayout[] {
     const pages: FlowPageLayout[] = []
     let page: FlowPageLayout | null = null
     let used = 0
     let avail = 0
-    const headerH = (s: FlowSection, cont: boolean) => (cont || s.compact ? HEADER_CONT : HEADER_FIRST)
-    const newPage = (k: number, cont: boolean) => {
-        page = { head: k, cont, segs: [{ section: k, indices: [], inline: false }] }
+    const newPage = (cont: number | null) => {
+        page = { segs: [], cont }
         pages.push(page)
         used = 0
-        avail = PAGE_H - FOOTER_H - headerH(sections[k], cont) - SAFETY
+        avail = BASE_AVAIL - (cont !== null ? CONT_H : 0)
     }
     sections.forEach((sec, k) => {
         const h = heights[k] || []
-        const need = (i: number) => (sec.blocks[i]?.keepWithNext && i + 1 < h.length ? h[i] + BLOCK_GAP + h[i + 1] : h[i] || 0)
-        const inlineCost = BLOCK_GAP * 2 + INLINE_TITLE_H + BLOCK_GAP
-        if (page && k > 0 && !sec.compact && used + inlineCost + need(0) <= avail) {
-            ;(page as FlowPageLayout).segs.push({ section: k, indices: [], inline: true })
-            used += inlineCost
-        } else {
-            newPage(k, false)
-        }
+        if (!h.length) return
+        const need = (i: number) => (sec.blocks[i]?.keepWithNext && i + 1 < h.length ? h[i] + gapOf(sec.blocks[i + 1]) + h[i + 1] : h[i] || 0)
+        if (!page || sec.breakBefore || used + SECTION_GAP + need(0) > avail) newPage(null)
+        else used += SECTION_GAP
+        ;(page as unknown as FlowPageLayout).segs.push({ section: k, indices: [] })
         h.forEach((bh, i) => {
-            const p = page as FlowPageLayout
-            const seg = p.segs[p.segs.length - 1]
-            const gap = seg.indices.length ? BLOCK_GAP : 0
-            if (seg.indices.length && used + gap + need(i) > avail) newPage(k, true)
-            const cur = (page as FlowPageLayout).segs[(page as FlowPageLayout).segs.length - 1]
-            used += (cur.indices.length ? BLOCK_GAP : 0) + bh
-            cur.indices.push(i)
+            let p = page as unknown as FlowPageLayout
+            let seg = p.segs[p.segs.length - 1]
+            if (seg.indices.length && used + gapOf(sec.blocks[i]) + need(i) > avail) {
+                newPage(k)
+                p = page as unknown as FlowPageLayout
+                p.segs.push({ section: k, indices: [] })
+                seg = p.segs[0]
+            }
+            used += (seg.indices.length ? gapOf(sec.blocks[i]) : 0) + bh
+            seg.indices.push(i)
         })
     })
     return pages
 }
 
-function InlineSectionTitle({ section }: { section: FlowSection }) {
+function FlowPage({ d, sections, layout, pageNo }: { d: ProposalData; sections: FlowSection[]; layout: FlowPageLayout; pageNo: number }) {
+    const footSec = [...layout.segs].reverse().map((s) => sections[s.section]).find((s) => s.footnote)
+    const footnote = footSec?.footnote || `Travelzada · ${CONTACT.website} · ${CONTACT.phone}`
     return (
-        <div style={{ height: INLINE_TITLE_H, display: 'flex', alignItems: 'flex-end', gap: 14, borderTop: `1px dashed ${TZ.line}`, paddingBottom: 4, boxSizing: 'border-box' }}>
-            <div style={{ fontFamily: DISPLAY, fontSize: 36, fontWeight: 700, lineHeight: 1.05, color: TZ.coffee }}>{section.title}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: TZ.roseSoft, color: TZ.wine, borderRadius: 999, padding: '5px 12px', fontSize: 13, fontWeight: 700, marginBottom: 6 }}>
-                <Ico icon={section.icon} size={14} color={TZ.wine} />
-                {section.eyebrow}
-            </div>
-        </div>
-    )
-}
-
-function FlowPage({ d, sections, layout, pageNo, total }: { d: ProposalData; sections: FlowSection[]; layout: FlowPageLayout; pageNo: number; total: number }) {
-    const head = sections[layout.head]
-    return (
-        <Page pageNo={pageNo} total={total} quoteRef={d.quoteRef}>
-            <SectionHeader logo={d.logoUrl} eyebrow={head.eyebrow} title={head.title} cont={layout.cont} compact={head.compact} icon={head.icon} />
-            <div style={{ position: 'absolute', top: layout.cont || head.compact ? HEADER_CONT : HEADER_FIRST, left: PAD_X, width: CONTENT_W }}>
-                {layout.segs.map((seg) => {
+        <Page d={d} pageNo={pageNo} footnote={footnote}>
+            <div style={{ position: 'absolute', top: CONTENT_TOP, left: PAD_X, width: CONTENT_W }}>
+                {layout.cont !== null && (
+                    <div style={{ height: CONT_H, boxSizing: 'border-box' }}>
+                        <Eyebrow color={HS.muted} size={10.5}>{clip(sections[layout.cont].contTitle, 60)} · continued</Eyebrow>
+                    </div>
+                )}
+                {layout.segs.map((seg, si) => {
                     const sec = sections[seg.section]
                     return (
-                        <div key={sec.key + seg.indices[0]}>
-                            {seg.inline && <div style={{ marginTop: BLOCK_GAP * 2, marginBottom: BLOCK_GAP }}><InlineSectionTitle section={sec} /></div>}
+                        <div key={sec.key + '-' + seg.indices[0]} style={{ marginTop: si ? SECTION_GAP : 0 }}>
                             {seg.indices.map((idx, n) => (
-                                <div key={sec.blocks[idx].key} style={{ marginTop: n ? BLOCK_GAP : 0 }}>{sec.blocks[idx].node}</div>
+                                <div key={sec.blocks[idx].key} style={{ marginTop: n ? gapOf(sec.blocks[idx]) : 0 }}>{sec.blocks[idx].node}</div>
                             ))}
                         </div>
                     )
@@ -844,7 +1041,7 @@ export interface ProposalDocumentProps {
 }
 
 export default function ProposalDocument({ data, onReady, pageWrapper, containerStyle }: ProposalDocumentProps) {
-    const sections = useMemo(() => buildFlowSections(data), [data])
+    const sections = useMemo(() => buildSections(data), [data])
     const measureRef = useRef<HTMLDivElement>(null)
     const [layout, setLayout] = useState<FlowPageLayout[] | null>(null)
     const [fontTick, setFontTick] = useState(0)
@@ -870,14 +1067,12 @@ export default function ProposalDocument({ data, onReady, pageWrapper, container
         setLayout((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
     }, [sections, fontTick])
 
-    const pages: Array<{ key: string; render: (no: number, total: number) => ReactNode }> = []
+    const pages: Array<{ key: string; render: (no: number) => ReactNode }> = []
     if (layout) {
-        pages.push({ key: 'cover', render: (no, total) => <CoverPage d={data} pageNo={no} total={total} /> })
+        pages.push({ key: 'cover', render: (no) => <CoverPage d={data} pageNo={no} /> })
         layout.forEach((pl, pi) => {
-            pages.push({ key: `flow-${pi}`, render: (no, total) => <FlowPage d={data} sections={sections} layout={pl} pageNo={no} total={total} /> })
+            pages.push({ key: `flow-${pi}`, render: (no) => <FlowPage d={data} sections={sections} layout={pl} pageNo={no} /> })
         })
-        pages.push({ key: 'why', render: (no, total) => <WhyPage d={data} pageNo={no} total={total} /> })
-        pages.push({ key: 'cta', render: (no, total) => <CtaPage d={data} pageNo={no} total={total} /> })
     }
     const total = pages.length
 
@@ -889,14 +1084,14 @@ export default function ProposalDocument({ data, onReady, pageWrapper, container
     return (
         <div style={{ position: 'relative', ...containerStyle }}>
             {/* Hidden measuring layer: every flow block at its final width */}
-            <div ref={measureRef} aria-hidden style={{ position: 'absolute', left: 0, top: 0, width: CONTENT_W, height: 0, overflow: 'hidden', visibility: 'hidden', pointerEvents: 'none', fontFamily: SANS, color: TZ.coffee }}>
+            <div ref={measureRef} aria-hidden style={{ position: 'absolute', left: 0, top: 0, width: CONTENT_W, height: 0, overflow: 'hidden', visibility: 'hidden', pointerEvents: 'none', fontFamily: SANS, color: HS.ink }}>
                 {sections.map((s) => s.blocks.map((b, i) => (
                     <div key={`${s.key}-${b.key}`} data-m={`${s.key}-${i}`} style={{ width: CONTENT_W }}>{b.node}</div>
                 )))}
             </div>
             {pages.map((p, i) => (
                 <div key={p.key}>
-                    {pageWrapper ? pageWrapper(p.render(i + 1, total), i, total) : p.render(i + 1, total)}
+                    {pageWrapper ? pageWrapper(p.render(i + 1), i, total) : p.render(i + 1)}
                 </div>
             ))}
         </div>

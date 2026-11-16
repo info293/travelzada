@@ -6,21 +6,26 @@
  * Also embedded in the lead CRM (LeadCrmDetail) — keep ItineraryPrefill / GeneratedItinerarySummary compatible.
  */
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { collection, getDocs, addDoc, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, orderBy, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import {
-    ArrowDown, ArrowUp, BedDouble, CalendarDays, Check, ChevronLeft, ChevronRight, Download, Eye, FileText,
-    Image as ImageIcon, Loader2, MapPin, MessageCircle, Minus, Package as PackageIcon, Plane, Plus, RotateCcw,
-    Search, Share2, SlidersHorizontal, Sparkles, Trash2, UserRound, Wallet, X,
+    ArrowDown, ArrowUp, BedDouble, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Eye, FileText,
+    Image as ImageIcon, Loader2, MapPin, MessageCircle, Minus, Package as PackageIcon, Palette, Plane, Plus, RotateCcw,
+    Save, Search, Share2, SlidersHorizontal, Sparkles, Trash2, UserRound, Wallet, X,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { DestinationPackage } from './types';
-import { Badge, Button, Card, Field, cx, formatINR, inputClass, waLink } from './ui';
+import { Badge, Button, Card, Drawer, Field, cx, formatINR, inputClass, waLink } from './ui';
 import Link from 'next/link';
 import { inboxHref, maskPhone, resolveRefPhone, usePhoneAccess } from '@/lib/admin/privacy';
 import ProposalDocument from './proposal/ProposalDocument';
 import { buildProposalData, cleanImageUrl, makeQuoteRef, parseList } from './proposal/buildProposalData';
-import { PAGE_H, PAGE_W, formatLongDate, nightsBetween, type ProposalData } from './proposal/types';
+import { PAGE_H, PAGE_W, formatLongDate, type ProposalData, type ProposalImage, type QuoteDesign } from './proposal/types';
+import { defaultDesign, designImages, normaliseDesign, withHotels } from './proposal/design';
+import ImagePicker from './proposal/builder/ImagePicker';
+import OptionsEditor from './proposal/builder/OptionsEditor';
+import FlightsEditor from './proposal/builder/FlightsEditor';
+import ExtrasEditor from './proposal/builder/ExtrasEditor';
 
 interface Package extends DestinationPackage {
     id?: string;
@@ -54,6 +59,9 @@ interface DayPlan {
     description: string;
     /** Comma separated activity chips, as typed */
     activitiesText?: string;
+    /** Shown right-aligned on the day row */
+    location?: string;
+    images?: ProposalImage[];
 }
 
 interface ItineraryData {
@@ -65,7 +73,6 @@ interface ItineraryData {
     children: number;
     packageId: string;
     flights: FlightDetail[];
-    hotels: HotelDetail[];
     totalCost: number;
     advancePaid: number;
     notes: string;
@@ -98,6 +105,8 @@ export interface ItineraryPrefill {
     packageOverrides?: Partial<Package>;
     /** Skip customer + package steps and open "Customise" once the package is applied */
     autoAdvance?: boolean;
+    /** Reopen a saved quote (customer_itineraries doc id) in the builder */
+    quoteDocId?: string;
 }
 
 export interface GeneratedItinerarySummary {
@@ -131,6 +140,31 @@ const TRIP_TYPES = ['Honeymoon', 'Anniversary', 'Babymoon', 'Proposal trip', 'Co
 const priceFromPackage = (pkg: Package) => parseInt(String(pkg.Price_Min_INR || pkg.Price_Range_INR || '0').replace(/[^0-9]/g, '')) || 0;
 
 const safeName = (s: string) => s.trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+
+/** Package fields the PDF / builder actually use — stored with the quote so it can be reopened (keeps the doc small) */
+const PACKAGE_KEYS = [
+    'id', 'Destination_ID', 'Destination_Name', 'Slug', 'Overview', 'Duration', 'Duration_Nights', 'Duration_Days', 'Inclusions', 'Exclusions',
+    'Day_Wise_Itinerary', 'Day_Wise_Itinerary_Details', 'Location_Breakup', 'Highlights', 'Why_Book_With_Us', 'Guest_Reviews', 'Booking_Policies',
+    'Star_Category', 'Meal_Plan', 'Seasonality', 'Transfer_Type', 'Primary_Image_URL', 'Meta_Image_URL', 'Image_Alt_Text', 'Gallery_Images',
+    'Rating', 'Hotel_Examples', 'Price_Min_INR', 'Price_Range_INR', 'Occasion', 'Travel_Type',
+];
+function pickPackageFields(pkg: Package): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    PACKAGE_KEYS.forEach((k) => { const v = (pkg as any)[k]; if (v !== undefined && v !== null) out[k] = v; });
+    return out;
+}
+
+/** Never write inline data: images to Firestore (1 MB doc limit) — uploads are URLs, anything else is dropped */
+function stripDataUrls<T>(value: T): T {
+    if (typeof value === 'string') return ((value.startsWith('data:') && value.length > 200) ? '' : value) as unknown as T;
+    if (Array.isArray(value)) return value.map(stripDataUrls) as unknown as T;
+    if (value && typeof value === 'object') {
+        const out: Record<string, unknown> = {};
+        Object.entries(value as Record<string, unknown>).forEach(([k, v]) => { out[k] = stripDataUrls(v); });
+        return out as T;
+    }
+    return value;
+}
 
 /** Parse the catalog's day-wise plan into editable days (prefers the structured AI details) */
 function parseDays(pkg: Package): DayPlan[] {
@@ -202,7 +236,6 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
         children: prefill?.children ?? 0,
         packageId: '',
         flights: [],
-        hotels: [],
         totalCost: prefill?.totalCost || 0,
         advancePaid: 0,
         notes: prefill?.notes || '',
@@ -213,11 +246,21 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
     });
     const set = <K extends keyof ItineraryData>(key: K, value: ItineraryData[K]) => setFormData((prev) => ({ ...prev, [key]: value }));
 
+    // v2 design: stay options (hotels live here now), images, cover + closing copy. Prefilled hotels → option 1.
+    const [design, setDesign] = useState<QuoteDesign>(() => (prefill?.hotels?.length ? withHotels(defaultDesign(), prefill.hotels) : defaultDesign()));
+    const patchDesign = (patch: Partial<QuoteDesign>) => setDesign((prev) => ({ ...prev, ...patch }));
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [savedAt, setSavedAt] = useState('');
+    const [loadError, setLoadError] = useState('');
+    const [loadingQuote, setLoadingQuote] = useState(!!prefill?.quoteDocId);
+    const [openDayPhotos, setOpenDayPhotos] = useState<number | null>(null);
+
     // Customer phone privacy: a number that came from a lead is shown masked + read-only to non-admins
     const { canSeePhone } = usePhoneAccess();
-    const phoneLocked = !canSeePhone && !!(prefill?.clientPhone || prefill?.clientPhoneRef);
     /** Where the WhatsApp inbox should open: the source lead, else the saved quote record */
     const [savedRecordId, setSavedRecordId] = useState('');
+    const phoneLocked = !canSeePhone && (!!(prefill?.clientPhone || prefill?.clientPhoneRef) || (!!prefill?.quoteDocId && !!formData.clientPhone));
     const chatRef = prefill?.clientPhoneRef || (savedRecordId ? `customer_itineraries/${savedRecordId}` : '');
 
     // ?ref= from a lead (non-admin links carry no number): resolve it so the quote record still gets the phone
@@ -290,8 +333,8 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                 ...prev,
                 ...(prefill.totalCost ? { totalCost: prefill.totalCost } : {}),
                 ...(prefill.customItinerary?.length ? { customItinerary: prefill.customItinerary } : {}),
-                ...(prefill.hotels?.length ? { hotels: prefill.hotels } : {}),
             }));
+            if (prefill.hotels?.length) setDesign((prev) => withHotels(prev, prefill.hotels!));
             if (prefill.autoAdvance) setStep(3);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -372,7 +415,67 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
             customItinerary: parseDays(pkg),
             tripType: prev.tripType || String(pkg.Occasion || pkg.Travel_Type || '').split(/[,/|]/)[0].trim(),
         }));
+        // Fill the quoted option's blanks from the package (never overwrite what the planner typed)
+        setDesign((prev) => ({
+            ...prev,
+            stayOptions: prev.stayOptions.map((o) => (o.isQuoted ? {
+                ...o,
+                label: o.label || String(pkg.Star_Category || ''),
+                mealSummary: o.mealSummary || String(pkg.Meal_Plan || ''),
+                transfer: o.transfer || String(pkg.Transfer_Type || ''),
+            } : o)),
+        }));
     };
+
+    // Reopen a saved quote: /admin/itinerary?quote=<customer_itineraries id>
+    useEffect(() => {
+        const id = prefill?.quoteDocId;
+        if (!id) return;
+        let cancelled = false;
+        (async () => {
+            try {
+                const snap = await getDoc(doc(db, 'customer_itineraries', id));
+                if (cancelled) return;
+                if (!snap.exists()) { setLoadError('That quote could not be found.'); return; }
+                const r = snap.data() as any;
+                const b = r.builder;
+                if (b?.version === 2 && b.pkg) {
+                    const pkg = { ...b.pkg } as Package;
+                    setPackages((prev) => [pkg, ...prev.filter((p) => p.id !== pkg.id)]);
+                    setSelectedPackage(pkg);
+                    setFormData((prev) => ({ ...prev, ...b.formData, clientPhone: b.formData?.clientPhone || r.clientPhone || prev.clientPhone }));
+                    setDesign(normaliseDesign(b.design));
+                    if (b.destinationId) setSelectedDestination(String(b.destinationId));
+                } else {
+                    // Older record (before the v2 builder): rebuild what we can as a custom package
+                    const pkg = {
+                        id: 'custom', Destination_ID: r.packageId || 'custom-trip', Destination_Name: r.packageName || r.destinationName || 'Custom Trip',
+                        Overview: '', Duration: '', Inclusions: '', Exclusions: '', Day_Wise_Itinerary: '',
+                    } as Package;
+                    setPackages((prev) => [pkg, ...prev.filter((p) => p.id !== 'custom')]);
+                    setSelectedPackage(pkg);
+                    setFormData((prev) => ({
+                        ...prev,
+                        clientName: r.clientName || '', clientEmail: r.clientEmail || '', clientPhone: r.clientPhone || '',
+                        travelDate: r.travelDate || '', adults: r.adults ?? 2, children: r.children ?? 0,
+                        totalCost: r.totalCost || 0, advancePaid: r.advancePaid || 0, notes: r.notes || '', tripType: r.tripType || '',
+                        flights: Array.isArray(r.flights) ? r.flights : [],
+                        customItinerary: Array.isArray(r.customItinerary) ? r.customItinerary.map((d: any) => ({ day: d.day, title: d.title, description: d.description, activitiesText: typeof d.activities === 'string' ? d.activities : '' })) : [],
+                    }));
+                    setDesign(withHotels(defaultDesign(), Array.isArray(r.hotels) ? r.hotels : []));
+                }
+                if (r.quoteRef) setQuoteRef(r.quoteRef);
+                setSavedRecordId(id);
+                setStep(3);
+            } catch (e) {
+                console.error('Could not open the quote', e);
+                if (!cancelled) setLoadError('Could not open that quote — please try again.');
+            } finally {
+                if (!cancelled) setLoadingQuote(false);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [prefill?.quoteDocId]);
 
     const startCustomTrip = () => {
         const destObj = destinations.find((d) => d.id === selectedDestination);
@@ -395,23 +498,11 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
 
     const updatePkg = (field: keyof Package, value: any) => setSelectedPackage((prev) => (prev ? ({ ...prev, [field]: value } as Package) : prev));
 
-    // Flights
-    const addFlight = () => set('flights', [...formData.flights, { date: '', airline: '', flightNumber: '', departureTime: '', arrivalTime: '', departureCity: '', arrivalCity: '' }]);
-    const updateFlight = (index: number, field: keyof FlightDetail, value: string) => set('flights', formData.flights.map((f, i) => (i === index ? { ...f, [field]: value } : f)));
-    const removeFlight = (index: number) => set('flights', formData.flights.filter((_, i) => i !== index));
-
-    // Hotels
-    const addHotel = () => {
-        const last = formData.hotels[formData.hotels.length - 1];
-        set('hotels', [...formData.hotels, { city: '', hotelName: '', checkIn: last?.checkOut || formData.travelDate || '', checkOut: '', roomType: '', mealPlan: last?.mealPlan || '' }]);
-    };
-    const updateHotel = (index: number, field: keyof HotelDetail, value: string) => set('hotels', formData.hotels.map((h, i) => (i === index ? { ...h, [field]: value } : h)));
-    const removeHotel = (index: number) => set('hotels', formData.hotels.filter((_, i) => i !== index));
-
     // Day-wise plan
     const days = formData.customItinerary || [];
     const renumber = (list: DayPlan[]) => list.map((item, idx) => ({ ...item, day: `Day ${idx + 1}` }));
-    const updateItineraryDay = (index: number, field: keyof DayPlan, value: string) => set('customItinerary', days.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
+    const updateItineraryDay = (index: number, field: 'title' | 'description' | 'activitiesText' | 'location', value: string) => set('customItinerary', days.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
+    const setDayImages = (index: number, images: ProposalImage[]) => set('customItinerary', days.map((d, i) => (i === index ? { ...d, images } : d)));
     const addItineraryDay = () => set('customItinerary', [...days, { day: `Day ${days.length + 1}`, title: '', description: '' }]);
     const removeItineraryDay = (index: number) => set('customItinerary', renumber(days.filter((_, i) => i !== index)));
     const moveDay = (index: number, dir: -1 | 1) => {
@@ -426,6 +517,22 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
     const destinationName: string = destObj?.name || destObj?.Destination_Name || prefill?.destinationName || '';
     const pax = Math.max(1, (formData.adults || 0) + (formData.children || 0));
     const catalogPrice = selectedPackage ? priceFromPackage(selectedPackage) : 0;
+
+    /** Where this quote's uploads go in ImageKit */
+    const imageFolder = `/quotes/${quoteRef}`;
+    /** The package's own photos (cover + gallery) offered in every image picker */
+    const packagePhotos = useMemo(() => {
+        if (!selectedPackage) return [] as string[];
+        const p = selectedPackage as any;
+        const list = [p.Primary_Image_URL, p.Meta_Image_URL, ...(Array.isArray(p.Gallery_Images) ? p.Gallery_Images : [])]
+            .map((u) => cleanImageUrl(String(u || '')))
+            .filter(Boolean);
+        return Array.from(new Set(list));
+    }, [selectedPackage]);
+    const allPhotos = useMemo(() => {
+        const dayImgs = (formData.customItinerary || []).flatMap((d) => (d.images || []).map((i) => i.url));
+        return Array.from(new Set([...packagePhotos, ...designImages(design), ...dayImgs]));
+    }, [packagePhotos, design, formData.customItinerary]);
 
     // Everything the PDF shows, rebuilt whenever the form changes
     const proposalData: ProposalData | null = useMemo(() => {
@@ -446,8 +553,10 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                 title: d.title,
                 description: d.description,
                 activities: String(d.activitiesText || '').split(',').map((s) => s.trim()).filter(Boolean),
+                location: d.location || '',
+                images: d.images || [],
             })),
-            hotels: formData.hotels,
+            hotels: [],
             flights: formData.flights,
             notes: formData.notes,
             destinationName,
@@ -456,8 +565,9 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
             quoteRef,
             quoteDate,
             validDays: formData.validDays,
+            design,
         });
-    }, [selectedPackage, formData, destinationName, destObj?.slug, quoteRef, quoteDate]);
+    }, [selectedPackage, formData, destinationName, destObj?.slug, quoteRef, quoteDate, design]);
 
     // Any edit makes the last PDF stale
     useEffect(() => { setResult(null); }, [proposalData]);
@@ -479,6 +589,80 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
     };
 
+    /**
+     * Save / update the quote record (customer_itineraries). Stores the builder state + the full proposal JSON
+     * (image URLs included) so the quote can be reopened via /admin/itinerary?quote=<id>.
+     */
+    const saveRecord = async (action: 'Itinerary generated' | 'Draft saved'): Promise<string> => {
+        if (!selectedPackage || !proposalData) return '';
+        const now = new Date().toISOString();
+        const fields = {
+            clientName: formData.clientName,
+            clientEmail: formData.clientEmail,
+            clientPhone: formData.clientPhone,
+            packageId: selectedPackage.Destination_ID,
+            packageName: selectedPackage.Destination_Name,
+            destinationName: destinationName || selectedPackage.Destination_Name,
+            travelDate: formData.travelDate,
+            adults: formData.adults,
+            children: formData.children,
+            totalCost: formData.totalCost,
+            advancePaid: formData.advancePaid,
+            balanceDue: formData.totalCost - formData.advancePaid,
+            flights: formData.flights,
+            hotels: proposalData.hotels,
+            customItinerary: (formData.customItinerary || []).map((d) => ({ day: d.day, title: d.title, description: d.description, activities: d.activitiesText || '' })),
+            notes: formData.notes,
+            tripType: formData.tripType,
+            quoteRef,
+            validUntil: proposalData.validUntil,
+            fileName,
+            optionsCount: proposalData.stayOptions.length,
+            builder: {
+                version: 2,
+                formData,
+                pkg: pickPackageFields(selectedPackage),
+                design,
+                destinationId: selectedDestination || '',
+            },
+            proposal: { ...proposalData, logoUrl: proposalData.logoUrl.startsWith('data:') ? '' : proposalData.logoUrl },
+            updatedAt: now,
+        };
+        const entry = {
+            action: savedRecordId && action === 'Itinerary generated' ? 'Quote PDF updated' : action,
+            timestamp: now,
+            details: `${action === 'Draft saved' ? 'Draft' : 'PDF'} ${quoteRef} for ${formData.clientName}${proposalData.stayOptions.length > 1 ? ` · ${proposalData.stayOptions.length} options` : ''}`,
+        };
+        const clean = stripDataUrls(JSON.parse(JSON.stringify(fields)));
+        if (savedRecordId) {
+            await updateDoc(doc(db, 'customer_itineraries', savedRecordId), { ...clean, history: arrayUnion(entry) });
+            return savedRecordId;
+        }
+        const saved = await addDoc(collection(db, 'customer_itineraries'), {
+            ...clean,
+            status: 'draft',
+            history: [entry],
+            createdAt: now,
+            createdBy: (currentUser as any)?.email || 'admin',
+        });
+        setSavedRecordId(saved.id);
+        return saved.id;
+    };
+
+    const saveDraft = async () => {
+        setSaving(true);
+        setGenError('');
+        try {
+            await saveRecord('Draft saved');
+            setSavedAt(new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }));
+        } catch (e) {
+            console.error('Failed to save the draft', e);
+            setGenError(e instanceof Error ? e.message : 'Could not save the draft.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const generatePDF = async () => {
         if (!selectedPackage || !proposalData) return;
         setGenerating(true);
@@ -493,40 +677,8 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
 
             // Log to CRM (customer_itineraries)
             try {
-                const now = new Date().toISOString();
-                const customerRecord = {
-                    clientName: formData.clientName,
-                    clientEmail: formData.clientEmail,
-                    clientPhone: formData.clientPhone,
-                    packageId: selectedPackage.Destination_ID,
-                    packageName: selectedPackage.Destination_Name,
-                    destinationName: destinationName || selectedPackage.Destination_Name,
-                    travelDate: formData.travelDate,
-                    adults: formData.adults,
-                    children: formData.children,
-                    totalCost: formData.totalCost,
-                    advancePaid: formData.advancePaid,
-                    balanceDue: formData.totalCost - formData.advancePaid,
-                    flights: formData.flights,
-                    hotels: formData.hotels,
-                    customItinerary: (formData.customItinerary || []).map((d) => ({ day: d.day, title: d.title, description: d.description, activities: d.activitiesText || '' })),
-                    notes: formData.notes,
-                    tripType: formData.tripType,
-                    quoteRef,
-                    validUntil: proposalData.validUntil,
-                    fileName,
-                    status: 'draft',
-                    history: [{
-                        action: 'Itinerary generated',
-                        timestamp: now,
-                        details: `PDF ${quoteRef} created for ${formData.clientName}`
-                    }],
-                    createdAt: now,
-                    updatedAt: now,
-                    createdBy: (currentUser as any)?.email || 'admin'
-                };
-                const saved = await addDoc(collection(db, 'customer_itineraries'), JSON.parse(JSON.stringify(customerRecord)));
-                setSavedRecordId(saved.id);
+                await saveRecord('Itinerary generated');
+                setSavedAt(new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }));
             } catch (saveError) {
                 console.error('Failed to save customer record:', saveError);
             }
@@ -585,6 +737,13 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
 
     return (
         <div className="space-y-5">
+            {(loadingQuote || loadError) && (
+                <Card>
+                    {loadError
+                        ? <p className="text-sm font-semibold text-red-700">{loadError}</p>
+                        : <p className="flex items-center gap-2 text-sm text-gray-600"><Loader2 className="w-4 h-4 animate-spin" /> Opening the saved quote…</p>}
+                </Card>
+            )}
             {/* Stepper */}
             <Card padded={false} className="p-2">
                 <div className="grid grid-cols-4 gap-1">
@@ -745,19 +904,32 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                 </Field>
                             </div>
                             <div>
-                                <span className="block text-xs font-semibold text-gray-700 mb-1">Cover photo</span>
-                                <div className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-bordeaux-600 via-bordeaux-800 to-coffee bg-cover bg-center flex items-end p-3"
-                                    style={cleanImageUrl(selectedPackage.Primary_Image_URL) ? { backgroundImage: `url("${cleanImageUrl(selectedPackage.Primary_Image_URL)}")` } : undefined}>
-                                    {!cleanImageUrl(selectedPackage.Primary_Image_URL) && <span className="text-xs text-white/80 flex items-center gap-1"><ImageIcon className="w-3.5 h-3.5" /> Brand gradient will be used</span>}
-                                </div>
-                                <input className={cx(inputClass, 'mt-2 text-xs')} placeholder="Paste image URL" value={selectedPackage.Primary_Image_URL || ''} onChange={(e) => updatePkg('Primary_Image_URL', e.target.value)} />
+                                {design.coverImage.length === 0 && (
+                                    <div className="mb-2">
+                                        <span className="block text-xs font-semibold text-gray-700 mb-1">Cover photo (arch)</span>
+                                        <div className="aspect-[3/4] rounded-t-full rounded-b-2xl bg-[#F8F2EA] bg-cover bg-center ring-1 ring-[#B48A62] ring-offset-4 flex items-end p-3"
+                                            style={cleanImageUrl(selectedPackage.Primary_Image_URL) ? { backgroundImage: `url("${cleanImageUrl(selectedPackage.Primary_Image_URL)}")` } : undefined}>
+                                            <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-gray-700 flex items-center gap-1"><ImageIcon className="w-3 h-3" /> {cleanImageUrl(selectedPackage.Primary_Image_URL) ? 'Package photo' : 'No photo yet'}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                <ImagePicker
+                                    label={design.coverImage.length ? 'Cover photo (arch)' : undefined}
+                                    value={design.coverImage}
+                                    onChange={(coverImage) => patchDesign({ coverImage })}
+                                    folder={imageFolder}
+                                    max={1}
+                                    aspect="portrait"
+                                    emptyText="Use a different cover photo"
+                                    suggestions={packagePhotos}
+                                />
                             </div>
                         </div>
                     </Card>
 
                     {/* Price */}
                     <Card>
-                        <SectionTitle icon={<Wallet className="w-5 h-5" />} title="Price" subtitle="Shown as a big price card on page 2." />
+                        <SectionTitle icon={<Wallet className="w-5 h-5" />} title="Price" subtitle="The total for the option marked “Your quote” — shown in the dark price card on page 2." />
                         <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <Field label="Total trip cost (₹, all travellers)" hint={catalogPrice ? `Catalog: ${formatINR(catalogPrice)} per person` : undefined}>
                                 <input className={inputClass} type="number" min={0} value={formData.totalCost || ''} onChange={(e) => set('totalCost', parseInt(e.target.value) || 0)} />
@@ -800,66 +972,69 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                         </div>
                                     </div>
                                     <textarea className={cx(inputClass, 'mt-3')} rows={2} value={item.description} onChange={(e) => updateItineraryDay(idx, 'description', e.target.value)} placeholder="What happens today…" />
-                                    <input className={cx(inputClass, 'mt-2 text-xs')} value={item.activitiesText || ''} onChange={(e) => updateItineraryDay(idx, 'activitiesText', e.target.value)} placeholder="Activities (comma separated) — e.g. Private transfer, Candle-light dinner, Spa" />
+                                    <div className="mt-2 grid grid-cols-1 md:grid-cols-[1fr_12rem] gap-2">
+                                        <input className={cx(inputClass, 'text-xs')} value={item.activitiesText || ''} onChange={(e) => updateItineraryDay(idx, 'activitiesText', e.target.value)} placeholder="Activities (comma separated) — e.g. Shikara ride, Mughal gardens" />
+                                        <input className={cx(inputClass, 'text-xs')} value={item.location || ''} onChange={(e) => updateItineraryDay(idx, 'location', e.target.value)} placeholder="Location, e.g. Srinagar" />
+                                    </div>
+                                    <button type="button" onClick={() => setOpenDayPhotos(openDayPhotos === idx ? null : idx)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-bordeaux-700 hover:underline">
+                                        <ImageIcon className="w-3.5 h-3.5" /> {item.images?.length ? `${item.images.length} photo${item.images.length === 1 ? '' : 's'}` : 'Add photos'}
+                                        <ChevronDown className={cx('w-3.5 h-3.5 transition-transform', openDayPhotos === idx && 'rotate-180')} />
+                                    </button>
+                                    {openDayPhotos === idx && (
+                                        <div className="mt-2">
+                                            <ImagePicker value={item.images || []} onChange={(imgs) => setDayImages(idx, imgs)} folder={imageFolder} max={4} captions suggestions={packagePhotos}
+                                                hint="The first two day photos become the big photos on the day-by-day page (unless you pick featured photos below)" />
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             {days.length === 0 && <p className="text-sm text-gray-400 italic">No days yet — add the first day.</p>}
                         </div>
                     </Card>
 
-                    {/* Hotels */}
+                    {/* Stays & options */}
                     <Card>
-                        <SectionTitle icon={<BedDouble className="w-5 h-5" />} title="Hotels" subtitle={selectedPackage.Hotel_Examples ? `Catalog suggests: ${selectedPackage.Hotel_Examples}` : 'Add each stay with check-in / check-out dates.'}
-                            action={<Button variant="secondary" size="sm" onClick={addHotel}><Plus className="w-3.5 h-3.5" /> Add hotel</Button>} />
-                        <div className="mt-5 space-y-3">
-                            {formData.hotels.map((hotel, idx) => {
-                                const n = nightsBetween(hotel.checkIn, hotel.checkOut);
-                                return (
-                                    <div key={idx} className="rounded-2xl border border-gray-200 p-4 bg-gray-50/50">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm font-semibold text-gray-800">Stay {idx + 1}{n ? <span className="ml-2 text-bordeaux-700">· {n} night{n === 1 ? '' : 's'}</span> : null}</span>
-                                            <IconBtn label="Remove hotel" onClick={() => removeHotel(idx)} danger><Trash2 className="w-4 h-4" /></IconBtn>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <input className={inputClass} placeholder="City" value={hotel.city} onChange={e => updateHotel(idx, 'city', e.target.value)} />
-                                            <input className={cx(inputClass, 'md:col-span-2')} placeholder="Hotel name" value={hotel.hotelName} onChange={e => updateHotel(idx, 'hotelName', e.target.value)} />
-                                            <input className={inputClass} placeholder="Room type, e.g. Pool Villa" value={hotel.roomType} onChange={e => updateHotel(idx, 'roomType', e.target.value)} />
-                                            <input className={inputClass} placeholder="Meal plan, e.g. Breakfast (CP)" value={hotel.mealPlan} onChange={e => updateHotel(idx, 'mealPlan', e.target.value)} />
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input type="date" title="Check-in" className={inputClass} value={hotel.checkIn} onChange={e => updateHotel(idx, 'checkIn', e.target.value)} />
-                                                <input type="date" title="Check-out" className={inputClass} value={hotel.checkOut} onChange={e => updateHotel(idx, 'checkOut', e.target.value)} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {formData.hotels.length === 0 && <p className="text-sm text-gray-400 italic">No hotels added — the stays page will be skipped.</p>}
+                        <SectionTitle icon={<BedDouble className="w-5 h-5" />} title="Stays & options" subtitle="Hotels, room photos and up to 4 options (e.g. Premium 4★ vs Luxury 5★, or four resorts to compare)." />
+                        <div className="mt-5">
+                            <OptionsEditor
+                                options={design.stayOptions}
+                                onChange={(stayOptions) => patchDesign({ stayOptions })}
+                                quotedPrice={formData.totalCost}
+                                onQuotedPriceChange={(n) => set('totalCost', n)}
+                                pax={pax}
+                                travelDate={formData.travelDate}
+                                folder={imageFolder}
+                                photoSuggestions={allPhotos}
+                                hotelHint={selectedPackage.Hotel_Examples}
+                            />
                         </div>
                     </Card>
 
                     {/* Flights */}
                     <Card>
-                        <SectionTitle icon={<Plane className="w-5 h-5" />} title="Flights" subtitle="Shown as boarding-pass cards. Tip: write the city with its code, e.g. Delhi (DEL)."
-                            action={<Button variant="secondary" size="sm" onClick={addFlight}><Plus className="w-3.5 h-3.5" /> Add flight</Button>} />
-                        <div className="mt-5 space-y-3">
-                            {formData.flights.map((flight, idx) => (
-                                <div key={idx} className="rounded-2xl border border-gray-200 p-4 bg-gray-50/50">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-sm font-semibold text-gray-800">Flight {idx + 1}</span>
-                                        <IconBtn label="Remove flight" onClick={() => removeFlight(idx)} danger><Trash2 className="w-4 h-4" /></IconBtn>
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        <input type="text" placeholder="Airline" className={inputClass} value={flight.airline} onChange={e => updateFlight(idx, 'airline', e.target.value)} />
-                                        <input type="text" placeholder="Flight no." className={inputClass} value={flight.flightNumber} onChange={e => updateFlight(idx, 'flightNumber', e.target.value)} />
-                                        <input type="text" placeholder="From, e.g. Delhi (DEL)" className={inputClass} value={flight.departureCity} onChange={e => updateFlight(idx, 'departureCity', e.target.value)} />
-                                        <input type="text" placeholder="To, e.g. Bali (DPS)" className={inputClass} value={flight.arrivalCity} onChange={e => updateFlight(idx, 'arrivalCity', e.target.value)} />
-                                        <input type="date" title="Date" className={inputClass} value={flight.date} onChange={e => updateFlight(idx, 'date', e.target.value)} />
-                                        <input type="time" title="Departure time" className={inputClass} value={flight.departureTime} onChange={e => updateFlight(idx, 'departureTime', e.target.value)} />
-                                        <input type="time" title="Arrival time" className={inputClass} value={flight.arrivalTime} onChange={e => updateFlight(idx, 'arrivalTime', e.target.value)} />
-                                    </div>
-                                </div>
-                            ))}
-                            {formData.flights.length === 0 && <p className="text-sm text-gray-400 italic">No flights added.</p>}
+                        <SectionTitle icon={<Plane className="w-5 h-5" />} title="Flights" subtitle="Paste the fare screenshots straight from the airline / OTA (click a box, Ctrl+V). Sectors are optional." />
+                        <div className="mt-5">
+                            <FlightsEditor
+                                flights={formData.flights}
+                                onFlightsChange={(f) => set('flights', f)}
+                                design={design}
+                                onDesign={patchDesign}
+                                folder={imageFolder}
+                                auto={{
+                                    outboundLabel: proposalData?.flightInfo.outboundLabel || 'Your city → destination',
+                                    inboundLabel: proposalData?.flightInfo.inboundLabel || 'Destination → Your city',
+                                    fareNote: proposalData?.flightInfo.fareNote || '',
+                                    included: !!proposalData?.flightInfo.included,
+                                }}
+                            />
+                        </div>
+                    </Card>
+
+                    {/* Cover, photos & closing page */}
+                    <Card>
+                        <SectionTitle icon={<Palette className="w-5 h-5" />} title="Cover, photos & closing page" subtitle="Optional — every empty field uses the automatic text shown in grey." />
+                        <div className="mt-5">
+                            <ExtrasEditor design={design} onDesign={patchDesign} preview={proposalData} folder={imageFolder} photoSuggestions={allPhotos} />
                         </div>
                     </Card>
 
@@ -873,7 +1048,7 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                             <Field label="Not included ✕">
                                 <textarea className={inputClass} rows={7} value={selectedPackage.Exclusions || ''} onChange={(e) => updatePkg('Exclusions', e.target.value)} />
                             </Field>
-                            <Field label="Important notes for the customer" hint="Printed in an “Important notes” box. One note per line." className="md:col-span-2">
+                            <Field label="Important notes for the customer" hint="Printed under “Good to know” on the last page. One note per line." className="md:col-span-2">
                                 <textarea className={inputClass} rows={3} value={formData.notes} onChange={(e) => set('notes', e.target.value)} />
                             </Field>
                             <Field label="Your name (travel designer on the cover)">
@@ -886,9 +1061,39 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                     </Card>
 
                     <Card>
+                        <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+                            {savedAt && <span className="text-xs text-emerald-700 font-semibold mr-auto">Saved at {savedAt} · reopen any time from Sent Quotes</span>}
+                            <Button variant="secondary" size="sm" onClick={() => setPreviewOpen(true)}><Eye className="w-3.5 h-3.5" /> Quick preview</Button>
+                            <Button variant="secondary" size="sm" onClick={saveDraft} loading={saving}>{!saving && <Save className="w-3.5 h-3.5" />} Save draft</Button>
+                        </div>
                         <StepNav onBack={() => goTo(2)} onNext={() => goTo(4)} nextDisabled={!formData.clientName.trim()} nextLabel="Preview PDF" noBorder />
                     </Card>
                 </div>
+            )}
+
+            {/* Quick preview while editing (step 3) */}
+            {step === 3 && proposalData && !previewOpen && (
+                <button type="button" onClick={() => setPreviewOpen(true)}
+                    className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-bordeaux-600 px-4 py-3 text-sm font-semibold text-white shadow-lg hover:bg-bordeaux-700">
+                    <Eye className="w-4 h-4" /> Preview pages{pageCount ? ` (${pageCount})` : ''}
+                </button>
+            )}
+            <Drawer open={previewOpen && !!proposalData} onClose={() => setPreviewOpen(false)} title="Live preview" width="max-w-3xl">
+                {proposalData && previewOpen && (
+                    <ProposalDocument
+                        data={proposalData}
+                        onReady={setPageCount}
+                        containerStyle={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}
+                        pageWrapper={(page, i) => (
+                            <PageThumb index={i} onClick={() => setZoomPage(i)}>{page}</PageThumb>
+                        )}
+                    />
+                )}
+            </Drawer>
+            {step === 3 && zoomPage !== null && proposalData && (
+                <ZoomModal index={zoomPage} total={pageCount} onClose={() => setZoomPage(null)} onNav={(i) => setZoomPage(i)}>
+                    <ProposalDocument data={proposalData} pageWrapper={(page, i) => (i === zoomPage ? page : null)} />
+                </ZoomModal>
             )}
 
             {/* STEP 4 — Preview & send */}
@@ -910,6 +1115,7 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                             </div>
                             <div className="flex flex-wrap gap-2 shrink-0">
                                 <Button variant="secondary" onClick={() => goTo(3)} disabled={generating}><ChevronLeft className="w-4 h-4" /> Edit</Button>
+                                <Button variant="secondary" onClick={saveDraft} loading={saving} disabled={generating}>{!saving && <Save className="w-4 h-4" />} {savedAt ? `Saved ${savedAt}` : 'Save draft'}</Button>
                                 {!result ? (
                                     <Button onClick={generatePDF} loading={generating} className="px-5">
                                         {!generating && <Download className="w-4 h-4" />} {generating ? progress || 'Creating PDF…' : 'Download PDF'}
@@ -982,7 +1188,8 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                     )}
 
                     <div className="flex justify-between">
-                        <Button variant="ghost" onClick={() => { setQuoteRef(makeQuoteRef()); }} disabled={generating}>
+                        <Button variant="ghost" onClick={() => { setQuoteRef(makeQuoteRef()); setSavedRecordId(''); setSavedAt(''); }} disabled={generating}
+                            title="Saves as a separate quote next time (the current saved quote stays as it is)">
                             <RotateCcw className="w-4 h-4" /> New quote number
                         </Button>
                     </div>

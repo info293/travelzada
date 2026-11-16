@@ -10,6 +10,7 @@ import { daysOf } from '@/lib/seo/packageAudit'
 import { SIMILAR_AT, similarityLabel, type SimilarityHit } from '@/lib/seo/similarity'
 import { SEO_FIELD_LABELS, type OptimizeResult, type SeoField } from '@/lib/seo/types'
 import { fieldsIn } from './api'
+import SeoFieldEditor from './SeoFieldEditor'
 
 const pct = (n?: number) => `${Math.round((n || 0) * 100)}%`
 export const simTone = (n?: number) => ((n || 0) >= 0.5 ? 'red' : (n || 0) >= SIMILAR_AT ? 'amber' : 'green') as 'red' | 'amber' | 'green'
@@ -106,14 +107,22 @@ export default function SeoReviewPanel({
   before,
   selected,
   onToggle,
+  values,
+  onEdit,
 }: {
   result: OptimizeResult
   /** The package as it is now (for the "before" column) */
   before: Record<string, any>
   selected: Set<SeoField>
   onToggle: (field: SeoField, on: boolean) => void
+  /** Current (possibly edited) values; defaults to the AI's patch */
+  values?: Record<string, any>
+  /** When given, the "After" column is editable. Pass `undefined` as value to reset a field to the AI version. */
+  onEdit?: (field: SeoField, value: any) => void
 }) {
   const fields = fieldsIn(result.patch)
+  const valueOf = (f: SeoField) => (values && f in values ? values[f] : result.patch[f])
+  const isEdited = (f: SeoField) => !!values && f in values && JSON.stringify(values[f]) !== JSON.stringify(result.patch[f])
   return (
     <div className="space-y-4">
       <ReviewSummary result={result} />
@@ -131,15 +140,34 @@ export default function SeoReviewPanel({
             <label className="mb-2 flex cursor-pointer items-center gap-2">
               <input type="checkbox" checked={on} onChange={(e) => onToggle(f, e.target.checked)} className="h-4 w-4 accent-bordeaux-600" />
               <span className="text-sm font-semibold text-gray-900">{SEO_FIELD_LABELS[f]}</span>
+              {isEdited(f) && <Badge tone="blue">Edited</Badge>}
+              {isEdited(f) && onEdit && (
+                <button type="button" onClick={(e) => { e.preventDefault(); onEdit(f, undefined) }} className="ml-auto text-xs font-semibold text-gray-500 hover:text-bordeaux-700 hover:underline">
+                  Reset to AI version
+                </button>
+              )}
             </label>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="max-h-72 overflow-y-auto rounded-lg bg-gray-50 p-2.5">
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Before</p>
                 <Value field={f} value={f === 'Day_Wise_Itinerary_Details' ? daysOf(before || {}) : before?.[f]} muted />
               </div>
-              <div className={cx('max-h-72 overflow-y-auto rounded-lg p-2.5', on ? 'bg-emerald-50/60' : 'bg-gray-50')}>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">After</p>
-                <Value field={f} value={result.patch[f]} />
+              <div className={cx('overflow-y-auto rounded-lg p-2.5', onEdit ? 'max-h-[32rem]' : 'max-h-72', on ? 'bg-emerald-50/60' : 'bg-gray-50')}>
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                  After{onEdit ? <span className="ml-1 font-normal normal-case tracking-normal text-gray-500">— click to edit</span> : null}
+                </p>
+                {onEdit ? (
+                  <SeoFieldEditor
+                    field={f}
+                    value={valueOf(f)}
+                    onChange={(v) => {
+                      onEdit(f, v)
+                      if (!on) onToggle(f, true) // editing a field means you want it
+                    }}
+                  />
+                ) : (
+                  <Value field={f} value={valueOf(f)} />
+                )}
               </div>
             </div>
           </div>

@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import { formatPhoneNumber } from '@/lib/whatsapp'
 import { fetchLead, markWhatsAppReply, processNewLeadById } from '@/lib/leadAutomation'
+import { handleOptOutReply } from '@/lib/whatsapp/broadcasts'
 import { handleWhatsAppButton, processNewLeadWhatsApp } from '@/lib/whatsappAutomation'
 
 /**
@@ -144,6 +145,8 @@ export async function POST(req: NextRequest) {
               await markWhatsAppReply(senderPhone, messageText, messageTimestamp).catch((e) =>
                 console.error('[CRM] Could not link WhatsApp reply:', e)
               )
+              // "STOP" / "Stop promotions" → exclude from future broadcasts; "START" re-subscribes (never throws)
+              await handleOptOutReply(senderPhone, messageText, { channel: inboundChannel, messageId, timestamp: messageTimestamp })
 
               // Template quick-reply buttons: "Show me options" / "Call me back" / "Not interested"
               // (only for the Meta number — the automation replies via Meta, which would be the wrong number for 88900)

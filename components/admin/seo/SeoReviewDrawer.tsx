@@ -10,7 +10,7 @@ import { Loader2, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/admin/ui'
 import type { OptimizeResult, SeoField, SeoPatch } from '@/lib/seo/types'
 import SeoReviewPanel from './SeoReviewPanel'
-import { fieldsIn, pickPatch } from './api'
+import { applyEdits, fieldsIn, pickPatch } from './api'
 
 export default function SeoReviewDrawer({
   open,
@@ -40,7 +40,19 @@ export default function SeoReviewDrawer({
   const [selected, setSelected] = useState<Set<SeoField>>(new Set())
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-  useEffect(() => setSelected(new Set(result ? fieldsIn(result.patch) : [])), [result])
+  // Staff edits on top of the AI's suggestion (field → edited value); cleared for every new AI result
+  const [edits, setEdits] = useState<Record<string, any>>({})
+  useEffect(() => {
+    setSelected(new Set(result ? fieldsIn(result.patch) : []))
+    setEdits({})
+  }, [result])
+  const onEdit = (f: SeoField, v: any) =>
+    setEdits((e) => {
+      const n = { ...e }
+      if (v === undefined) delete n[f]
+      else n[f] = v
+      return n
+    })
 
   useEffect(() => {
     if (!open) return
@@ -87,14 +99,14 @@ export default function SeoReviewDrawer({
               {onRetry && <div className="mt-3"><Button size="sm" variant="secondary" onClick={onRetry}>Try again</Button></div>}
             </div>
           ) : result ? (
-            <SeoReviewPanel result={result} before={before} selected={selected} onToggle={toggle} />
+            <SeoReviewPanel result={result} before={before} selected={selected} onToggle={toggle} values={edits} onEdit={onEdit} />
           ) : null}
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-5 py-3">
-          <p className="text-xs text-gray-500">Only the ticked text fields change. Nothing else in the package is touched.</p>
+          <p className="text-xs text-gray-500">Edit any suggestion before applying. Only the ticked text fields change — nothing else in the package is touched.</p>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={onClose} disabled={applying}>Cancel</Button>
-            <Button onClick={() => result && onApply(pickPatch(result.patch, selected))} disabled={!result || loading || !selected.size} loading={applying}>
+            <Button onClick={() => result && onApply(pickPatch(applyEdits(result.patch, edits), selected))} disabled={!result || loading || !selected.size} loading={applying}>
               {applyLabel}
             </Button>
           </div>

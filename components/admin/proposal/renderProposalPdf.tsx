@@ -4,17 +4,19 @@
  * Renders the proposal pages offscreen, captures each A4 page with html2canvas and assembles a PDF with jsPDF.
  * Clickable areas: every element with data-pdf-link="<url>" becomes a link annotation at the same spot.
  *
- * Images: remote photos are fetched and inlined as data URLs first (so html2canvas never hits CORS / taint
- * problems). If an image can't be fetched, the page falls back to the brand gradient.
+ * Images: every photo (cover, mosaics, rooms, days, flight screenshots — see images.ts) is fetched, downscaled
+ * and inlined as a JPEG data URL first (so html2canvas never hits CORS / taint problems and the PDF stays light).
+ * If an image can't be fetched, the page shows a cream placeholder instead.
  */
 import type { ProposalData } from './types'
 import { LOGO_URL, PAGE_H, PAGE_W } from './types'
+import { IMAGE_QUALITY, mapProposalImages } from './images'
 
 export interface RenderOptions {
     onProgress?: (message: string, done: number, total: number) => void
     /** html2canvas scale (default 2) */
     scale?: number
-    /** JPEG quality 0–1 (default 0.86) */
+    /** JPEG quality of each captured page, 0–1 (default 0.82) */
     quality?: number
 }
 
@@ -63,7 +65,7 @@ function imgToJpegDataUrl(img: HTMLImageElement, maxW = 1700, quality = 0.88): s
 }
 
 /** Remote photo → data URL (JPEG, downscaled). '' when it cannot be loaded. */
-export async function inlinePhoto(url?: string): Promise<string> {
+export async function inlinePhoto(url?: string, maxW = 1700, quality = 0.88): Promise<string> {
     if (!url) return ''
     if (url.startsWith('data:')) return url
     const attempt = async () => {
@@ -75,14 +77,14 @@ export async function inlinePhoto(url?: string): Promise<string> {
             const objectUrl = URL.createObjectURL(blob)
             try {
                 const img = await loadImg(objectUrl)
-                return imgToJpegDataUrl(img)
+                return imgToJpegDataUrl(img, maxW, quality)
             } finally {
                 URL.revokeObjectURL(objectUrl)
             }
         } catch {
             // Second chance: <img crossorigin> (works for CDNs that send CORS headers only to image requests)
             const img = await loadImg(url, true)
-            return imgToJpegDataUrl(img)
+            return imgToJpegDataUrl(img, maxW, quality)
         }
     }
     return withTimeout(attempt(), 12000, '')
@@ -112,17 +114,20 @@ async function preloadFonts() {
     }
     const sans = familyOf('--font-sans', 'Figtree, sans-serif')
     const display = familyOf('--font-display', "'Cormorant Garamond', serif")
+    const script = familyOf('--font-script', "'Pinyon Script', cursive")
     probe.remove()
     const loads: Promise<unknown>[] = []
     ;['400', '600', '700', '800'].forEach((w) => loads.push(fonts.load(`${w} 20px ${sans}`, 'Aa₹')))
-    ;['600', '700'].forEach((w) => loads.push(fonts.load(`${w} 40px ${display}`, 'Aa')))
+    ;['400', '500', '600', '700'].forEach((w) => loads.push(fonts.load(`${w} 40px ${display}`, 'Aa₹')))
+    ;['500', '600'].forEach((w) => loads.push(fonts.load(`italic ${w} 40px ${display}`, 'Aa')))
+    loads.push(fonts.load(`400 40px ${script}`, 'Aa'))
     await withTimeout(Promise.all(loads), 6000, [])
     await withTimeout(fonts.ready as Promise<unknown>, 4000, undefined)
 }
 
 export async function renderProposalPdf(data: ProposalData, opts: RenderOptions = {}): Promise<Blob> {
     const scale = opts.scale ?? 2
-    const quality = opts.quality ?? 0.86
+    const quality = opts.quality ?? 0.82
     const progress = opts.onProgress || (() => {})
 
     progress('Preparing images…', 0, 1)
@@ -133,8 +138,12 @@ export async function renderProposalPdf(data: ProposalData, opts: RenderOptions 
         import('./ProposalDocument'),
     ])
 
-    const [hero, logo] = await Promise.all([inlinePhoto(data.trip.heroImage), inlineAsset(data.logoUrl || LOGO_URL)])
-    const resolved: ProposalData = { ...data, trip: { ...data.trip, heroImage: hero }, logoUrl: logo }
+    // Every photo → downscaled JPEG data URL (failed ones become '' → elegant placeholder on the page)
+    const [withImages, logo] = await Promise.all([
+        mapProposalImages(data, (url, maxW) => inlinePhoto(url, maxW, IMAGE_QUALITY)),
+        inlineAsset(data.logoUrl || LOGO_URL),
+    ])
+    const resolved: ProposalData = { ...withImages, logoUrl: logo }
 
     await preloadFonts().catch(() => {})
 
