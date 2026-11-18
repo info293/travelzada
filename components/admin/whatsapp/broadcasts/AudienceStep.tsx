@@ -95,6 +95,27 @@ function MultiChips({ options, value, onChange }: { options: { value: string; la
   )
 }
 
+/** Audience choices in three short rows instead of ten big cards */
+const SEGMENT_GROUPS: { label: string; ids: SegmentId[] }[] = [
+  { label: 'Leads', ids: ['website_leads', 'ai_planner_leads', 'meta_leads', 'contact_form'] },
+  { label: 'Customers', ids: ['quotes_not_booked', 'upcoming_trips', 'past_customers', 'whatsapp_contacts'] },
+  { label: 'Your own list', ids: ['upload', 'saved_list'] },
+]
+
+/** Compact chip labels (the full label + description show under the chips for the selected one) */
+const SHORT_LABEL: Partial<Record<SegmentId, string>> = {
+  website_leads: 'Website',
+  ai_planner_leads: 'AI planner',
+  meta_leads: 'Meta ads',
+  contact_form: 'Contact form',
+  quotes_not_booked: 'Quote sent, not booked',
+  upcoming_trips: 'Upcoming trips',
+  past_customers: 'Past customers',
+  whatsapp_contacts: 'Messaged us on WhatsApp',
+  upload: '⬆ Upload Excel / CSV',
+  saved_list: 'Saved list',
+}
+
 const DAY_OPTIONS = [
   { value: 7, label: 'Last 7 days' },
   { value: 30, label: 'Last 30 days' },
@@ -180,23 +201,38 @@ export default function AudienceStep({
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div className="space-y-5">
         <div>
-          <p className="text-sm font-semibold text-gray-900 mb-2">Who should get this message?</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {SEGMENTS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => onChange(defaultAudience(s.id))}
-                className={cx(
-                  'text-left rounded-xl border p-3 transition-colors',
-                  segment === s.id ? 'border-bordeaux-500 bg-bordeaux-50/60 ring-1 ring-bordeaux-300' : 'border-gray-200 bg-white hover:border-bordeaux-300'
-                )}
-              >
-                <p className="text-sm font-semibold text-gray-900">{s.label}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{s.description}</p>
-              </button>
+          <p className="text-sm font-semibold text-gray-900 mb-3">Who should get this message?</p>
+          <Card className="space-y-3">
+            {SEGMENT_GROUPS.map((g) => (
+              <div key={g.label} className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:gap-3">
+                <span className="w-28 shrink-0 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{g.label}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.ids.map((id) => {
+                    const s = SEGMENTS.find((x) => x.id === id)
+                    if (!s) return null
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => onChange(defaultAudience(id))}
+                        title={s.description}
+                        className={cx(
+                          'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                          segment === id ? 'border-bordeaux-600 bg-bordeaux-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-bordeaux-300'
+                        )}
+                      >
+                        {SHORT_LABEL[id] || s.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
             ))}
-          </div>
+            {/* What the selected group means — one line instead of a description on every card */}
+            <p className="border-t border-gray-100 pt-3 text-xs text-gray-500">
+              <span className="font-semibold text-gray-800">{segmentInfo(segment)?.label}:</span> {segmentInfo(segment)?.description}
+            </p>
+          </Card>
         </div>
 
         {segment === 'upload' && (

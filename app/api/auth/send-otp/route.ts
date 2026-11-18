@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { sendMail, buildOtpEmail } from '@/lib/mailer'
+import { generateOtp, hashOtp } from '@/lib/otpHash'
 
 export async function POST(request: Request) {
   try {
@@ -30,22 +31,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    // Generate 6-digit OTP (cryptographically random)
+    const otp = generateOtp()
     const expiresAt = Date.now() + 10 * 60 * 1000 // 10 minutes validity
 
-    // Store in Firestore
+    // Store only a keyed hash — the collection is readable with the public web config
     if (db) {
       await setDoc(doc(db, 'email_otps', normalizedEmail), {
         email: normalizedEmail,
-        otp,
+        otpHash: hashOtp(normalizedEmail, otp),
         expiresAt,
         createdAt: Date.now(),
         attempts: 0,
       })
     }
 
-    console.log(`[OTP SEND] Email: ${normalizedEmail} | OTP Code: ${otp}`)
+    // Never log the code itself
+    console.log(`[OTP SEND] Verification code sent to ${normalizedEmail}`)
 
     // Send email via mailer
     const mail = buildOtpEmail({ name: name ? name.trim() : undefined, otp })

@@ -85,8 +85,8 @@ Focus your answers on this specific package. Help the agent understand highlight
     if (anthropic) {
       try {
         const response = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 512,
+          model: 'claude-sonnet-5-5',
+          max_tokens: 4096, // headroom: adaptive thinking shares the max_tokens budget
           system: systemPrompt,
           messages: [
             ...history,

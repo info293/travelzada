@@ -88,7 +88,7 @@ export default function AdminAgentsPage() {
 
   const fetchAgents = useCallback(async (): Promise<AgentRow[]> => {
     try {
-      const res = await fetch('/api/admin/agents')
+      const res = await fetch('/api/admin/agents', { headers: { Authorization: `Bearer ${await currentUser?.getIdToken()}` } })
       const data = await res.json()
       if (data.success) {
         const list: AgentRow[] = data.agents.map((a: any) => ({
@@ -107,7 +107,7 @@ export default function AdminAgentsPage() {
       setLoading(false)
     }
     return []
-  }, [])
+  }, [currentUser])
 
   const fetchBotData = useCallback(async () => {
     try {
@@ -150,8 +150,9 @@ export default function AdminAgentsPage() {
     setActionError('')
     try {
       const res = await fetch(`/api/admin/agents/${agentId}`, {
+        // the API checks the admin's login
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await currentUser?.getIdToken()}` },
         body: JSON.stringify({ action, approvedBy: currentUser?.email, ...extra }),
       })
       const data = await res.json()

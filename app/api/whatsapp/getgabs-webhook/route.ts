@@ -19,6 +19,10 @@ import {
 import { businessNumberFor, parseGetGabsWebhook, type GetGabsWebhookEvent } from '@/lib/getgabs'
 import { markWhatsAppReply } from '@/lib/leadAutomation'
 import { handleOptOutReply } from '@/lib/whatsapp/broadcasts'
+import { handleWhatsAppButton } from '@/lib/whatsappAutomation'
+
+// Button taps can trigger automated replies (proposal PDF + package photos), which take several seconds
+export const maxDuration = 60
 
 /**
  * GetGabs inbound webhook (GetGabs → Settings → Developer Tools → "Webhook URL for All Chats"):
@@ -120,8 +124,11 @@ async function handleInbound(ev: GetGabsWebhookEvent) {
   await markWhatsAppReply(ev.from, ev.text, ev.timestamp).catch((e) => console.error('[CRM] Could not link GetGabs reply:', e))
   // "STOP" / "Stop promotions" → exclude from future broadcasts; "START" re-subscribes (never throws)
   await handleOptOutReply(ev.from, ev.text, { channel: 'getgabs', messageId: ev.messageId, timestamp: ev.timestamp })
-  // NOTE: Meta-template button automation (handleWhatsAppButton) is intentionally NOT run here: it replies through
-  // the Meta Cloud API number, not GetGabs.
+  // Lead automation quick replies ("Share my dates" / "Call me back" / "Yes, send ideas" / …): answered from this
+  // same GetGabs number (free-form; the customer's 24-hour window is open). Never throws.
+  if (['text', 'button', 'interactive'].includes(ev.type) || ev.subType === 'button') {
+    await handleWhatsAppButton(ev.from, ev.text, 'getgabs').catch((e) => console.error('[WhatsApp Automation] GetGabs button handling failed:', e))
+  }
   return 'stored'
 }
 

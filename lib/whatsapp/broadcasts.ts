@@ -510,7 +510,8 @@ export const BROADCAST_STATUS_LABEL: Record<BroadcastStatus, string> = {
  * ---------------------------------------------------------------------------------------------- */
 
 // "stop promotions" is the text of Meta's built-in opt-out quick-reply button on marketing templates
-const OPT_OUT_WORDS = ['stop', 'unsubscribe', 'stop all', 'stopall', 'stop promotions', 'stop promotion', 'opt out', 'optout', 'cancel subscription', 'remove me', 'band karo', 'mat bhejo']
+// "stop messages" is a quick-reply button on our GetGabs lead templates (tz_lead_followup_day5, tz_lead_last_nudge)
+const OPT_OUT_WORDS = ['stop', 'unsubscribe', 'stop all', 'stopall', 'stop promotions', 'stop promotion', 'stop messages','opt out', 'optout', 'cancel subscription', 'remove me', 'band karo', 'mat bhejo']
 const OPT_IN_WORDS = ['start', 'subscribe', 'unstop', 'resume']
 
 const normalizeReply = (text?: string | null) =>
@@ -559,5 +560,22 @@ export async function handleOptOutReply(
   } catch (e) {
     console.error('[Broadcast] opt-out update failed:', e)
     return 'none'
+  }
+}
+
+/**
+ * Server-side: true when this number replied STOP (is in `whatsapp_optouts`). Used to skip automated marketing
+ * sends. Returns false when the number is invalid or the lookup fails (logged).
+ */
+export async function isOptedOut(phone: string): Promise<boolean> {
+  try {
+    const p = broadcastPhone(phone)
+    if (!p) return false
+    const { db } = await import('@/lib/firebase')
+    const { doc, getDoc } = await import('firebase/firestore')
+    return (await getDoc(doc(db, OPTOUTS_COLLECTION, dedupeKey(p)))).exists()
+  } catch (e) {
+    console.error('[Broadcast] opt-out lookup failed:', e)
+    return false
   }
 }

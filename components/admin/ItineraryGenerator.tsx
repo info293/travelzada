@@ -26,6 +26,8 @@ import ImagePicker from './proposal/builder/ImagePicker';
 import OptionsEditor from './proposal/builder/OptionsEditor';
 import FlightsEditor from './proposal/builder/FlightsEditor';
 import ExtrasEditor from './proposal/builder/ExtrasEditor';
+import { captureQuoteToLibrary } from '@/lib/library/capture';
+import { invalidateLibrary } from '@/lib/library/cache';
 
 interface Package extends DestinationPackage {
     id?: string;
@@ -634,19 +636,51 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
             details: `${action === 'Draft saved' ? 'Draft' : 'PDF'} ${quoteRef} for ${formData.clientName}${proposalData.stayOptions.length > 1 ? ` · ${proposalData.stayOptions.length} options` : ''}`,
         };
         const clean = stripDataUrls(JSON.parse(JSON.stringify(fields)));
+        // Creating the PDF means the quote goes to the customer: mark it "sent" (starts follow-up reminders).
+        // Only drafts move to sent — regenerating the PDF of a booked trip never turns it back into a quote.
+        const generated = action === 'Itinerary generated';
         if (savedRecordId) {
-            await updateDoc(doc(db, 'customer_itineraries', savedRecordId), { ...clean, history: arrayUnion(entry) });
+            const ref = doc(db, 'customer_itineraries', savedRecordId);
+            const current = generated ? (await getDoc(ref)).data()?.status : undefined;
+            const becameSent = generated && (!current || current === 'draft');
+            await updateDoc(ref, { ...clean, ...(becameSent ? { status: 'sent', sentAt: now } : {}), history: arrayUnion(entry) });
+            captureToLibrary(savedRecordId);
             return savedRecordId;
         }
         const saved = await addDoc(collection(db, 'customer_itineraries'), {
             ...clean,
-            status: 'draft',
+            status: generated ? 'sent' : 'draft',
+            ...(generated ? { sentAt: now } : {}),
             history: [entry],
             createdAt: now,
             createdBy: (currentUser as any)?.email || 'admin',
         });
         setSavedRecordId(saved.id);
+        captureToLibrary(saved.id);
         return saved.id;
+    };
+
+    /**
+     * Hotels & Flights library (/admin/hotels, /admin/flights): every hotel of every stay option and every structured
+     * flight sector is saved for reuse. Fire-and-forget — a library failure never affects saving the quote.
+     */
+    const captureToLibrary = (quoteId: string) => {
+        if (!quoteId) return;
+        const shot = (list: ProposalImage[]) => (list[0]?.url && !list[0].url.startsWith('data:') ? list[0] : null);
+        captureQuoteToLibrary({
+            quoteId,
+            quoteRef,
+            by: (currentUser as any)?.email || 'admin',
+            destination: destinationName || selectedPackage?.Destination_Name || '',
+            travelDate: formData.travelDate,
+            stayOptions: design.stayOptions,
+            flights: formData.flights,
+            outboundShot: shot(design.outboundShot),
+            returnShot: shot(design.returnShot),
+            fareNote: design.fareNote || proposalData?.flightInfo.fareNote || '',
+        })
+            .then(() => invalidateLibrary())
+            .catch((e) => console.warn('[library] capture failed', e));
     };
 
     const saveDraft = async () => {
@@ -1006,6 +1040,7 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                 folder={imageFolder}
                                 photoSuggestions={allPhotos}
                                 hotelHint={selectedPackage.Hotel_Examples}
+                                destination={destinationName}
                             />
                         </div>
                     </Card>

@@ -14,6 +14,8 @@ interface Status {
   pageSubscribed: boolean
   whatsappConfigured?: boolean
   templates?: Record<string, { status: string; reason?: string }> | { error: string }
+  /** Number + templates the WhatsApp automation uses */
+  whatsappAutomation?: { provider: 'getgabs' | 'meta'; welcome: string; followup: string }
 }
 
 const AUTO_RUN_EVERY_MS = 3 * 60 * 1000
@@ -291,10 +293,13 @@ export default function AutomationPanel() {
   )
 }
 
-const TEMPLATE_LABELS: Record<string, string> = {
-  tz_lead_welcome: 'Welcome + proposal PDF (sent to every new lead)',
-  tz_followup: 'Follow-up (sent once if no reply in 2 days)',
-}
+const templateLabels = (wa: { provider: 'getgabs' | 'meta'; welcome: string; followup: string }): Record<string, string> => ({
+  [wa.welcome]:
+    wa.provider === 'getgabs'
+      ? 'Welcome (sent to every new lead; the proposal PDF follows when they tap a button)'
+      : 'Welcome + proposal PDF (sent to every new lead)',
+  [wa.followup]: 'Follow-up (sent once if no reply in 2 days)',
+})
 
 function WhatsAppCard({
   status,
@@ -313,7 +318,9 @@ function WhatsAppCard({
   const templates: Record<string, { status: string; reason?: string }> =
     status.templates && !('error' in status.templates) ? (status.templates as Record<string, { status: string; reason?: string }>) : {}
   const templateError = status.templates && 'error' in status.templates ? String(status.templates.error) : null
-  const welcomeApproved = templates.tz_lead_welcome?.status === 'APPROVED'
+  const wa = status.whatsappAutomation || { provider: 'meta' as const, welcome: 'tz_lead_welcome', followup: 'tz_followup' }
+  const isGetGabs = wa.provider === 'getgabs'
+  const welcomeApproved = templates[wa.welcome]?.status === 'APPROVED'
   const testMode = !!s.whatsappTestPhone
 
   const toggle = () => {
@@ -348,9 +355,21 @@ function WhatsAppCard({
           <div>
             <h3 className="text-base font-bold text-gray-900">Automatic WhatsApp welcome + proposal PDF</h3>
             <p className="text-sm text-gray-600 mt-0.5 max-w-2xl">
-              Every new lead gets a WhatsApp message from your business number with a personalised proposal PDF (3 package options
-              for their destination) and buttons. &ldquo;Show me options&rdquo; sends the options automatically, &ldquo;Call me
-              back&rdquo; marks the lead Hot, &ldquo;Not interested&rdquo; closes it. No reply in 2 days: one follow-up.
+              {isGetGabs ? (
+                <>
+                  Every new lead gets a WhatsApp welcome from +91 88900 59568 (GetGabs) with buttons. &ldquo;Share my dates&rdquo;
+                  sends their personalised proposal PDF (3 package options) and asks for dates, &ldquo;Call me back&rdquo; marks the
+                  lead Hot. No reply in 2 days: one follow-up (&ldquo;Yes, send ideas&rdquo; sends the options). Numbers that
+                  replied STOP are skipped.
+                </>
+              ) : (
+                <>
+                  Every new lead gets a WhatsApp message from your business number with a personalised proposal PDF (3 package
+                  options for their destination) and buttons. &ldquo;Show me options&rdquo; sends the options automatically,
+                  &ldquo;Call me back&rdquo; marks the lead Hot, &ldquo;Not interested&rdquo; closes it. No reply in 2 days: one
+                  follow-up.
+                </>
+              )}
             </p>
             {s.whatsappEnabled && s.whatsappStartAt && (
               <p className="text-xs text-gray-500 mt-1">Active for leads received since {formatDateTime(s.whatsappStartAt)}.</p>
@@ -360,7 +379,7 @@ function WhatsAppCard({
         <button
           onClick={toggle}
           disabled={!!busy || (!s.whatsappEnabled && !welcomeApproved)}
-          title={!welcomeApproved ? 'Available once Meta approves the welcome template' : ''}
+          title={!welcomeApproved ? isGetGabs ? 'Available once the welcome template is in GetGabs' : 'Available once Meta approves the welcome template' : ''}
           className={`relative inline-flex h-8 w-14 flex-shrink-0 items-center rounded-full transition-colors ${s.whatsappEnabled ? 'bg-emerald-500' : 'bg-gray-300'} disabled:opacity-50`}
           aria-label="Toggle WhatsApp automation"
         >
@@ -369,9 +388,11 @@ function WhatsAppCard({
       </div>
 
       <div className="px-6 py-3 border-t border-gray-100 bg-gray-50 text-sm space-y-2">
-        <div className="font-medium text-gray-800">Message templates (approved by Meta)</div>
+        <div className="font-medium text-gray-800">
+          Message templates {isGetGabs ? '(GetGabs · +91 88900 59568)' : '(approved by Meta · +91 85298 70220)'}
+        </div>
         {templateError && <p className="text-xs text-red-600">{templateError}</p>}
-        {Object.entries(TEMPLATE_LABELS).map(([name, label]) => {
+        {Object.entries(templateLabels(wa)).map(([name, label]) => {
           const t = templates[name]
           return (
             <div key={name} className="flex flex-wrap items-center gap-2 text-xs">
@@ -382,7 +403,7 @@ function WhatsAppCard({
             </div>
           )
         })}
-        {Object.keys(templates).length < 2 && (
+        {!isGetGabs && Object.keys(templates).length < 2 && (
           <button
             onClick={() =>
               act('waSubmit', { action: 'submitTemplates' }, (j) =>
@@ -398,8 +419,9 @@ function WhatsAppCard({
           </button>
         )}
         <p className="text-[11px] text-gray-500">
-          Approval usually takes minutes (max 24 hours). Sending templates also needs a payment method on your WhatsApp account in
-          Meta Billing.
+          {isGetGabs
+            ? 'Templates are created and approved in GetGabs. GetGabs does not report approval status here: a template it lists is shown as approved.'
+            : 'Approval usually takes minutes (max 24 hours). Sending templates also needs a payment method on your WhatsApp account in Meta Billing.'}
         </p>
       </div>
 

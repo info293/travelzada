@@ -256,6 +256,17 @@ export interface CrmRecord {
     error?: string
     followUpSentAt?: string
     followUpError?: string
+    /** Why the follow-up was not sent (e.g. "opted out") */
+    followUpSkipped?: string
+    /** Connection that sent the welcome ("getgabs" | "meta"; missing = Meta) */
+    channel?: 'getgabs' | 'meta'
+    /** Template the welcome used */
+    template?: string
+    /** GetGabs: public link of the proposal PDF (ImageKit), sent when the customer taps a button */
+    proposalUrl?: string
+    proposalFilename?: string
+    /** When the proposal PDF itself reached the customer (GetGabs flow) */
+    proposalSentAt?: string
   }
   /** Customer replies (email or WhatsApp) not yet seen in the CRM */
   unreadReplies?: number

@@ -13,7 +13,7 @@ const MAX_BYTES = 12 * 1024 * 1024
 
 export async function POST(request: Request) {
   try {
-    await requireStaff(request, ['create-itinerary', 'leads', 'customer-records'])
+    await requireStaff(request, ['create-itinerary', 'leads', 'customer-records', 'packages'])
   } catch (err) {
     const res = authErrorResponse(err)
     if (res) return res

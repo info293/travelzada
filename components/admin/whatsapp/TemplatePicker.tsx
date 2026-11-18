@@ -3,69 +3,22 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, FileText, Info, Loader2, Send, Sparkles, X } from 'lucide-react'
-import { buildTemplateComponents, type WhatsAppTemplateSummary } from '@/lib/whatsapp'
 import {
   CATEGORY_LABEL,
   FIRST_CONTACT_TEMPLATES,
   REOPEN_TEMPLATES,
   STAGE_FILTERS,
   STAGE_LABEL,
-  getCatalogTemplate,
-  humanizeTemplateName,
   type CatalogTemplate,
   type VariableSource,
 } from '@/lib/whatsapp/templateCatalog'
 import WhatsAppPhonePreview from './templates/WhatsAppPhonePreview'
-import TemplateFields, { buildComponents, fieldDomId, missingFields, previewText, type HeaderMediaValue, type TemplateValues } from './templates/TemplateFields'
-import { useLiveTemplateDetail, useLiveTemplates } from './templates/useLiveTemplates'
-import { allTemplates, groupByStage, searchTemplates } from './templates/templateList'
+import TemplateFields from './templates/TemplateFields'
+import { useLiveTemplates } from './templates/useLiveTemplates'
+import { groupByStage, searchTemplates } from './templates/templateList'
+import { useTemplateForm, type TemplateSendPayload } from './templates/useTemplateForm'
 
-export interface TemplateSendPayload {
-  templateName: string
-  languageCode: string
-  components: any[]
-  previewText: string
-}
-
-/* ------------------------------------------------------------------------------------------------
- * Meta Cloud API provider (WHATSAPP_INBOX_PROVIDER=meta): Meta gives the body text, so convert it to a catalog
- * shape and reuse the same form + preview.
- * ---------------------------------------------------------------------------------------------- */
-
-function catalogFromMeta(m: WhatsAppTemplateSummary): { template: CatalogTemplate; keys: string[] } {
-  const keys = Array.from(new Set([...m.headerVariables, ...m.bodyVariables]))
-  const pos = (s?: string) => String(s || '').replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (all, k) => (keys.includes(k) ? `{{${keys.indexOf(k) + 1}}}` : all))
-  const entry = getCatalogTemplate(m.name)
-  const headerHasVars = m.headerVariables.length > 0
-  const template: CatalogTemplate = {
-    name: m.name,
-    title: entry?.title || humanizeTemplateName(m.name),
-    category: (m.category as any) || entry?.category || 'UTILITY',
-    language: m.language,
-    purpose: entry?.purpose || 'Approved template from WhatsApp Manager.',
-    whenToUse: entry?.whenToUse || '',
-    stage: entry?.stage || (m.category === 'MARKETING' ? 'campaign' : 'lead'),
-    header: m.headerText && !headerHasVars ? { type: 'TEXT', text: m.headerText } : undefined,
-    body: [headerHasVars && m.headerText ? `*${pos(m.headerText)}*` : '', pos(m.bodyText)].filter(Boolean).join('\n\n'),
-    footer: m.footerText,
-    buttons: [],
-    variables: keys.map(
-      (k, i) =>
-        (entry && entry.variables.length === keys.length && entry.variables[i]) || {
-          index: i + 1,
-          label: /^\d+$/.test(k) ? (i === 0 ? "Customer's first name" : `Value ${k}`) : humanizeTemplateName(k),
-          help: '',
-          example: '',
-          ...(i === 0 ? { source: 'customer_first_name' as VariableSource } : {}),
-        }
-    ),
-    notSendableReason: m.supported ? undefined : `This template ${m.unsupportedReason}.`,
-    wordingKnown: true,
-  }
-  return { template, keys }
-}
-
-/* ------------------------------------------------------------------------------------------------ */
+export type { TemplateSendPayload }
 
 /**
  * Modal to pick an approved WhatsApp template and fill it in, with a live preview of the customer's phone.
@@ -94,24 +47,13 @@ export default function TemplatePicker({
   onSend: (payload: TemplateSendPayload) => Promise<void>
 }) {
   const live = useLiveTemplates(open)
-  const [selectedName, setSelectedName] = useState<string | undefined>(initialTemplate)
+  const form = useTemplateForm({ live, enabled: open, initialName: initialTemplate })
+  const { choose, templates, availability, detail, selected, selectedAvail, needsDetail, isMeta, values, setValues, headerMedia, setHeaderMedia, showErrors, missing, canSend, sending } =
+    form
   const [query, setQuery] = useState('')
   const [stage, setStage] = useState('all')
-  const [values, setValues] = useState<TemplateValues>({})
-  const [headerMedia, setHeaderMedia] = useState<HeaderMediaValue>({})
-  const [sending, setSending] = useState(false)
-  const [showErrors, setShowErrors] = useState(false)
 
   const fill = useMemo(() => ({ ...(customerFirstName ? { customer_first_name: customerFirstName } : {}), ...autofill }), [customerFirstName, autofill])
-
-  // Fresh form per template. Done in handlers / during render (not in an effect) so it can't wipe what
-  // TemplateFields auto-fills in its own effect.
-  const choose = (name?: string) => {
-    setSelectedName(name)
-    setValues({})
-    setHeaderMedia({})
-    setShowErrors(false)
-  }
 
   // Reset each time the picker opens (optionally straight onto a template)
   const [wasOpen, setWasOpen] = useState(open)
@@ -124,23 +66,6 @@ export default function TemplatePicker({
     }
   }
 
-  const isMeta = live.provider === 'meta' && !live.loading
-  const metaMap = useMemo(() => new Map(live.metaTemplates.map((m) => [m.name, catalogFromMeta(m)])), [live.metaTemplates])
-
-  const templates = useMemo(() => {
-    if (isMeta) return Array.from(metaMap.values()).map((x) => x.template)
-    return allTemplates(live.list)
-  }, [isMeta, metaMap, live.list])
-
-  /** Can it be picked? Hidden: team-only. Disabled: not approved / not sendable. */
-  const availability = (t: CatalogTemplate): { ok: boolean; reason?: string } => {
-    if (t.notSendableReason) return { ok: false, reason: t.notSendableReason }
-    if (isMeta) return { ok: true }
-    if (live.loading) return { ok: true }
-    if (live.error) return { ok: !!getCatalogTemplate(t.name) }
-    return live.approved.has(t.name) ? { ok: true } : { ok: false, reason: 'Not approved in GetGabs yet' }
-  }
-
   const visible = templates.filter((t) => t.stage !== 'internal')
   const filtered = searchTemplates(visible, query, stage)
   const groups = groupByStage(filtered)
@@ -148,40 +73,15 @@ export default function TemplatePicker({
     .map((t) => templates.find((x) => x.name === t.name))
     .filter((t): t is CatalogTemplate => !!t && availability(t).ok)
 
-  // Selected template, checked against GetGabs (counts / header / link buttons)
-  const detail = useLiveTemplateDetail(selectedName, open && !isMeta && !!selectedName && !live.loading && live.approved.has(selectedName))
-  const metaSelected = isMeta && selectedName ? metaMap.get(selectedName) : undefined
-  const selected: CatalogTemplate | undefined = metaSelected?.template || detail.template || templates.find((t) => t.name === selectedName)
-  const selectedAvail = selected ? availability(selected) : { ok: false }
-  // Templates we only know from GetGabs need their skeleton before they can be filled in
-  const needsDetail = !!selected && !isMeta && !getCatalogTemplate(selected.name) && !detail.live
-  const missing = selected ? missingFields(selected, values, headerMedia) : []
-  const canSend = !!selected && selectedAvail.ok && !needsDetail && !detail.loading && !sending
-
   if (!open) return null
 
   const handleSend = async () => {
-    if (!selected || !canSend) return
-    if (missing.length) {
-      setShowErrors(true)
-      document.getElementById(fieldDomId(missing[0].key))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      return
-    }
-    setSending(true)
-    try {
-      const text = previewText(selected, values, headerMedia)
-      if (metaSelected) {
-        const meta = live.metaTemplates.find((m) => m.name === selected.name)!
-        const named: Record<string, string> = {}
-        metaSelected.keys.forEach((k, i) => (named[k] = String(values[i + 1] ?? '').trim()))
-        await onSend({ templateName: meta.name, languageCode: meta.language, components: buildTemplateComponents(meta, named), previewText: text })
-      } else {
-        await onSend({ templateName: selected.name, languageCode: selected.language || 'en', components: buildComponents(selected, values, headerMedia), previewText: text })
-      }
-      onClose()
-    } finally {
-      setSending(false)
-    }
+    // Closes after the send finished (either way), as before; stays open when a field is missing
+    const result = await form.send(async (payload) => {
+      await onSend(payload)
+      return true
+    })
+    if (result !== false) onClose()
   }
 
   const TemplateCard = ({ t, highlight }: { t: CatalogTemplate; highlight?: boolean }) => {

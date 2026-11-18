@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, deleteDoc, updateDoc } from 'firebase/firestore'
+import { otpMatches } from '@/lib/otpHash'
 
 export async function POST(request: Request) {
   try {
@@ -52,8 +53,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify OTP code
-    if (data.otp !== submittedOtp) {
+    // Verify OTP code against the stored keyed hash (constant-time)
+    if (!otpMatches(normalizedEmail, submittedOtp, data.otpHash)) {
       await updateDoc(otpDocRef, {
         attempts: (data.attempts || 0) + 1,
       })

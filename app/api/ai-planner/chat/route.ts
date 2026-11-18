@@ -227,7 +227,7 @@ My recommendation: Package B suits you best because..."`
     // Try Claude first (primary)
     if (anthropic) {
       try {
-        console.log('[AI Planner] Using Claude Sonnet 4.5')
+        console.log('[AI Planner] Using Claude Sonnet 5.5')
 
         // Format messages for Claude
         const claudeMessages = [
@@ -239,8 +239,8 @@ My recommendation: Package B suits you best because..."`
         ]
 
         const claudeResponse = await anthropic.messages.create({
-          model: 'claude-sonnet-4-5-20250929', // Claude Sonnet 4.5
-          max_tokens: 1024,
+          model: 'claude-sonnet-5-5', // Claude Sonnet 5.5
+          max_tokens: 4096, // headroom: adaptive thinking shares the max_tokens budget
           system: systemPrompt,
           messages: claudeMessages,
         })

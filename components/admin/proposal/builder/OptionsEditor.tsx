@@ -4,7 +4,7 @@
  * Stay options editor: 1 option = a normal quote; 2 = "Your choice of stays" side by side; 3–4 = comparison table.
  * Exactly one option is "Your quote" — its price is the quote total (the Price card above edits the same number).
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp, BedDouble, ChevronDown, ChevronUp, Copy, Crown, Plus, Star, Trash2 } from 'lucide-react'
 import { Button, Field, cx, formatINR, inputClass } from '../../ui'
 import { addDays } from '../buildProposalData'
@@ -12,6 +12,9 @@ import { duplicateAsUpgrade, duplicateOption, newOption, newStay } from '../desi
 import { formatShortDate, type ProposalStay, type StayOptionDraft } from '../types'
 import ImagePicker from './ImagePicker'
 import { ChipsInput, LinesInput } from './fields'
+import HotelNameField from '../../library/HotelNameField'
+import { useHotelLibrary } from '@/lib/library/cache'
+import { findHotelByName, type LibraryHotel } from '@/lib/library/hotels'
 
 const AMENITY_SUGGESTIONS = ['Infinity pool', 'Spa', 'Private beach', 'Kids club', 'Overwater dining', 'House reef', 'Gym', 'Mountain views', 'Lake view', 'Heated rooms', 'Room service', 'Free Wi-Fi']
 const MEAL_SUGGESTIONS = ['Breakfast (CP)', 'Breakfast & dinner (MAP)', 'All meals (AP)', 'Full Board Plus', 'All inclusive']
@@ -26,10 +29,13 @@ export interface OptionsEditorProps {
     folder: string
     photoSuggestions: string[]
     hotelHint?: string
+    /** Trip destination (e.g. "Kashmir") — library matches from it are shown first */
+    destination?: string
 }
 
-export default function OptionsEditor({ options, onChange, quotedPrice, onQuotedPriceChange, pax, travelDate, folder, photoSuggestions, hotelHint }: OptionsEditorProps) {
+export default function OptionsEditor({ options, onChange, quotedPrice, onQuotedPriceChange, pax, travelDate, folder, photoSuggestions, hotelHint, destination }: OptionsEditorProps) {
     const [active, setActive] = useState(0)
+    const { items: library, ready: libraryReady } = useHotelLibrary(true)
     const idx = Math.min(active, options.length - 1)
     const o = options[idx]
     const quotedIdx = Math.max(0, options.findIndex((x) => x.isQuoted))
@@ -71,6 +77,26 @@ export default function OptionsEditor({ options, onChange, quotedPrice, onQuoted
 
     // hotel helpers
     const updateHotel = (k: number, patch: Partial<ProposalStay>) => setHotels(o.hotels.map((h, j) => (j === k ? { ...h, ...patch } : h)))
+    /** A library hotel was picked: fill only the blank fields of the row (and blank option stars / location / amenities) */
+    const pickLibraryHotel = (k: number, lib: LibraryHotel) => {
+        const h = o.hotels[k]
+        const row: ProposalStay = {
+            ...h,
+            hotelName: lib.name,
+            city: h.city.trim() ? h.city : lib.city,
+            roomType: h.roomType.trim() ? h.roomType : lib.roomTypes[0] || '',
+            mealPlan: h.mealPlan.trim() ? h.mealPlan : lib.mealPlans[0] || '',
+            bullets: h.bullets.length ? h.bullets : lib.highlights.slice(0, 6),
+            images: h.images.length ? h.images : lib.images.slice(0, 3).map((i) => (i.caption ? { url: i.url, caption: i.caption } : { url: i.url })),
+        }
+        const single = o.hotels.length === 1
+        update(idx, {
+            hotels: o.hotels.map((x, j) => (j === k ? row : x)),
+            ...(!o.starRating && lib.starRating && lib.starRating >= 3 && lib.starRating <= 5 ? { starRating: lib.starRating } : {}),
+            ...(single && !o.location.trim() && lib.area ? { location: lib.area } : {}),
+            ...(single && !o.amenities.length && lib.amenities.length ? { amenities: lib.amenities.slice(0, 8) } : {}),
+        })
+    }
     const addHotel = () => {
         const last = o.hotels[o.hotels.length - 1]
         setHotels([...o.hotels, newStay({ mealPlan: last?.mealPlan || o.mealSummary || '', nights: 1 })])
@@ -185,6 +211,8 @@ export default function OptionsEditor({ options, onChange, quotedPrice, onQuoted
                         <div className="space-y-2">
                             {o.hotels.map((h, k) => (
                                 <HotelRow key={h.id || k} h={h} dates={hotelDates[k]} folder={folder}
+                                    library={library} libraryReady={libraryReady} destination={destination}
+                                    onPick={(lib) => pickLibraryHotel(k, lib)}
                                     onChange={(patch) => updateHotel(k, patch)}
                                     onRemove={() => setHotels(o.hotels.filter((_, j) => j !== k))}
                                     onUp={k > 0 ? () => moveHotel(k, -1) : undefined}
@@ -223,12 +251,17 @@ export default function OptionsEditor({ options, onChange, quotedPrice, onQuoted
     )
 }
 
-function HotelRow({ h, dates, folder, onChange, onRemove, onUp, onDown }: {
+function HotelRow({ h, dates, folder, library, libraryReady, destination, onPick, onChange, onRemove, onUp, onDown }: {
     h: ProposalStay; dates: string; folder: string
+    library: LibraryHotel[]; libraryReady: boolean; destination?: string; onPick: (lib: LibraryHotel) => void
     onChange: (p: Partial<ProposalStay>) => void; onRemove: () => void; onUp?: () => void; onDown?: () => void
 }) {
     const hasDetails = h.bullets.length > 0 || h.images.length > 0 || !!h.sizeSqm
     const [open, setOpen] = useState(hasDetails)
+    const matched = useMemo(() => (h.hotelName.trim() ? findHotelByName(library, h.hotelName, h.city) : null), [library, h.hotelName, h.city])
+    const rowKey = h.id || 'row'
+    const roomChoices = (matched?.roomTypes || []).filter((r) => r.toLowerCase() !== h.roomType.trim().toLowerCase())
+    const mealChoices = Array.from(new Set([...(matched?.mealPlans || []), ...MEAL_SUGGESTIONS]))
     return (
         <div className="rounded-xl border border-gray-200 bg-white p-3">
             <div className="grid grid-cols-[4.5rem_1fr] md:grid-cols-[4.5rem_9rem_1fr_1fr_1fr_auto] gap-2 items-center">
@@ -237,17 +270,33 @@ function HotelRow({ h, dates, folder, onChange, onRemove, onUp, onDown }: {
                     <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">N</span>
                 </div>
                 <input className={inputClass} placeholder="City" value={h.city} onChange={(e) => onChange({ city: e.target.value })} />
-                <input className={cx(inputClass, 'col-span-2 md:col-span-1')} placeholder="Hotel name" value={h.hotelName} onChange={(e) => onChange({ hotelName: e.target.value })} />
-                <input className={inputClass} placeholder="Room type" value={h.roomType} onChange={(e) => onChange({ roomType: e.target.value })} />
-                <input className={inputClass} list="tz-meal-plans" placeholder="Meal plan" value={h.mealPlan} onChange={(e) => onChange({ mealPlan: e.target.value })} />
+                <HotelNameField className="col-span-2 md:col-span-1" value={h.hotelName} onChange={(hotelName) => onChange({ hotelName })} onPick={onPick}
+                    library={library} ready={libraryReady} city={h.city} destination={destination} />
+                <input className={inputClass} list={`tz-rooms-${rowKey}`} placeholder="Room type" value={h.roomType} onChange={(e) => onChange({ roomType: e.target.value })} />
+                <input className={inputClass} list={`tz-meals-${rowKey}`} placeholder="Meal plan" value={h.mealPlan} onChange={(e) => onChange({ mealPlan: e.target.value })} />
+                <datalist id={`tz-rooms-${rowKey}`}>{(matched?.roomTypes || []).map((r) => <option key={r} value={r} />)}</datalist>
+                <datalist id={`tz-meals-${rowKey}`}>{mealChoices.map((m) => <option key={m} value={m} />)}</datalist>
                 <div className="flex justify-end col-span-2 md:col-span-1">
                     <IconBtn label="Move up" onClick={onUp || (() => {})} disabled={!onUp}><ArrowUp className="w-4 h-4" /></IconBtn>
                     <IconBtn label="Move down" onClick={onDown || (() => {})} disabled={!onDown}><ArrowDown className="w-4 h-4" /></IconBtn>
                     <IconBtn label="Remove hotel" onClick={onRemove} danger><Trash2 className="w-4 h-4" /></IconBtn>
                 </div>
             </div>
+            {matched && roomChoices.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                    <span className="text-[11px] text-gray-500">Rooms on file:</span>
+                    {roomChoices.slice(0, 6).map((r) => (
+                        <button key={r} type="button" onClick={() => onChange({ roomType: r })} className="rounded-full border border-dashed border-gray-300 px-2 py-0.5 text-[11px] text-gray-600 hover:border-bordeaux-300 hover:text-bordeaux-700">{r}</button>
+                    ))}
+                </div>
+            )}
             <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="text-[11px] text-gray-400">{dates || 'Dates follow the travel date + nights'}</span>
+                <span className="text-[11px] text-gray-400">
+                    {dates || 'Dates follow the travel date + nights'}
+                    {h.hotelName.trim() && libraryReady && (matched
+                        ? <span className="ml-2 text-emerald-700">· In the hotels library{matched.usageCount ? ` (used ${matched.usageCount}×)` : ''}</span>
+                        : <span className="ml-2 text-gray-500">· New hotel — added to the library when you save</span>)}
+                </span>
                 <button type="button" onClick={() => setOpen((v) => !v)} className="inline-flex items-center gap-1 text-xs font-semibold text-bordeaux-700 hover:underline">
                     {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} Room details &amp; photos{hasDetails && !open ? ` (${h.images.length} photo${h.images.length === 1 ? '' : 's'})` : ''}
                 </button>

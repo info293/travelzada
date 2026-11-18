@@ -1,114 +1,51 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { collection, query, orderBy, onSnapshot, where, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp'
-import { whatsappErrorHint, whatsappFailureText } from '@/lib/whatsappDiagnostics'
+import { whatsappErrorHint } from '@/lib/whatsappDiagnostics'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePhoneAccess, maskPhone, formatPhone, resolveRefPhone } from '@/lib/admin/privacy'
-import TemplatePicker, { type TemplateSendPayload } from '@/components/admin/whatsapp/TemplatePicker'
-import StartConversationCard from '@/components/admin/whatsapp/templates/StartConversationCard'
+import TemplatePicker from '@/components/admin/whatsapp/TemplatePicker'
 import { readLeadAutofill, type Autofill } from '@/components/admin/whatsapp/templates/leadAutofill'
+import { useLiveTemplates } from '@/components/admin/whatsapp/templates/useLiveTemplates'
+import { pickStartTemplates, useTemplateForm } from '@/components/admin/whatsapp/templates/useTemplateForm'
 import { getCatalogTemplate } from '@/lib/whatsapp/templateCatalog'
 import { channelOf, WHATSAPP_BUSINESS_NUMBERS, type WhatsAppChannel } from '@/lib/getgabsTemplates'
+import InboxView, { type InboxConversation } from '@/components/admin/whatsapp/inbox/InboxView'
+import { filterChats, needsReply, type ChatFilter } from '@/components/admin/whatsapp/inbox/ChatList'
+import { useHelpCard } from '@/components/admin/whatsapp/inbox/HelpCard'
+import type { SystemNotice } from '@/components/admin/whatsapp/inbox/MessageList'
+import type { StartStep } from '@/components/admin/whatsapp/inbox/StartFlow'
+import type { ReplyState } from '@/components/admin/whatsapp/inbox/StatusPill'
 import {
-  MessageSquare,
-  Send,
-  Phone,
-  User,
-  CheckCheck,
-  Check,
-  Search,
-  Loader2,
-  Sparkles,
-  AlertTriangle,
-  RotateCcw,
-  FileText,
-  Plus,
-  X,
-  Lock,
-  Clock,
-  Paperclip,
-  Info,
-} from 'lucide-react'
-
-interface WhatsAppChat {
-  id: string // phone number (digits, with country code)
-  phone: string
-  customerName?: string
-  lastMessage?: string
-  lastMessageTimestamp?: string
-  lastDirection?: 'inbound' | 'outbound'
-  unreadCount?: number
-  updatedAt?: any
-  /** Connection of the last activity: "getgabs" (+91 88900 59568) or "meta"/missing (old number +91 85298 70220) */
-  channel?: WhatsAppChannel
-  lastInboundAt?: string
-  /** Record the conversation was first started from (e.g. "leads/abc"), saved by the send route */
-  sourceRef?: string
-  /** Client-only: record the conversation was opened from (e.g. "leads/abc"), used to send by reference */
-  ref?: string
-  /** Client-only: not yet in Firestore */
-  isNew?: boolean
-}
-
-interface WhatsAppMessage {
-  id: string
-  whatsappMessageId?: string
-  senderPhone: string
-  senderName?: string
-  direction: 'inbound' | 'outbound'
-  type: string
-  text: string
-  status?: 'sent' | 'delivered' | 'read' | 'received' | 'failed'
-  timestamp: string
-  errorCode?: number | null
-  errorTitle?: string | null
-  errorDetails?: string | null
-  templateName?: string
-  languageCode?: string
-  components?: any[]
-  superseded?: boolean
-  /** Missing on records from before the GetGabs move (= old Meta number) */
-  channel?: WhatsAppChannel
-  mediaUrl?: string | null
-  fileName?: string
-  replyToText?: string
-  errorKind?: string
-  errorHint?: string
-}
-
-type SendPayload = { text: string } | TemplateSendPayload
-
-/** A message sent from this browser that is still in flight, or failed without a Firestore record */
-interface LocalMessage {
-  localId: string
-  chatId: string
-  text: string
-  payload: SendPayload
-  status: 'sending' | 'failed'
-  timestamp: string
-  error?: string
-  hint?: string
-  canSendTemplate?: boolean
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000
-
-/** A "name" that is really just a phone number (the webhook falls back to the number when there's no profile name) */
-const isPhoneLike = (s?: string | null) => !!s && !/[a-z]/i.test(s) && s.replace(/\D/g, '').length >= 7
-
-const realName = (chat?: WhatsAppChat | null) => (chat?.customerName && !isPhoneLike(chat.customerName) ? chat.customerName.trim() : '')
-
-const isTemplatePayload = (p: SendPayload): p is TemplateSendPayload => 'templateName' in p
+  DAY_MS,
+  isMediaPayload,
+  isPhoneLike,
+  isTemplatePayload,
+  realName,
+  recordLink,
+  type LocalMessage,
+  type SendPayload,
+  type WhatsAppChat,
+  type WhatsAppMessage,
+} from '@/components/admin/whatsapp/inbox/types'
 
 /** Message statuses that can't change any more */
 const FINAL_STATUS = ['read', 'failed', 'received']
 const STATUS_POLL_MS = 20_000
-const isHttpsMedia = (u?: string | null) => !!u && /^https:///i.test(u)
+const MAX_ATTACH_MB = 4
 
+/** "our new number" / "our old number" (+ the digits for admins) */
+const numberName = (ch: WhatsAppChannel, canSeePhone: boolean) =>
+  `our ${ch === 'getgabs' ? 'new' : 'old'} number${canSeePhone ? ` ${WHATSAPP_BUSINESS_NUMBERS[ch].display}` : ''}`
+
+/**
+ * Live WhatsApp inbox. All data + behaviour lives here; the screen itself is `InboxView` (components/admin/whatsapp/inbox),
+ * which the dev-only /zz-inbox-preview page renders with mock data.
+ */
 export default function WhatsAppChats() {
   const { currentUser, loading: authLoading } = useAuth()
   const { canSeePhone } = usePhoneAccess()
@@ -130,6 +67,7 @@ export default function WhatsAppChats() {
   const [loadingChats, setLoadingChats] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [chatFilter, setChatFilter] = useState<ChatFilter>('all')
   const [linkState, setLinkState] = useState<{ state: 'idle' | 'resolving' | 'error'; message?: string }>({ state: 'idle' })
   const [templateOpen, setTemplateOpen] = useState(false)
   const [pickerTemplate, setPickerTemplate] = useState<string | undefined>()
@@ -137,12 +75,13 @@ export default function WhatsAppChats() {
   const [leadAutofill, setLeadAutofill] = useState<Autofill>({})
   const [forceText, setForceText] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [newChatOpen, setNewChatOpen] = useState(false)
-  const [newChatPhone, setNewChatPhone] = useState('')
-  const [newChatName, setNewChatName] = useState('')
   const [provider, setProvider] = useState<WhatsAppChannel>('getgabs')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [attach, setAttach] = useState<{ busy: boolean; error?: string }>({ busy: false })
+  const [refreshing, setRefreshing] = useState(false)
+  const [startStep, setStartStep] = useState<StartStep>('choose')
+  const [startDone, setStartDone] = useState<{ ok: boolean; title: string } | undefined>()
   const handledLinkKey = useRef('')
+  const help = useHelpCard()
 
   // Which connection replies go from (WHATSAPP_INBOX_PROVIDER on the server; GetGabs by default)
   useEffect(() => {
@@ -264,7 +203,7 @@ export default function WhatsAppChats() {
         // Non-admins can't start a conversation with a typed/pasted number
         setLinkState({
           state: 'error',
-          message: 'To start a new WhatsApp conversation, open the customer from their lead and click "Chat on WhatsApp".',
+          message: 'To start a new WhatsApp chat, open the customer from their lead and tap "Chat on WhatsApp".',
         })
       } else {
         setTempChat({
@@ -318,12 +257,6 @@ export default function WhatsAppChats() {
     }
   }, [selectedChat])
 
-  // Reset per-chat UI when switching chats
-  useEffect(() => {
-    setForceText(false)
-    setNotice(null)
-  }, [selectedId])
-
   // Trip details (destination, package, dates…) from the lead this chat is linked to, to pre-fill templates.
   // Only trip fields are read — never the phone number.
   const linkedRef = selectedChat?.ref || selectedChat?.sourceRef
@@ -353,10 +286,6 @@ export default function WhatsAppChats() {
   }
 
   const chatLocalMessages = localMessages.filter((m) => m.chatId === selectedId)
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, chatLocalMessages.length])
 
   // 24-hour customer service window: free-form text only within 24h of the customer's last message TO THE NUMBER WE
   // REPLY FROM (a message to the old Meta number does not open the window for the GetGabs number, and vice versa)
@@ -407,12 +336,9 @@ export default function WhatsAppChats() {
     [messages]
   )
   const pendingKey = pendingStatusIds.join(',')
-  useEffect(() => {
-    if (!currentUser || !pendingKey) return
-    const ids = pendingKey.split(',')
-    let stopped = false
-    const poll = async () => {
-      if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
+  const pollStatus = useCallback(
+    async (ids: string[]) => {
+      if (!currentUser || !ids.length) return
       try {
         const idToken = await currentUser.getIdToken()
         await fetch('/api/whatsapp/status', {
@@ -424,6 +350,16 @@ export default function WhatsAppChats() {
       } catch {
         /* try again next tick */
       }
+    },
+    [currentUser]
+  )
+  useEffect(() => {
+    if (!currentUser || !pendingKey) return
+    const ids = pendingKey.split(',')
+    let stopped = false
+    const poll = async () => {
+      if (stopped || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return
+      await pollStatus(ids)
     }
     const first = setTimeout(poll, 5000)
     const timer = setInterval(poll, STATUS_POLL_MS)
@@ -432,26 +368,33 @@ export default function WhatsAppChats() {
       clearTimeout(first)
       clearInterval(timer)
     }
-  }, [pendingKey, currentUser])
+  }, [pendingKey, currentUser, pollStatus])
 
-  /** "via GetGabs · 88900" / "Old number 85298 (history)" — the business number itself only for admins */
-  const channelBadge = (chat?: WhatsAppChat | null) => {
-    if (!chat || chat.isNew) return null
-    const ch = channelOf(chat)
-    const n = WHATSAPP_BUSINESS_NUMBERS[ch]
-    if (ch === provider) return { text: `via ${n.label}${canSeePhone ? ` · ${n.short}` : ''}`, current: true }
-    return { text: `Old number${canSeePhone ? ` ${n.short}` : ''} (history)`, current: false }
+  // ⋯ → Refresh delivery ticks: ask now instead of waiting for the next poll
+  const refreshStatus = async () => {
+    setRefreshing(true)
+    try {
+      await pollStatus(pendingKey ? pendingKey.split(',') : [])
+    } finally {
+      setTimeout(() => setRefreshing(false), 600)
+    }
   }
+
   const windowMsLeft = lastInboundMs ? lastInboundMs + DAY_MS - Date.now() : 0
   const windowOpen = windowMsLeft > 0
   const showTextBox = windowOpen || forceText
 
-  // Send (text or template) through the server, always by reference so the browser never sends the number
-  const sendMessage = async (payload: SendPayload, opts: { retryOf?: string; replaceLocalId?: string } = {}) => {
+  // Send (text, media or template) through the server, always by reference so the browser never sends the number.
+  // Resolves to 'sent' or 'failed' (a failure with a Firestore record shows up as a "Not sent" bubble via the listener).
+  const sendMessage = async (payload: SendPayload, opts: { retryOf?: string; replaceLocalId?: string } = {}): Promise<'sent' | 'failed'> => {
     const chat = selectedChat
-    if (!chat) return
+    if (!chat) return 'failed'
     const localId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-    const text = isTemplatePayload(payload) ? payload.previewText || `[Template: ${payload.templateName}]` : payload.text
+    const text = isTemplatePayload(payload)
+      ? payload.previewText || `[Template: ${payload.templateName}]`
+      : isMediaPayload(payload)
+        ? payload.media.caption || (payload.media.kind === 'document' ? `📄 ${payload.media.filename || 'Document'}` : '🖼️ Photo')
+        : payload.text
     setNotice(null)
     setLocalMessages((list) => [
       ...list.filter((m) => m.localId !== opts.replaceLocalId),
@@ -465,6 +408,7 @@ export default function WhatsAppChats() {
         : { to: chat.phone } // admin-started conversation with a typed number (server allows raw numbers for admins only)
 
     let failure: Partial<LocalMessage> | null = null
+    let ok = false
     try {
       const idToken = await currentUser?.getIdToken()
       const res = await fetch('/api/whatsapp/send', {
@@ -481,7 +425,8 @@ export default function WhatsAppChats() {
       })
       const data = await res.json().catch(() => ({ error: `Server returned HTTP ${res.status} with no JSON body` }))
       if (res.ok) {
-        if (data.tookControl) setNotice('This chat was being handled by another app; the website app took control and sent your message.')
+        ok = true
+        if (data.tookControl) setNotice('Another app was handling this chat — the website took over and sent your message.')
       } else if (!data.failedRecordId) {
         // No Firestore record was written — keep the bubble here so the message isn't lost
         failure = {
@@ -501,14 +446,45 @@ export default function WhatsAppChats() {
         ? list.map((m) => (m.localId === localId ? { ...m, status: 'failed', ...failure } : m))
         : list.filter((m) => m.localId !== localId)
     )
+    return ok ? 'sent' : 'failed'
   }
 
-  const handleSendText = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendText = () => {
     const text = inputText.trim()
     if (!text || !selectedChat) return
     setInputText('')
     sendMessage({ text })
+  }
+
+  // 📎 Upload a photo / PDF (same uploader as template file headers) and send it; the typed text becomes the caption
+  const handleAttach = async (file: File) => {
+    if (!selectedChat) return
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+    const isImage = /^image\/(jpeg|png)$/.test(file.type)
+    if (!isPdf && !isImage) {
+      setAttach({ busy: false, error: 'Please choose a JPG or PNG photo, or a PDF.' })
+      return
+    }
+    if (file.size > MAX_ATTACH_MB * 1024 * 1024) {
+      setAttach({ busy: false, error: `That file is ${(file.size / 1048576).toFixed(1)} MB. Please use a file under ${MAX_ATTACH_MB} MB.` })
+      return
+    }
+    setAttach({ busy: true })
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', '/whatsapp')
+      fd.append('fileName', file.name.replace(/[^\w.\-]+/g, '-').slice(-100) || `wa_${Date.now()}`)
+      const res = await fetch('/api/imagekit/upload', { method: 'POST', body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) throw new Error(data.error || `Upload failed (HTTP ${res.status})`)
+      const caption = inputText.trim() || undefined
+      setInputText('')
+      setAttach({ busy: false })
+      sendMessage({ media: { kind: isPdf ? 'document' : 'image', link: data.url, caption, filename: isPdf ? file.name : undefined } })
+    } catch (e: any) {
+      setAttach({ busy: false, error: e?.message || 'Upload failed. Please try again.' })
+    }
   }
 
   const retryRecord = (msg: WhatsAppMessage) => {
@@ -519,57 +495,49 @@ export default function WhatsAppChats() {
           { retryOf: msg.id }
         )
       } else openTemplatePicker()
+    } else if ((msg.type === 'image' || msg.type === 'document') && msg.mediaUrl && /^https:\/\//i.test(msg.mediaUrl)) {
+      const isCaption = !/^\[(Image|Document)\]/.test(msg.text)
+      sendMessage(
+        { media: { kind: msg.type, link: msg.mediaUrl, caption: isCaption ? msg.text : undefined, filename: msg.fileName } },
+        { retryOf: msg.id }
+      )
     } else sendMessage({ text: msg.text }, { retryOf: msg.id })
   }
 
-  const startNewChat = (e: React.FormEvent) => {
-    e.preventDefault()
+  const startNewChat = (phone: string, name: string) => {
     if (!canSeePhone) return
-    const target = normalizeWhatsAppNumber(newChatPhone)
+    const target = normalizeWhatsAppNumber(phone)
     if (target.length < 10) return
     const existing = chats.find((c) => c.id === target || String(c.phone).endsWith(target.slice(-10)))
     if (existing) {
       setTempChat(null)
       setSelectedId(existing.id)
     } else {
-      setTempChat({ id: target, phone: target, customerName: newChatName.trim() || undefined, isNew: true, unreadCount: 0 })
+      setTempChat({ id: target, phone: target, customerName: name.trim() || undefined, isNew: true, unreadCount: 0 })
       setSelectedId(target)
     }
-    setNewChatOpen(false)
-    setNewChatPhone('')
-    setNewChatName('')
+    setLinkState({ state: 'idle' })
   }
 
-  // Search: admins by name or number; everyone else by name only
-  const filteredChats = useMemo(() => {
+  // Search: admins by name or number; everyone else by name only. Then All / Unread / Needs reply.
+  const allChats = useMemo(() => (tempChat?.isNew && !chats.some((c) => c.id === tempChat.id) ? [tempChat, ...chats] : chats), [chats, tempChat])
+  const searchedChats = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const list = tempChat?.isNew && !chats.some((c) => c.id === tempChat.id) ? [tempChat, ...chats] : chats
-    if (!q) return list
+    if (!q) return allChats
     const digits = q.replace(/\D/g, '')
-    return list.filter(
+    return allChats.filter(
       (c) =>
         realName(c).toLowerCase().includes(q) ||
         (canSeePhone && digits.length >= 3 && String(c.phone || c.id).includes(digits))
     )
-  }, [chats, tempChat, searchQuery, canSeePhone])
-
-  const formatTime = (isoString?: string) => {
-    if (!isoString) return ''
-    const date = new Date(isoString)
-    if (isNaN(date.getTime())) return ''
-    const sameDay = date.toDateString() === new Date().toDateString()
-    return sameDay
-      ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : date.toLocaleDateString([], { day: 'numeric', month: 'short' })
-  }
-
-  const initial = (chat: WhatsAppChat) => {
-    const n = realName(chat)
-    return n ? n[0].toUpperCase() : <User className="w-5 h-5" />
-  }
+  }, [allChats, searchQuery, canSeePhone])
+  const visibleChats = useMemo(() => filterChats(searchedChats, chatFilter), [searchedChats, chatFilter])
+  const counts = useMemo(
+    () => ({ unread: allChats.filter((c) => (c.unreadCount || 0) > 0).length, needsReply: allChats.filter(needsReply).length }),
+    [allChats]
+  )
 
   const firstName = realName(selectedChat).split(/\s+/)[0] || ''
-  const headerBadge = channelBadge(selectedChat)
   // Pre-filled template fields: customer's first name (only a real name, never a number), your name, trip details
   const agentFirstName = (currentUser?.displayName || '').trim().split(/\s+/)[0] || ''
   const autofill: Autofill = {
@@ -581,473 +549,209 @@ export default function WhatsAppChats() {
   const startMode: 'first' | 'reopen' = lastInboundMs || lastOtherInboundMs || messages.some((m) => m.direction === 'outbound') ? 'reopen' : 'first'
   const pendingTitle = pendingTemplate ? getCatalogTemplate(pendingTemplate)?.title || pendingTemplate : ''
 
-  const failedActions = (opts: { onRetry: () => void; canSendTemplate?: boolean }) => (
-    <div className="mt-1.5 flex flex-wrap gap-1.5">
-      <button
-        type="button"
-        onClick={opts.onRetry}
-        className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-red-700 border border-red-200 hover:bg-red-50"
-      >
-        <RotateCcw className="w-3 h-3" /> Retry
-      </button>
-      {opts.canSendTemplate && (
-        <button
-          type="button"
-          onClick={() => openTemplatePicker()}
-          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700"
-        >
-          <FileText className="w-3 h-3" /> Send a template instead
-        </button>
-      )}
-    </div>
-  )
+  // Inline "start a conversation" flow (shown instead of the message box when only a template is allowed)
+  const startVisible = !!selectedChat && !loadingMessages && !showTextBox
+  const startLive = useLiveTemplates(startVisible)
+  const startForm = useTemplateForm({ live: startLive, enabled: startVisible })
+  const startPicks = useMemo(() => pickStartTemplates(startMode, startLive), [startMode, startLive])
+  const chooseStart = startForm.choose
+
+  // Reset per-chat UI when switching chats
+  useEffect(() => {
+    setForceText(false)
+    setNotice(null)
+    setAttach({ busy: false })
+    setStartStep('choose')
+    setStartDone(undefined)
+    chooseStart(undefined)
+  }, [selectedId, chooseStart])
+
+  const sendStart = async () => {
+    const title = startForm.selected?.title || 'Message'
+    const result = await startForm.send((payload) => sendMessage(payload))
+    if (result === false) return // something still to fill
+    setStartDone({ ok: result === 'sent', title })
+    setStartStep('done')
+  }
+
+  // ── What the screen shows ───────────────────────────────────────────────────────────────────────
+
+  const replyState: ReplyState = loadingMessages
+    ? { kind: 'loading' }
+    : windowOpen
+      ? { kind: 'open', hoursLeft: Math.max(1, Math.ceil(windowMsLeft / 3600000)) }
+      : { kind: 'closed', isNew: startMode === 'first' }
+
+  const startReason = lastInboundMs
+    ? "It's been more than 24 hours since the customer last wrote, so WhatsApp asks you to start with a template message."
+    : lastOtherInboundMs && provider === 'getgabs'
+      ? `The customer has only written to our old number. Replies now come from our new number ${WHATSAPP_BUSINESS_NUMBERS.getgabs.display}, so the first one must be a template message.`
+      : "This customer hasn't written to us yet, so the first message must be a template message."
+
+  const conversation: InboxConversation | null = selectedChat
+    ? (() => {
+        const chat = selectedChat
+        const name = displayName(chat)
+        const chatOnOld = !chat.isNew && (channelOf(chat) !== provider || messages.some((m) => channelOf(m) !== provider))
+        const numberLines: string[] = []
+        if (replyChannel !== provider)
+          numberLines.push(`The customer wrote to it, so your reply goes from it too. Template messages always go from ${numberName(provider, canSeePhone)}.`)
+        else numberLines.push('Template messages also go from this number.')
+        if (chatOnOld && replyChannel === provider) numberLines.push('Earlier messages in this chat were on our old number.')
+
+        const quoteRef = chat.ref || chat.sourceRef || (!chat.isNew ? `whatsapp_chats/${chat.id}` : '')
+        const quoteQuery = new URLSearchParams()
+        if (quoteRef) quoteQuery.set('ref', quoteRef)
+        else if (canSeePhone) quoteQuery.set('phone', chat.phone)
+        if (realName(chat)) quoteQuery.set('name', realName(chat))
+        if (leadAutofill.destination) quoteQuery.set('destination', leadAutofill.destination)
+
+        const notices: SystemNotice[] = []
+        if (movedToNewNumber)
+          notices.push({ id: 'moved', text: `Replies now go from our new number ${WHATSAPP_BUSINESS_NUMBERS.getgabs.display} — the customer will see a new number.` })
+        if (notice) notices.push({ id: 'notice', text: notice, onDismiss: () => setNotice(null) })
+
+        const f = startForm
+        return {
+          header: {
+            chat,
+            name,
+            replyState,
+            onBack: () => setSelectedId(null),
+            menu: {
+              canSeePhone,
+              phoneText: canSeePhone ? formatPhone(selectedPhone) : maskPhone(selectedPhone),
+              record: recordLink(linkedRef),
+              quoteHref: quoteQuery.toString() ? `/admin/itinerary?${quoteQuery}` : null,
+              numberInfo: { title: `Your replies go from ${numberName(replyChannel, canSeePhone)}`, lines: numberLines },
+              typeAnyway: windowOpen || loadingMessages ? undefined : { active: forceText, onToggle: () => setForceText((v) => !v) },
+              onRefresh: refreshStatus,
+              refreshing,
+              onHelp: help.show,
+            },
+          },
+          messages: {
+            messages,
+            localMessages: chatLocalMessages,
+            loading: loadingMessages,
+            customerName: name,
+            notices,
+            onRetry: retryRecord,
+            onRetryLocal: (m: LocalMessage) => sendMessage(m.payload, { replaceLocalId: m.localId }),
+            onSendTemplate: () => openTemplatePicker(),
+          },
+          bottom:
+            showTextBox || loadingMessages
+              ? {
+                  kind: 'composer',
+                  props: {
+                    value: inputText,
+                    onChange: setInputText,
+                    onSend: handleSendText,
+                    onTemplates: () => openTemplatePicker(),
+                    onAttachFile: handleAttach,
+                    attaching: attach.busy,
+                    attachError: attach.error,
+                    placeholder: `Message ${name}`,
+                    oldNumber: windowOpen && replyChannel !== provider,
+                    warning: !windowOpen && forceText && !loadingMessages ? { onUseTemplate: () => setForceText(false) } : undefined,
+                    disabled: loadingMessages,
+                  },
+                }
+              : {
+                  kind: 'start',
+                  props: {
+                    mode: startMode,
+                    reason: startReason,
+                    customerName: name,
+                    step: startStep,
+                    picks: startPicks,
+                    autofill,
+                    onPick: (t: string) => {
+                      f.choose(t)
+                      setStartStep('fill')
+                    },
+                    onMore: () => openTemplatePicker(),
+                    fill: f.selected
+                      ? {
+                          template: f.selected,
+                          values: f.values,
+                          onValues: f.setValues,
+                          headerMedia: f.headerMedia,
+                          onHeaderMedia: f.setHeaderMedia,
+                          showErrors: f.showErrors,
+                          missing: f.missing,
+                          problem: f.selectedAvail.ok ? undefined : f.selectedAvail.reason || 'This message cannot be sent from the inbox.',
+                          note:
+                            [f.selected.note, f.detail.error && !f.isMeta && `Couldn't double-check this message online (${f.detail.error}).`].filter(Boolean).join(' ') ||
+                            undefined,
+                          loadingFields: f.needsDetail && !f.detail.error,
+                          canSend: f.canSend,
+                          sending: f.sending,
+                          onBack: () => {
+                            f.choose(undefined)
+                            setStartStep('choose')
+                          },
+                          onSend: sendStart,
+                        }
+                      : undefined,
+                    done: startDone,
+                    onAgain: () => {
+                      f.choose(undefined)
+                      setStartDone(undefined)
+                      setStartStep('choose')
+                    },
+                  },
+                },
+        }
+      })()
+    : null
 
   return (
-    <div>
-      {/* Fits under the admin shell's top bar + section tabs (≈ 6.5rem) and main padding */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-[calc(100vh-10rem)] min-h-[480px] flex">
-        {/* Left Sidebar: Conversations List */}
-        <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50/50">
-          <div className="p-4 border-b border-gray-200 bg-white space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  placeholder={canSeePhone ? 'Search name or number…' : 'Search by name…'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-gray-100 border border-transparent rounded-xl text-sm focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
-                />
-              </div>
-              {canSeePhone && (
-                <button
-                  type="button"
-                  onClick={() => setNewChatOpen((v) => !v)}
-                  className="p-2 rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
-                  title="New chat by number (admin only)"
-                >
-                  {newChatOpen ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                </button>
-              )}
-            </div>
-            {canSeePhone && newChatOpen && (
-              <form onSubmit={startNewChat} className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-2">
-                <input
-                  type="tel"
-                  placeholder="Phone with country code, e.g. +91 98765 43210"
-                  value={newChatPhone}
-                  onChange={(e) => setNewChatPhone(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none"
-                />
-                <input
-                  type="text"
-                  placeholder="Customer name (optional)"
-                  value={newChatName}
-                  onChange={(e) => setNewChatName(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={normalizeWhatsAppNumber(newChatPhone).length < 10}
-                  className="w-full rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  Open chat
-                </button>
-              </form>
-            )}
-            {pendingTemplate && !selectedChat && (
-              <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-                <FileText className="w-4 h-4 shrink-0 text-emerald-600" />
-                <span className="flex-1">
-                  Choose a customer below to send <strong>“{pendingTitle}”</strong>.
-                </span>
-                <button type="button" onClick={() => setPendingTemplate(null)} className="text-emerald-600 hover:text-emerald-900" aria-label="Cancel">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {loadingChats ? (
-              <div className="flex items-center justify-center p-8 text-gray-400 gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-                <span className="text-sm">Loading chats...</span>
-              </div>
-            ) : filteredChats.length === 0 ? (
-              <div className="text-center p-8 text-gray-400">
-                <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm font-medium text-gray-600">No chats found</p>
-                <p className="text-xs text-gray-400 mt-1">Inbound customer messages will appear here live.</p>
-              </div>
-            ) : (
-              filteredChats.map((chat) => {
-                const isSelected = selectedId === chat.id
-                const badge = channelBadge(chat)
-                return (
-                  <button
-                    key={chat.id}
-                    onClick={() => {
-                      setSelectedId(chat.id)
-                      setLinkState({ state: 'idle' })
-                    }}
-                    className={`w-full text-left p-4 transition-all flex items-start gap-3 relative ${
-                      isSelected ? 'bg-emerald-50/70 border-l-4 border-emerald-600' : 'hover:bg-gray-100/80'
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                      {initial(chat)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1 gap-2">
-                        <span className="text-sm font-semibold text-gray-900 truncate">{displayName(chat)}</span>
-                        <span className="text-xs text-gray-400 shrink-0">{formatTime(chat.lastMessageTimestamp)}</span>
-                      </div>
-                      {badge && !badge.current && (
-                        <span className="mb-0.5 inline-block rounded bg-gray-100 px-1.5 text-[10px] text-gray-500">{badge.text}</span>
-                      )}
-                      <p className="text-xs text-gray-500 truncate">
-                        {chat.lastDirection === 'outbound' && <span className="font-medium text-gray-700">You: </span>}
-                        {chat.lastMessage || 'No messages'}
-                      </p>
-                    </div>
-                    {chat.unreadCount && chat.unreadCount > 0 ? (
-                      <span className="bg-emerald-600 text-white text-xs font-bold rounded-full h-5 min-w-[20px] px-1.5 flex items-center justify-center flex-shrink-0">
-                        {chat.unreadCount}
-                      </span>
-                    ) : null}
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Right Area: Chat Window */}
-        <div className="flex-1 flex flex-col bg-gray-50 min-w-0">
-          {linkState.state === 'resolving' ? (
-            <div className="flex-1 flex items-center justify-center gap-2 text-gray-400">
-              <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-              <span className="text-sm">Opening the customer&apos;s chat…</span>
-            </div>
-          ) : linkState.state === 'error' && !selectedChat ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-              <div className="w-14 h-14 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
-                <AlertTriangle className="w-7 h-7" />
-              </div>
-              <h3 className="text-base font-bold text-gray-800">Couldn&apos;t open this chat</h3>
-              <p className="text-sm text-gray-500 max-w-sm mt-1">{linkState.message}</p>
-            </div>
-          ) : selectedChat ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-xs gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold shrink-0">
-                    {initial(selectedChat)}
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-gray-900 truncate flex items-center gap-2">
-                      <span className="truncate">{displayName(selectedChat)}</span>
-                      {headerBadge && (
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium border ${
-                            headerBadge.current ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}
-                          title={headerBadge.current ? 'Conversation on the current business number' : 'Earlier messages were on the old business number'}
-                        >
-                          {headerBadge.text}
-                        </span>
-                      )}
-                    </h2>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
-                      {canSeePhone ? (
-                        <>
-                          <Phone className="w-3 h-3 text-emerald-600" />
-                          <span className="tabular-nums">{formatPhone(selectedPhone)}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-3 h-3 text-gray-400" />
-                          <span className="tabular-nums">{maskPhone(selectedPhone)}</span>
-                          <span className="text-gray-400">· number visible to admins only</span>
-                        </>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {selectedChat.isNew ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                      New conversation
-                    </span>
-                  ) : windowOpen ? (
-                    <span
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      title="You can send normal messages until 24 hours after the customer's last message"
-                    >
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      Reply window open · {Math.max(1, Math.ceil(windowMsLeft / 3600000))}h left
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                      <Clock className="w-3 h-3" /> Template only
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Message History */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#efeae2]/40">
-                {loadingMessages ? (
-                  <div className="flex items-center justify-center h-full text-gray-400 gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
-                    <span className="text-sm">Loading message history...</span>
-                  </div>
-                ) : messages.length === 0 && chatLocalMessages.length === 0 ? (
-                  <div className="text-center my-auto text-gray-400 p-8">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-30 text-emerald-600" />
-                    <p className="text-sm font-medium text-gray-600">Start a WhatsApp chat with {displayName(selectedChat)}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      The first message to a customer must be an approved template. Once they reply, you can chat freely for 24 hours.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {messages.map((msg) => {
-                      const isOutbound = msg.direction === 'outbound'
-                      const failed = isOutbound && msg.status === 'failed'
-                      return (
-                        <div key={msg.id} className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-                          <div
-                            className={`max-w-[70%] rounded-2xl px-4 py-2.5 shadow-xs text-sm relative ${
-                              failed
-                                ? 'bg-red-50 text-gray-900 border border-red-200 rounded-br-none'
-                                : isOutbound
-                                  ? 'bg-emerald-600 text-white rounded-br-none'
-                                  : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none'
-                            }`}
-                          >
-                            {msg.type === 'template' && (
-                              <p className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${failed ? 'text-red-400' : 'text-emerald-100'}`}>
-                                Template{msg.templateName ? ` · ${msg.templateName}` : ''}
-                              </p>
-                            )}
-                            {msg.replyToText && (
-                              <p
-                                className={`mb-1 border-l-2 pl-2 text-[11px] line-clamp-2 ${
-                                  isOutbound && !failed ? 'border-emerald-200 text-emerald-100' : 'border-gray-300 text-gray-500'
-                                }`}
-                              >
-                                {msg.replyToText}
-                              </p>
-                            )}
-                            {isHttpsMedia(msg.mediaUrl) &&
-                              (msg.type === 'image' || msg.type === 'sticker' ? (
-                                <a href={msg.mediaUrl!} target="_blank" rel="noopener noreferrer" className="block mb-1">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={msg.mediaUrl!} alt="" className="max-h-60 rounded-lg object-cover" loading="lazy" />
-                                </a>
-                              ) : (
-                                <a
-                                  href={msg.mediaUrl!}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={`mb-1 inline-flex items-center gap-1 text-xs underline ${
-                                    isOutbound && !failed ? 'text-emerald-50' : 'text-emerald-700'
-                                  }`}
-                                >
-                                  <Paperclip className="w-3 h-3" /> {msg.fileName || `Open ${msg.type === 'text' ? 'attachment' : msg.type}`}
-                                </a>
-                              ))}
-                            {!(isHttpsMedia(msg.mediaUrl) && /^\[(Image|Sticker)\]$/.test(msg.text)) && (
-                              <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                            )}
-                            <div
-                              className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
-                                failed ? 'text-red-500' : isOutbound ? 'text-emerald-100' : 'text-gray-400'
-                              }`}
-                            >
-                              <span>{formatTime(msg.timestamp)}</span>
-                              {isOutbound && (
-                                <span>
-                                  {failed ? (
-                                    <span className="font-semibold">✕ Not delivered</span>
-                                  ) : msg.status === 'read' ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-blue-200" />
-                                  ) : msg.status === 'delivered' ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />
-                                  ) : (
-                                    <Check className="w-3.5 h-3.5 text-emerald-200" />
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                            {failed && (
-                              <>
-                                <p className="mt-1.5 rounded-md bg-white/80 px-2 py-1 text-[11px] leading-snug text-red-700">
-                                  {msg.errorHint
-                                    ? `Not delivered: ${msg.errorHint}`
-                                    : whatsappFailureText(msg.errorCode, msg.errorTitle, msg.errorDetails)}
-                                </p>
-                                {failedActions({
-                                  onRetry: () => retryRecord(msg),
-                                  canSendTemplate:
-                                    msg.type !== 'template' &&
-                                    ([131047, 131070, 2494191].includes(Number(msg.errorCode)) || msg.errorKind === 'outside_window'),
-                                })}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {chatLocalMessages.map((m) => (
-                      <div key={m.localId} className="flex justify-end">
-                        <div
-                          className={`max-w-[70%] rounded-2xl px-4 py-2.5 shadow-xs text-sm rounded-br-none ${
-                            m.status === 'failed' ? 'bg-red-50 text-gray-900 border border-red-200' : 'bg-emerald-600/80 text-white'
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap break-words">{m.text}</p>
-                          <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${m.status === 'failed' ? 'text-red-500' : 'text-emerald-100'}`}>
-                            {m.status === 'sending' ? (
-                              <>
-                                <Loader2 className="w-3 h-3 animate-spin" /> Sending…
-                              </>
-                            ) : (
-                              <span className="font-semibold">✕ Not delivered</span>
-                            )}
-                          </div>
-                          {m.status === 'failed' && (
-                            <>
-                              <p className="mt-1.5 rounded-md bg-white/80 px-2 py-1 text-[11px] leading-snug text-red-700">
-                                {m.hint || m.error}
-                                {m.hint && m.error ? <span className="block mt-0.5 text-red-400">({m.error})</span> : null}
-                              </p>
-                              {failedActions({
-                                onRetry: () => sendMessage(m.payload, { replaceLocalId: m.localId }),
-                                canSendTemplate: m.canSendTemplate,
-                              })}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {notice && (
-                <div className="px-4 py-2 bg-emerald-50 border-t border-emerald-200 text-xs text-emerald-800 flex items-center justify-between gap-2">
-                  <span>{notice}</span>
-                  <button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-800" aria-label="Dismiss">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {movedToNewNumber && (
-                <div className="px-4 py-2 bg-sky-50 border-t border-sky-200 text-xs text-sky-900 flex items-center gap-2">
-                  <Info className="w-3.5 h-3.5 shrink-0 text-sky-600" />
-                  <span>Replies now go from {WHATSAPP_BUSINESS_NUMBERS.getgabs.display} — the customer will see a new number.</span>
-                </div>
-              )}
-
-              {windowOpen && replyChannel !== provider && (
-                <div className="px-4 py-2 bg-sky-50 border-t border-sky-200 text-xs text-sky-900 flex items-center gap-2">
-                  <Info className="w-3.5 h-3.5 shrink-0 text-sky-600" />
-                  <span>
-                    The customer wrote to the {replyChannel === 'meta' ? 'old' : 'other'} number
-                    {canSeePhone ? ` ${WHATSAPP_BUSINESS_NUMBERS[replyChannel].display}` : ''}, so your reply goes from that number. Templates still go from{' '}
-                    {canSeePhone ? WHATSAPP_BUSINESS_NUMBERS[provider].display : 'the main number'}.
-                  </span>
-                </div>
-              )}
-
-              {/* Composer: only a template is allowed → suggest the best ones with a phone preview */}
-              {!loadingMessages && !windowOpen && !forceText && (
-                <StartConversationCard
-                  key={selectedChat.id}
-                  mode={startMode}
-                  autofill={autofill}
-                  reason={
-                    lastInboundMs
-                      ? "The customer hasn't written in the last 24 hours, so WhatsApp only allows a pre-approved message."
-                      : lastOtherInboundMs && provider === 'getgabs'
-                        ? `The customer has only written to the old number. Replies now go from ${WHATSAPP_BUSINESS_NUMBERS.getgabs.display}, so the first message from it must be a pre-approved one.`
-                        : "This customer hasn't written to us yet, so the first message must be a pre-approved one."
-                  }
-                  onPick={(name) => openTemplatePicker(name)}
-                  onSeeAll={() => openTemplatePicker()}
-                  onTypeAnyway={() => setForceText(true)}
-                />
-              )}
-              {!loadingMessages && !windowOpen && forceText && (
-                <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 flex flex-wrap items-center gap-2 text-xs text-amber-900">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span className="flex-1 min-w-[200px]">
-                    A normal message will probably not be delivered — WhatsApp only allows a pre-approved message right now. When the customer replies, you can
-                    chat freely for 24 hours.
-                  </span>
-                  <button type="button" onClick={() => setForceText(false)} className="font-semibold text-emerald-700 underline hover:text-emerald-900">
-                    Pick a template instead
-                  </button>
-                </div>
-              )}
-              {(showTextBox || loadingMessages) && (
-                <form onSubmit={handleSendText} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openTemplatePicker()}
-                    className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-emerald-700"
-                    title="Send a template"
-                  >
-                    <FileText className="w-4 h-4" />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder={`Message ${displayName(selectedChat)}…`}
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    className="flex-1 min-w-0 px-4 py-2.5 bg-gray-100 border border-transparent rounded-xl text-sm focus:bg-white focus:border-emerald-500 focus:outline-none transition-all"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!inputText.trim()}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
-                  >
-                    <span>Send</span>
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
-              )}
-
-              <TemplatePicker
-                open={templateOpen}
-                onClose={() => setTemplateOpen(false)}
-                customerFirstName={firstName}
-                autofill={autofill}
-                initialTemplate={pickerTemplate}
-                recommend={startMode}
-                onSend={(payload) => sendMessage(payload)}
-              />
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-gray-400">
-              <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 shadow-sm">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-800">Select a Conversation</h3>
-              <p className="text-sm text-gray-500 max-w-sm mt-1">
-                Choose a customer from the left, or click a lead&apos;s WhatsApp number / &quot;Chat on WhatsApp&quot; anywhere in the admin.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <InboxView
+      list={{
+        chats: visibleChats,
+        totalCounts: counts,
+        loading: loadingChats,
+        selectedId,
+        onSelect: (id) => {
+          setSelectedId(id)
+          setLinkState({ state: 'idle' })
+        },
+        search: searchQuery,
+        onSearch: setSearchQuery,
+        filter: chatFilter,
+        onFilter: setChatFilter,
+        canSeePhone,
+        displayName,
+        isOldNumber: (c) => !c.isNew && channelOf(c) !== provider,
+        onNewChat: canSeePhone ? startNewChat : undefined,
+        pendingTemplateTitle: pendingTemplate && !selectedChat ? pendingTitle : undefined,
+        onCancelPendingTemplate: () => setPendingTemplate(null),
+      }}
+      help={{ visible: help.visible, onDismiss: help.dismiss }}
+      conversation={linkState.state === 'resolving' || (linkState.state === 'error' && !selectedChat) ? null : conversation}
+      placeholder={
+        linkState.state === 'resolving'
+          ? { state: 'resolving' }
+          : linkState.state === 'error' && !selectedChat
+            ? { state: 'error', message: linkState.message, onBack: () => setLinkState({ state: 'idle' }) }
+            : { state: 'empty' }
+      }
+    >
+      {selectedChat && (
+        <TemplatePicker
+          open={templateOpen}
+          onClose={() => setTemplateOpen(false)}
+          customerFirstName={firstName}
+          autofill={autofill}
+          initialTemplate={pickerTemplate}
+          recommend={startMode}
+          onSend={async (payload) => {
+            await sendMessage(payload)
+          }}
+        />
+      )}
+    </InboxView>
   )
 }

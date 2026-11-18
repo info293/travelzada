@@ -5,7 +5,8 @@ import type { DecorItem } from '@/lib/aiImagesCatalog'
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // gpt-image-1 is the OpenAI model that edits a real photo (DALL-E 3 can only generate from text)
-const IMAGE_MODEL = process.env.AI_IMAGES_MODEL || 'gpt-image-1'
+// gpt-image-1 no longer exists on our OpenAI account (Nov 2026) — gpt-image-2 edits real photos too. Override with AI_IMAGES_MODEL.
+const IMAGE_MODEL = process.env.AI_IMAGES_MODEL || 'gpt-image-2'
 
 type Quality = 'low' | 'medium' | 'high'
 // Drafts are ~4x cheaper than HD; the user upgrades only the design they like

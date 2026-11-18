@@ -6,6 +6,8 @@ import { Button, Field, inputClass } from '../../ui'
 import type { ProposalFlight, QuoteDesign } from '../types'
 import ImagePicker from './ImagePicker'
 import { Segmented } from './fields'
+import FlightSearchField, { flightToSector } from '../../library/FlightSearchField'
+import { useFlightLibrary } from '@/lib/library/cache'
 
 export interface FlightsEditorProps {
     flights: ProposalFlight[]
@@ -21,6 +23,7 @@ const emptyFlight = (): ProposalFlight => ({ date: '', airline: '', flightNumber
 export default function FlightsEditor({ flights, onFlightsChange, design, onDesign, folder, auto }: FlightsEditorProps) {
     const update = (i: number, field: keyof ProposalFlight, value: string) => onFlightsChange(flights.map((f, k) => (k === i ? { ...f, [field]: value } : f)))
     const off = design.flightsMode === 'not-included'
+    const { items: library, ready } = useFlightLibrary(!off)
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -57,6 +60,9 @@ export default function FlightsEditor({ flights, onFlightsChange, design, onDesi
                             <span className="text-xs font-semibold text-gray-700">Flight sectors (optional — used when there is no screenshot)</span>
                             <Button variant="secondary" size="sm" onClick={() => onFlightsChange([...flights, emptyFlight()])}><Plus className="w-3.5 h-3.5" /> Add sector</Button>
                         </div>
+                        <FlightSearchField className="mb-2" library={library} ready={ready}
+                            placeholder="Add a saved flight: airline, flight no. or route (DEL→SXR)"
+                            onPick={(lf) => onFlightsChange([...flights, flightToSector(lf)])} />
                         <div className="space-y-2">
                             {flights.map((f, i) => (
                                 <div key={i} className="rounded-xl border border-gray-200 bg-white p-3">
@@ -64,6 +70,9 @@ export default function FlightsEditor({ flights, onFlightsChange, design, onDesi
                                         <span className="text-xs font-semibold text-gray-700">Sector {i + 1}{i === 0 ? ' · outbound' : i === flights.length - 1 ? ' · return' : ''}</span>
                                         <button type="button" onClick={() => onFlightsChange(flights.filter((_, k) => k !== i))} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50" aria-label="Remove sector"><Trash2 className="w-4 h-4" /></button>
                                     </div>
+                                    <FlightSearchField className="mb-2" library={library} ready={ready} from={f.departureCity} to={f.arrivalCity}
+                                        placeholder="Fill from saved flights (airline, flight no., DEL→SXR)"
+                                        onPick={(lf) => onFlightsChange(flights.map((x, k) => (k === i ? flightToSector(lf, x.date) : x)))} />
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <input className={inputClass} placeholder="Airline" value={f.airline} onChange={(e) => update(i, 'airline', e.target.value)} />
                                         <input className={inputClass} placeholder="Flight no." value={f.flightNumber} onChange={(e) => update(i, 'flightNumber', e.target.value)} />

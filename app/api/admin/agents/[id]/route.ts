@@ -2,12 +2,25 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/firebase'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { requireStaff, authErrorResponse } from '@/lib/admin/serverAuth'
+
+/** Admins only: these routes read and change B2B agent accounts */
+async function adminOnly(request: Request): Promise<Response | null> {
+  try {
+    const staff = await requireStaff(request)
+    return staff.isAdmin ? null : Response.json({ error: 'Admins only.' }, { status: 403 })
+  } catch (err) {
+    return authErrorResponse(err) || Response.json({ error: 'Not allowed' }, { status: 401 })
+  }
+}
 
 // GET - fetch a single agent
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
+  const denied = await adminOnly(request)
+  if (denied) return denied
   try {
     const snap = await getDoc(doc(db, 'agents', params.id))
     if (!snap.exists()) {
@@ -24,6 +37,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const denied = await adminOnly(request)
+  if (denied) return denied
   try {
     const body = await request.json()
     const { action, adminNotes, commissionRate, rejectionReason, approvedBy, subscriptionPlan } = body

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { permanentRedirect } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PackageDetailClient from './PackageDetailClient'
@@ -109,7 +109,9 @@ function getCanonicalDestinationSlug(packageData: any, currentSlug: string): str
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const packageData: any = await getPackageData(params.packageId, params.slug);
-  if (!packageData) return { title: 'Package Not Found' };
+  // notFound() here (not only in the page): metadata resolves before the response starts streaming, so this is
+  // what makes Next send a real 404 status — the app's root loading.tsx would otherwise stream a 200 first.
+  if (!packageData) notFound();
   
   const packageTitle = packageData.Destination_Name || 'Travel Package'
   const imageUrl = packageData.Primary_Image_URL
@@ -151,8 +153,10 @@ export default async function PackagePage({ params }: PageProps) {
   const packageData: any = await getPackageData(params.packageId, params.slug);
   
   if (!packageData) {
-    console.log(`[SSR] packageData is null. Bailing out to PackageDetailClient without redirect.`);
-    return <PackageDetailClient params={params} initialPackageData={null} />
+    // getPackageData only returns null after checking every package (Firestore errors throw instead), so this
+    // really is a missing package: send a real 404 — not a 200 "Package Not Found" page (a "soft 404" for Google).
+    console.log(`[SSR] No package for ${params.packageId} — 404`);
+    notFound()
   }
 
   const slug = decodeURIComponent(params.slug)

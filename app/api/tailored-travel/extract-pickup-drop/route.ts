@@ -154,8 +154,9 @@ export async function POST(req: Request) {
     if (anthropic) {
       try {
         const response = await anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 768,
+          model: 'claude-haiku-5-5',
+          max_tokens: 2048, // headroom: thinking shares the max_tokens budget
+          output_config: { effort: 'low' }, // quick extraction task
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userContent }],
         })

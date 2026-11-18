@@ -39,7 +39,7 @@ const DEST_MAP: { keywords: string[]; image: string; location: string }[] = [
   },
   {
     keywords: ['kashmir', 'srinagar', 'gulmarg', 'pahalgam', 'shikara', 'dal lake', 'snow'],
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80',
+    image: 'https://ik.imagekit.io/tux8wjwgq/Kashmir/Srinagar.jpg?tr=w-800',
     location: 'KASHMIR, INDIA',
   },
   {

@@ -1,9 +1,18 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
+import { requireStaff, authErrorResponse } from '@/lib/admin/serverAuth'
 import { collection, getDocs } from 'firebase/firestore';
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Admins only (this route can change agent accounts / delete data)
+  try {
+    const staff = await requireStaff(request)
+    if (!staff.isAdmin) return Response.json({ error: 'Admins only.' }, { status: 403 })
+  } catch (err) {
+    return authErrorResponse(err) || Response.json({ error: 'Not allowed' }, { status: 401 })
+  }
+
     try {
         const destSnap = await getDocs(collection(db, 'destinations'));
         const destinations = destSnap.docs.map(d => ({

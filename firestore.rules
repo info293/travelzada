@@ -1,0 +1,528 @@
+rules_version = '2';
+
+// =====================================================================================================
+//  Travelzada — Firestore security rules (DRAFT — NOT DEPLOYED)
+//
+//  This file describes the TARGET state: it only works AFTER every server route in app/api/** (and the
+//  lib/* modules they call) has moved to the Firebase Admin SDK (lib/firebaseAdmin.ts). The Admin SDK
+//  bypasses these rules, so everything below only governs the BROWSER (anonymous visitors, logged-in
+//  customers / agents / decorators, and the signed-in admin UI).
+//
+//  Deploying this file TODAY would break every unauthenticated server route (WhatsApp + Facebook webhooks,
+//  broadcasts, vouchers, planner, agent APIs, OTP, ...). For what is safe today, see the commented
+//  "INTERIM" ruleset at the bottom of this file and docs/FIRESTORE_SECURITY.md.
+//
+//  Permission keys match lib/admin/nav.ts (PermissionKey). Admin = users/{uid}.role == 'admin'.
+//  Test with the emulator before any deploy:  firebase emulators:start --only firestore
+// =====================================================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers: identity & roles
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function userPath(id) { return /databases/$(database)/documents/users/$(id); }
+    // users/{uid} of the caller. Only call after signedIn(); a missing doc makes the rule fail closed.
+    function me() { return get(userPath(uid())).data; }
+    function active() { return me().get('isActive', true) != false; }
+    function isAdmin() { return signedIn() && me().get('role', 'user') == 'admin' && active(); }
+    function perms() { return me().get('permissions', []); }
+    // hasPerm('leads') — admins pass every permission check (same as canAccessItem in lib/admin/nav.ts)
+    function hasPerm(p) { return signedIn() && (isAdmin() || (active() && perms().hasAny([p]))); }
+    function hasAnyPerm(ps) { return signedIn() && (isAdmin() || (active() && perms().hasAny(ps))); }
+    // Anyone who can open the admin at all (admin, or at least one permission)
+    function isStaff() { return signedIn() && (isAdmin() || (active() && perms().size() > 0)); }
+    function isAgent() { return signedIn() && me().get('role', 'user') in ['agent', 'subagent']; }
+
+    // ---------------------------------------------------------------- helpers: validation
+    function incoming() { return request.resource.data; }
+    function onlyKeys(ks) { return incoming().keys().hasOnly(ks); }
+    function changedOnly(ks) { return incoming().diff(resource.data).affectedKeys().hasOnly(ks); }
+    function unchanged(k) { return !incoming().diff(resource.data).affectedKeys().hasAny([k]); }
+    function str(v, max) { return v is string && v.size() <= max; }
+    function reqStr(k, min, max) { return k in incoming() && incoming()[k] is string && incoming()[k].size() >= min && incoming()[k].size() <= max; }
+    function optStr(k, max) { return !(k in incoming()) || str(incoming()[k], max); }
+    function optList(k, max) { return !(k in incoming()) || (incoming()[k] is list && incoming()[k].size() <= max); }
+    function optNum(k) { return !(k in incoming()) || incoming()[k] is number; }
+    function optTime(k) { return !(k in incoming()) || incoming()[k] is timestamp || incoming()[k] is string; }
+    function phoneish(k) { return reqStr(k, 6, 20) && incoming()[k].matches('^[0-9+()\\- ]{6,20}$'); }
+    function optPhone(k) { return !(k in incoming()) || incoming()[k] == '' || phoneish(k); }
+    function emailish(k) { return reqStr(k, 3, 254) && incoming()[k].matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'); }
+    function optEmail(k) { return !(k in incoming()) || incoming()[k] == '' || emailish(k); }
+    // Public submissions always land as unread / new — visitors can't pre-mark them as handled.
+    function freshInbox() {
+      return incoming().get('status', 'new') in ['new', 'pending', 'unread']
+          && incoming().get('read', false) == false;
+    }
+
+    // =================================================================================================
+    //  USERS — users/{uid}
+    //  Self-service: read/write ONLY your own doc and never your own role / permissions / status fields.
+    //  'users' permission (Team & Roles page) may manage non-admin accounts; only admins create admins.
+    // =================================================================================================
+    function protectedUserKeys() {
+      return ['role', 'permissions', 'isActive', 'agentStatus', 'agentSlug', 'agentId', 'parentAgentId', 'isAdmin'];
+    }
+    function canManageTeam() { return hasPerm('users'); }
+
+    match /users/{userId} {
+      allow get: if signedIn() && (uid() == userId || isStaff());
+      allow list: if isStaff();   // CRM assignee picker, Team page, Agents page
+
+      // Sign-up (AuthContext → role 'user'; /agent-register → role 'agent' + agentStatus 'pending')
+      allow create: if signedIn() && uid() == userId
+        && incoming().get('role', 'user') in ['user', 'agent']
+        && incoming().get('permissions', []) == []
+        && incoming().get('agentStatus', 'pending') == 'pending'
+        && !('isAdmin' in incoming())
+        && optStr('email', 254) && optStr('displayName', 120) && optStr('photoURL', 2048);
+
+      allow update: if
+        // own profile: lastLogin, displayName, photoURL, emailVerified, phone ...
+        (signedIn() && uid() == userId && !incoming().diff(resource.data).affectedKeys().hasAny(protectedUserKeys()))
+        // full control
+        || isAdmin()
+        // Team & Roles managers: non-admin accounts only, and they can't hand out 'users' or make admins
+        || (canManageTeam()
+            && resource.data.get('role', 'user') != 'admin'
+            && incoming().get('role', 'user') != 'admin'
+            && !incoming().get('permissions', []).hasAny(['users']));
+
+      allow delete: if isAdmin();
+    }
+
+    // =================================================================================================
+    //  PUBLIC CATALOG / CONTENT — readable by everyone, written only by staff with the matching key
+    // =================================================================================================
+    match /packages/{id} {
+      allow read: if true;
+      allow create, update: if hasAnyPerm(['packages', 'ai-generator', 'destinations']);
+      allow delete: if hasPerm('packages');
+    }
+    // Hotels & Flights library (admin builder auto-capture + /admin/hotels, /admin/flights). Staff only for now;
+    // when public hotel/route pages are built, allow public read of docs with publishable == true.
+    match /hotels/{id} {
+      allow read, create, update: if hasAnyPerm(['packages', 'create-itinerary']);
+      allow delete: if isAdmin();
+    }
+    match /flights/{id} {
+      allow read, create, update: if hasAnyPerm(['packages', 'create-itinerary']);
+      allow delete: if isAdmin();
+    }
+    match /destinations/{id} {
+      allow read: if true;
+      allow create, update: if hasAnyPerm(['destinations', 'packages']);
+      allow delete: if hasPerm('destinations');
+    }
+    match /blogs/{id} {
+      allow read: if true;   // TODO: `resource.data.published == true || hasPerm('blogs')` once app/blog/page.tsx drops its unfiltered fallback query
+      allow create, delete: if hasPerm('blogs');
+      allow update: if hasAnyPerm(['blogs', 'authors'])
+        // components/blog/ViewCounter.tsx: anonymous +1 on `views`, nothing else
+        || (changedOnly(['views']) && incoming().views == resource.data.get('views', 0) + 1);
+    }
+    match /authors/{id} {
+      allow read: if true;
+      allow write: if hasAnyPerm(['authors', 'blogs']);
+    }
+    match /testimonials/{id} {
+      allow read: if true;
+      allow write: if hasPerm('testimonials');
+    }
+    match /reviews/{id} {
+      allow read: if true;
+      // created by app/api/reviews (Admin SDK). Staff moderation only from the browser.
+      allow create: if false;
+      allow update, delete: if hasPerm('testimonials');
+    }
+    match /jobs/{id} {
+      allow read: if true;
+      allow write: if hasPerm('jobs');
+    }
+
+    // =================================================================================================
+    //  PUBLIC INPUTS — create-only from the website, never publicly readable (PII)
+    // =================================================================================================
+
+    // components/LeadForm.tsx, components/homepage/TravelzadaHomePage.tsx, tailored-travel/TailoredResultsChat.tsx
+    // (Facebook / WhatsApp / voucher / itinerary-upload leads are written server-side with the Admin SDK)
+    match /leads/{id} {
+      allow create: if onlyKeys(['name', 'mobile', 'email', 'source', 'sourceUrl', 'packageName', 'destination',
+                                 'destinations', 'duration', 'occasion', 'travelDate', 'travelersCount', 'message',
+                                 'status', 'read', 'createdAt'])
+        && reqStr('name', 1, 100) && phoneish('mobile') && optEmail('email')
+        && optStr('source', 80) && optStr('sourceUrl', 2048) && optStr('packageName', 200)
+        && optStr('destination', 120) && optList('destinations', 20) && optStr('duration', 60)
+        && optStr('occasion', 60) && optStr('travelDate', 40) && optNum('travelersCount')
+        && optStr('message', 2000) && optTime('createdAt') && freshInbox();
+      allow read, update, delete: if hasPerm('leads');
+    }
+
+    // components/ConversationAgent.tsx
+    match /ai_planner_leads/{id} {
+      allow create: if onlyKeys(['name', 'mobile', 'email', 'packageContext', 'sourceUrl', 'status', 'read', 'createdAt'])
+        && reqStr('name', 1, 100) && phoneish('mobile') && optEmail('email')
+        && optStr('packageContext', 2000) && optStr('sourceUrl', 2048) && optTime('createdAt') && freshInbox();
+      allow read, update, delete: if hasPerm('leads');
+    }
+
+    // components/ConversationAgent.tsx saveChatSession — setDoc(merge) on a random session id after every
+    // message, so it needs create AND update, but nobody outside the admin can read a conversation back.
+    match /ai_planner_chats/{sessionId} {
+      function chatShape() {
+        return onlyKeys(['sessionId', 'messages', 'tripInfo', 'sourceUrl', 'messageCount', 'lastMessageAt', 'startedAt'])
+          && incoming().sessionId == sessionId
+          && incoming().messages is list && incoming().messages.size() <= 300
+          && optStr('sourceUrl', 2048) && optNum('messageCount');
+      }
+      allow create: if chatShape();
+      allow update: if chatShape() && unchanged('sessionId') && unchanged('startedAt');
+      allow read, delete: if isAdmin();   // nav: "AI Planner Chats (admins only)"
+    }
+
+    // app/contact/page.tsx
+    match /contact_messages/{id} {
+      allow create: if onlyKeys(['name', 'email', 'phone', 'occasion', 'when', 'destination', 'message', 'status', 'read', 'createdAt'])
+        && reqStr('name', 1, 100) && optEmail('email') && optPhone('phone')
+        && optStr('occasion', 60) && optStr('when', 60) && optStr('destination', 120)
+        && optStr('message', 5000) && optTime('createdAt') && freshInbox();
+      allow read, update, delete: if hasPerm('contacts');
+    }
+
+    // app/careers/page.tsx
+    match /job_applications/{id} {
+      allow create: if onlyKeys(['name', 'email', 'phone', 'linkedin', 'position', 'coverLetter', 'resumeUrl', 'jobId', 'status', 'read', 'createdAt'])
+        && reqStr('name', 1, 100) && emailish('email') && optPhone('phone') && optStr('linkedin', 300)
+        && optStr('position', 200) && optStr('coverLetter', 8000) && optStr('resumeUrl', 2048) && optStr('jobId', 64)
+        && optTime('createdAt') && freshInbox();
+      allow read, update, delete: if hasAnyPerm(['careers', 'jobs']);
+    }
+
+    // components/blog/NewsletterSubscription.tsx — REQUIRES the small code change described in the doc:
+    // setDoc(doc(db,'newsletter_subscribers', email), ...) instead of "query by email, then addDoc".
+    // A second subscribe of the same email is then an *update*, which is denied → show "already subscribed".
+    match /newsletter_subscribers/{email} {
+      allow create: if onlyKeys(['email', 'subscribedAt', 'status', 'source'])
+        && emailish('email') && incoming().email == email
+        && incoming().get('status', 'active') == 'active' && optStr('source', 60) && optTime('subscribedAt');
+      allow read, update, delete: if hasPerm('subscribers');
+    }
+
+    // =================================================================================================
+    //  STAFF-ONLY BUSINESS DATA (admin UI). Contains PII — see the "split PII" section of the doc.
+    // =================================================================================================
+    match /customer_itineraries/{id} {
+      allow read, create, update: if hasAnyPerm(['create-itinerary', 'customer-records']);
+      allow delete: if hasAnyPerm(['customer-records', 'create-itinerary']);
+    }
+    match /vendors/{id} {
+      allow read, write: if hasPerm('vendors');
+    }
+    match /vendor_leads/{id} {
+      allow create: if false;   // app/api/vendor-leads (Admin SDK)
+      allow read, update, delete: if hasPerm('vendors');
+    }
+    match /voucher_cards/{code} {
+      allow read, create, update: if hasAnyPerm(['vouchers', 'leads']);
+      allow delete: if isAdmin();
+    }
+    match /voucher_claims/{code} {
+      allow create: if false;   // lib/voucherServer.ts (Admin SDK, transaction)
+      allow read, update: if hasAnyPerm(['vouchers', 'leads']);
+      allow delete: if isAdmin();
+    }
+    match /vouchers/{id} {      // legacy name, only referenced in lib/whatsapp.ts WHATSAPP_REF_FIELDS
+      allow read: if hasAnyPerm(['vouchers', 'leads']);
+      allow write: if false;
+    }
+
+    // Meta (Facebook / Instagram) lead CRM — the admin UI writes here directly (lib/metaLeadsCrm.ts)
+    match /meta_lead_crm/{leadId} {
+      allow read, create, update: if hasPerm('leads');
+      allow delete: if isAdmin();
+    }
+    match /meta_lead_messages/{id}     { allow read: if hasPerm('leads'); allow write: if false; }
+    match /meta_ad_coach_reports/{id}  { allow read: if hasPerm('leads'); allow write: if false; }
+    match /automation_settings/{id}    { allow read: if hasPerm('leads'); allow write: if false; }  // via /api/automation/*
+    match /planner_activity/{id}       { allow read: if hasPerm('leads'); allow write: if false; }
+
+    // =================================================================================================
+    //  WHATSAPP — written only by webhooks / send / broadcast routes (Admin SDK). Staff read the inbox.
+    //  NOTE: whatsapp_chats doc ids ARE phone numbers, so anyone with 'whatsapp' sees numbers (see doc).
+    // =================================================================================================
+    match /whatsapp_chats/{chatId} {
+      allow read: if hasAnyPerm(['whatsapp', 'leads']);
+      allow update: if hasAnyPerm(['whatsapp', 'leads']) && changedOnly(['unreadCount']) && incoming().unreadCount == 0;
+      allow create, delete: if false;
+    }
+    match /whatsapp_messages/{id} {
+      allow read: if hasAnyPerm(['whatsapp', 'leads']);
+      allow write: if false;
+    }
+    match /whatsapp_broadcasts/{id} {
+      allow read: if hasAnyPerm(['whatsapp', 'leads']);
+      allow write: if false;      // create / start / pause / cancel all go through /api/whatsapp/broadcasts (requireStaff)
+      match /recipients/{rid} {
+        allow read: if hasAnyPerm(['whatsapp', 'leads']);
+        allow write: if false;
+      }
+    }
+    match /whatsapp_contact_lists/{id} {
+      allow read: if hasAnyPerm(['whatsapp', 'leads']);
+      allow write: if false;
+      match /contacts/{cid} {
+        allow read: if hasAnyPerm(['whatsapp', 'leads']);
+        allow write: if false;
+      }
+    }
+    match /whatsapp_optouts/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // =================================================================================================
+    //  AUTH — server only. OTP docs must NEVER be readable by a browser.
+    // =================================================================================================
+    match /email_otps/{email} {
+      allow read, write: if false;
+    }
+
+    // =================================================================================================
+    //  AGENT PLATFORM (B2B white-label). Agent docs are keyed by the agent's uid.
+    //  Writes go through app/api/agent/** (Admin SDK + verified ID token); the browser only reads its own data.
+    // =================================================================================================
+    function adminAgentKeys() {
+      return ['status', 'approvedAt', 'approvedBy', 'rejectionReason', 'adminNotes', 'plan', 'slug', 'agentSlug', 'uid', 'createdAt'];
+    }
+    match /agents/{agentId} {
+      // public white-label page /tailored-travel/[agentSlug] — TODO: move private fields (GST, bank, notes)
+      // into agents/{agentId}/private/profile so this public read doesn't expose them.
+      allow read: if true;
+      allow create: if false;
+      allow update: if hasPerm('agents')
+        || (signedIn() && uid() == agentId && !incoming().diff(resource.data).affectedKeys().hasAny(adminAgentKeys()));
+      allow delete: if isAdmin();
+    }
+    match /agent_packages/{id} {
+      // public: only active packages (queries must include where('isActive','==',true)); owners see all of theirs
+      allow read: if resource.data.get('isActive', false) == true
+        || (signedIn() && resource.data.get('agentId', '') == uid())
+        || hasPerm('agents');
+      allow write: if false;
+    }
+    match /agent_bookings/{id} {
+      allow read: if (signedIn() && resource.data.get('agentId', '') == uid()) || hasPerm('agents');
+      allow create, update: if false;
+      allow delete: if isAdmin();
+    }
+    match /agent_customers/{id} {
+      allow read: if (signedIn() && resource.data.get('agentId', '') == uid()) || hasPerm('agents');
+      // components/dmc-dashboard/CustomerRecords.tsx edits its own customers
+      allow update: if signedIn() && resource.data.get('agentId', '') == uid() && unchanged('agentId');
+      allow create: if false;
+      allow delete: if isAdmin();
+    }
+    match /agent_notifications/{id} {
+      allow read: if signedIn() && resource.data.get('agentId', '') == uid();
+      allow update: if signedIn() && resource.data.get('agentId', '') == uid() && changedOnly(['isRead', 'readAt']);
+      allow create, delete: if false;
+    }
+    match /quotations/{id} {
+      allow read: if signedIn() && (resource.data.get('agentId', '') == uid() || resource.data.get('subAgentId', '') == uid())
+        || hasPerm('agents');
+      allow write: if false;
+    }
+    match /sub_agents/{id} {
+      allow read: if signedIn() && (id == uid() || resource.data.get('agentId', '') == uid()) || hasPerm('agents');
+      allow write: if false;
+    }
+    match /agent_sessions/{id} {
+      allow read: if hasPerm('agents');
+      allow write: if false;
+    }
+
+    // =================================================================================================
+    //  SHARED PLANS (tailored-travel collaborative link) — unguessable id acts as the capability
+    // =================================================================================================
+    match /shared_plans/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if false;   // app/api/tailored-travel/share-plan (Admin SDK)
+      allow update: if changedOnly(['messages', 'package', 'lastUpdatedAt'])
+        && incoming().get('messages', []) is list && incoming().get('messages', []).size() <= 500;
+      allow delete: if isAdmin();
+    }
+
+    // =================================================================================================
+    //  AI VENUE DECOR STUDIO (lib/decorStore.ts) — vendorId is the decorator's uid
+    // =================================================================================================
+    match /decor_catalog/{id} {
+      allow read: if signedIn() && resource.data.vendorId == uid();
+      allow create: if signedIn() && incoming().vendorId == uid();
+      allow update: if signedIn() && resource.data.vendorId == uid() && unchanged('vendorId');
+      allow delete: if signedIn() && resource.data.vendorId == uid();
+    }
+    match /decor_designs/{id} {
+      allow get: if true;   // /design/[id] share link for the decorator's client
+      allow list: if signedIn() && resource.data.vendorId == uid();
+      allow create: if signedIn() && incoming().vendorId == uid();
+      allow update: if (signedIn() && resource.data.vendorId == uid() && unchanged('vendorId'))
+        // the client on the share page: comments, approve once, request a booking
+        || (changedOnly(['comments', 'status', 'approval', 'booking', 'updatedAt'])
+            && incoming().get('status', '') in [resource.data.get('status', ''), 'approved']
+            && incoming().get('comments', []).size() <= 500);
+      allow delete: if signedIn() && resource.data.vendorId == uid();
+    }
+
+    // Anything not matched above is denied (Firestore default).
+  }
+}
+
+
+// =====================================================================================================
+//  INTERIM RULESET — safe to deploy TODAY (before the Admin SDK migration), after emulator testing.
+//
+//  Constraint: every app/api/** route and server component talks to Firestore with the CLIENT SDK and NO
+//  signed-in user, i.e. request.auth == null — exactly like an anonymous visitor. So any collection that a
+//  server route reads or writes must stay open for that operation. What CAN be tightened today:
+//    * collections that only the signed-in admin UI (and public create forms) touch,
+//    * deletes (only 4 collections are deleted by server code),
+//    * role / permission escalation on users/{uid},
+//    * field-level limits on the few unauthenticated server updates that are easy to describe.
+//  Each claim was checked by grep (see the inventory table in docs/FIRESTORE_SECURITY.md).
+//
+//  To use: replace the whole `service cloud.firestore { ... }` block above with this one (uncommented),
+//  and keep the helper functions + validation helpers from above (copy them in where marked).
+// =====================================================================================================
+//
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     // ... paste the helper functions from the TARGET ruleset here (signedIn, me, isAdmin, hasPerm,
+//     //     hasAnyPerm, isStaff, incoming, onlyKeys, changedOnly, unchanged, str, reqStr, optStr, ...) ...
+//
+//     // ---------- users: still world-readable (lib/admin/serverAuth.ts and api/agent/quotations/[id] `get`,
+//     //            api/auth/send-otp `list where email ==`), but nobody can make themselves admin.
+//     match /users/{userId} {
+//       allow read: if true;   // INTERIM: server routes read users unauthenticated
+//       allow create: if
+//            (signedIn() && uid() == userId
+//               && incoming().get('role', 'user') in ['user', 'agent']
+//               && incoming().get('permissions', []) == [])
+//         // api/agent/subagents (role 'subagent'), api/agent/register (setDoc merge role 'agent')
+//         || (!signedIn()
+//               && incoming().get('role', 'user') in ['user', 'agent', 'subagent']
+//               && incoming().get('permissions', []) == []);
+//       allow update: if
+//            isAdmin()
+//         || (signedIn() && uid() == userId
+//               && !incoming().diff(resource.data).affectedKeys().hasAny(['role', 'permissions', 'isActive', 'agentStatus']))
+//         || (hasPerm('users') && resource.data.get('role', 'user') != 'admin' && incoming().get('role', 'user') != 'admin'
+//               && !incoming().get('permissions', []).hasAny(['users']))
+//         // unauthenticated server routes: api/admin/agents/[id] (agentStatus), api/agent/register (role agent),
+//         // api/agent/subagents/** (role subagent / user, isActive). Never admin, never permissions, never an admin's doc.
+//         || (!signedIn()
+//               && resource.data.get('role', 'user') != 'admin'
+//               && incoming().get('role', 'user') in ['user', 'agent', 'subagent']
+//               && incoming().get('permissions', []) == resource.data.get('permissions', []));
+//       allow delete: if isAdmin();
+//     }
+//
+//     // ---------- LOCKED TODAY: no server route or server component touches these (grep-verified)
+//     match /job_applications/{id} {        // app/careers (create) + app/admin/careers, app/admin/jobs
+//       allow create: if freshInbox() && reqStr('name', 1, 100) && emailish('email') && optStr('coverLetter', 8000);
+//       allow read, update, delete: if hasAnyPerm(['careers', 'jobs']);
+//     }
+//     match /ai_planner_chats/{sessionId} { // components/ConversationAgent.tsx + components/admin/AIPlannerChats.tsx
+//       allow create, update: if onlyKeys(['sessionId', 'messages', 'tripInfo', 'sourceUrl', 'messageCount', 'lastMessageAt', 'startedAt'])
+//         && incoming().messages is list && incoming().messages.size() <= 300;
+//       allow read, delete: if isAdmin();
+//     }
+//     match /decor_catalog/{id} { ... same as TARGET ... }   // lib/decorStore.ts only (browser)
+//     match /decor_designs/{id} { ... same as TARGET ... }
+//
+//     // ---------- public catalog: server only READS these (sitemap, pages, planner, ai-create, seo, dump)
+//     match /packages/{id}     { allow read: if true; allow write: if hasAnyPerm(['packages', 'ai-generator', 'destinations']); }
+//     // Hotels & Flights library: only the signed-in admin UI touches these (no server routes) — same as TARGET
+//     match /hotels/{id}  { allow read, create, update: if hasAnyPerm(['packages', 'create-itinerary']); allow delete: if isAdmin(); }
+//     match /flights/{id} { allow read, create, update: if hasAnyPerm(['packages', 'create-itinerary']); allow delete: if isAdmin(); }
+//     match /destinations/{id} { allow read: if true; allow write: if hasAnyPerm(['destinations', 'packages']); }
+//     match /authors/{id}      { allow read: if true; allow write: if hasAnyPerm(['authors', 'blogs']); }
+//     match /testimonials/{id} { allow read: if true; allow write: if hasPerm('testimonials'); }
+//     match /jobs/{id}         { allow read: if true; allow write: if hasPerm('jobs'); }
+//     match /blogs/{id} {
+//       allow read: if true;
+//       allow create, delete: if hasPerm('blogs');
+//       allow update: if hasAnyPerm(['blogs', 'authors']) || (changedOnly(['views']) && incoming().views == resource.data.get('views', 0) + 1);
+//     }
+//
+//     // ---------- READS MUST STAY OPEN (server reads them unauthenticated), but writes can be tightened:
+//     //            server only ever *creates* these (addDoc) — updates/deletes come from the admin UI only.
+//     match /leads/{id} {              // server: facebook webhook/sync, whatsapp webhook, voucherServer, planner/records
+//       allow read: if true;           // INTERIM: whatsapp/broadcasts audience, lib/whatsapp resolveWhatsAppRef, ai/sales-assistant
+//       allow create: if incoming().size() <= 80;
+//       allow update, delete: if hasPerm('leads');
+//     }
+//     match /ai_planner_leads/{id} {   // browser create; server only reads (broadcast audience)
+//       allow read: if true;
+//       allow create: if incoming().size() <= 20 && reqStr('name', 1, 100) && freshInbox();
+//       allow update, delete: if hasPerm('leads');
+//     }
+//     match /contact_messages/{id} {   // browser create; server only reads (broadcast audience, resolveWhatsAppRef)
+//       allow read: if true;
+//       allow create: if incoming().size() <= 20 && reqStr('name', 1, 100) && reqStr('message', 1, 5000) && freshInbox();
+//       allow update, delete: if hasPerm('contacts');
+//     }
+//     match /customer_itineraries/{id} { // server only reads (audience, resolveWhatsAppRef)
+//       allow read: if true;
+//       allow write: if hasAnyPerm(['create-itinerary', 'customer-records']);
+//     }
+//     match /vendor_leads/{id} {       // server create (api/vendor-leads); admin edits
+//       allow read, create: if true;
+//       allow update, delete: if hasPerm('vendors');
+//     }
+//     match /reviews/{id} {            // server create (api/reviews)
+//       allow read, create: if true;
+//       allow update, delete: if hasPerm('testimonials');
+//     }
+//     match /newsletter_subscribers/{id} {
+//       allow create: if true;
+//       allow list, get: if true;      // INTERIM: NewsletterSubscription.tsx dedupe query — flip to hasPerm('subscribers') after the doc-id change
+//       allow update, delete: if hasPerm('subscribers');
+//     }
+//     match /voucher_cards/{code} {    // admin creates cards; lib/voucherServer.ts tx.update(claimCount, lastClaimAt)
+//       allow read: if true;
+//       allow create, delete: if hasAnyPerm(['vouchers', 'leads']);
+//       allow update: if hasAnyPerm(['vouchers', 'leads'])
+//         || (changedOnly(['claimCount', 'lastClaimAt']) && incoming().claimCount == resource.data.get('claimCount', 0) + 1);
+//     }
+//
+//     // ---------- OPEN (server reads + writes unauthenticated) — only deletes are restricted
+//     // voucher_claims, vendors, agents, agent_bookings, agent_customers, agent_notifications, quotations,
+//     // shared_plans, meta_lead_crm, meta_lead_messages, meta_ad_coach_reports, automation_settings,
+//     // planner_activity, whatsapp_chats, whatsapp_messages, whatsapp_broadcasts(+recipients),
+//     // whatsapp_contact_lists(+contacts)
+//     match /{col}/{id} {
+//       allow read, create, update: if col in ['voucher_claims', 'vendors', 'agents', 'agent_bookings', 'agent_customers',
+//         'agent_notifications', 'quotations', 'shared_plans', 'meta_lead_crm', 'meta_lead_messages', 'meta_ad_coach_reports',
+//         'automation_settings', 'planner_activity', 'whatsapp_chats', 'whatsapp_messages', 'whatsapp_broadcasts',
+//         'whatsapp_contact_lists'];
+//       allow delete: if isStaff() && col in ['voucher_claims', 'vendors', 'agents', 'agent_bookings', 'agent_customers',
+//         'agent_notifications', 'quotations', 'shared_plans', 'meta_lead_crm', 'whatsapp_chats'];
+//     }
+//     match /whatsapp_broadcasts/{id}/recipients/{rid}       { allow read, create, update: if true; }
+//     match /whatsapp_contact_lists/{id}/contacts/{cid}      { allow read, create, update: if true; }
+//
+//     // ---------- OPEN INCLUDING DELETE (server code deletes them unauthenticated)
+//     //   email_otps        — api/auth/verify-otp deleteDoc   (CRITICAL: hash the OTP, see doc)
+//     //   agent_packages    — api/agent/packages/[id] deleteDoc
+//     //   sub_agents        — api/agent/subagents/[id] deleteDoc
+//     //   whatsapp_optouts  — lib/whatsapp/broadcasts.ts recordOptOut deleteDoc (opt back in)
+//     //   agent_sessions    — api/agent/sessions, api/agent/track (create only; delete can be closed)
+//     match /email_otps/{id}       { allow read, write: if true; }
+//     match /agent_packages/{id}   { allow read, write: if true; }
+//     match /sub_agents/{id}       { allow read, write: if true; }
+//     match /whatsapp_optouts/{id} { allow read, write: if true; }
+//     match /agent_sessions/{id}   { allow read, create: if true; }
+//   }
+// }

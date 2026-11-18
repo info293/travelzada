@@ -15,7 +15,9 @@ import {
   sendLeadReply,
   sendOptionsEmail,
 } from '@/lib/leadAutomation'
+import { inboxProvider, isGetGabsConfigured } from '@/lib/getgabs'
 import {
+  automationTemplates,
   getTemplateStatuses,
   runWhatsAppAutomation,
   sendWhatsAppSample,
@@ -47,7 +49,12 @@ export async function GET(req: NextRequest) {
       imapUser: process.env.IMAP_USER || process.env.SMTP_USER || null,
       replyTo: process.env.LEAD_REPLY_TO || process.env.IMAP_USER || process.env.SMTP_USER || null,
       cronConfigured: !!process.env.CRON_SECRET,
-      whatsappConfigured: !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+      whatsappConfigured:
+        inboxProvider() === 'getgabs'
+          ? isGetGabsConfigured()
+          : !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID),
+      // Which number / templates the WhatsApp automation uses (GetGabs 88900 or Meta 85298)
+      whatsappAutomation: automationTemplates(),
       templates: await getTemplateStatuses().catch((e) => ({ error: String(e.message || e) })),
       pageSubscribed: await pageSubscribedToLeads(),
     })

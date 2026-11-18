@@ -36,8 +36,8 @@ export async function POST(request: Request) {
 
     // ── Step 1: Claude analyzes image → creative prompt ──────────────────
     const claudeResponse = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 400,
+      model: 'claude-opus-5-5',
+      max_tokens: 4000, // headroom: adaptive thinking shares the max_tokens budget
       messages: [
         {
           role: 'user',
@@ -62,9 +62,11 @@ Write a single, vivid, detailed DALL-E 3 image generation prompt (max 250 words)
       ],
     })
 
+    // Thinking blocks may precede the text block on newer models — pick the text block explicitly
+    const claudeTextBlock = claudeResponse.content.find(b => b.type === 'text')
     const claudePrompt =
-      claudeResponse.content[0].type === 'text'
-        ? claudeResponse.content[0].text.trim()
+      claudeTextBlock && claudeTextBlock.type === 'text' && claudeTextBlock.text.trim()
+        ? claudeTextBlock.text.trim()
         : userPrompt
 
     // ── Step 2: GPT-4o analyzes image → technical/precise prompt ─────────

@@ -342,7 +342,6 @@ export default function PackageDetailClient({ params, initialPackageData }: { pa
   const galleryImages = ownGallery.length ? [primaryImage, ...ownGallery.filter((u) => u !== primaryImage)].filter(Boolean) : [
     (primaryImage || 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85'),
     'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?w=1600&q=85',
-    'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=85',
     'https://images.unsplash.com/photo-1548013146-72479768bada?w=1600&q=85',
     'https://images.unsplash.com/photo-1627894483216-2138af692e32?w=1600&q=85',
     'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600&q=85',

@@ -122,6 +122,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Packages', href: '/admin/packages', icon: 'package', perms: ['packages'], description: 'Holiday packages shown on the website' },
       { label: 'Destinations', href: '/admin/destinations', icon: 'map', perms: ['destinations'], description: 'Destination pages and which packages they list' },
+      { label: 'Hotels', href: '/admin/hotels', icon: 'building', perms: ['packages', 'create-itinerary'], description: 'Every hotel we use in quotes and packages — reused when building itineraries' },
+      { label: 'Flights', href: '/admin/flights', icon: 'file', perms: ['packages', 'create-itinerary'], description: 'Flight routes and sectors from quotes — reused when building itineraries' },
       { label: 'AI Package Writer', href: '/admin/ai-packages', icon: 'sparkles', perms: ['ai-generator'], description: 'Draft a complete package with AI, then save it to the catalog' },
     ],
   },

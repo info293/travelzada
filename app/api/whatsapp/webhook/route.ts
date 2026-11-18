@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
               // Template quick-reply buttons: "Show me options" / "Call me back" / "Not interested"
               // (only for the Meta number — the automation replies via Meta, which would be the wrong number for 88900)
               if (inboundChannel === 'meta' && (messageType === 'button' || messageType === 'interactive' || messageType === 'text')) {
-                await handleWhatsAppButton(senderPhone, messageText).catch((e) =>
+                await handleWhatsAppButton(senderPhone, messageText, 'meta').catch((e) =>
                   console.error('[WhatsApp Automation] button handling failed:', e)
                 )
               }

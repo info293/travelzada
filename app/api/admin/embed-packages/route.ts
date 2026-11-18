@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { embedPackage, formatPackageForEmbedding } from '@/lib/embeddings'
+import { requireStaff, authErrorResponse } from '@/lib/admin/serverAuth'
 import { upsertPackages, getIndexStats, deleteAllVectors } from '@/lib/pinecone'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,14 @@ export const maxDuration = 300 // 5 minutes for large batch operations
  * }
  */
 export async function POST(request: NextRequest) {
+  // Admins only (this route can change agent accounts / delete data)
+  try {
+    const staff = await requireStaff(request)
+    if (!staff.isAdmin) return Response.json({ error: 'Admins only.' }, { status: 403 })
+  } catch (err) {
+    return authErrorResponse(err) || Response.json({ error: 'Not allowed' }, { status: 401 })
+  }
+
     try {
         const body = await request.json().catch(() => ({}))
         const { clearExisting = false } = body
@@ -126,7 +135,15 @@ export async function POST(request: NextRequest) {
  * 
  * Get current index statistics
  */
-export async function GET() {
+export async function GET(request: Request) {
+  // Admins only (this route can change agent accounts / delete data)
+  try {
+    const staff = await requireStaff(request)
+    if (!staff.isAdmin) return Response.json({ error: 'Admins only.' }, { status: 403 })
+  } catch (err) {
+    return authErrorResponse(err) || Response.json({ error: 'Not allowed' }, { status: 401 })
+  }
+
     try {
         const stats = await getIndexStats()
         return NextResponse.json({ success: true, stats })
