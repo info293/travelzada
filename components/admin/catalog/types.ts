@@ -91,6 +91,8 @@ export interface PackageRecord {
   FAQ_Items: FaqItem[]
   Why_Book_With_Us: WhyBookItem[]
   Created_By: string
+  /** A person wrote this package's details (admin-only "Main" tag) */
+  Is_Main: boolean
   Last_Updated: string
 }
 

@@ -13,7 +13,7 @@ import { runSeoOptimize } from '@/components/admin/seo/api'
 import { auditCatalog, isDuplicateAudit } from '@/lib/seo/packageAudit'
 import type { OptimizeResult, SeoPatch } from '@/lib/seo/types'
 import ImportPackagesModal from '@/components/admin/catalog/ImportPackagesModal'
-import { ConfirmDialog } from '@/components/admin/catalog/fields'
+import { ConfirmDialog, MainTag } from '@/components/admin/catalog/fields'
 import {
   buildPackagePayload,
   codePrefix,
@@ -64,7 +64,7 @@ function setUrlParam(key: string, value?: string) {
 }
 
 export default function AdminPackagesPage() {
-  const { currentUser } = useAuth()
+  const { currentUser, isAdmin } = useAuth()
   const [packages, setPackages] = useState<PackageDraft[]>([])
   const [destinations, setDestinations] = useState<DestinationRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -465,6 +465,7 @@ export default function AdminPackagesPage() {
                             <Td className="whitespace-nowrap tabular-nums">{price ? formatINR(price) : <span className="text-xs text-amber-700">No price</span>}</Td>
                             <Td>
                               <div className="flex max-w-[220px] flex-wrap gap-1">
+                                {isAdmin && p.Is_Main && <MainTag />}
                                 {p.Budget_Category && <Badge tone="wine">{p.Budget_Category}</Badge>}
                                 {String(p.Occasion || '').split(',').filter(Boolean).slice(0, 2).map((o) => <Badge key={o}>{o.trim()}</Badge>)}
                                 {gaps.includes('photo') && <Badge tone="amber">No photo</Badge>}

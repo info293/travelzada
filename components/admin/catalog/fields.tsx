@@ -25,6 +25,7 @@ export function FormField({
   error,
   required,
   auto,
+  main,
   children,
   className,
 }: {
@@ -33,6 +34,8 @@ export function FormField({
   error?: string
   required?: boolean
   auto?: boolean
+  /** Show the "Main" tag (a field staff fill themselves) */
+  main?: boolean
   children: ReactNode
   className?: string
 }) {
@@ -43,6 +46,7 @@ export function FormField({
           {label}
           {required && <span className="ml-0.5 text-bordeaux-600">*</span>}
         </span>
+        {main && <MainTag />}
         {auto && <span className="rounded bg-gray-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-gray-500">Auto</span>}
       </div>
       {children}
@@ -52,9 +56,14 @@ export function FormField({
   )
 }
 
+/** Small "Main" pill on fields staff fill themselves (the rest is written by AI) */
+export function MainTag() {
+  return <span className="rounded bg-bordeaux-100 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-bordeaux-700">Main</span>
+}
+
 export const errorInput = (err?: string) => cx(inputClass, err && 'border-red-400 focus:ring-red-100 focus:border-red-400')
 
-export function SectionTitle({ title, description, right }: { title: string; description?: string; right?: ReactNode }) {
+export function SectionTitle({ title, description, right }: { title: ReactNode; description?: string; right?: ReactNode }) {
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div>
@@ -74,7 +83,7 @@ export function Collapsible({
   count,
   children,
 }: {
-  title: string
+  title: ReactNode
   description?: string
   defaultOpen?: boolean
   count?: number

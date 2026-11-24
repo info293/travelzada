@@ -33,12 +33,14 @@ interface Props {
   /** Destination already picked in the form */
   destinationId?: string
   onDraft: (res: AiCreateResponse) => void
+  /** Start expanded (default: collapsed) */
+  defaultOpen?: boolean
 }
 
 const titleCase = (s: string) => s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
-export default function AiCreatePanel({ destinations = [], otherPackages, destinationId = '', onDraft }: Props) {
-  const [open, setOpen] = useState(true)
+export default function AiCreatePanel({ destinations = [], otherPackages, destinationId = '', onDraft, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen)
   const [dest, setDest] = useState(destinationId ? `id:${destinationId}` : '')
   const [nights, setNights] = useState(5)
   const [occasion, setOccasion] = useState<string>('Honeymoon')
@@ -116,8 +118,8 @@ export default function AiCreatePanel({ destinations = [], otherPackages, destin
         <span className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-bordeaux-600 text-white"><Sparkles className="h-4 w-4" /></span>
           <span>
-            <span className="block text-sm font-bold text-gray-900">✨ Create with AI</span>
-            <span className="block text-xs text-gray-600">A complete new package that is different from the ones we already sell there.</span>
+            <span className="block text-sm font-bold text-gray-900">✨ Or let AI design a whole new package</span>
+            <span className="block text-xs text-gray-600">Optional. AI invents the trip too (name, days, stay) — different from the ones we already sell there.</span>
           </span>
         </span>
         {open ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
