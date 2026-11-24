@@ -31,6 +31,11 @@ import { invalidateLibrary } from '@/lib/library/cache';
 
 interface Package extends DestinationPackage {
     id?: string;
+    /** A person wrote this package (Main) */
+    Is_Main?: boolean;
+    /** Set on AI versions: the Main package it was made from */
+    Parent_Package_ID?: string;
+    Version_Label?: string;
     Image_Alt_Text?: string;
     Highlights?: string[];
     Day_Wise_Itinerary_Details?: Array<{ day: number; title: string; description: string; activities?: string[] }>;
@@ -216,6 +221,7 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
     const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
     const [loading, setLoading] = useState(false);
     const [pkgSearch, setPkgSearch] = useState('');
+    const [pkgKind, setPkgKind] = useState<'all' | 'main' | 'version'>('all');
     const prefillApplied = useRef({ destination: false, package: false });
     const [quoteRef, setQuoteRef] = useState(() => makeQuoteRef());
     const [quoteDate] = useState(() => new Date());
@@ -763,7 +769,15 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
     const canGo = (n: number) => n === 1 || (n === 2 && !!formData.clientName.trim()) || (n >= 3 && !!formData.clientName.trim() && !!selectedPackage);
     const goTo = (n: number) => { if (canGo(n)) { setStep(n); if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }); } };
 
+    const isVersion = (p: Package) => !!p.Parent_Package_ID;
+    const kindCounts = {
+        all: packages.filter((p) => p.id !== 'custom').length,
+        main: packages.filter((p) => p.id !== 'custom' && !isVersion(p)).length,
+        version: packages.filter((p) => p.id !== 'custom' && isVersion(p)).length,
+    };
     const filteredPackages = packages.filter((p) => {
+        if (pkgKind === 'main' && isVersion(p)) return false;
+        if (pkgKind === 'version' && !isVersion(p)) return false;
         const q = pkgSearch.trim().toLowerCase();
         if (!q) return true;
         return [p.Destination_Name, p.Duration, p.Travel_Type, p.Overview].some((v) => String(v || '').toLowerCase().includes(q));
@@ -867,13 +881,28 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                         </div>
                     </div>
 
+                    {kindCounts.all > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {([
+                                { id: 'all', label: 'All' },
+                                { id: 'main', label: 'Main packages' },
+                                { id: 'version', label: 'Versions' },
+                            ] as const).map((k) => (
+                                <button key={k.id} type="button" onClick={() => setPkgKind(k.id)}
+                                    className={cx('rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors', pkgKind === k.id ? 'border-bordeaux-700 bg-bordeaux-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-bordeaux-300')}>
+                                    {k.label} <span className={pkgKind === k.id ? 'text-white/70' : 'text-gray-400'}>{kindCounts[k.id]}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="mt-5">
                         {loading && <div className="flex items-center gap-2 text-sm text-gray-500 py-8 justify-center"><Loader2 className="w-4 h-4 animate-spin" /> Loading packages…</div>}
                         {!loading && !selectedDestination && packages.length === 0 && (
                             <p className="text-sm text-gray-500 py-6 text-center">Choose a destination to see its packages — or build a custom trip.</p>
                         )}
                         {!loading && selectedDestination && filteredPackages.length === 0 && (
-                            <p className="text-sm text-gray-500 py-6 text-center">No packages found for this destination.</p>
+                            <p className="text-sm text-gray-500 py-6 text-center">{pkgKind === 'version' ? 'No versions for this destination yet.' : pkgKind === 'main' ? 'No main packages for this destination.' : 'No packages found for this destination.'}</p>
                         )}
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                             <button type="button" onClick={startCustomTrip}
@@ -891,6 +920,9 @@ export default function ItineraryGenerator({ prefill, onGenerated }: ItineraryGe
                                         <div className="h-28 bg-gradient-to-br from-bordeaux-600 to-mauve bg-cover bg-center relative" style={img ? { backgroundImage: `url("${img}")` } : undefined}>
                                             {active && <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-bordeaux-600 text-white flex items-center justify-center shadow"><Check className="w-4 h-4" /></span>}
                                             {pkg.Duration && <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-semibold text-gray-800">{pkg.Duration}</span>}
+                                            <span title={pkg.Version_Label || undefined} className={cx('absolute top-2 left-2 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-sm', isVersion(pkg) ? 'bg-white/95 text-gray-700' : 'bg-bordeaux-700 text-white')}>
+                                                {isVersion(pkg) ? 'Version' : 'Main'}
+                                            </span>
                                         </div>
                                         <div className="p-3.5">
                                             <h4 className="font-bold text-gray-900 leading-snug">{pkg.Destination_Name}</h4>
