@@ -510,7 +510,20 @@ export default function AdminPackagesPage() {
                                 {!isAdmin ? (
                                   <span className="text-gray-300">—</span>
                                 ) : p.Parent_Package_ID ? (
-                                  <span title={p.Version_Label}><Badge>Version</Badge></span>
+                                  <span className="flex flex-col items-start gap-0.5">
+                                    <span title={p.Version_Label}><Badge>Version</Badge></span>
+                                    {(() => {
+                                      const main = packages.find((x) => x.id === p.Parent_Package_ID)
+                                      const name = main?.Destination_Name || p.Parent_Package_Name || p.Parent_Package_Code || 'Main package'
+                                      return main ? (
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); openEdit(main) }} className="max-w-[200px] truncate text-left text-[11px] font-semibold text-bordeaux-700 hover:underline" title={`Open the Main package: ${name}`}>
+                                          of {name}
+                                        </button>
+                                      ) : (
+                                        <span className="max-w-[200px] truncate text-[11px] text-gray-400" title="The Main package was deleted">of {name} (deleted)</span>
+                                      )
+                                    })()}
+                                  </span>
                                 ) : p.Is_Main ? (
                                   <MainTag />
                                 ) : (

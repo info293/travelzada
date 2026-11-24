@@ -97,6 +97,9 @@ export interface PackageRecord {
   Parent_Package_ID: string
   /** Set on a version, e.g. "4N / 5D · 3-Star · Anniversary · Winter" */
   Version_Label: string
+  /** Set on a version: the Main package's code and name (for links) */
+  Parent_Package_Code: string
+  Parent_Package_Name: string
   Last_Updated: string
 }
 

@@ -255,6 +255,27 @@ export default function PackageForm({
           </div>
         )}
 
+        {f.Parent_Package_ID && (() => {
+          const main = otherPackages.find((p) => p.id === f.Parent_Package_ID)
+          const name = main?.Destination_Name || f.Parent_Package_Name || f.Parent_Package_Code || 'its Main package'
+          return (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+              <span>
+                <b>Version</b>{f.Version_Label ? ` (${f.Version_Label})` : ''} of <b>{name}</b>{main?.Destination_ID ? <span className="font-mono text-gray-500"> · {main.Destination_ID}</span> : null}
+              </span>
+              {main ? (
+                <>
+                  <a href={`/admin/packages?edit=${main.id}`} className="font-semibold text-bordeaux-700 hover:underline">Open Main in admin</a>
+                  <a href={packageSiteUrl(main)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-bordeaux-700 hover:underline">
+                    View Main on site <ExternalLink className="h-3 w-3" />
+                  </a>
+                </>
+              ) : (
+                <span className="text-gray-400">(Main package was deleted)</span>
+              )}
+            </div>
+          )
+        })()}
         {aiResult && <AiDraftBanner res={aiResult} onDismiss={() => setAiResult(null)} />}
         {isAdmin && isNew && !aiResult && tab === 'details' && (
           <AiCreatePanel destinations={destinations} otherPackages={otherPackages} destinationId={destinationId} onDraft={applyAiDraft} />

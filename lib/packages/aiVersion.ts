@@ -119,6 +119,8 @@ export async function createVersion(mainId: string, spec: VersionSpec): Promise<
       ...toDraft(ai, { nights: spec.nights, occasion: spec.occasion, stars: spec.stars, destinationId: dest?.id }, code, slug),
       Is_Main: false,
       Parent_Package_ID: main.id,
+      Parent_Package_Code: String(main.Destination_ID || ''),
+      Parent_Package_Name: String(main.Destination_Name || ''),
       Version_Label: label,
       ...(spec.season !== 'Any' ? { Seasonality: `${spec.season}${ai.tags?.best_months ? ` (${ai.tags.best_months})` : ''}` } : {}),
     } as PackageDraft
