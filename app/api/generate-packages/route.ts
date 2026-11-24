@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
                         ...generated,
                         Slug: generated.Slug || slugify(pkg.Destination_Name),
                         Booking_URL: `https://travelzada.com/packages/${generated.Slug || slugify(pkg.Destination_Name)}`,
-                        Last_Updated: new Date().toISOString().split('T')[0],
+                        Last_Updated: new Date().toISOString(),
                         Created_By: 'AI Generator',
                     };
 

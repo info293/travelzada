@@ -93,6 +93,10 @@ export interface PackageRecord {
   Created_By: string
   /** A person wrote this package's details (admin-only "Main" tag) */
   Is_Main: boolean
+  /** Set on a version: id of the Main package it was made from */
+  Parent_Package_ID: string
+  /** Set on a version, e.g. "4N / 5D · 3-Star · Anniversary · Winter" */
+  Version_Label: string
   Last_Updated: string
 }
 

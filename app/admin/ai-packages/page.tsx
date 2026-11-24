@@ -86,7 +86,7 @@ export default function AdminAiPackagesPage() {
           Highlights: pkg.Highlights || [],
           Day_Wise_Itinerary_Details: pkg.Day_Wise_Itinerary_Details || [],
           Created_By: currentUser?.email || 'AI Generator',
-          Last_Updated: new Date().toISOString().split('T')[0],
+          Last_Updated: new Date().toISOString(),
         }
         await addDoc(collection(db, 'packages'), packageData)
         imported++

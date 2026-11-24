@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore'
-import { AlertTriangle, Copy, ExternalLink, ImageOff, MapPin, Package, Pencil, Plus, RefreshCw, SearchCheck, Sparkles, Trash2, Upload } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, ImageOff, Layers, MapPin, Package, Pencil, Plus, RefreshCw, SearchCheck, Sparkles, Trash2, Upload } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import PackageForm from '@/components/admin/PackageForm'
@@ -13,6 +13,7 @@ import { runSeoOptimize } from '@/components/admin/seo/api'
 import { auditCatalog, isDuplicateAudit } from '@/lib/seo/packageAudit'
 import type { OptimizeResult, SeoPatch } from '@/lib/seo/types'
 import ImportPackagesModal from '@/components/admin/catalog/ImportPackagesModal'
+import VersionsModal from '@/components/admin/catalog/ai/VersionsModal'
 import { ConfirmDialog, MainTag } from '@/components/admin/catalog/fields'
 import {
   buildPackagePayload,
@@ -49,7 +50,25 @@ import {
   toMillis,
 } from '@/components/admin/ui'
 
-type Sort = 'updated' | 'name' | 'price-asc' | 'price-desc' | 'seo'
+type SortKey = 'updated' | 'name' | 'dest' | 'duration' | 'price' | 'tags' | 'seo'
+type Sort = { key: SortKey; dir: 'asc' | 'desc' }
+/** Direction used the first time a column is clicked */
+const FIRST_DIR: Record<SortKey, 'asc' | 'desc'> = { updated: 'desc', name: 'asc', dest: 'asc', duration: 'asc', price: 'asc', tags: 'asc', seo: 'asc' }
+const SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'updated-desc', label: 'Recently updated' },
+  { value: 'updated-asc', label: 'Oldest updated' },
+  { value: 'name-asc', label: 'Name A–Z' },
+  { value: 'name-desc', label: 'Name Z–A' },
+  { value: 'dest-asc', label: 'Destination A–Z' },
+  { value: 'duration-asc', label: 'Shortest trip' },
+  { value: 'duration-desc', label: 'Longest trip' },
+  { value: 'price-asc', label: 'Price: low to high' },
+  { value: 'price-desc', label: 'Price: high to low' },
+  { value: 'tags-asc', label: 'Main packages first' },
+  { value: 'tags-desc', label: 'Versions first' },
+  { value: 'seo-asc', label: 'SEO score: worst first' },
+  { value: 'seo-desc', label: 'SEO score: best first' },
+]
 type Editor = { draft: PackageDraft; original: PackageDraft | null; destinationId: string; snapshot: string }
 
 const priceOf = (p: PackageDraft) => toNum(p.Price_Min_INR) ?? (Number(String(p.Price_Range_INR || '').replace(/[^0-9]/g, '')) || undefined)
@@ -74,7 +93,7 @@ export default function AdminPackagesPage() {
   const [destFilter, setDestFilter] = useState('all')
   const [budget, setBudget] = useState('all')
   const [attention, setAttention] = useState(false)
-  const [sort, setSort] = useState<Sort>('updated')
+  const [sort, setSort] = useState<Sort>({ key: 'updated', dir: 'desc' })
 
   const [editor, setEditor] = useState<Editor | null>(null)
   const [saving, setSaving] = useState(false)
@@ -82,6 +101,7 @@ export default function AdminPackagesPage() {
   const [toDelete, setToDelete] = useState<PackageDraft | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [versionsFor, setVersionsFor] = useState<PackageDraft | null>(null)
   const [toast, setToast] = useState('')
   const deepLinkDone = useRef(false)
 
@@ -135,7 +155,7 @@ export default function AdminPackagesPage() {
   /** Save AI-rewritten text fields only (never prices, nights, hotels…). */
   const saveSeoPatch = useCallback(async (p: PackageDraft, patch: SeoPatch) => {
     if (!p.id || !Object.keys(patch).length) return
-    const payload: Record<string, any> = { ...patch, Last_Updated: new Date().toISOString().split('T')[0] }
+    const payload: Record<string, any> = { ...patch, Last_Updated: new Date().toISOString() }
     await updateDoc(doc(db, 'packages', p.id), payload)
     setPackages((ps) => ps.map((x) => (x.id === p.id ? ({ ...x, ...payload } as PackageDraft) : x)))
   }, [])
@@ -312,10 +332,27 @@ export default function AdminPackagesPage() {
       if (!q) return true
       return [p.Destination_Name, p.Destination_ID, p.Slug, p.Occasion, p.Travel_Type, d?.name].some((v) => String(v || '').toLowerCase().includes(q))
     })
-    if (sort === 'name') list.sort((a, b) => String(a.Destination_Name || '').localeCompare(String(b.Destination_Name || '')))
-    if (sort === 'price-asc') list.sort((a, b) => (priceOf(a) ?? Infinity) - (priceOf(b) ?? Infinity))
-    if (sort === 'price-desc') list.sort((a, b) => (priceOf(b) ?? -1) - (priceOf(a) ?? -1))
-    if (sort === 'seo') list.sort((a, b) => (audits.get(a.id!)?.score ?? 100) - (audits.get(b.id!)?.score ?? 100))
+    // Value for the chosen column; empty values always go last
+    const valueOf = (p: PackageDraft): string | number | undefined => {
+      switch (sort.key) {
+        case 'name': return String(p.Destination_Name || '').trim().toLowerCase() || undefined
+        case 'dest': return destOf.get(p.id!)?.name?.toLowerCase()
+        case 'duration': return toNum(p.Duration_Nights) ?? (Number(String(p.Duration || '').match(/(\d+)\s*N/i)?.[1]) || undefined)
+        case 'price': return priceOf(p)
+        case 'tags': return p.Parent_Package_ID ? 2 : p.Is_Main ? 1 : undefined // Main → Version → untagged
+        case 'seo': return audits.get(p.id!)?.score
+        default: return toMillis(p.Last_Updated) || undefined
+      }
+    }
+    const mul = sort.dir === 'asc' ? 1 : -1
+    list.sort((a, b) => {
+      const va = valueOf(a)
+      const vb = valueOf(b)
+      if (va === undefined && vb === undefined) return 0
+      if (va === undefined) return 1
+      if (vb === undefined) return -1
+      return (typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))) * mul
+    })
     return list
   }, [packages, destOf, search, destFilter, budget, attention, sort, seoFilter, audits])
 
@@ -329,6 +366,9 @@ export default function AdminPackagesPage() {
       : `${editorDest.name} lists packages by name — include “${editorDest.name}” in the package name so it shows up there.`
     : undefined
 
+  /** Header click: same column → reverse, new column → its natural direction */
+  const sortBy = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: FIRST_DIR[key] }))
+
   // ---------- render ----------
   const actions = (p: PackageDraft) => (
     <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -336,6 +376,9 @@ export default function AdminPackagesPage() {
       <IconBtn title={aiBusy ? 'AI is busy with another package' : 'Fix SEO & GEO with AI'} onClick={() => !aiBusy && runRowFix(p)}>
         <Sparkles className={cx('h-4 w-4', aiBusy ? 'opacity-40' : 'text-bordeaux-600')} />
       </IconBtn>
+      {isAdmin && !p.Parent_Package_ID && (
+        <IconBtn title="Create versions (different nights, hotels, occasion, season)" onClick={() => setVersionsFor(p)}><Layers className="h-4 w-4 text-bordeaux-600" /></IconBtn>
+      )}
       <IconBtn title="Duplicate" onClick={() => duplicate(p)}><Copy className="h-4 w-4" /></IconBtn>
       <a href={packageSiteUrl(p)} target="_blank" rel="noreferrer" title="View on site" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800">
         <ExternalLink className="h-4 w-4" />
@@ -375,9 +418,9 @@ export default function AdminPackagesPage() {
               hint={`${packages.length - seoGood} need fixing · ${seoDup} duplicates`}
               tone={seoGood === packages.length ? 'green' : seoDup ? 'red' : 'amber'}
               icon={<SearchCheck className="h-5 w-5" />}
-              onClick={() => { setSeoFilter('fix'); setSort('seo') }}
+              onClick={() => { setSeoFilter('fix'); setSort({ key: 'seo', dir: 'asc' }) }}
             />
-            <StatCard label="Updated in 30 days" value={recentlyUpdated} tone="blue" icon={<RefreshCw className="h-5 w-5" />} onClick={() => setSort('updated')} />
+            <StatCard label="Updated in 30 days" value={recentlyUpdated} tone="blue" icon={<RefreshCw className="h-5 w-5" />} onClick={() => setSort({ key: 'updated', dir: 'desc' })} />
             <StatCard label="Missing photo or price" value={needsAttention} tone={needsAttention ? 'amber' : 'green'} icon={<AlertTriangle className="h-5 w-5" />} onClick={() => setAttention(true)} />
             <StatCard label="Not on a destination" value={unassigned} tone={unassigned ? 'amber' : 'green'} icon={<MapPin className="h-5 w-5" />} onClick={() => setDestFilter('none')} />
           </div>
@@ -390,12 +433,12 @@ export default function AdminPackagesPage() {
                 <option value="none">Not on a destination</option>
                 {sortedDestinations.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
-              <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className={cx(inputClass, 'w-auto py-1.5')}>
-                <option value="updated">Recently updated</option>
-                <option value="name">Name A–Z</option>
-                <option value="price-asc">Price: low to high</option>
-                <option value="price-desc">Price: high to low</option>
-                <option value="seo">SEO score: worst first</option>
+              <select
+                value={`${sort.key}-${sort.dir}`}
+                onChange={(e) => { const [key, dir] = e.target.value.split('-'); setSort({ key: key as SortKey, dir: dir as Sort['dir'] }) }}
+                className={cx(inputClass, 'w-auto py-1.5')}
+              >
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           </Toolbar>
@@ -434,13 +477,13 @@ export default function AdminPackagesPage() {
                   <Table>
                     <thead>
                       <tr>
-                        <Th>Package</Th>
-                        <Th>Destination</Th>
-                        <Th>Duration</Th>
-                        <Th>Price from</Th>
-                        <Th>Tags</Th>
-                        <Th onClick={() => setSort('seo')}>SEO</Th>
-                        <Th>Updated</Th>
+                        <SortTh k="name" sort={sort} onSort={sortBy}>Package</SortTh>
+                        <SortTh k="dest" sort={sort} onSort={sortBy}>Destination</SortTh>
+                        <SortTh k="duration" sort={sort} onSort={sortBy}>Duration</SortTh>
+                        <SortTh k="price" sort={sort} onSort={sortBy}>Price from</SortTh>
+                        <SortTh k="tags" sort={sort} onSort={sortBy}>Tags</SortTh>
+                        <SortTh k="seo" sort={sort} onSort={sortBy}>SEO</SortTh>
+                        <SortTh k="updated" sort={sort} onSort={sortBy}>Updated</SortTh>
                         <Th className="text-right">Actions</Th>
                       </tr>
                     </thead>
@@ -448,7 +491,6 @@ export default function AdminPackagesPage() {
                       {visible.map((p) => {
                         const d = destOf.get(p.id!)
                         const price = priceOf(p)
-                        const gaps = packageGaps(p)
                         return (
                           <tr key={p.id} onClick={() => openEdit(p)} className="cursor-pointer hover:bg-gray-50/80">
                             <Td>
@@ -465,10 +507,15 @@ export default function AdminPackagesPage() {
                             <Td className="whitespace-nowrap tabular-nums">{price ? formatINR(price) : <span className="text-xs text-amber-700">No price</span>}</Td>
                             <Td>
                               <div className="flex max-w-[220px] flex-wrap gap-1">
-                                {isAdmin && p.Is_Main && <MainTag />}
-                                {p.Budget_Category && <Badge tone="wine">{p.Budget_Category}</Badge>}
-                                {String(p.Occasion || '').split(',').filter(Boolean).slice(0, 2).map((o) => <Badge key={o}>{o.trim()}</Badge>)}
-                                {gaps.includes('photo') && <Badge tone="amber">No photo</Badge>}
+                                {!isAdmin ? (
+                                  <span className="text-gray-300">—</span>
+                                ) : p.Parent_Package_ID ? (
+                                  <span title={p.Version_Label}><Badge>Version</Badge></span>
+                                ) : p.Is_Main ? (
+                                  <MainTag />
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
                               </div>
                             </Td>
                             <Td><SeoAuditBadge audit={audits.get(p.id!)} onFix={() => runRowFix(p)} fixDisabled={aiBusy} /></Td>
@@ -573,6 +620,15 @@ export default function AdminPackagesPage() {
 
       <ImportPackagesModal open={importOpen} onClose={() => setImportOpen(false)} existing={packages} userEmail={currentUser?.email} onImported={load} />
 
+      <VersionsModal
+        main={versionsFor}
+        packages={packages}
+        destinations={destinations}
+        userEmail={currentUser?.email}
+        onClose={() => setVersionsFor(null)}
+        onSaved={() => { setToast("Versions created"); load() }}
+      />
+
       <ConfirmDialog
         open={!!toDelete}
         title="Delete package?"
@@ -586,6 +642,19 @@ export default function AdminPackagesPage() {
         <div className="fixed bottom-5 left-1/2 z-[80] -translate-x-1/2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-lg">{toast}</div>
       )}
     </div>
+  )
+}
+
+function SortTh({ k, sort, onSort, children }: { k: SortKey; sort: Sort; onSort: (k: SortKey) => void; children: React.ReactNode }) {
+  const active = sort.key === k
+  const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
+  return (
+    <Th onClick={() => onSort(k)} className={active ? 'text-gray-900' : undefined}>
+      <span className="inline-flex items-center gap-1" title="Click to sort">
+        {children}
+        <Icon className={cx('h-3.5 w-3.5', active ? 'text-bordeaux-600' : 'text-gray-300')} />
+      </span>
+    </Th>
   )
 }
 

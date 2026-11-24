@@ -93,7 +93,7 @@ export function validateInput(raw: any): AiCreateInput {
   }
 }
 
-const priceOf = (p: PackageDraft) => toNum(p.Price_Min_INR) || firstPrice(p.Price_Range_INR)
+export const priceOf = (p: PackageDraft) => toNum(p.Price_Min_INR) || firstPrice(p.Price_Range_INR)
 const clip = (s: unknown, n: number) => {
   const t = String(s ?? '').replace(/\s+/g, ' ').trim()
   return t.length > n ? t.slice(0, n - 1) + '…' : t
@@ -107,7 +107,7 @@ function dayTitles(p: PackageDraft): string[] {
 }
 
 /** Compact description of an existing package for the prompt (what to avoid). */
-function describeExisting(p: PackageDraft, i: number): string {
+export function describeExisting(p: PackageDraft, i: number): string {
   return [
     `#${i + 1} "${p.Destination_Name}" (${p.Destination_ID}) — ${toNum(p.Duration_Nights) ?? p.Duration ?? '?'} nights, ${p.Star_Category || '?'}, from ₹${priceOf(p) ?? '?'} pp, occasion: ${p.Occasion || '-'}`,
     p.Location_Breakup ? `   Route: ${clip(p.Location_Breakup, 160)}` : '',
@@ -123,7 +123,7 @@ function describeExisting(p: PackageDraft, i: number): string {
 const MEAL_PLANS = ['Breakfast Only', 'Half Board', 'Full Board', 'All Inclusive']
 const BUDGETS = ['Economy', 'Mid', 'Premium', 'Luxury']
 
-const SCHEMA = S.obj({
+export const PACKAGE_SCHEMA = S.obj({
   differentiator: S.str('One sentence: how this package is different from every existing package listed (theme, route, experiences).'),
   title: S.str('Package title customers see, 4–9 words, unique, no nights count, no "Package" word'),
   overview: S.str('180–260 words, 2–3 paragraphs separated by a blank line. First sentence: a direct factual summary (nights, places, who it is for, hotel category).'),
@@ -165,7 +165,7 @@ const SCHEMA = S.obj({
   checks: S.arr(S.str(), '2–5 short things the admin must verify (seasonal road closures, permits, hotel availability, price)'),
 })
 
-interface AiPackage {
+export interface AiPackage {
   differentiator: string
   title: string
   overview: string
@@ -221,7 +221,7 @@ function buildPrompt(input: AiCreateInput, destName: string, dest: DestinationRe
   return parts.filter((x) => x !== '').join('\n')
 }
 
-function toDraft(ai: AiPackage, input: AiCreateInput, code: string, slug: string): PackageDraft {
+export function toDraft(ai: AiPackage, input: AiCreateInput, code: string, slug: string): PackageDraft {
   const nights = input.nights
   const days = (ai.days || []).slice(0, nights + 1).map((d, i) => ({
     day: i + 1,
@@ -301,7 +301,7 @@ export async function createPackageDraft(input: AiCreateInput, catalog?: Awaited
     const ai = await askJson<AiPackage>({
       system: SYSTEM,
       content: buildPrompt(input, destName, dest, existing, catalogPrices, feedback),
-      schema: SCHEMA,
+      schema: PACKAGE_SCHEMA,
       effort: 'high',
       maxTokens: 16000,
       label: 'package-ai-create',

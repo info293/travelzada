@@ -93,7 +93,7 @@ function prepare(p: PackageDraft, email?: string | null): Record<string, any> {
     out.Day_Wise_Itinerary = p.Day_Wise_Itinerary_Details.map((d: any, i: number) => `Day ${i + 1}: ${d.title || ''}`).join(' | ')
   }
   if (out.Primary_Image_URL && !out.Meta_Image_URL) out.Meta_Image_URL = out.Primary_Image_URL
-  out.Last_Updated = new Date().toISOString().split('T')[0]
+  out.Last_Updated = new Date().toISOString()
   out.Created_By = email || 'Bulk Import'
   delete out.id
   return out

@@ -337,7 +337,7 @@ export function buildPackagePayload(
   if (!String(p.SEO_Description || '').trim() && p.Overview) p.SEO_Description = suggestSeoDescription(draft)
 
   // Automatic bookkeeping
-  p.Last_Updated = new Date().toISOString().split('T')[0]
+  p.Last_Updated = new Date().toISOString()
   p.Created_By = String(opts.original?.Created_By || '') || opts.userEmail || 'Admin'
 
   Object.keys(p).forEach((k) => {
